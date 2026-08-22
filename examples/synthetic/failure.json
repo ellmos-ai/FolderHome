@@ -1,0 +1,4 @@
+{
+  "scenario": "failure",
+  "description": "Ein synthetischer Fehler wird als fehlgeschlagene Aktion protokolliert."
+}

@@ -1,0 +1,6 @@
+Dokumenttyp: Arztbericht
+Dokumentdatum: 2026-06-20
+Fachbereich: Kardiologie
+Befund: Ein Ruhe-EKG wurde durchgeführt.
+Termin: 2026-09-03 10:30 Europe/Berlin | Kontrolltermin Kardiologie
+Dokumentierte Angabe: Allergie = Penicillin

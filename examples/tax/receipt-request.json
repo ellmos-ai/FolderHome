@@ -1,0 +1,13 @@
+{
+  "schema": "folderhome.tax-receipt-request.v1",
+  "request_id": "tax-receipt-demo",
+  "profile_id": "lukas",
+  "tax_year": 2026,
+  "receipt_date": "2026-03-15",
+  "amount_cents": 4990,
+  "document_id": "doc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "finance_transaction_id": null,
+  "category_candidate": "Arbeitsmittel",
+  "confirmed_category": null,
+  "note": "Synthetischer USB-Hub"
+}

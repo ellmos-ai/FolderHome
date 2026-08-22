@@ -1,0 +1,29 @@
+{
+  "schema": "folderhome.personal-note-request.v1",
+  "request_id": "hausarzt-fragen-2026",
+  "action": "create",
+  "profile_id": "lukas",
+  "notebook_id": "gesundheit",
+  "area": "gesundheit",
+  "title": "Fragen für den Hausarzt",
+  "human_content": "Ich möchte beim Termin nach dem weiteren Ablauf und den nächsten Unterlagen fragen.",
+  "note_id": null,
+  "expected_revision": null,
+  "revert_to_revision": null,
+  "references": [
+    {
+      "schema": "folderhome.personal-note-reference.v1",
+      "kind": "document",
+      "target_id": "doc_hausarztbericht_demo",
+      "label": "Synthetischer Hausarztbericht",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    {
+      "schema": "folderhome.personal-note-reference.v1",
+      "kind": "calendar",
+      "target_id": "calendar_event_kontrolltermin_demo",
+      "label": "Synthetischer Kontrolltermin",
+      "sha256": null
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "framework": "strands-agents",
+  "framework_version": "1.53.0",
+  "model_provider": "fixture",
+  "model_turns": 2,
+  "network_used": false,
+  "organizational_profile_id": "lukas",
+  "profiles_are_authorization_boundaries": false,
+  "prompt_sha256": "8ba3ae690706a0dc7a3421635a27bdb0473538b47ee6c974be502d9992b858ee",
+  "response_text": "Der Strands-Agent hat das lokale Themendossier erstellt.\n\n# Themendossier: Krankenversicherung\n\n> Lokale Fundstellen aus dem FolderHome-Dokumentindex; keine Rechts-, Finanz- oder Medizinbewertung.\n\n## Fundstellen\n\n### Krankenversicherung-2026.txt\n\nFundstelle für **Krankenversicherung**: synthetischer Tarifhinweis, Kontakt und Gültigkeit ab 2026.\n\n### Arztbericht-Hausarzt-2026.txt\n\nSynthetischer Arztbericht mit Hinweis zur **Krankenversicherung** und einer kontrollbedürftigen Fundstelle.",
+  "schema": "folderhome.strands-agent-report.v1",
+  "security_boundary": "operating_system_account",
+  "sensitive_cloud_data_authorized": false,
+  "side_effects": [],
+  "stop_reason": "end_turn",
+  "tool_events": [
+    {
+      "input_sha256": "90afbe601803b453b1a14446a6ee23aefeb879e4c1845e475ccfbc05acf92b48",
+      "result_sha256": "31998cbe2cb6ac1a2532228dd85338f22ba6cb4c06680f85937b54649f34eef9",
+      "schema": "folderhome.strands-tool-event.v1",
+      "sequence": 1,
+      "side_effects": [],
+      "status": "executed",
+      "tool_name": "build_home_theme_dossier"
+    }
+  ]
+}

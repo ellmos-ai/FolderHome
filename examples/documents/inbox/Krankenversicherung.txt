@@ -1,0 +1,3 @@
+Die Krankenversicherung ist ein vollständig synthetisches Beispiel. Der Tarif
+heißt TestPlus und der erfundene Monatsbeitrag beträgt 210 Euro. Es bestehen
+keine realen Ansprüche, Verträge oder personenbezogenen Daten.

@@ -1,0 +1,28 @@
+{
+  "schema": "folderhome.findcall-fixtures.v1",
+  "outcomes": {
+    "findcall_candidate_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa": {
+      "status": "BUSY",
+      "service_confirmed": false,
+      "available": false,
+      "offered_window": null,
+      "price_known": false,
+      "price_eur": null,
+      "commitment_made": false,
+      "summary": "Synthetische Leitung ist besetzt."
+    },
+    "findcall_candidate_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb": {
+      "status": "COMPLETED",
+      "service_confirmed": true,
+      "available": true,
+      "offered_window": {
+        "start_at": "2026-09-16T10:00:00+02:00",
+        "end_at": "2026-09-16T11:00:00+02:00"
+      },
+      "price_known": true,
+      "price_eur": 175.0,
+      "commitment_made": false,
+      "summary": "Synthetisches Angebot innerhalb der vorgegebenen Grenze."
+    }
+  }
+}

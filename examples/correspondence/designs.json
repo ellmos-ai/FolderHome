@@ -1,0 +1,53 @@
+{
+  "schema": "folderhome.letter-designs.v1",
+  "default_design_id": "classic",
+  "designs": [
+    {
+      "design_id": "classic",
+      "display_name": "Klassisch",
+      "page_size": "A4",
+      "margins_mm": [20, 20, 20, 20],
+      "font_family": "Arial",
+      "font_size_pt": 11,
+      "accent_color": "#1F4E78",
+      "header_text": "Private Korrespondenz",
+      "footer_text": "Vertraulich"
+    },
+    {
+      "design_id": "formal",
+      "display_name": "Formell",
+      "page_size": "A4",
+      "margins_mm": [25, 20, 25, 20],
+      "font_family": "Liberation Serif",
+      "font_size_pt": 11,
+      "accent_color": "#333333",
+      "header_text": "",
+      "footer_text": "Bitte schriftlich bestätigen."
+    },
+    {
+      "design_id": "lukas-insurance",
+      "display_name": "Lukas – Versicherungen",
+      "page_size": "A4",
+      "margins_mm": [22, 18, 22, 18],
+      "font_family": "Arial",
+      "font_size_pt": 10.5,
+      "accent_color": "#245A73",
+      "header_text": "Lukas Beispiel | Versicherungsangelegenheiten",
+      "footer_text": "Vertrauliche Privatkorrespondenz"
+    }
+  ],
+  "bindings": {
+    "areas": {
+      "versicherungen": "formal"
+    },
+    "purposes": {
+      "kuendigung": "formal"
+    },
+    "profiles": {
+      "lukas": "classic"
+    },
+    "profile_purposes": {
+      "lukas|kuendigung": "lukas-insurance"
+    }
+  }
+}

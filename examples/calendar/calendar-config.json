@@ -1,0 +1,6 @@
+{
+  "schema": "folderhome.calendar-config.v1",
+  "default_backend": "uptoday_ics",
+  "default_timezone": "Europe/Berlin",
+  "uptoday_ics_directory": "handoff/uptoday"
+}

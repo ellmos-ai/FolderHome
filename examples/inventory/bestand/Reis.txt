@@ -1,0 +1,8 @@
+Gegenstand: Reis
+Bereich: Küche
+Ort: Vorratsschrank
+Einheit: kg
+Menge: 1.5
+Mindestbestand: 2
+Erfasst-am: 2026-08-22
+Ablaufdatum: 2026-09-05

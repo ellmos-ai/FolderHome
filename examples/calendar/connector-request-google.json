@@ -1,0 +1,16 @@
+{
+  "schema": "folderhome.calendar-connector-request.v1",
+  "request_id": "google-lukas-kontrolltermin",
+  "profile_id": "lukas",
+  "account_id": "google-lukas",
+  "operations": [
+    "create",
+    "remind"
+  ],
+  "reminders": [
+    {
+      "method": "popup",
+      "minutes_before": 60
+    }
+  ]
+}

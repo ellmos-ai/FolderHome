@@ -1,0 +1,27 @@
+{
+  "framework": "strands-agents",
+  "framework_version": "1.53.0",
+  "model_provider": "fixture",
+  "model_turns": 2,
+  "network_used": false,
+  "organizational_profile_id": "lukas",
+  "profiles_are_authorization_boundaries": false,
+  "prompt_sha256": "d9bd0dec310311a9301e391338820d4b8c94bd2e77887a3510bcdfc9a4ed21f8",
+  "response_text": "Der Strands-Agent hat den lokalen Dokumentenindex durchsucht.\n- Krankenversicherung-2026.txt\n- Arztbericht-Hausarzt-2026.txt",
+  "schema": "folderhome.strands-agent-report.v1",
+  "security_boundary": "operating_system_account",
+  "sensitive_cloud_data_authorized": false,
+  "side_effects": [],
+  "stop_reason": "end_turn",
+  "tool_events": [
+    {
+      "input_sha256": "9990c53b6335ab84b16068fe5fba34541f317cf8671c35206f68f395cf822834",
+      "result_sha256": "623b39de559892b7948c595057e17e1c464180504657bed8d6c3f6912c48a78c",
+      "schema": "folderhome.strands-tool-event.v1",
+      "sequence": 1,
+      "side_effects": [],
+      "status": "executed",
+      "tool_name": "search_home_documents"
+    }
+  ]
+}

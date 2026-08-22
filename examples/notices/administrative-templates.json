@@ -1,0 +1,46 @@
+{
+  "schema": "folderhome.letter-templates.v1",
+  "templates": [
+    {
+      "template_id": "official-objection-draft",
+      "display_name": "Widerspruchsentwurf",
+      "purpose": "widerspruchsentwurf",
+      "subject": "Widerspruchsentwurf zu {notice_type} vom {notice_date}, {file_reference}",
+      "salutation": "Sehr geehrte Damen und Herren,",
+      "paragraphs": [
+        "hiermit erhebe ich Widerspruch gegen den bezeichneten Bescheid.",
+        "Von mir bereitgestellte Angaben: {user_statements}",
+        "Mein gewünschtes Ergebnis: {requested_outcome}",
+        "{review_notice}"
+      ],
+      "closing": "Mit freundlichen Grüßen"
+    },
+    {
+      "template_id": "official-response-draft",
+      "display_name": "Behördenantwortentwurf",
+      "purpose": "behoerdenantwortentwurf",
+      "subject": "Antwortentwurf zu {notice_type} vom {notice_date}, {file_reference}",
+      "salutation": "Sehr geehrte Damen und Herren,",
+      "paragraphs": [
+        "zu dem bezeichneten Bescheid teile ich Folgendes mit:",
+        "Von mir bereitgestellte Angaben: {user_statements}",
+        "Mein gewünschtes Ergebnis: {requested_outcome}",
+        "{review_notice}"
+      ],
+      "closing": "Mit freundlichen Grüßen"
+    },
+    {
+      "template_id": "benefit-application-draft",
+      "display_name": "Leistungsantragsentwurf",
+      "purpose": "leistungsantragsentwurf",
+      "subject": "Antragsentwurf: {requested_outcome}",
+      "salutation": "Sehr geehrte Damen und Herren,",
+      "paragraphs": [
+        "hiermit beantrage ich: {requested_outcome}",
+        "Von mir bereitgestellte Angaben: {user_statements}",
+        "{review_notice}"
+      ],
+      "closing": "Mit freundlichen Grüßen"
+    }
+  ]
+}

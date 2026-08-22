@@ -1,0 +1,16 @@
+{
+  "schema": "folderhome.findcall-request-input.v1",
+  "profile_id": "lukas",
+  "area": "mobilität",
+  "kind": "quote",
+  "service": "Bremsenprüfung Hyundai i10",
+  "location": "Beispielstadt",
+  "windows": [
+    {
+      "start_at": "2026-09-16T09:00:00+02:00",
+      "end_at": "2026-09-16T12:00:00+02:00"
+    }
+  ],
+  "max_distance_km": 20.0,
+  "max_price_eur": 180.0
+}

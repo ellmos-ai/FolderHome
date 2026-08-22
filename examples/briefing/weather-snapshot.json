@@ -1,0 +1,20 @@
+{
+  "schema": "folderhome.weather-snapshot.v1",
+  "provider_id": "synthetic-weather",
+  "provider_revision": "fixture-v1",
+  "source_url": "https://weather.example.invalid/berlin",
+  "location_label": "Berlin",
+  "latitude_microdegrees": 52520000,
+  "longitude_microdegrees": 13405000,
+  "observed_at": "2026-08-22T05:45:00+02:00",
+  "fetched_at": "2026-08-22T05:45:00+02:00",
+  "condition": "Leicht bewölkt",
+  "temperature_tenths_c": 184,
+  "feels_like_tenths_c": 179,
+  "humidity_percent": 61,
+  "wind_speed_tenths_kmh": 126,
+  "forecast_date": "2026-08-22",
+  "minimum_tenths_c": 142,
+  "maximum_tenths_c": 231,
+  "precipitation_probability_percent": 20
+}

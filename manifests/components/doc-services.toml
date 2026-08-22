@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "doc-services"
+name = "doc-services"
+version = "0.1.0"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "local://doc-services"
+revision = "037a432bbec94ac6db5dfa53941745fda7c2f38a"
+committed_at = "2026-08-18"
+
+[[capabilities]]
+id = "documents.extract"
+title = "Dokumentinhalt lokal extrahieren"
+side_effects = []
+dry_run_supported = true
+gate_required = false
+
+[[capabilities]]
+id = "documents.privacy_classify"
+title = "Dokumentinhalt auf sensible Daten prüfen"
+side_effects = []
+dry_run_supported = true
+gate_required = false

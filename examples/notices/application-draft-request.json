@@ -1,0 +1,30 @@
+{
+  "schema": "folderhome.administrative-draft-request.v1",
+  "draft_kind": "benefit_application",
+  "profile_id": "lukas",
+  "created_on": "2026-08-22",
+  "sender": {
+    "name": "Lukas Beispiel",
+    "address_lines": [
+      "Musterweg 1",
+      "12345 Beispielstadt"
+    ],
+    "email": "lukas@example.invalid",
+    "phone": null
+  },
+  "recipient": {
+    "name": "Beispiel-Sozialleistungsträger",
+    "address_lines": [
+      "Leistungsweg 2",
+      "12345 Beispielstadt"
+    ],
+    "email": null,
+    "phone": null
+  },
+  "requested_outcome": "Prüfung eines vollständig erfundenen Leistungsantrags",
+  "user_statements": [
+    "Alle Angaben dieses Beispiels sind synthetisch."
+  ],
+  "attachments": [],
+  "expected_notice_source_sha256": null
+}

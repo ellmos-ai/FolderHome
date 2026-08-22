@@ -1,0 +1,4 @@
+Synthetische Rechnung
+
+Rechnungsnummer: DEMO-2026-08
+Betrag: 12,34 EUR

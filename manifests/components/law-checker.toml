@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "law-checker"
+name = "law-checker"
+version = "0.2.2"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/law-checker.git"
+revision = "06fb8d57ff90638cc50f5e33c50dbba455ac6f1b"
+committed_at = "2026-08-20"
+
+[[capabilities]]
+id = "legal.registry.read"
+title = "Gepinnte Rechtsquellen-Registry lokal qualifizieren"
+side_effects = []
+dry_run_supported = true
+gate_required = false
+
+[[capabilities]]
+id = "legal.orientation.handoff"
+title = "Quellengebundene rechtliche Erstorientierung getrennt übergeben"
+side_effects = []
+dry_run_supported = true
+gate_required = true

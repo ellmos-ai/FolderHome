@@ -1,0 +1,11 @@
+Präparat: DemoMed
+Dosis: 1
+Dosiseinheit: Tablette
+Zeitpunkt: 08:00
+Zeitzone: Europe/Berlin
+Wochentage: täglich
+Gültig-von: 2026-08-22
+Gültig-bis: 2026-12-31
+Bestandsbereich: Gesundheit
+Bestandsgegenstand: DemoMed
+Bestandseinheit: Tablette

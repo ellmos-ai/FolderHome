@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "llm-note"
+name = "llm-note"
+version = "1.0.3"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/doc-bricks/llm-note.git"
+revision = "b5fe59fc155ded9603566aa0fb920a53181a2426"
+committed_at = "2026-07-22"
+
+[[capabilities]]
+id = "notes.read"
+title = "Lokale persönliche Notizen und Versionshistorie lesen"
+side_effects = []
+dry_run_supported = true
+gate_required = false
+
+[[capabilities]]
+id = "notes.write"
+title = "Bestätigte menschliche Notizversion lokal ergänzen"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true

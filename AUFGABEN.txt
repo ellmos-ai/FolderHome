@@ -1,0 +1,44 @@
+AUFGABEN - FolderHome V0.30.0
+============================
+Status: ALPHA-DAILY-BRIEFING
+Stand: 2026-08-22
+
+Hinweis: Die laufende Aufgabenpflege erfolgt kanonisch in TODO.md.
+Dieses File dokumentiert den Projekt-Onboarding-Status.
+
+OFFENE AUFGABEN:
+[ ] Sozialrechtliche Bescheide sicher verstehen - Aufwand: HOCH
+[ ] API und lokale GUI ergänzen - Aufwand: HOCH
+
+---
+ERLEDIGT (Archiv):
+- Phase-1-Verträge, Manifeste, Audit und CLI (0.1.0, 2026-08-21)
+- Phase-2-FCSA-Dry-Run-Bridge und synthetische Abnahme (2026-08-21)
+- Phase-3-Dokumenten-Ingest, Suche, Themendossier und Ordnerbericht (2026-08-21)
+- Phase-4-Dokumentversionen, Vergleich und FCSA-Archivierungsplan (2026-08-21)
+- Phase-5-Nutzerprofile und deterministische Regelvererbung (2026-08-21)
+- Phase-6-Dokumentaktionspläne und FCSA-Providerprüfung (2026-08-21)
+- Phase-7-TXT-/PDF-Dokumenttransformation (2026-08-21)
+- Phase-8-Typgruppen und ZIP-Paket (2026-08-21)
+- Phase-9-Ordnerzustände und Korrekturlernen (2026-08-21)
+- Phase-10-Beobachtungsprofile und Scanläufe (2026-08-21)
+- Phase-11-Plan-/Hash-Freigabe, Einzelaktion und Undo (2026-08-21)
+- Phase-12-Ordner-Aufräumplan und selektive Batchausführung (2026-08-21)
+- Phase-13-Beobachtungs- und Aufräumroutine (2026-08-21)
+- Phase-14-Mehrfach-Watch- und Scheduler-Queue (2026-08-21)
+- Phase-15-Portabler Scheduler-Handoff (2026-08-21)
+- Phase-16-Dokumentkontakte und lokales Register (2026-08-22)
+- Phase-17-Terminkandidaten, lokaler Kalender und ICS-Handoff (2026-08-22)
+- Phase-18-FindCall und Call-Plugin-Probes (2026-08-22)
+- Phase-19-Kontoauszüge, Kontoperioden und Abokandidaten (2026-08-22)
+- Phase-20-Haushalts- und Lagerbestand (2026-08-22)
+- Phase-21-Medikamentenplan und bestätigte Einnahme (2026-08-22)
+- Phase-22-Gesundheitsdossier und extraktive Arztbericht-Synthese (2026-08-22)
+- Phase-23-Versicherungs- und Vertragscockpit (2026-08-22)
+- Phase-24-Korrespondenzstudio für Vorlagen, Designs und Markdown/TXT (2026-08-22)
+- Phase-25-Artefaktstudio, Designset und SVG-Visitenkarte (2026-08-22)
+- Phase-26-Mail-Connector, Entwurfsgates und Idempotenzledger (2026-08-22)
+- Phase-27-Kalenderconnectoren und Erinnerungs-Handoffs (2026-08-22)
+- Phase-28-Geführte persönliche Notizen auf llm-note (2026-08-22)
+- Phase-29-Bestätigte Steuerbelege und private Arbeitsunterlagen (2026-08-22)
+- Phase-30-Lokaler Wetter- und Newspaper-Desktopbrief (2026-08-22)

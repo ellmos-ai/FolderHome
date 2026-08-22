@@ -1,0 +1,26 @@
+{
+  "schema": "folderhome.design-studio-request.v1",
+  "profile_id": "lukas",
+  "design_set_id": "folderhome-family",
+  "display_name": "FolderHome Familie",
+  "purpose": "Private Haushaltsorganisation",
+  "colors": {
+    "primary": "#17324D",
+    "on_primary": "#FFFFFF",
+    "background": "#F7F3EB",
+    "text": "#1B1D20",
+    "accent": "#D2693E"
+  },
+  "fonts": {
+    "heading": "Arial",
+    "body": "Arial"
+  },
+  "business_card": {
+    "name": "Lukas Grüner",
+    "role": "Familienorganisation",
+    "organization": "FolderHome",
+    "email": "lukas@example.invalid",
+    "phone": "+49 000 000000",
+    "website": "https://example.invalid"
+  }
+}

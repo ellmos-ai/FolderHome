@@ -1,0 +1,21 @@
+schema = "folderhome.component-manifest.v1"
+id = "ringedingeding"
+name = "Ringedingeding"
+version = "0.1.0"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/ringedingeding.git"
+revision = "01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf"
+committed_at = "2026-08-14T18:02:48+02:00"
+
+[[capabilities]]
+id = "calls.ring_cascade"
+title = "Kaskadierte Telefonanfrage ausführen"
+side_effects = ["network.request", "phone.call"]
+dry_run_supported = true
+gate_required = true

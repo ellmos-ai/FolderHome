@@ -1,0 +1,7 @@
+Kontokennung: giro-lukas
+Institut: Beispielbank
+Konto-Endung: 1234
+Zeitraum: 2026-02-01 | 2026-02-28
+Anfangssaldo: 98701 | EUR
+Endsaldo: 97402 | EUR
+Buchung: 2026-02-05 | -1299 | StreamFlix | subscription | tx-feb-stream

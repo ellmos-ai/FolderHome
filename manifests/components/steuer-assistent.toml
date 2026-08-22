@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "steuer-assistent"
+name = "steuer-assistent"
+version = "0.2.3"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/steuer-assistent.git"
+revision = "5d39aeec98bf0a5734bf07dc35a58aa9e1331309"
+committed_at = "2026-08-17"
+
+[[capabilities]]
+id = "tax.receipts.write"
+title = "Vom Nutzer eingeordneten Steuerbeleg lokal erfassen"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true
+
+[[capabilities]]
+id = "tax.workpaper.export"
+title = "Private nicht-amtliche Steuer-Arbeitsunterlage exportieren"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true

@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "folderhome"
+version = "0.1.0"
+description = "Local-first document and assistance service agent for everyday home workflows."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Lukas Geiger" }]
+dependencies = [
+  "strands-agents==1.53.0",
+  "tzdata==2026.3; platform_system == 'Windows'",
+]
+
+[project.optional-dependencies]
+transform = [
+  "pypdf>=4.0",
+  "Pillow>=10.0",
+  "reportlab>=4.0",
+]
+dev = [
+  "pytest>=9.0.3",
+  "ruff>=0.15",
+]
+
+[project.scripts]
+folderhome = "folderhome.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/folderhome"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

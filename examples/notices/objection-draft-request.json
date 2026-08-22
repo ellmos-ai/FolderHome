@@ -1,0 +1,32 @@
+{
+  "schema": "folderhome.administrative-draft-request.v1",
+  "draft_kind": "objection",
+  "profile_id": "lukas",
+  "created_on": "2026-08-22",
+  "sender": {
+    "name": "Lukas Beispiel",
+    "address_lines": [
+      "Musterweg 1",
+      "12345 Beispielstadt"
+    ],
+    "email": "lukas@example.invalid",
+    "phone": null
+  },
+  "recipient": {
+    "name": "Beispiel-Jobcenter",
+    "address_lines": [
+      "Musterstraße 1",
+      "12345 Beispielstadt"
+    ],
+    "email": null,
+    "phone": null
+  },
+  "requested_outcome": "erneute Prüfung der eingereichten Unterlage",
+  "user_statements": [
+    "Die synthetische Unterlage wurde am 2026-08-05 eingereicht."
+  ],
+  "attachments": [
+    "Kopie der synthetischen Unterlage"
+  ],
+  "expected_notice_source_sha256": "93972ef62b533cc593b43b07e3b29376c771d3a886b3a125dd429a3564969378"
+}

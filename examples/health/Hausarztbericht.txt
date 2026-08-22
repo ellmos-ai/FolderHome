@@ -1,0 +1,7 @@
+Dokumenttyp: Arztbericht
+Dokumentdatum: 2026-01-10
+Fachbereich: Hausarzt
+Befund: Blutdruck wurde mit 120/80 dokumentiert.
+Medikament: DemoMed 1 Tablette morgens.
+Dokumentierte Angabe: Allergie = keine
+Offene Frage: Wann ist die nächste Kontrolle?

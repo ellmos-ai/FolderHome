@@ -1,0 +1,7 @@
+Termin: Kontrolltermin
+Datum: 2026-09-14
+Uhrzeit: 10:30
+Ende: 11:00
+Ort: Praxis Beispiel
+Zeitzone: Europe/Berlin
+Hinweis: Dieser Termin und sämtliche Angaben sind vollständig synthetisch.

@@ -1,0 +1,28 @@
+{
+  "schema": "folderhome.mail-accounts.v1",
+  "accounts": [
+    {
+      "account_id": "family-mail",
+      "profile_id": "lukas",
+      "display_name": "Synthetisches Familienpostfach",
+      "address": "lukas@example.invalid",
+      "inbound": {
+        "protocol": "imap",
+        "host": "imap.example.invalid",
+        "port": 993,
+        "folder": "INBOX",
+        "credential_ref": "keyring://folderhome/family-mail/imap",
+        "provider_id": "universal-docs-grabber",
+        "provider_revision": "0ccd03455b63acbca6e71cc48ba464f208a759cd"
+      },
+      "outbound": {
+        "protocol": "smtp",
+        "host": "smtp.example.invalid",
+        "port": 465,
+        "credential_ref": "keyring://folderhome/family-mail/smtp",
+        "provider_id": "folderhome.synthetic-mail",
+        "provider_revision": null
+      }
+    }
+  ]
+}

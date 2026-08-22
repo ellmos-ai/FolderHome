@@ -1,0 +1,21 @@
+{
+  "schema": "folderhome.contract-cockpit-request.v1",
+  "profile_id": "lukas",
+  "area": "versicherungen",
+  "display_name": "KFZ-Versicherung Hyundai i10",
+  "document_query": "KFZ Versicherung Hyundai i10",
+  "object_ref": "Hyundai i10",
+  "counterparty_terms": [
+    "Beispiel Versicherung"
+  ],
+  "calendar_terms": [
+    "Hyundai i10",
+    "KFZ-Versicherung"
+  ],
+  "account_refs": [
+    "giro-lukas"
+  ],
+  "coverage_start": "2026-01-01",
+  "as_of": "2026-08-22",
+  "archive_older_versions": true
+}

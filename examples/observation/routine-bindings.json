@@ -1,0 +1,12 @@
+{
+  "schema": "folderhome.routine-bindings.v1",
+  "bindings": [
+    {
+      "binding_id": "synthetic_inbox_cleanup",
+      "watch_id": "synthetic_inbox",
+      "target_dir": "../synthetic/routine-output",
+      "mode": "changes",
+      "enabled": true
+    }
+  ]
+}

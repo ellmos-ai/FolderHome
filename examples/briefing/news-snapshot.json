@@ -1,0 +1,32 @@
+{
+  "schema": "folderhome.news-snapshot.v1",
+  "provider_id": "synthetic-news",
+  "provider_revision": "fixture-v1",
+  "fetched_at": "2026-08-22T05:50:00+02:00",
+  "articles": [
+    {
+      "schema": "folderhome.news-article.v1",
+      "article_id": "news_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "title": "Neue Bibliothek eröffnet",
+      "summary": "Die erfundene Stadtbibliothek erweitert ihr Angebot.",
+      "source_name": "Beispiel Nachrichten",
+      "source_url": "https://news.example.invalid/feed.xml",
+      "article_url": "https://news.example.invalid/bibliothek",
+      "category": "lokales",
+      "published_at": "2026-08-22T05:30:00+02:00",
+      "fetched_at": "2026-08-22T05:50:00+02:00"
+    },
+    {
+      "schema": "folderhome.news-article.v1",
+      "article_id": "news_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "title": "Forschungsteam veröffentlicht Datensatz",
+      "summary": "Ein rein synthetischer Datensatz steht zur Prüfung bereit.",
+      "source_name": "Beispiel Wissenschaft",
+      "source_url": "https://science.example.invalid/feed.xml",
+      "article_url": "https://science.example.invalid/datensatz",
+      "category": "wissenschaft",
+      "published_at": "2026-08-22T05:00:00+02:00",
+      "fetched_at": "2026-08-22T05:50:00+02:00"
+    }
+  ]
+}

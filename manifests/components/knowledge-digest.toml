@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "KnowledgeDigest"
+name = "KnowledgeDigest"
+version = "0.4.0"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/file-bricks/knowledgedigest.git"
+revision = "7040c66aa9326975ad81c156acf0d49fd5dca60f"
+committed_at = "2026-08-14"
+
+[[capabilities]]
+id = "documents.index"
+title = "Dokumente in einem lokalen Suchindex erfassen"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true
+
+[[capabilities]]
+id = "documents.search"
+title = "Lokalen Dokumentindex durchsuchen"
+side_effects = []
+dry_run_supported = true
+gate_required = false

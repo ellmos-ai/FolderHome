@@ -1,0 +1,18 @@
+{
+  "schema": "folderhome.daily-briefing-request.v1",
+  "request_id": "morning-brief-demo",
+  "profile_id": "lukas",
+  "briefing_date": "2026-08-22",
+  "as_of": "2026-08-22T06:00:00+02:00",
+  "timezone": "Europe/Berlin",
+  "title": "FolderHome Morgenbrief",
+  "categories": [
+    "lokales",
+    "wissenschaft"
+  ],
+  "max_items_per_category": 2,
+  "max_weather_age_minutes": 180,
+  "max_news_age_minutes": 180,
+  "weather_snapshot_path": "weather-snapshot.json",
+  "news_snapshot_path": "news-snapshot.json"
+}

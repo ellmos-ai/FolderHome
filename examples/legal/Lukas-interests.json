@@ -1,0 +1,21 @@
+{
+  "schema": "folderhome.legal-interest-snapshot.v1",
+  "profile_id": "lukas",
+  "provided_on": "2026-08-22",
+  "interests": [
+    {
+      "interest_id": "health-insurance-profile",
+      "subject_kind": "profile",
+      "subject_ref": "lukas",
+      "topics": ["krankenversicherung"],
+      "basis": "user_provided"
+    },
+    {
+      "interest_id": "hyundai-insurance-contract",
+      "subject_kind": "contract",
+      "subject_ref": "contract-hyundai-i10",
+      "topics": ["kfz-versicherung"],
+      "basis": "user_provided"
+    }
+  ]
+}

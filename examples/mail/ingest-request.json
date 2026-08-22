@@ -1,0 +1,11 @@
+{
+  "schema": "folderhome.mail-ingest-request.v1",
+  "request_id": "insurance-mail",
+  "profile_id": "lukas",
+  "account_id": "family-mail",
+  "folder": "INBOX",
+  "query": "Hyundai i10 Versicherung",
+  "max_messages": 25,
+  "include_attachments": true,
+  "target_ref": "folder://Versicherungen/Hyundai-i10/Eingang"
+}

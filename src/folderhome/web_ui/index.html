@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>FolderHome – Assistantify your home</title>
+  <link rel="icon" href="/assets/favicon.svg?token=__FOLDERHOME_TOKEN__" type="image/svg+xml">
+  <link rel="stylesheet" href="/assets/app.css?token=__FOLDERHOME_TOKEN__">
+</head>
+<body>
+  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome Startseite">
+        <span class="brand-mark" aria-hidden="true">FH</span>
+        <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
+      </a>
+      <div class="local-badge"><span aria-hidden="true"></span>Lokal auf diesem Betriebssystemkonto</div>
+    </header>
+
+    <main id="main">
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Dokument- und Assistenzservice</p>
+          <h1 id="hero-title">Deine Dokumente.<br><em>Dein Alltag.</em> Ein Ort.</h1>
+          <p class="hero-copy">Finde verstreute Informationen, fasse Themen zusammen und behalte deine privaten Unterlagen lokal im Blick.</p>
+        </div>
+        <aside class="boundary-card" aria-labelledby="boundary-title">
+          <div class="boundary-icon" aria-hidden="true">⌂</div>
+          <div>
+            <p id="boundary-title">Sicherheitsgrenze</p>
+            <strong>Betriebssystemkonto</strong>
+            <small>Familienprofile organisieren – sie erteilen keine Zugriffsrechte.</small>
+          </div>
+        </aside>
+      </section>
+
+      <section class="workspace" aria-labelledby="search-title">
+        <p class="folder-tab">Aktiver Arbeitsordner</p>
+        <div class="workspace-head">
+          <div>
+            <p class="eyebrow">Dokumentensuche</p>
+            <h2 id="search-title">Was möchtest du finden?</h2>
+          </div>
+          <label class="profile-control">Profil
+            <select id="profile-select" aria-label="Organisatorisches Profil"></select>
+          </label>
+        </div>
+        <form id="search-form">
+          <label class="search-field" for="query">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input id="query" name="query" autocomplete="off" maxlength="500" required
+              placeholder="Ich suche ein Dokument über meine Krankenversicherung …">
+          </label>
+          <div class="actions" aria-live="polite">
+            <button class="button primary" type="submit" data-mode="search">Dokument suchen</button>
+            <button class="button secondary" type="button" id="dossier-button">Themendossier erstellen</button>
+          </div>
+        </form>
+        <p class="hint" id="search-hint">Die Suche liest nur den vorhandenen lokalen Index. Sie verändert keine Datei.</p>
+      </section>
+
+      <section id="result-section" class="results" aria-labelledby="result-title" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Ergebnis</p>
+            <h2 id="result-title">Lokale Fundstellen</h2>
+          </div>
+          <span id="result-count" class="count-pill"></span>
+        </div>
+        <div id="result-content" aria-live="polite"></div>
+      </section>
+
+      <section class="capability-section" aria-labelledby="capability-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Ein Zuhause, viele Abläufe</p>
+            <h2 id="capability-title">Was FolderHome zusammenführt</h2>
+          </div>
+          <span id="connection-state" class="connection-state" role="status" aria-live="polite">Verbindung wird geprüft …</span>
+        </div>
+        <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <footer>
+      <p>FolderHome arbeitet lokal, transparent und mit bewussten Freigaben.</p>
+      <p id="runtime-account"></p>
+    </footer>
+  </div>
+  <script src="/assets/app.js?token=__FOLDERHOME_TOKEN__" defer></script>
+</body>
+</html>

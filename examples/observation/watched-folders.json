@@ -1,0 +1,14 @@
+{
+  "schema": "folderhome.watched-folders.v1",
+  "watches": [
+    {
+      "watch_id": "synthetic_inbox",
+      "source_dir": "../documents/inbox",
+      "profile_id": "lukas",
+      "area": "versicherungen",
+      "interval_minutes": 1440,
+      "recursive": true,
+      "enabled": true
+    }
+  ]
+}

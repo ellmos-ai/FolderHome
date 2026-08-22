@@ -1,0 +1,19 @@
+{
+  "schema": "folderhome.artifact-studio-request.v1",
+  "request_id": "family-overview",
+  "profile_id": "lukas",
+  "purpose": "Haushaltsüberblick für die Familie",
+  "title": "FolderHome Familienüberblick",
+  "artifact_kinds": [
+    "presentation",
+    "spreadsheet",
+    "document",
+    "odt",
+    "design_set",
+    "business_card",
+    "media"
+  ],
+  "source_refs": [
+    "doc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ]
+}

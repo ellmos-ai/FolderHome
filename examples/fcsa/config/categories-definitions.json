@@ -1,0 +1,44 @@
+{
+  "categories": [
+    {
+      "id": "invoices",
+      "display_name": "Rechnungen",
+      "detection": {
+        "filename_patterns": [
+          "(?i)rechnung"
+        ],
+        "extensions": [
+          ".txt"
+        ],
+        "content_patterns": [
+          "(?i)rechnungsnummer"
+        ]
+      },
+      "checks": [],
+      "gates": [],
+      "default_target": "examples/fcsa/sorted/rechnungen",
+      "default_actions": [
+        "duplicate_check",
+        "move"
+      ],
+      "default_stepping": true
+    },
+    {
+      "id": "notes",
+      "display_name": "Notizen",
+      "detection": {
+        "extensions": [
+          ".md"
+        ]
+      },
+      "checks": [],
+      "gates": [],
+      "default_target": "examples/fcsa/sorted/notizen",
+      "default_actions": [
+        "move"
+      ],
+      "default_stepping": true
+    }
+  ],
+  "fallback_category": "unsorted"
+}

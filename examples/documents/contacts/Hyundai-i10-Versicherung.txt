@@ -1,0 +1,9 @@
+Organisation: Beispiel Versicherung AG
+Ansprechpartner: Erika Beispiel
+Rolle: Kundenservice
+Zuständig für: KFZ-Versicherung
+Vertragsobjekt: Hyundai i10
+E-Mail: erika.beispiel@example.invalid
+Telefon: +49 30 123456
+Gültig ab: 2026-08-01
+Hinweis: Dieses Dokument und sämtliche Angaben sind vollständig synthetisch.

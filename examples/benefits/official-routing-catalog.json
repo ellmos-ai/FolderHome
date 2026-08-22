@@ -1,0 +1,133 @@
+{
+  "schema": "folderhome.benefit-catalog.v1",
+  "catalog_version": "2026-08-22",
+  "coverage_statement": "Unvollständige Orientierung mit drei amtlichen Handoffs; keine vollständige Leistungs- oder Regelabdeckung.",
+  "complete": false,
+  "sources": [
+    {
+      "source_id": "source-sozialplattform-finder",
+      "publisher": "Sozialplattform",
+      "title": "Sozialleistungen finden",
+      "official_url": "https://sozialplattform.de/inhalt/sozialleistungen-finden",
+      "checked_at": "2026-08-22T06:30:00+02:00",
+      "evidence_summary": "Der Sozialleistungsfinder liefert nur Orientierung; die zuständige Stelle entscheidet über die tatsächliche Leistung.",
+      "evidence_summary_sha256": "ebb73c49b1b71bc34925866be5e197309cbfcd9a4f739281eba16b176f2a4786",
+      "authoritative": true
+    },
+    {
+      "source_id": "source-ba-kiz-lotse",
+      "publisher": "Bundesagentur für Arbeit",
+      "title": "KiZ-Lotse",
+      "official_url": "https://www.arbeitsagentur.de/familie-und-kinder/kinderzuschlag-verstehen/kiz-lotse",
+      "checked_at": "2026-08-22T06:30:00+02:00",
+      "evidence_summary": "Der KiZ-Lotse prüft anhand von Angaben zu Kindern, Grundsicherung, Einkommen und Miete, ob Kinderzuschlag in Betracht kommt; die Höhe berechnet er nicht.",
+      "evidence_summary_sha256": "2396bfe4c75bbb4eee9dbde84879af6dc38c5a38ae4bce05656349b5a9b8a8d3",
+      "authoritative": true
+    },
+    {
+      "source_id": "source-bmwsb-wohngeld",
+      "publisher": "Bundesministerium für Wohnen, Stadtentwicklung und Bauwesen",
+      "title": "Wohngeld-Plus-Rechner",
+      "official_url": "https://www.bmwsb.bund.de/DE/wohnen/wohngeld/wohngeldrechner/wohngeldrechner-2025_artikel.html",
+      "checked_at": "2026-08-22T06:30:00+02:00",
+      "evidence_summary": "Der Wohngeld-Plus-Rechner bietet eine erste Orientierung zu einem möglichen Wohngeldanspruch und einer möglichen Höhe.",
+      "evidence_summary_sha256": "dcd014c40d3ebcb5cbe647c7f903e56fafab14798c0d0f2f4d7807784edc3b60",
+      "authoritative": true
+    }
+  ],
+  "programs": [
+    {
+      "program_id": "social-benefit-finder",
+      "name": "Allgemeiner Sozialleistungsfinder",
+      "provider": "Sozialplattform",
+      "official_info_url": "https://sozialplattform.de/inhalt/sozialleistungen-finden",
+      "official_precheck_url": "https://sozialplattform.de/inhalt/sozialleistungen-finden",
+      "source_ids": [
+        "source-sozialplattform-finder"
+      ],
+      "routing_criteria": [
+        {
+          "criterion_id": "criterion-finder-country",
+          "fact_key": "residence_country",
+          "operator": "eq",
+          "expected": "DE",
+          "explanation": "Deutschlandbezug als grobes Routingmerkmal zum deutschen Sozialleistungsfinder",
+          "source_id": "source-sozialplattform-finder"
+        }
+      ],
+      "unmodeled_requirements": [
+        "Lebenssituation, konkrete Leistungsarten, Ausschlüsse und örtliche Zuständigkeit"
+      ]
+    },
+    {
+      "program_id": "child-supplement",
+      "name": "Kinderzuschlag-Lotse",
+      "provider": "Bundesagentur für Arbeit",
+      "official_info_url": "https://www.arbeitsagentur.de/familie-und-kinder/kinderzuschlag-verstehen/kiz-lotse",
+      "official_precheck_url": "https://web.arbeitsagentur.de/kiz/ui/start/",
+      "source_ids": [
+        "source-ba-kiz-lotse"
+      ],
+      "routing_criteria": [
+        {
+          "criterion_id": "criterion-kiz-country",
+          "fact_key": "residence_country",
+          "operator": "eq",
+          "expected": "DE",
+          "explanation": "Deutschlandbezug als grobes Routingmerkmal",
+          "source_id": "source-ba-kiz-lotse"
+        },
+        {
+          "criterion_id": "criterion-kiz-child",
+          "fact_key": "has_child_in_household",
+          "operator": "eq",
+          "expected": true,
+          "explanation": "Kind im Haushalt als grobes Routingmerkmal",
+          "source_id": "source-ba-kiz-lotse"
+        },
+        {
+          "criterion_id": "criterion-kiz-kindergeld",
+          "fact_key": "receives_child_benefit",
+          "operator": "eq",
+          "expected": true,
+          "explanation": "Kindergeldbezug als grobes Routingmerkmal",
+          "source_id": "source-ba-kiz-lotse"
+        }
+      ],
+      "unmodeled_requirements": [
+        "Alter und Familienstand der Kinder, Einkommen, Vermögen, Wohnkosten, andere Leistungen und Einzelfallberechnung"
+      ]
+    },
+    {
+      "program_id": "housing-benefit",
+      "name": "Wohngeld-Plus-Rechner",
+      "provider": "Bundesministerium für Wohnen, Stadtentwicklung und Bauwesen",
+      "official_info_url": "https://www.bmwsb.bund.de/DE/wohnen/wohngeld/wohngeldrechner/wohngeldrechner-2025_artikel.html",
+      "official_precheck_url": "https://www.bmwsb.bund.de/DE/wohnen/wohngeld/wohngeldrechner/wohngeldrechner-2025_artikel.html",
+      "source_ids": [
+        "source-bmwsb-wohngeld"
+      ],
+      "routing_criteria": [
+        {
+          "criterion_id": "criterion-housing-country",
+          "fact_key": "residence_country",
+          "operator": "eq",
+          "expected": "DE",
+          "explanation": "Deutschlandbezug als grobes Routingmerkmal",
+          "source_id": "source-bmwsb-wohngeld"
+        },
+        {
+          "criterion_id": "criterion-housing-cost",
+          "fact_key": "has_housing_costs",
+          "operator": "eq",
+          "expected": true,
+          "explanation": "Miet- oder Belastungskosten als grobes Routingmerkmal",
+          "source_id": "source-bmwsb-wohngeld"
+        }
+      ],
+      "unmodeled_requirements": [
+        "Haushaltsmitglieder, Einkommen, Mietenstufe, berücksichtigungsfähige Belastung, Ausschlüsse und örtliche Zuständigkeit"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "folderhome.legal-source-snapshot.v1",
+  "law_id": "synthetic-social-law",
+  "law_title": "Synthetisches Sozialgesetz",
+  "law_checker_registry_key": null,
+  "publication_stage": "consolidated_current",
+  "publisher": "Teststelle",
+  "official_url": "https://example.invalid/synthetic-social-law",
+  "checked_at": "2026-08-21T07:30:00+02:00",
+  "source_date": "2026-08-21",
+  "authoritative": false,
+  "fixture_only": true,
+  "complete": false,
+  "coverage_statement": "Synthetischer Abnahmefall; nur ein Testabschnitt ist erfasst.",
+  "provisions": [
+    {
+      "provision_id": "section-demo",
+      "heading": "Synthetischer Testabschnitt",
+      "text": "Alter synthetischer Wortlaut.",
+      "text_sha256": "7b14b01147d248e26a8b3d8521d5bffab310560f645d1d57dd5bad4dce883715",
+      "topics": ["krankenversicherung", "beitraege"]
+    }
+  ]
+}

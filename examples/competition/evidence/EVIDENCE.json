@@ -1,0 +1,33 @@
+{
+  "artifact_sha256": {
+    "01-document-search.json": "7fdd64a9153b36a97db291162686b1217902e3ef914670f83be6a5e1b597921e",
+    "02-theme-dossier.json": "018b4fa9278e0546cd7930e76bb39aeb080b19b52dfbf9ed3e88ae7dbad1426f",
+    "DEMO.md": "17aeb3fca698adffae895f4488713c2b8dd7fa13428924a49b5013ee42344b9e"
+  },
+  "checks": {
+    "external_network_used": false,
+    "organizational_profiles_are_authorization_boundaries": false,
+    "real_personal_data_used": false,
+    "sensitive_cloud_data_authorized": false,
+    "sequential_tool_execution": true,
+    "side_effects_performed": false,
+    "strands_agent_loop": true
+  },
+  "fixture_only": true,
+  "scenarios": [
+    {
+      "response_sha256": "e7d2a3793275fd58a8f3b52e9cf2fabe6d6ff865494c440329934f8373addedd",
+      "scenario_id": "document-search",
+      "status": "passed",
+      "tool_name": "search_home_documents"
+    },
+    {
+      "response_sha256": "a8b540bcd6fbcf993f0b123cfaf7619b2c3eed6923ccc0776b5562ad27f16bbe",
+      "scenario_id": "theme-dossier",
+      "status": "passed",
+      "tool_name": "build_home_theme_dossier"
+    }
+  ],
+  "schema": "folderhome.competition-demo-evidence.v1",
+  "status": "passed"
+}

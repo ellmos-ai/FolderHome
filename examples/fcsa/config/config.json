@@ -1,0 +1,21 @@
+{
+  "scan_paths": [
+    "examples/fcsa/inbox"
+  ],
+  "include_formats": null,
+  "exclude_formats": [
+    ".tmp",
+    ".part"
+  ],
+  "duplication_detection_rules": {
+    "on_duplicate": "rename",
+    "hash_algorithm": "sha256"
+  },
+  "state_dir": "examples/fcsa/runtime/state",
+  "trash_dir": "examples/fcsa/runtime/trash",
+  "allow_hard_delete": false,
+  "require_dry_run_before_live": true,
+  "ocr_backend": {
+    "type": "none"
+  }
+}

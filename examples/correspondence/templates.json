@@ -1,0 +1,17 @@
+{
+  "schema": "folderhome.letter-templates.v1",
+  "templates": [
+    {
+      "template_id": "insurance-cancellation",
+      "display_name": "Versicherung kündigen",
+      "purpose": "kuendigung",
+      "subject": "Kündigung der Versicherung {policy_number}",
+      "salutation": "Sehr geehrte Damen und Herren,",
+      "paragraphs": [
+        "hiermit kündige ich die Versicherung für {vehicle} fristgerecht zum {termination_date}.",
+        "Bitte bestätigen Sie mir die Kündigung und das Vertragsende schriftlich."
+      ],
+      "closing": "Mit freundlichen Grüßen"
+    }
+  ]
+}

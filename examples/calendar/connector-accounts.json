@@ -1,0 +1,35 @@
+{
+  "schema": "folderhome.calendar-connector-accounts.v1",
+  "accounts": [
+    {
+      "account_id": "uptoday-lukas",
+      "profile_id": "lukas",
+      "backend": "uptoday_ics",
+      "display_name": "UpToday ICS",
+      "provider_id": "module:uptoday-ics",
+      "provider_revision": "7582ca87e17e458bb99a7379d2c54003c15415a4",
+      "calendar_id": "uptoday-local",
+      "credential_ref": null
+    },
+    {
+      "account_id": "routinika-lukas",
+      "profile_id": "lukas",
+      "backend": "routinika",
+      "display_name": "Routinika",
+      "provider_id": "bundle:routinika",
+      "provider_revision": "3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2",
+      "calendar_id": "routinika-local",
+      "credential_ref": null
+    },
+    {
+      "account_id": "google-lukas",
+      "profile_id": "lukas",
+      "backend": "google",
+      "display_name": "Google Kalender",
+      "provider_id": "skill:google-calendar",
+      "provider_revision": "google-calendar-skill@1.2.5",
+      "calendar_id": "primary",
+      "credential_ref": "connector://google-calendar/default"
+    }
+  ]
+}

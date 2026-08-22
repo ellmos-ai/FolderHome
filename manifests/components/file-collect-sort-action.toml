@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "file-collect-sort-action"
+name = "file-collect-sort-action"
+version = "0.1.0"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/file-collect-sort-action.git"
+revision = "8ebac2739c11c6a041abdd7b30131cef648b4753"
+committed_at = "2026-08-18T22:11:16+02:00"
+
+[[capabilities]]
+id = "documents.inspect_plan"
+title = "Dokumentbestand analysieren und Sortierplan erstellen"
+side_effects = []
+dry_run_supported = true
+gate_required = false
+
+[[capabilities]]
+id = "documents.collect_sort"
+title = "Dokumente sammeln und sortieren"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true

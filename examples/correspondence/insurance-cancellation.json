@@ -1,0 +1,37 @@
+{
+  "schema": "folderhome.correspondence-request.v1",
+  "profile_id": "lukas",
+  "area": "versicherungen",
+  "purpose": "kuendigung",
+  "template_id": "insurance-cancellation",
+  "created_on": "2026-08-22",
+  "sender": {
+    "name": "Lukas Beispiel",
+    "address_lines": [
+      "Musterweg 1",
+      "12345 Beispielstadt"
+    ],
+    "email": "lukas@example.invalid",
+    "phone": null
+  },
+  "recipient": {
+    "name": "Beispiel Versicherung AG",
+    "address_lines": [
+      "Versicherungsplatz 2",
+      "54321 Beispielstadt"
+    ],
+    "email": null,
+    "phone": null
+  },
+  "variables": {
+    "policy_number": "SYN-4711",
+    "vehicle": "Hyundai i10",
+    "termination_date": "31.12.2026"
+  },
+  "attachments": [
+    "Versicherungsschein in Kopie"
+  ],
+  "evidence_refs": [
+    "doc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  ]
+}

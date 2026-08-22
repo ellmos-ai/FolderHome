@@ -1,0 +1,23 @@
+{
+  "schema": "folderhome.user-profile.v1",
+  "profile_id": "hanna",
+  "display_name": "Hanna Beispiel",
+  "os_account": "synthetic-family-account",
+  "organizational_only": true,
+  "rules": [
+    {
+      "rule_id": "rule_hanna_household_naming",
+      "key": "naming.template",
+      "value": "Hanna_Haushalt_{date}_{name}",
+      "scope": "profile_area",
+      "area": "haushalt"
+    },
+    {
+      "rule_id": "rule_hanna_household_target",
+      "key": "sort.target",
+      "value": "Haushalt/Hanna",
+      "scope": "profile_area",
+      "area": "haushalt"
+    }
+  ]
+}

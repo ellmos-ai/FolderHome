@@ -1,0 +1,27 @@
+{
+  "schema": "folderhome.benefit-profile-snapshot.v1",
+  "profile_id": "lukas",
+  "provided_on": "2026-08-22",
+  "facts": [
+    {
+      "fact_key": "residence_country",
+      "value": "DE",
+      "basis": "user_provided"
+    },
+    {
+      "fact_key": "has_child_in_household",
+      "value": true,
+      "basis": "user_provided"
+    },
+    {
+      "fact_key": "receives_child_benefit",
+      "value": true,
+      "basis": "user_provided"
+    },
+    {
+      "fact_key": "has_housing_costs",
+      "value": true,
+      "basis": "user_provided"
+    }
+  ]
+}

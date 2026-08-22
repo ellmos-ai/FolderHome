@@ -1,0 +1,21 @@
+{
+  "schema": "folderhome.findcall-candidates.v1",
+  "candidates": [
+    {
+      "candidate_id": "findcall_candidate_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "name": "Werkstatt Beispiel A",
+      "phone_e164": "+4915111111111",
+      "services": ["Bremsenprüfung Hyundai i10"],
+      "distance_km": 4.0,
+      "priority": 2
+    },
+    {
+      "candidate_id": "findcall_candidate_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "name": "Werkstatt Beispiel B",
+      "phone_e164": "+4915222222222",
+      "services": ["Bremsenprüfung Hyundai i10"],
+      "distance_km": 6.0,
+      "priority": 1
+    }
+  ]
+}

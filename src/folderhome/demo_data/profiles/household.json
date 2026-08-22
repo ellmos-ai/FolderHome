@@ -1,0 +1,51 @@
+{
+  "schema": "folderhome.household-rules.v1",
+  "os_account": "synthetic-family-account",
+  "rules": [
+    {
+      "rule_id": "rule_global_naming",
+      "key": "naming.template",
+      "value": "{date}_{name}",
+      "scope": "global"
+    },
+    {
+      "rule_id": "rule_global_archive_folder",
+      "key": "archive.folder",
+      "value": "Archiv",
+      "scope": "global"
+    },
+    {
+      "rule_id": "rule_global_delete",
+      "key": "delete.mode",
+      "value": "review_only",
+      "scope": "global"
+    },
+    {
+      "rule_id": "rule_global_scan",
+      "key": "scan.interval_minutes",
+      "value": 1440,
+      "scope": "global"
+    },
+    {
+      "rule_id": "rule_insurance_archive",
+      "key": "archive.after_days",
+      "value": 3650,
+      "scope": "area",
+      "area": "versicherungen"
+    },
+    {
+      "rule_id": "rule_insurance_format",
+      "key": "format.required",
+      "value": "pdf",
+      "scope": "area",
+      "area": "versicherungen"
+    },
+    {
+      "rule_id": "rule_insurance_original",
+      "key": "conversion.original",
+      "value": "gardener_storage",
+      "scope": "area",
+      "area": "versicherungen"
+    }
+  ]
+}

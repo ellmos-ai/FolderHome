@@ -1,0 +1,21 @@
+schema = "folderhome.component-manifest.v1"
+id = "hungrycall"
+name = "HungryCall"
+version = "0.1.0"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/hungrycall.git"
+revision = "d2138476d23234cf1d23ec9609f124c58455b8e7"
+committed_at = "2026-08-14T15:35:34+02:00"
+
+[[capabilities]]
+id = "calls.hungry_cascade"
+title = "Kaskadierte Anfrage an Gastronomiebetriebe"
+side_effects = ["network.request", "phone.call"]
+dry_run_supported = true
+gate_required = true
