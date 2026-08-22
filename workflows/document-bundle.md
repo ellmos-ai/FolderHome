@@ -1,64 +1,56 @@
-# Workflow: Dokumente als TXT oder PDF bündeln
+# Workflow: Bundle Documents as TXT or PDF
 
-> **Last verified:** 2026-08-21
-> **Frequency:** ad-hoc
-> **Duration:** abhängig von Dokumentzahl, Seitenzahl und Bildgröße
+**English** | [Deutsch](./document-bundle.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** ad-hoc  
+> **Duration:** dependent on number of documents, page count, and image size  
 
 ## Purpose
 
-Einen ausdrücklich gewählten Ordner als eine neue TXT- oder PDF-Datei
-zusammenführen, ohne Originale zu verändern, zu archivieren oder zu löschen.
+Merge a deliberately selected folder into a new TXT or PDF file without altering, archiving, or deleting the originals.
 
 ## Preconditions
 
-- Quellordner, neue Ausgabedatei und Ausgabeformat sind ausdrücklich gewählt.
-- Für PDF-Rendering sind die optionalen Transformationsabhängigkeiten
-  installiert.
-- doc-services entspricht dem gepinnten sauberen Checkout.
-- Der Ausgabeordner existiert und ist kein symbolischer Link.
+- Source folder, new output file, and output format are deliberately selected.  
+- Optional transformation dependencies for PDF rendering are installed.  
+- doc-services corresponds to the pinned clean checkout.  
+- The output folder exists and is not a symbolic link.
 
 ## Steps
 
-1. **Quellen sammeln** — Dateien werden nach relativem Pfad deterministisch
-   geordnet; Symlinks und doppelte Quellen sind unzulässig.
-2. **Inhalt gewinnen** — Textquellen gehen durch doc-services. PDF-Seiten und
-   Bilder können für PDF ohne OCR direkt übernommen werden.
-3. **Plan prüfen** — Jede Quelle nennt Hash, Datenschutzstatus, Behandlung,
-   Qualitätsgrenze und möglichen Verlust; Rohtext erscheint nicht im Plan.
-4. **Gate entscheiden** — Ohne `--approve-output-write` endet der Ablauf nach
-   dem Plan und schreibt keine Bündeldatei.
-5. **Quellen erneut prüfen** — Unmittelbar vor dem Rendern müssen Pfad und
-   SHA-256 noch zum Plan passen.
-6. **Im Speicher rendern** — TXT bleibt UTF-8; PDF montiert Seiten, rastert
-   Bilder oder setzt extrahierten Text mit sichtbarem Layoutverlust neu.
-7. **Atomar veröffentlichen** — Das Ziel wird nur neu angelegt und niemals
-   ersetzt.
-8. **Ergebnis belegen** — Ausgabehash, Größe, optionale Seitenzahl und alle
-   Quelldokument-IDs werden im Resultat festgehalten.
+1. **Collect sources** — Files are deterministically ordered by relative path; symlinks and duplicate sources are not allowed.  
+2. **Extract content** — Text sources go through doc-services. PDF pages and images can be taken directly for PDF without OCR.  
+3. **Validate plan** — Each source lists hash, privacy status, handling, quality threshold, and possible loss; raw text does not appear in the plan.  
+4. **Gate decision** — Without `--approve-output-write` the process ends after the plan and does not write a bundle file.  
+5. **Re-validate sources** — Immediately before rendering, the path and SHA-256 must still match the plan.  
+6. **Render in memory** — TXT remains UTF-8; PDF assembles pages, rasterizes images, or reconstitutes extracted text with visible layout loss.  
+7. **Publish atomically** — The target is only created anew and never replaced.  
+8. **Document result** — Output hash, size, optional page count, and all source document IDs are recorded in the result.
 
 ## Exit-Criteria
 
-- [ ] Ohne Gate existiert keine Ausgabedatei.
-- [ ] Das Ziel war vorher nicht vorhanden und wurde nicht überschrieben.
-- [ ] Alle Quellen sind bytegleich zum Planungsstand.
-- [ ] TXT ist UTF-8 mit echten Umlauten.
-- [ ] PDF ist lesbar, hat mindestens eine Seite und weist Layoutverluste aus.
-- [ ] Der JSON-Plan enthält keinen Rohtext.
-- [ ] Originalbehandlung bleibt ein getrennter, weiterhin ungefreigter Schritt.
+- [ ] Without the gate, no output file exists.  
+- [ ] The target did not exist beforehand and was not overwritten.  
+- [ ] All sources are byte-identical to the planning state.  
+- [ ] TXT is UTF-8 with real umlauts.  
+- [ ] PDF is readable, has at least one page, and exhibits layout loss.  
+- [ ] The JSON plan contains no raw text.  
+- [ ] Original handling remains a separate, still unapproved step.
 
-## Fallstricke
+## Pitfalls
 
-- Textneusetzung ist keine layoutgetreue Office-Konvertierung.
-- PDF-Passthrough prüft keinen Dokumentinhalt und aktiviert keine OCR.
-- Ein Ausgabehash beweist die erzeugte Datei, nicht ihre fachliche Richtigkeit.
-- DOCX, ODT, CSV und XLSX sind noch keine Ausgabeformate dieses Providers.
+- Text replacement is not a layout-accurate Office conversion.  
+- PDF passthrough does not inspect document content and does not enable OCR.  
+- An output hash proves the generated file, not its domain correctness.  
+- DOCX, ODT, CSV, and XLSX are not yet output formats of this provider.
 
-## Verwandte
+## Related
 
-- [`../docs/phase7-transform-provider-inventory.md`](../docs/phase7-transform-provider-inventory.md)
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-7-Grenze
-- [`./document-action-plan.md`](./document-action-plan.md) — Originalbehandlung
+- [`../docs/phase7-transform-provider-inventory.md`](../docs/phase7-transform-provider-inventory.md)  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-7 boundary  
+- [`./document-action-plan.md`](./document-action-plan.md) — Original handling  
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-7-End-to-End-Abnahme erstellt
+- **2026-08-21** — Created after Phase-7 end-to-end acceptance

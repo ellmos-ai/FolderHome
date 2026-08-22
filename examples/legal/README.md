@@ -1,9 +1,9 @@
-# Synthetischer Rechtsänderungsfall
+# Synthetic Legal Change Case
 
-Diese Dateien demonstrieren ausschließlich den lokalen Vergleichsvertrag.
-Sie enthalten kein echtes Gesetz und sind durch `fixture_only=true`,
-`authoritative=false` und die reservierte Domain `example.invalid` eindeutig
-vom Produktivpfad getrennt.
+**English** | [Deutsch](./README.de.md)
+
+These files demonstrate exclusively the local comparison contract.  
+They contain no real law and are clearly separated from the production path by `fixture_only=true`, `authoritative=false` and the reserved domain `example.invalid`.
 
 ```powershell
 $env:PYTHONPATH = "src"
@@ -17,9 +17,7 @@ python -m folderhome legal compare `
   --allow-test-fixture --json
 ```
 
-`--allow-test-fixture` ist ausschließlich für diesen synthetischen Usecase
-vorgesehen. Produktivstände müssen auf einer zugelassenen amtlichen HTTPS-
-Domain liegen und `authoritative=true` ausweisen.
+
+`--allow-test-fixture` is intended solely for this synthetic use case. Production versions must reside on an authorized official HTTPS domain and display `authoritative=true`.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

@@ -1,63 +1,54 @@
-# Workflow: Mehrere Beobachtungsroutinen read-only bewerten
+# Workflow: Evaluate Multiple Observation Routines Read-Only
 
-> **Last verified:** 2026-08-21
-> **Frequency:** bei jedem geplanten Scheduler- oder manuellen Prüflauf
-> **Duration:** abhängig von Watch- und Dokumentzahl
+**English** | [Deutsch](./routine-queue.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** on every scheduled or manual check run  
+> **Duration:** depends on the number of watches and documents
 
 ## Purpose
 
-Alle aktivierten Watches zu einem expliziten Zeitpunkt planen, Zustände
-vergleichbar bündeln und Konflikte über Watch-Grenzen erkennen, ohne Dateien,
-Checkpoints oder Betriebssystem-Scheduler zu verändern.
+Schedule all activated watches at a specific point in time, bundle comparable states, and detect conflicts across watch boundaries, without modifying files, checkpoints, or the operating system scheduler.
 
 ## Preconditions
 
-- Watch-, Binding- und Profilkonfiguration sind lokal lesbar.
-- Jeder aktive Watch besitzt höchstens ein Binding.
-- Beobachtungszeit, Stichtag und State-Verzeichnis sind explizit.
-- Der doc-services-Provider entspricht dem gepinnten Manifest.
+- Watch, binding, and profile configurations are locally readable.
+- Each active watch has at most one binding.
+- Observation time, deadline, and state directory are explicit.
+- The doc-services provider matches the pinned manifest.
 
 ## Steps
 
-1. **Watches laden** — IDs, Roots, Profile, Bereiche und Intervalle validieren.
-2. **Bindings laden** — Zielwurzeln relativ zur Binding-Datei auflösen und
-   `changes`-/`full`-Modus prüfen.
-3. **Zuordnung prüfen** — mehrfache und unbekannte Bindings ablehnen; fehlende
-   oder deaktivierte Bindings sichtbar blockieren.
-4. **Einzelroutinen planen** — je aktivem Watch den Phase-13-Plan vollständig
-   read-only erzeugen.
-5. **Status zuordnen** — Ergebnisse als `ready`, `not_due`, `empty` oder
-   `blocked` klassifizieren.
-6. **Gesamtmenge prüfen** — Eingangsüberlappungen, Ziele in anderen
-   Watch-Eingängen und gemeinsame Aktionsziele blockieren.
-7. **Queue ausgeben** — deterministische ID, Zusammenfassung und Planbelege
-   über stdout serialisieren.
-8. **Side-Effects prüfen** — `side_effects=[]` und
-   `scheduler_registered=false` müssen erhalten bleiben.
+1. **Load watches** — validate IDs, roots, profile, scopes, and intervals.  
+2. **Load bindings** — resolve target roots relative to the binding file and check the `changes`-/`full` mode.  
+3. **Check mapping** — reject multiple and unknown bindings; visibly block missing or disabled bindings.  
+4. **Plan individual routines** — for each active watch, generate the Phase-13 plan fully read-only.  
+5. **Assign status** — classify results as `ready`, `not_due`, `empty`, or `blocked`.  
+6. **Check total set** — block input overlaps, targets in other watch inputs, and shared action targets.  
+7. **Output queue** — serialize deterministic ID, summary, and plan evidence to stdout.  
+8. **Check side effects** — `side_effects=[]` and `scheduler_registered=false` must be preserved.
 
 ## Exit-Criteria
 
-- [ ] Jeder aktive Watch erscheint genau einmal in der Queue.
-- [ ] Fehlende Bindings und Cross-Watch-Konflikte sind sichtbar blockiert.
-- [ ] Die Queue enthält keinen Dokumentrohtext.
-- [ ] State, Quellen und Ziele sind byte- beziehungsweise pfadgleich geblieben.
-- [ ] Es wurde keine Betriebssystemaufgabe registriert.
+- [ ] Each active watch appears exactly once in the queue.  
+- [ ] Missing bindings and cross‑watch conflicts are visibly blocked.  
+- [ ] The queue contains no raw document text.  
+- [ ] State, sources, and targets have remained byte‑ or path‑identical.  
+- [ ] No operating system task has been registered.
 
-## Fallstricke
+## Pitfalls
 
-- Ein `ready`-Eintrag ist keine Batchfreigabe.
-- Zwei einzeln konfliktfreie Routinen können dasselbe Ziel verwenden.
-- Ein Ziel im Eingang eines anderen Watch erzeugt eine spätere
-  Wiederaufnahmeschleife.
-- Shell-Umleitung oder ein externer Scheduler kann selbst Side-Effects haben;
-  diese gehören nicht zum `routine-queue`-Vertrag.
+- A `ready` entry is not a batch approval.  
+- Two individually conflict‑free routines can use the same target.  
+- A target in the input of another watch creates a later re‑entry loop.  
+- Shell redirection or an external scheduler can have side effects itself; these are not part of the `routine-queue` contract.
 
-## Verwandte
+## Related
 
-- [`./folder-routine.md`](./folder-routine.md) — einzelne Beobachtungsroutine
-- [`./folder-cleanup.md`](./folder-cleanup.md) — ordnerweiter Batchplan
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-14-Datenfluss
+- [`./folder-routine.md`](./folder-routine.md) — single observation routine  
+- [`./folder-cleanup.md`](./folder-cleanup.md) — folder‑wide batch plan  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-14 data flow
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-14-End-to-End-Abnahme erstellt
+- **2026-08-21** — Created after Phase-14 end‑to‑end acceptance

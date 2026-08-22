@@ -1,35 +1,17 @@
 # Reused components
 
-Dieser Bereich enthält keine kopierten Quellen. Runtime-Provider verweisen auf
-ein separat versioniertes Repository und ihr kanonisches Manifest unter
-`manifests/components/`. Reine Designreferenzen ohne Runtime-Anbindung nennen
-stattdessen Checkout, Revision, Lizenz, Prüfstand und die bewusst nicht
-übernommenen Eigenschaften direkt auf ihrer Unterseite.
+**English** | [Deutsch](./README.de.md)
 
-Phase 27 dokumentiert UpToday, Routinika und den Google-Calendar-Skill unter
-[`calendar-providers/`](calendar-providers/) ohne kopierten Providercode.
+This section contains no copied source code. Runtime providers refer to a separately versioned repository and their canonical manifest at `manifests/components/`. Pure design references without runtime binding instead name checkout, revision, license, test bench, and the deliberately not adopted properties directly on their subpage.
 
-Phase 28 dokumentiert den unveränderten lokalen Notizspeicher unter
-[`llm-note/`](llm-note/). FolderHome ergänzt Führung und Freigabe als neue
-Kapsel und schreibt ausschließlich über die öffentliche Provider-API.
+Phase 27 documents UpToday, Routinika, and the Google Calendar skill at [`calendar-providers/`](calendar-providers/) without copied provider code.
 
-Phase 29 dokumentiert den unveränderten lokalen Belegprovider unter
-[`steuer-assistent/`](steuer-assistent/). FolderHome ergänzt Dokument-,
-Profil-, Approval- und Hashbindungen, ohne Steuerberatung oder einen
-Portalpfad hinzuzufügen.
+Phase 28 documents the unchanged local note storage at [`llm-note/`](llm-note/). FolderHome adds leadership and approval as a new capsule and writes exclusively via the public provider API.
 
-Phase 30 dokumentiert BACHs Wetter-, Newspaper- und Daily-Agent-Bestand unter
-[`bach-daily-briefing/`](bach-daily-briefing/) ausschließlich als
-Designreferenz. Der fremd veränderte Monolith wird nicht geladen und sein
-Quellcode nicht kopiert.
+Phase 29 documents the unchanged local evidence provider at [`steuer-assistent/`](steuer-assistent/). FolderHome adds document, profile, approval, and hash bindings, without adding tax advice or a portal path.
 
-Phase 31 dokumentiert den vorhandenen `law-checker` unter
-[`law-checker/`](law-checker/) zunächst als Methodenreferenz. Phase 34 ergänzt
-einen getrennten sauberen Checkout als gepinnten read-only Registry- und
-Quellenprovider. Der frühere fremd veränderte Checkout bleibt unangetastet;
-eine automatische Rechtsprüf-API wird nicht behauptet.
+Phase 30 documents BACH's weather, newspaper, and daily agent inventory at [`bach-daily-briefing/`](bach-daily-briefing/) solely as a design reference. The externally modified monolith is not loaded and its source code is not copied.
 
-Phase 33 dokumentiert unter [`benefit-routing/`](benefit-routing/) drei
-amtliche, manuell zu öffnende Leistungsfinder-Handoffs. Kein Portalcode wird
-kopiert, kein Profil übertragen und der pädagogische `foerderplaner` nicht
-als Sozialleistungsmodul fehlverwendet.
+Phase 31 documents the existing `law-checker` at [`law-checker/`](law-checker/) initially as a method reference. Phase 34 adds a separate clean checkout as a pinned read‑only registry and source provider. The earlier externally modified checkout remains untouched; an automatic legal‑review API is not claimed.
+
+Phase 33 documents, at [`benefit-routing/`](benefit-routing/), three official, manually opened benefit‑finder handoffs. No portal code is copied, no profile is transferred, and the pedagogical `foerderplaner` is not misused as a social benefit module.

@@ -1,46 +1,36 @@
 ---
 name: folderhome-administrative-drafts
-description: Bereitet deutlich markierte Widerspruchs-, Behördenantwort- und Leistungsantragsentwürfe aus Bescheidevidenz und bereitgestellten Nutzerangaben vor und schreibt sie erst nach exakter Bestätigung lokal, ohne Rechtsprüfung, Fristberechnung oder Versand.
+description: Prepares clearly marked objection, authority response, and benefit application drafts from notice evidence and provided user information, and writes them locally only after exact confirmation, without legal review, deadline calculation, or dispatch.
 ---
 
 # FolderHome Administrative Drafts
 
-Nutze diesen Skill, wenn ein Mensch aus einem bereitgestellten Bescheid oder
-aus eigenen Angaben einen kontrollierten Verwaltungsbrief entwerfen möchte.
+**English** | [Deutsch](./SKILL.de.md)
 
-## Ablauf
+Use this skill when a person wants to draft a controlled administrative letter from a provided notice or from their own information.
 
-1. Bestimme `objection`, `authority_response` oder `benefit_application`.
-2. Bestätige Profil, Absender, Empfänger, gewünschtes Ergebnis und die
-   ausdrückliche Sensitivitätsfreigabe.
-3. Analysiere bei bescheidbezogenen Entwürfen die unveränderte Quelle erneut.
-   Prüfe Quellhash, Behörde, Aktenzeichen, Bescheiddatum und Evidenzzeilen.
-4. Erzeuge `drafts preview` ohne Write. Zeige Dokumentfakten und
-   `user_provided`-Angaben getrennt sowie alle offenen Punkte und Warnungen.
-5. Weise darauf hin, dass weder Rechtsweg, Frist, Zuständigkeit,
-   Leistungsberechtigung noch Erfolgsaussicht geprüft wurden.
-6. Lass den Menschen den vollständigen Brief und beide Hashes bestätigen.
-7. Schreibe mit exakter Approval und `--approve-output-write` ausschließlich
-   neue lokale Markdown-/TXT-Dateien.
-8. Beende den Skill vor jeder Außenwirkung. Eine spätere Verwendung benötigt
-   eine eigene aktuelle fachliche Prüfung und eine separate Nutzerhandlung.
+## Procedure
 
-## Verbindliche Grenzen
+1. Determine `objection`, `authority_response`, or `benefit_application`.
+2. Confirm profile, sender, recipient, desired outcome, and the explicit sensitivity approval.
+3. For notice-related drafts, re-analyze the unchanged source. Verify source hash, authority, file reference, notice date, and evidence lines.
+4. Generate `drafts preview` without writing. Display document facts and `user_provided` data separately, as well as all open items and warnings.
+5. Indicate that neither legal recourse, deadline, jurisdiction, benefit eligibility, nor prospect of success have been examined.
+6. Allow the person to confirm the complete letter and both hashes.
+7. Write only new local Markdown/TXT files with exact approval and `--approve-output-write`.
+8. Terminate the skill before any external effect. Subsequent use requires its own current professional review and a separate user action.
 
-- Kein Widerspruchsentwurf ohne ausdrücklich gelesenen Rechtsbehelf
-  `Widerspruch`, eindeutige Behörde und passende Empfängerbindung.
-- Keine gesetzliche Frist aus Zugangsdatum, Dateidatum oder Fristtext
-  berechnen.
-- Keine Rechtsmeinung, Erfolgsaussicht oder Leistungsberechtigung erfinden.
-- Nutzeraussagen nie als Dokumentevidenz darstellen.
-- Der sichtbare `ENTWURF`-/Prüfhinweis muss im Brief bleiben.
-- Kein LLM-, Web- oder law-checker-Aufruf innerhalb des lokalen Entwurfslaufs.
-- Keine vorhandene Ausgabe oder Quelle überschreiben.
-- Keine E-Mail, kein Behördenportal, kein Upload, Druck oder Versand.
-- Profile sind organisatorisch; das Betriebssystemkonto bleibt die
-  Sicherheitsgrenze.
-- Keine echten Bescheide oder persönlichen Daten in Repository-Beispiele
-  schreiben.
+## Binding Limits
+
+- No objection draft without an explicitly read legal remedy `Widerspruch`, a clear authority, and appropriate recipient binding.
+- Do not calculate a statutory deadline from receipt date, file date, or deadline wording.
+- Do not fabricate legal opinion, prospect of success, or benefit eligibility.
+- Never present user statements as document evidence.
+- The visible `ENTWURF`/check note must remain in the letter.
+- No LLM, web, or law-checker call within the local drafting process.
+- Do not overwrite existing output or source.
+- No email, no authority portal, no upload, printing, or dispatch.
+- Profiles are organizational; the operating system account remains the security boundary.
+- Do not write real notices or personal data in repository examples.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

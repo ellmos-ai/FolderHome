@@ -1,71 +1,60 @@
-# Phase 15: Portabler Scheduler-Handoff
+# Phase 15: Portable Scheduler Handoff
 
-**Stand:** 2026-08-21  
-**Status:** implementiert und mit 133 FolderHome-Tests abgenommen
+**English** | [Deutsch](./phase15-scheduler-handoff-plan.de.md)
 
-## Nutzerziel
+**As of:** 2026-08-21  
+**Status:** implemented and accepted with 133 FolderHome tests
 
-FolderHome soll die read-only Routinenqueue regelmäßig headless prüfen können,
-ohne bei der Planung eigenständig eine Windows-Aufgabe zu registrieren oder
-Dateiaktionen freizugeben.
+## User Goal
 
-## Funktionaler Vertrag
+FolderHome shall be able to regularly check the read‑only routine queue headlessly, without independently registering a Windows task or releasing file actions during planning.
 
-1. `scheduler plan` erzeugt einen deterministischen Handoff mit Zeitplan,
-   portabler Argumentliste und Windows-Task-XML ausschließlich auf stdout.
-2. Der Plan weist `registration_performed=false` aus und enthält keinen
-   Installations- oder `schtasks /Create`-Aufruf.
-3. `scheduler run` lädt dieselben Watch-, Binding- und Profilverträge und
-   erzeugt genau eine read-only Mehrfach-Watch-Queue.
-4. Ein Lauf benötigt ein ausdrückliches Gate, um ausschließlich operativen
-   Scheduler-State und einen append-only Laufbericht zu schreiben.
-5. Ein schedule-spezifisches Lock verhindert gleichzeitige Läufe. Es sperrt
-   weder beobachtete Ordner noch Nutzerdokumente.
-6. Ein vorhandenes Lock wird nicht automatisch entfernt oder übernommen;
-   der Lauf endet fail-closed als `already_running`.
-7. Das Lock wird nach einem eigenen abgeschlossenen Lauf wieder entfernt.
-8. Exitcodes unterscheiden `idle`, `attention`, `blocked`,
-   `already_running` und ungültige Eingaben.
+## Functional Contract
+
+1. `scheduler plan` generates a deterministic handoff with schedule, portable argument list, and Windows task XML exclusively on stdout.  
+2. The plan includes `registration_performed=false` and contains no installation or `schtasks /Create` call.  
+3. `scheduler run` loads the same watch, binding, and profile contracts and creates exactly one read‑only multi‑watch queue.  
+4. A run requires an explicit gate to write only operational scheduler state and an append‑only run report.  
+5. A schedule‑specific lock prevents concurrent runs. It does not lock observed folders or user documents.  
+6. An existing lock is not automatically removed or taken over; the run ends fail‑closed as `already_running`.  
+7. The lock is removed again after its own completed run.  
+8. Exit codes differentiate `idle`, `attention`, `blocked`, `already_running`, and invalid inputs.
 
 ## Exitcodes
 
-| Code | Bedeutung |
+| Code | Meaning |
 |---:|---|
-| 0 | Queue enthält weder freigabefähige noch blockierte Einträge |
-| 10 | Mindestens ein Queue-Eintrag ist `ready` und benötigt menschliche Freigabe |
-| 20 | Mindestens ein Eintrag oder der Queue-Lauf ist `blocked`/`failed` |
-| 30 | Derselbe Zeitplan läuft bereits oder hinterließ ein ungeklärtes Lock |
-| 2 | CLI-Eingabe oder Konfiguration ist ungültig |
+| 0 | Queue contains neither releasable nor blocked entries |
+| 10 | At least one queue entry is `ready` and requires human release |
+| 20 | At least one entry or the queue run is `blocked`/`failed` |
+| 30 | The same schedule is already running or left an unresolved lock |
+| 2 | CLI input or configuration is invalid |
 
-## Sicherheitsgrenzen
+## Safety Boundaries
 
-- Keine Installation oder Registrierung eines Betriebssystem-Schedulers.
-- Keine automatische Batchfreigabe und keine Dokumentaktion.
-- Kein Checkpoint-Schreiben durch den Schedulerlauf.
-- Keine automatische Entfernung fremder oder verwaister Locks.
-- Absolute Pfade werden als einzelne `argv`-Elemente gespeichert, nicht als
-  zusammengesetzter Shellbefehl.
-- Der Zeitplan bindet Watch-, Binding-, Profil-, State- und Providerpfade in
-  eine deterministische Schedule-ID.
+- No installation or registration of an operating‑system scheduler.  
+- No automatic batch release and no document action.  
+- No checkpoint writing by the scheduler run.  
+- No automatic removal of foreign or orphaned locks.  
+- Absolute paths are stored as individual `argv` elements, not as a combined shell command.  
+- The schedule binds watch, binding, profile, state, and provider paths into a deterministic schedule ID.
 
-## Usecases
+## Use Cases
 
-### USECASE 015-1: Installationsfreien Handoff prüfen
+### USECASE 015-1: Verify Installation‑Free Handoff
 
-- **Vorbedingung:** Synthetische Konfigurationspfade und expliziter Startzeitpunkt.
-- **Eingabe:** Intervall, Zeitzone, Taskname und lokale Pfade.
-- **Erwartung:** Portables `argv`, Windows-XML, stabile ID und keine Dateischreibung.
+- **Precondition:** Synthetic configuration paths and explicit start time.  
+- **Input:** Interval, time zone, task name, and local paths.  
+- **Expectation:** Portable `argv`, Windows XML, stable ID, and no file writing.
 
-### USECASE 015-2: Headless Queue-Lauf
+### USECASE 015-2: Headless Queue Run
 
-- **Vorbedingung:** Ein aktiver synthetischer Watch und freier Scheduler-Lock.
-- **Eingabe:** Handoff, explizite Laufzeit und Scheduler-State-Gate.
-- **Erwartung:** Queue-Bericht, Exitcode 10 bei `ready`, freigegebenes Lock,
-  unveränderte Dokumente und keine Zielordner.
+- **Precondition:** An active synthetic watch and a free scheduler lock.  
+- **Input:** Handoff, explicit runtime, and scheduler‑state gate.  
+- **Expectation:** Queue report, exit code 10 on `ready`, released lock, unchanged documents, and no target folders.
 
-### USECASE 015-3: Gleichzeitigen Lauf blockieren
+### USECASE 015-3: Block Concurrent Run
 
-- **Vorbedingung:** Schedule-spezifisches Lock existiert bereits.
-- **Eingabe:** Derselbe Handoff.
-- **Erwartung:** Exitcode 30, kein Queue-Lauf, keine Übernahme oder Löschung
-  des vorhandenen Locks.
+- **Precondition:** Schedule‑specific lock already exists.  
+- **Input:** The same handoff.  
+- **Expectation:** Exit code 30, no queue run, no takeover or deletion of the existing lock.

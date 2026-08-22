@@ -1,46 +1,33 @@
 ---
 name: folderhome-strands-agent
-description: Plant oder startet den begrenzten Strands-Agents-Loop von FolderHome über profilgebundene read-only Dokumentensuche und Themendossiers; nutzt für reproduzierbare Tests den No-Network-Fixture-Provider und Bedrock nur nach getrennten Netzwerk- und Datenweitergabefreigaben.
+description: Plans or starts the limited Strands‑Agents loop of FolderHome via profile‑bound read‑only document search and topic dossiers; uses the No‑Network‑Fixture‑Provider for reproducible tests and Bedrock only after separate network and data transfer approvals.
 ---
 
 # FolderHome Strands Agent
 
-Nutze diesen Skill, wenn eine natürliche Nutzeranfrage durch den echten
-Strands-Agents-Loop an vorhandene FolderHome-Dokumentendienste geroutet werden
-soll oder ein nachvollziehbarer Wettbewerbsnachweis benötigt wird.
+**English** | [Deutsch](./SKILL.de.md)
 
-## Ablauf
+Use this skill when a natural user request should be routed through the real Strands‑Agents loop to existing FolderHome document services, or when a verifiable competitive evidence is required.
 
-1. Prüfe, dass `strands-agents==1.53.0` und der gepinnte
-   KnowledgeDigest-Checkout verfügbar sind.
-2. Führe `folderhome agent plan` mit Profil- und State-Verzeichnis aus.
-3. Prüfe im Plan die OS-Kontogrenze, den sequenziellen Toolmodus, endliche
-   Turn-/Tool-/Ausgabelimits und `model_call_performed=false`.
-4. Verwende `--model-provider fixture` für reproduzierbare No-Network-Läufe.
-5. Starte `folderhome agent run` mit einem bekannten organisatorischen Profil
-   und einem natürlichen Such- oder Dossierprompt.
-6. Prüfe im Report Frameworkversion, Stopgrund, Toolereignisse, Hashbindungen,
-   Netzwerkstatus und leere Side-Effect-Liste.
-7. Verwende Bedrock nur auf ausdrücklichen Nutzerwunsch mit Modell-ID,
-   AWS-Region, `--allow-network` und `--approve-sensitive-cloud-data`.
-   Keine der Freigaben ersetzt eine Kosten- oder Veröffentlichungserlaubnis.
+## Procedure
 
-## Verbindliche Grenzen
+1. Verify that `strands-agents==1.53.0` and the pinned KnowledgeDigest checkout are available.  
+2. Execute `folderhome agent plan` with the profile and state directory.  
+3. Check in the plan the OS account limit, the sequential tool mode, finite turn/tool/output limits, and `model_call_performed=false`.  
+4. Use `--model-provider fixture` for reproducible No‑Network runs.  
+5. Start `folderhome agent run` with a known organizational profile and a natural search or dossier prompt.  
+6. Check in the report the framework version, stop reason, tool events, hash bindings, network status, and empty side‑effect list.  
+7. Use Bedrock only upon explicit user request with model ID, AWS region, `--allow-network` and `--approve-sensitive-cloud-data`. None of the approvals replace a cost or publication permission.
 
-- Keine freien Dateipfade, Shellbefehle oder allgemeinen Pluginaufrufe als
-  Agententools bereitstellen.
-- Nur die zwei freigegebenen read-only Tools `search_home_documents` und
-  `build_home_theme_dossier` verwenden.
-- Profile niemals als Zugriffs- oder Datenschutzgrenze ausgeben.
-- Fixture-Ergebnisse deutlich als synthetisch und nicht als Bedrock-Lauf
-  kennzeichnen.
-- Keine medizinische, rechtliche, steuerliche oder sozialrechtliche
-  Entscheidung aus Suchergebnissen ableiten.
-- Keine Netzwerk-, Mail-, Kalender-, Telefon-, Datei- oder Kostenwirkung aus
-  einer bloßen Agentenanfrage ableiten.
-- `--allow-network` niemals als Freigabe zur Übertragung lokaler
-  Dokumentinhalte oder Metadaten behandeln.
-- Bei Limit-, Provider- oder Schemafehlern fail-closed stoppen.
+## Binding Limits
+
+- Do not provide arbitrary file paths, shell commands, or generic plugin calls as agent tools.  
+- Only use the two approved read‑only tools `search_home_documents` and `build_home_theme_dossier`.  
+- Never expose profiles as access or privacy boundaries.  
+- Clearly label fixture results as synthetic and not as a Bedrock run.  
+- Do not derive medical, legal, tax, or social‑law decisions from search results.  
+- Do not infer network, email, calendar, phone, file, or cost effects from a mere agent request.  
+- Never treat `--allow-network` as an approval to transfer local document contents or metadata.  
+- On limit, provider, or schema errors, fail‑closed and stop.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

@@ -1,74 +1,57 @@
-# Workflow: Einen Los Ordner sicher aufräumen
+# Workflow: Safely clean up a batch folder
 
-> **Last verified:** 2026-08-21
-> **Frequency:** ad-hoc, später als Teil einer beobachteten Routine
-> **Duration:** abhängig von Dokumentzahl und Extraktionsformaten
+**English** | [Deutsch](./folder-cleanup.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** ad-hoc, later as part of an observed routine  
+> **Duration:** dependent on document count and extraction formats
 
 ## Purpose
 
-Einen ausdrücklich gewählten Ordner vollständig planen, Zielkonflikte über
-alle Dokumente erkennen und anschließend nur eine bewusst ausgewählte
-Teilmenge mit automatischem Rückweg bei Teilfehlern ausführen.
+Fully plan an explicitly selected folder, identify target conflicts across all documents, and then execute only a deliberately chosen subset with automatic rollback on partial failures.
 
 ## Preconditions
 
-- Quellordner, Profil, Bereich, Zielwurzel und `as_of` sind ausdrücklich gewählt.
-- Profile und gepinnter doc-services-Checkout sind geprüft.
-- Die Planung darf Quellen lesen, aber weder Quellen noch Ziele verändern.
-- Eine Batchausführung benötigt eine separate Approval-Datei und das
-  Dateisystem-Gate.
+- Source folder, profile, area, target root, and `as_of` are explicitly selected.  
+- Profiles and the pinned doc-services checkout have been verified.  
+- The plan may read sources but must not modify either sources or targets.  
+- A batch execution requires a separate approval file and the filesystem gate.
 
 ## Steps
 
-1. **Ordner erfassen** — relative Pfade deterministisch sortieren; Symlinks
-   werden sichtbar ausgelassen.
-2. **Dokumente extrahieren** — bekannte Typen read-only über doc-services
-   verarbeiten; unbekannte Typen und Fehler mit Hash und Grund festhalten.
-3. **Einzelpläne bilden** — für jedes Dokument dieselben Profil-, Plan- und
-   Providerverträge wie bei `documents plan` verwenden.
-4. **Ziele gemeinsam prüfen** — jedes Zwischen- und Endziel gegen alle
-   anderen Pläne und gegen den aktuellen Dateibestand vergleichen.
-5. **Batchplan prüfen** — `folders cleanup-plan` muss Batch-ID,
-   Dokumentstatus, Konflikte und ausführbare Aktions-IDs ohne Rohtext zeigen.
-6. **Teilmenge freigeben** — Approval-Datei mit Batch-ID und je ausgewähltem
-   Dokument mit Dokument-ID, Hash, Plan-ID und Aktions-IDs erstellen.
-7. **Batch ausführen** — `folders cleanup-execute` baut den Plan erneut auf,
-   prüft die Approval-Datei vollständig und schreibt zuerst ein Batch-Intent.
-8. **Einzelaudits prüfen** — jedes ausgewählte Dokument nutzt den
-   Phase-11-Executor und erzeugt einen eigenen Abschlussbericht.
-9. **Batchabschluss prüfen** — nur bei vollständigem Erfolg werden aktive
-   Ablagebelege gesammelt; bei Teilfehlern laufen frühere Aktionen rückwärts.
+1. **Capture folder** — deterministically sort relative paths; symlinks are visibly omitted.  
+2. **Extract documents** — process known types read‑only via doc‑services; record unknown types and errors with hash and reason.  
+3. **Create individual plans** — for each document use the same profile, plan, and provider contracts as with `documents plan`.  
+4. **Validate targets collectively** — compare each intermediate and final target against all other plans and against the current file inventory.  
+5. **Review batch plan** — `folders cleanup-plan` must display the batch ID, document status, conflicts, and executable action IDs without raw text.  
+6. **Approve subset** — create an approval file containing the batch ID and, for each selected document, the document ID, hash, plan ID, and action IDs.  
+7. **Execute batch** — `folders cleanup-execute` rebuilds the plan, fully validates the approval file, and first writes a batch intent.  
+8. **Check individual audits** — each selected document uses the Phase‑11 executor and generates its own final report.  
+9. **Validate batch completion** — only on complete success are active storage receipts collected; on partial failures earlier actions are rolled back.
 
 ## Exit-Criteria
 
-- [ ] Jede Quelldatei erscheint als `planned`, `blocked`, `noop`, `skipped`
-      oder `failed`.
-- [ ] Keine Quelle und kein Ziel wurde während `cleanup-plan` verändert.
-- [ ] Gemeinsame oder bestehende Ziele sind vor der Freigabe blockiert.
-- [ ] Die Approval-Datei enthält ausschließlich bewusst gewählte Dokumente.
-- [ ] Erfolgreiche Batches besitzen Intent, Abschlussbericht und je Dokument
-      einen Ablagebeleg.
-- [ ] Nach `rolled_back` liegen vorher ausgeführte Dokumente wieder an ihren
-      Ursprüngen und es gibt keine aktiven Batch-Ablagebelege.
+- [ ] Each source file appears as `planned`, `blocked`, `noop`, `skipped`, or `failed`.  
+- [ ] No source or target was modified during `cleanup-plan`.  
+- [ ] Shared or existing targets are blocked before approval.  
+- [ ] The approval file contains only deliberately selected documents.  
+- [ ] Successful batches have an intent, a final report, and for each document a storage receipt.  
+- [ ] After `rolled_back`, previously executed documents are back at their origins and there are no active batch storage receipts.
 
-## Fallstricke
+## Pitfalls
 
-- Ein konfliktfreier Einzelplan kann im Gesamtordner trotzdem mit einem
-  anderen Ziel oder dessen Quelle kollidieren.
-- Dateiname oder Verarbeitungsreihenfolge darf keinen Konflikt still lösen.
-- Eine Approval-Datei wird ungültig, sobald sich Quelle, Profilregel oder
-  irgendein planrelevantes Feld ändert.
-- `rolled_back` ist ein belegter Fehlerausgang, kein erfolgreicher Batch.
+- A conflict‑free individual plan can still collide with another target or its source in the overall folder.  
+- File name or processing order must not silently resolve a conflict.  
+- An approval file becomes invalid as soon as the source, profile rule, or any plan‑relevant field changes.  
+- `rolled_back` is an occupied error exit, not a successful batch.
 
-## Verwandte
+## Related
 
-- [`./document-action-plan.md`](./document-action-plan.md) — Einzelplanung
-- [`./document-action-execution.md`](./document-action-execution.md) —
-  Einzeltransaktion und Undo
-- [`./directory-observation.md`](./directory-observation.md) — beobachtete
-  Zustände und Korrekturlernen
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-12-Datenfluss
+- [`./document-action-plan.md`](./document-action-plan.md) — individual planning  
+- [`./document-action-execution.md`](./document-action-execution.md) — single transaction and undo  
+- [`./directory-observation.md`](./directory-observation.md) — observed states and corrective learning  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑12 data flow  
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-12-End-to-End-Abnahme erstellt
+- **2026-08-21** — created after Phase‑12 end‑to‑end acceptance

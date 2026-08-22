@@ -1,7 +1,9 @@
-# Ringedingeding
+# Ringeding
 
-- Herkunft: `https://github.com/ellmos-ai/ringedingeding.git`
+**English** | [Deutsch](./README.de.md)
+
+- Origin: `https://github.com/ellmos-ai/ringedingeding.git`
 - Revision: `01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf`
-- Lizenz: MIT
+- License: MIT
 - Manifest: `../../manifests/components/ringedingeding.toml`
-- Klasse: `REUSED_UNCHANGED`
+- Class: `REUSED_UNCHANGED`

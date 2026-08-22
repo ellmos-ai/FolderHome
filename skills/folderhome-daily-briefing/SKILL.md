@@ -1,44 +1,34 @@
 ---
 name: folderhome-daily-briefing
-description: Bündelt belegte lokale Wetter- und Nachrichtensnapshots zu einem quellenbewussten HTML-Brief und stellt ihn nach getrennter Freigabe in einen gewählten Desktopordner zu, ohne Live-Netzwerk oder Scheduler zu behaupten.
+description: Aggregates documented local weather and news snapshots into a source‑aware HTML brief and delivers it to a chosen desktop folder after separate approval, without claiming live network or scheduler.
 ---
 
 # FolderHome Daily Briefing
 
-Nutze diesen Skill, wenn ein Mensch einen lokalen Wetter- und Newspaper-Brief
-aus bereits bereitgestellten Snapshots planen, prüfen, rendern oder auf den
-Desktop kopieren möchte.
+**English** | [Deutsch](./SKILL.de.md)
 
-## Ablauf
+Use this skill when a human wants to plan, check, render, or copy a local weather and newspaper brief from already provided snapshots to the desktop.
 
-1. Prüfe `folderhome briefing providers --json`. Behandle blockierte
-   Live-Connectoren als echte Produktgrenze.
-2. Prüfe Briefingdatum, `as_of`, Zeitzone, Profil, Wetterort, Kategorien und
-   die beiden Snapshotpfade.
-3. Erzeuge `briefing plan` nur nach Sensitivitätsfreigabe. Dieser Schritt darf
-   keine Ausgabe- oder Desktopdatei anlegen.
-4. Zeige Datenstand, Warnungen, Quellen, ausgelassene Artikel, Planhash und
-   HTML-Hash. Ein veralteter Snapshot bleibt ausdrücklich veraltet.
-5. Rendere erst nach eigener Render-Approval und `--approve-output-write` in
-   einen Nicht-Desktopordner.
-6. Lass den Menschen die lokale HTML-Datei prüfen.
-7. Kopiere erst nach separater Desktop-Approval und
-   `--approve-desktop-write` exakt diesen Hash auf den gewählten Desktop.
+## Process
 
-## Verbindliche Grenzen
+1. Check `folderhome briefing providers --json`. Treat blocked live connectors as a real product boundary.  
+2. Check briefing date, `as_of`, time zone, profile, weather location, categories, and the two snapshot paths.  
+3. Generate `briefing plan` only after sensitivity approval. This step must not create any output or desktop file.  
+4. Show data status, warnings, sources, omitted articles, plan hash, and HTML hash. An outdated snapshot remains explicitly outdated.  
+5. Render only after your own render approval and `--approve-output-write` into a non‑desktop folder.  
+6. Let the human review the local HTML file.  
+7. Copy only after separate desktop approval and `--approve-desktop-write` exactly this hash to the chosen desktop.
 
-- Keine stillen Wetter-, RSS-, Web- oder LLM-Aufrufe.
-- Keine Aktualitäts- oder Vollständigkeitsbehauptung ohne frischen Snapshot.
-- Nur HTTPS-Quellen ohne eingebettete Zugangsdaten.
-- Keine HTML-Übernahme unescapter Titel, Zusammenfassungen oder Links.
-- Keine vorhandene Ausgabe oder Desktopdatei überschreiben.
-- Render- und Desktopziel dürfen nicht im selben Zielordner liegen.
-- Keine Schedulerregistrierung oder dauerhafte Freigabe aus einer
-  Einzelfreigabe ableiten.
-- Familienprofile sind organisatorisch; das Betriebssystemkonto bleibt die
-  Sicherheitsgrenze.
-- Keine echten privaten Standort- oder Profildaten in Repository-Beispiele
-  schreiben.
+## Binding Limits
+
+- No silent weather, RSS, web, or LLM calls.  
+- No claim of timeliness or completeness without a fresh snapshot.  
+- Only HTTPS sources without embedded credentials.  
+- No HTML takeover of unescaped titles, summaries, or links.  
+- Do not overwrite existing output or desktop file.  
+- Render and desktop target must not reside in the same target folder.  
+- No scheduler registration or deriving permanent approval from a single approval.  
+- Family profiles are organizational; the operating system account remains the security boundary.  
+- Do not write real private location or profile data into repository examples.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

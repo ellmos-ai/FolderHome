@@ -1,44 +1,35 @@
 ---
 name: folderhome-benefit-screening
-description: Gleicht lokale nutzerbereitgestellte Profilfakten mit einem datierten unvollständigen Routingkatalog ab und verweist auf passende amtliche Sozialleistungs-Vorchecks, ohne Anspruch, Höhe, Vollständigkeit oder Antrag zu behaupten.
+description: Matches locally user-provided profile facts with a dated incomplete routing catalog and points to appropriate official benefit pre-screens, without claiming entitlement, amount, completeness or application.
 ---
 
 # FolderHome Benefit Screening
 
-Nutze diesen Skill, wenn ein Mensch wissen möchte, welche amtlichen
-Sozialleistungs-Lotsen aufgrund weniger bereitgestellter Lebenssituationsdaten
-als nächster Prüfschritt sinnvoll sein könnten.
+**English** | [Deutsch](./SKILL.de.md)
 
-## Ablauf
+Use this skill when a person wants to know which official benefit pre‑screens, based on a few provided life‑situation data points, could be a sensible next verification step.
 
-1. Verlange Sensitivitätsfreigabe, ein bekanntes Profil, Leistungsprofil,
-   Katalog, Analysezeitpunkt und maximale Quellenaltersgrenze.
-2. Prüfe, dass der Katalog `complete=false` ausweist und jede Quelle amtlich,
-   per HTTPS erreichbar, datiert und an eine Evidenzzusammenfassung gebunden
-   ist.
-3. Führe `benefits check` lokal aus. Öffne keine Website automatisch.
-4. Erkläre pro Programm Routingstatus, fehlende Fakten, Quelle und alle nicht
-   modellierten Anforderungen.
-5. Empfehle bei passender Route ausschließlich den genannten amtlichen
-   Vorcheck. Bezeichne ihn als nächsten Prüfschritt, nicht als Anspruch.
-6. Schreibe Markdown/JSON nur nach eigenem Output-Gate als neue Dateien.
-7. Überlasse persönliche Eingabe auf der amtlichen Seite und jeden späteren
-   Antrag einer separaten bewussten Nutzerhandlung.
+## Procedure
 
-## Verbindliche Grenzen
+1. Request sensitivity approval, a known profile, benefit profile, catalog, analysis timestamp, and maximum source age limit.  
+2. Verify that the catalog **`complete=false`** is listed and that each source is official, reachable via HTTPS, dated, and linked to an evidence summary.  
+3. Execute **`benefits check`** locally. Do not open any website automatically.  
+4. Explain for each program the routing status, missing facts, source, and all non‑modeled requirements.  
+5. When a route matches, recommend **only** the named official pre‑screen. Designate it as the next verification step, not as an entitlement.  
+6. Write Markdown/JSON only after your own output gate as new files.  
+7. Leave personal input on the official site and any later application to a separate conscious user action.
 
-- Keine Leistungsberechtigung, Leistungshöhe oder Erfolgsaussicht bestimmen.
-- `routing_mismatch` niemals als Ablehnung oder Ausschluss ausgeben.
-- Fehlende Profilangaben nicht aus Dokumenten, Kontoauszügen oder Metadaten
-  erraten.
-- Veraltete oder zukünftige Quellen nicht auswerten.
-- Nur amtliche HTTPS-Handoffs ohne eingebettete Zugangsdaten zulassen.
-- Katalogvollständigkeit nicht behaupten.
-- Kein Live-Webabruf, Portalaufruf, Antrag, Upload oder Versand im lokalen Lauf.
-- Keine vorhandene Quelle oder Ausgabe überschreiben.
-- Profile sind organisatorisch; das Betriebssystemkonto bleibt die
-  Sicherheitsgrenze.
-- Keine echten sensiblen Profile in Repository-Beispiele schreiben.
+## Binding Limits
+
+- Do not determine benefit entitlement, benefit amount, or likelihood of success.  
+- Never output **`routing_mismatch`** as a rejection or exclusion.  
+- Do not guess missing profile information from documents, bank statements, or metadata.  
+- Do not evaluate outdated or future sources.  
+- Allow only official HTTPS handoffs without embedded credentials.  
+- Do not claim catalog completeness.  
+- No live web fetch, portal call, application, upload, or dispatch during the local run.  
+- Do not overwrite an existing source or output.  
+- Profiles are organizational; the operating system account remains the security boundary.  
+- Do not write real sensitive profiles in repository examples.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

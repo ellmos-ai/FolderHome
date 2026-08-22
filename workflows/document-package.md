@@ -1,66 +1,56 @@
-# Workflow: Ein Dokument pro Dateityp als ZIP-Paket erzeugen
+# Workflow: Generate a ZIP package with one document per file type
 
-> **Last verified:** 2026-08-21
-> **Frequency:** ad-hoc
-> **Duration:** abhängig von Dokumentzahl, Seitenzahl und Bildgröße
+**English** | [Deutsch](./document-package.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** ad-hoc  
+> **Duration:** dependent on number of documents, page count, and image size
 
 ## Purpose
 
-Einen verschachtelten Ordner deterministisch nach Dateitypen gruppieren und
-als ein neues ZIP mit je einem Dokument pro Gruppe sowie einem Prüfmanifest
-ausgeben, ohne Quellen zu verändern.
+Deterministically group a nested folder by file type and output it as a new ZIP containing one document per group together with a verification manifest, without modifying the source files.
 
 ## Preconditions
 
-- Quellordner und neue `.zip`-Ausgabedatei sind ausdrücklich gewählt.
-- Der Ausgabeordner existiert und ist kein symbolischer Link.
-- doc-services und die optionalen PDF-Abhängigkeiten sind verfügbar.
-- Die Schreibfreigabe gilt nur für genau die neue ZIP-Datei.
+- The source folder and the new `.zip` output file are explicitly selected.
+- The output folder exists and is not a symbolic link.
+- doc-services and the optional PDF dependencies are available.
+- Write permission applies only to the new ZIP file itself.
 
 ## Steps
 
-1. **Dateien ordnen** — relative Pfade werden deterministisch sortiert;
-   Symlinks sind unzulässig.
-2. **Typgruppen bilden** — Bilder, PDF, TXT und Markdown haben feste Gruppen;
-   weitere bekannte Endungen erhalten je Typ eine Textgruppe.
-3. **Unbekannte sichern** — nicht gebundene Endungen werden mit Relativpfad,
-   Größe, Hash und Grund als `unsupported` aufgenommen.
-4. **Bündel planen** — jede Gruppe nutzt den Phase-7-Transformationsvertrag
-   mit Datenschutzstatus, Behandlung und Verlusthinweis.
-5. **Gate entscheiden** — ohne `--approve-output-write` bleibt es beim Plan.
-6. **Quellen erneut hashen** — auch unbekannte Dateien müssen unverändert zum
-   Plan sein.
-7. **Gruppendokumente rendern** — alle Ausgaben entstehen im Speicher; ein
-   persistenter Arbeitsordner wird nicht angelegt.
-8. **Manifest erzeugen** — interne Ausgabehashes, Quellen und Verlustgrenzen
-   werden als UTF-8-JSON aufgenommen.
-9. **ZIP atomar veröffentlichen** — feste ZIP-Metadaten sichern
-   Reproduzierbarkeit; ein vorhandenes Ziel wird nie ersetzt.
+1. **Order files** — relative paths are deterministically sorted; symlinks are not allowed.  
+2. **Form type groups** — images, PDF, TXT, and Markdown have fixed groups; additional known extensions receive a text group per type.  
+3. **Secure unknowns** — unbound extensions are recorded with relative path, size, hash, and reason as `unsupported`.  
+4. **Plan bundles** — each group uses the Phase-7 transformation contract with privacy status, handling, and loss notice.  
+5. **Gate decision** — without `--approve-output-write` the plan remains unchanged.  
+6. **Rehash sources** — unknown files must also remain unchanged relative to the plan.  
+7. **Render group documents** — all outputs are generated in memory; no persistent working directory is created.  
+8. **Generate manifest** — internal output hashes, sources, and loss thresholds are captured as UTF-8 JSON.  
+9. **Publish ZIP atomically** — fixed ZIP metadata ensure reproducibility; an existing target is never overwritten.
 
 ## Exit-Criteria
 
-- [ ] Genau ein ZIP wurde neu erzeugt; ohne Gate wurde nichts geschrieben.
-- [ ] Jede unterstützte Datei gehört genau einer Gruppe an.
-- [ ] Unbekannte Dateien sind im Manifest sichtbar und gehasht.
-- [ ] Jede Gruppe enthält genau ein TXT- oder PDF-Dokument.
-- [ ] Das Manifest enthält keine Dokumentrohtexte.
-- [ ] Quellen sind bytegleich; es existiert kein Zwischenordner.
-- [ ] Derselbe Plan erzeugt bytegleich dasselbe ZIP.
+- [ ] Exactly one ZIP was newly created; without the gate nothing was written.  
+- [ ] Every supported file belongs to exactly one group.  
+- [ ] Unknown files are visible in the manifest and hashed.  
+- [ ] Each group contains exactly one TXT or PDF document.  
+- [ ] The manifest contains no raw document text.  
+- [ ] Sources are byte-identical; no intermediate folder exists.  
+- [ ] The same plan produces byte-identical ZIPs.
 
-## Fallstricke
+## Pitfalls
 
-- Gruppierung nach Endung ist keine inhaltliche Klassifikation.
-- Ein `DOCX.txt` erhält Text, aber kein Word-Layout.
-- Sehr große Ordner werden derzeit im Speicher paketiert; Ressourcenlimits
-  sind ein späterer Härtungsschritt.
-- Der ZIP-Hash steht außerhalb des ZIP, da ein eingebetteter Eigenhash
-  selbstreferenziell wäre.
+- Grouping by extension is not a content-based classification.  
+- A `DOCX.txt` receives text but no Word layout.  
+- Very large folders are currently packaged in memory; resource limits are a later hardening step.  
+- The ZIP hash is stored outside the ZIP because an embedded self-hash would be self-referential.
 
-## Verwandte
+## Related
 
-- [`./document-bundle.md`](./document-bundle.md) — einzelnes TXT-/PDF-Bündel
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-8-Paketdatenfluss
+- [`./document-bundle.md`](./document-bundle.md) — single TXT/PDF bundle  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-8 package data flow
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-8-End-to-End-Abnahme erstellt
+- **2026-08-21** — Created after Phase-8 end-to-end acceptance

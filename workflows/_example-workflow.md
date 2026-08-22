@@ -1,97 +1,102 @@
-# Workflow: Release neue npm-Paket-Version
+# Workflow: Release new npm package version
 
-> **Last verified:** 2026-08-21
-> **Frequency:** pro Release (ad-hoc)
+**English** | [Deutsch](./_example-workflow.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** per Release (ad-hoc)  
 > **Duration:** ~5 min
 
 ## Purpose
 
-Eine neue Version eines npm-Pakets veröffentlichen, inkl. Version-Bump, Build,
-Test, Git-Tag, Push und Verify. Mit Dependabot-Upstream-Sync falls nötig.
+Publish a new version of an npm package, including version bump, build, test, Git tag, push and verify. With Dependabot upstream sync if needed.
 
 ## Preconditions
 
-- `npm whoami` zeigt dich als authentifizierten User
-- Du bist auf dem richtigen Branch (meist `main` oder `master`)
-- `git status` ist clean außer den geplanten Änderungen
-- Du bist Admin des Repos (für Branch Protection Bypass falls nötig)
+- `npm whoami` shows you as an authenticated user
+- You are on the correct branch (usually `main` or `master`)
+- `git status` is clean except for the planned changes
+- You are an admin of the repo (for branch protection bypass if needed)
 
 ## Steps
 
-1. **Version bumpen** in `package.json`
+1. **Version bump** in `package.json`  
    ```bash
    # Manuell oder via:
    npm version patch   # oder minor/major
    ```
 
-2. **package-lock.json syncen**
+
+2. **Sync package-lock.json**  
    ```bash
    npm install --package-lock-only
    ```
 
-3. **Build**
+
+3. **Build**  
    ```bash
    npm run build
    ```
 
-4. **Tests** (falls vorhanden)
+
+4. **Tests** (if present)  
    ```bash
    npm test
    ```
 
-5. **Commit**
+
+5. **Commit**  
    ```bash
    git add package.json package-lock.json dist/
    git commit -m "chore: bump version to $(node -p "require('./package.json').version")"
    ```
 
-6. **Rebase falls behind**
+
+6. **Rebase if behind**  
    ```bash
    git fetch origin
    git status -b --porcelain=v1 | head -1
    # Wenn "behind": git pull --rebase
    ```
 
-7. **Push**
+
+7. **Push**  
    ```bash
    git push
    ```
 
-8. **Publish**
+
+8. **Publish**  
    ```bash
    npm publish --access public
    ```
 
-9. **Verify**
+
+9. **Verify**  
    ```bash
    npm view $(node -p "require('./package.json').name") version
    ```
 
+
 ## Exit-Criteria
 
-- [ ] `git status` ist clean
-- [ ] `npm view ... version` zeigt die neue Version
-- [ ] Kein offener Branch-Protection-Error
-- [ ] `CHANGELOG.md` Eintrag aktualisiert (falls release-worthy)
-- [ ] `STATE.md` aktualisiert
+- [ ] `git status` is clean
+- [ ] `npm view ... version` shows the new version
+- [ ] No open branch-protection error
+- [ ] `CHANGELOG.md` entry updated (if release-worthy)
+- [ ] `STATE.md` updated
 
-## Fallstricke
+## Pitfalls
 
-- ⚠️ **Branch 2 Commits behind**: Das passiert oft wenn ein Bot zwischenzeitlich
-  gepusht hat (z.B. Dependabot, CI-Workflow-Sync). Immer `git pull --rebase`
-  vor dem eigenen Push.
-- ⚠️ **`prepublishOnly` schlägt fehl**: Oft wegen ungesetzter NODE_OPTIONS bei
-  TypeScript-OOM. Fix: `NODE_OPTIONS="--max-old-space-size=8192" npm publish`
-- ⚠️ **Force-Push nötig wegen fehlerhaftem Commit**: Nutze ein geprüftes
-  projektspezifisches Admin-Playbook, nicht `git push --force` direkt.
+- ⚠️ **Branch 2 commits behind**: This often happens when a bot has pushed in the meantime (e.g., Dependabot, CI workflow sync). Always `git pull --rebase` before your own push.  
+- ⚠️ **`prepublishOnly` fails**: Often due to unset NODE_OPTIONS causing TypeScript OOM. Fix: `NODE_OPTIONS="--max-old-space-size=8192" npm publish`  
+- ⚠️ **Force-push required due to a faulty commit**: Use a vetted project-specific admin playbook, not `git push --force` directly.
 
-## Verwandte
+## Related
 
-- `workflows/security-audit.md` — falls das Projekt dafür ein eigenes
-  Security-Playbook anlegt
-- [`../PATTERNS.md`](../PATTERNS.md) — Do/Don't bei npm/git
+- `workflows/security-audit.md` — if the project creates its own security playbook for this  
+- [`../SECURITY.md`](../SECURITY.md) — Safety boundaries for npm/git operations
 
-## Historie
+## History
 
-- **2026-08-21** — Workflow erstellt aus [Projekt-Kontext]
-- **2026-08-21** — Schritt 6 (rebase-check) hinzugefügt nach Reibungs-Vorfall
+- **2026-08-21** — Workflow created from [Project context]  
+- **2026-08-21** — Step 6 (rebase-check) added after friction incident

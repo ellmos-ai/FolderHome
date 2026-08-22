@@ -1,8 +1,10 @@
-# Synthetischer Haushaltsbestand
+# Synthetic Household Inventory
 
-`bestand/` enthält ausschließlich erfundene V1-Beobachtungen für lokale
-FolderHome-Demos. Eine Datei entspricht genau einem Gegenstand und verändert
-beim Planen weder Quelle noch State.
+**English** | [Deutsch](./README.de.md)
 
-Der vollständige Freigabeablauf steht in
+`bestand/` contains only fabricated V1 observations for local  
+FolderHome-Demos. Each file corresponds to exactly one item and does not modify  
+either the source or the state when planning.
+
+The complete approval process is documented in  
 [`../../workflows/inventory-import.md`](../../workflows/inventory-import.md).

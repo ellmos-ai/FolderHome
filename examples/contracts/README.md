@@ -1,9 +1,10 @@
-# Synthetischer Versicherungsfall
+# Synthetic Insurance Case
 
-Alle Dokumente, Beträge und Zuordnungen in diesem Ordner sind frei erfunden.
-Die Cockpit-Anfrage verbindet keine Daten anhand eines erratenen gemeinsamen
-Namens. Objekt, Gegenparteibegriffe, Kalenderbegriffe und Konten sind explizit
-deklariert.
+**English** | [Deutsch](./README.de.md)
 
-`archive_older_versions: true` erzeugt ausschließlich ungefreigte,
-reversible Archivierungsvorschläge. Es verschiebt keine Datei.
+All documents, amounts, and assignments in this folder are fictional.  
+The cockpit query does not link any data based on a guessed common name.  
+Objects, counterparty terms, calendar terms, and accounts are explicitly declared.
+
+`archive_older_versions: true` generates only uncommitted,
+reversible archiving suggestions. It does not move any file.

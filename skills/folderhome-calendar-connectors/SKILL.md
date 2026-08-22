@@ -1,19 +1,22 @@
 ---
 name: folderhome-calendar-connectors
-description: Plane FolderHome-Kalenderübergaben auf Basis belegter Dokumenttermine, route sie zu UpToday, Routinika oder Google und prüfe sie ohne Live-Kalender gegen einen synthetischen Provider.
+description: Plan FolderHome calendar handoffs from evidenced document-derived appointments, route them to UpToday, Routinika, or Google, and verify them against a synthetic provider without using a live calendar.
 ---
 
 # FolderHome Calendar Connectors
 
-Beginne mit der revisionsgenauen Providerinventur:
+**English** | [Deutsch](./SKILL.de.md)
+
+Start with the revision‑accurate provider inventory:
 
 ```powershell
 python -m folderhome calendar connectors --json
 ```
 
-Baue jeden Connectorplan auf dem bestehenden Phase-17-Kalenderhandoff auf.
-Erzeuge niemals parallel eine zweite Dokument-, Profil-, Zeitzonen- oder
-Duplikatlogik.
+
+Build each connector plan on the existing Phase‑17 calendar handoff.  
+Never generate a second document, profile, timezone, or  
+duplicate logic in parallel.
 
 ```powershell
 python -m folderhome calendar connector-plan `
@@ -26,30 +29,19 @@ python -m folderhome calendar connector-plan `
   --approve-sensitive-local-read --json
 ```
 
-## Verbindliche Grenzen
 
-- Konfigurationen dürfen nur `connector://`-Referenzen enthalten, niemals
-  Tokens, Passwörter oder Cookies.
-- Konto, Profil, Backend und Phase-17-Handoff müssen exakt zusammenpassen.
-- Ein Plan ruft keinen Connector auf und schreibt keinen Kalender.
-- UpToday-Erstellung bleibt beim vorhandenen ICS-Handoff; sie ist kein
-  Live-Sync.
-- Routinika bleibt ohne geprüften Live-Vertrag blockiert.
-- Ein Google-Handoff benötigt eine explizite `calendar_id`, `attendees=[]`,
-  `transparency=opaque`, Offsetzeiten und explizite Reminder.
-- Update und Löschen benötigen zuerst eine bestehende
-  Provider-Ereignisreferenz. Bei Serienereignissen muss später zusätzlich
-  Master oder Einzelinstanz gewählt werden.
-- Der synthetische Provider benötigt `--use-synthetic-provider` und
-  `--approve-synthetic-calendar`. Er beweist nur den Ablauf ohne Netzwerk und
-  ohne echten Kalendereintrag.
-- Terminerkennung und Reminderzustellung besitzen keine
-  Vollständigkeitsgarantie.
+## Binding Limits
 
-Für einen echten Google-Lauf übergib den geprüften Payload erst nach einer
-gesonderten Nutzerfreigabe an den `google-calendar`-Skill. Wiederhole vorher
-die Prüfung von Kalender-ID, Ereigniszeit, Reminder, Teilnehmern und
-Operationsumfang. Ein `review_required`-Plan ist keine Ausführungsfreigabe.
+- Configurations may contain only `connector://` references, never tokens, passwords, or cookies.  
+- Account, profile, backend, and Phase‑17 handoff must match exactly.  
+- A plan does not invoke any connector and does not write to a calendar.  
+- UpToday creation remains at the existing ICS handoff; it is not a live sync.  
+- Routinika remains blocked without a verified live contract.  
+- A Google handoff requires an explicit `calendar_id`, `attendees=[]`, `transparency=opaque`, offset times, and explicit reminders.  
+- Update and delete operations first require an existing provider event reference. For recurring events, a master or single instance must later be selected as well.  
+- The synthetic provider requires `--use-synthetic-provider` and `--approve-synthetic-calendar`. It only demonstrates the flow without network and without a real calendar entry.  
+- Appointment detection and reminder delivery have no completeness guarantee.
+
+For a real Google run, pass the verified payload to the `google-calendar` skill only after a separate user approval. First repeat the validation of calendar ID, event time, reminders, participants, and operation scope. A `review_required` plan is not an execution approval.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

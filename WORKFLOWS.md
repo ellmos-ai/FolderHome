@@ -1,19 +1,19 @@
-# WORKFLOWS.md — Router zu Multi-Step-Playbooks
+# WORKFLOWS.md — Router to Multi-Step Playbooks
 
-> **Zweck:** Navigation. „Welcher Workflow für welches Problem?"
-> **Content:** Siehe `workflows/*.md` — hier steht **kein** Prozedur-Detail.
-> **Abgrenzung zu PATTERNS.md:** Patterns = einzelne Code-Snippets.
-> Workflows = Multi-Step-Prozeduren mit Side-Effects.
-> **Auto-generiert:** Die Tabelle im AUTOGEN-Block unten wird von
-> `_tools/workflows-sync` gepflegt. Handgeschriebene Inhalte oberhalb und
-> unterhalb der Marker bleiben unangetastet.
+**English** | [Deutsch](./WORKFLOWS.de.md)
+
+> **Purpose:** Navigation. “Which workflow for which problem?”  
+> **Content:** See `workflows/*.md` — there is **no** procedure detail here.  
+> **Distinction from PATTERNS.md:** Patterns = individual code snippets.  
+> **Workflows:** Multi-step procedures with side effects.  
+> **Auto-generated:** The table in the AUTOGEN block below is maintained by `_tools/workflows-sync`. Handwritten content above and below the markers remains untouched.
 
 ---
 
-## Verfügbare Workflows (auto-generated)
+## Available Workflows (auto-generated)
 
 <!-- @auto-generated:workflow-index -->
-<!-- last-updated: 2026-08-22 09:51 -->
+<!-- last-updated: 2026-08-22 13:24 -->
 <!-- tool: _tools/workflows-sync -->
 <!-- count: 31 workflows in 1 categories -->
 
@@ -21,76 +21,75 @@
 
 | Workflow | Purpose | Frequency | Duration |
 |---|---|---|---|
-| **Artefakte sicher planen und gestalten** [`artifact-studio.md`](./workflows/artifact-studio.md) | Eine gewünschte Präsentation, Tabelle, Datei, Visitenkarte oder | ad-hoc | wenige Sekunden für Plan und lokale Designausgabe |
-| **Beobachteten Ordner geplant aufräumen** [`folder-routine.md`](./workflows/folder-routine.md) | Einen deklarierten Beobachtungsordner gegen seinen letzten Checkpoint prüfen, | nach einem explizit ausgelösten Scanzeitpunkt | abhängig von Dateizahl und Extraktionsformaten |
-| **Beobachteten Ordner scannen und Korrektur prüfen** [`directory-observation.md`](./workflows/directory-observation.md) | Einen deklarierten Ordner ohne Dokumentrohtext gegen seinen letzten | ad-hoc, später pro geplantem Scanlauf | abhängig von Dateizahl und Dateigröße |
-| **Dokumentaktion freigeben und rückgängig machen** [`document-action-execution.md`](./workflows/document-action-execution.md) | Einen vorher geprüften Rename-/Move-Präfix für genau ein Dokument | ad-hoc nach menschlicher Planprüfung | wenige Sekunden pro Dokument auf demselben Datenträger |
-| **Dokumentaktionsplan aus Profilregeln erstellen** [`document-action-plan.md`](./workflows/document-action-plan.md) | Ein synthetisches oder ausdrücklich gewähltes Dokument gegen die Regeln eines | ad-hoc oder vor jeder späteren Dateiausführung | wenige Sekunden pro Dokument |
-| **Dokumente als TXT oder PDF bündeln** [`document-bundle.md`](./workflows/document-bundle.md) | Einen ausdrücklich gewählten Ordner als eine neue TXT- oder PDF-Datei | ad-hoc | abhängig von Dokumentzahl, Seitenzahl und Bildgröße |
-| **Dokumentenbibliothek lokal aufbauen** [`document-library.md`](./workflows/document-library.md) | Einen ausdrücklich gewählten Ordner lokal indexieren, natürlich durchsuchen | ad-hoc | abhängig von Dokumentzahl und Dateigröße |
-| **Dokumentkontakt prüfen und lokal registrieren** [`contact-register.md`](./workflows/contact-register.md) | Beschriftete Kontaktdaten aus ausdrücklich ausgewählten Dokumenten lokal | bei neuen oder geänderten Dokumenten mit Zuständigkeitsdaten | wenige Sekunden pro Dokumentordner |
-| **Dokumenttermin sicher an Kalender übergeben** [`calendar-handoff.md`](./workflows/calendar-handoff.md) | Gelabelte Termindaten aus einem ausdrücklich gewählten Dokumentordner prüfen | bei neuen oder geänderten Dokumenten mit Terminangaben | wenige Sekunden pro Dokumentordner |
-| **Ein Dokument pro Dateityp als ZIP-Paket erzeugen** [`document-package.md`](./workflows/document-package.md) | Einen verschachtelten Ordner deterministisch nach Dateitypen gruppieren und | ad-hoc | abhängig von Dokumentzahl, Seitenzahl und Bildgröße |
-| **Einen Los Ordner sicher aufräumen** [`folder-cleanup.md`](./workflows/folder-cleanup.md) | Einen ausdrücklich gewählten Ordner vollständig planen, Zielkonflikte über | ad-hoc, später als Teil einer beobachteten Routine | abhängig von Dokumentzahl und Extraktionsformaten |
-| **FCSA-Sortierplan erstellen** [`fcsa-dry-run.md`](./workflows/fcsa-dry-run.md) | Einen vorhandenen Dokumentordner mit der gepinnten FCSA-Komponente prüfen und | ad-hoc | abhängig von der Ordnergröße |
-| **Haushaltsbestand lokal ergänzen** [`inventory-import.md`](./workflows/inventory-import.md) | Bereitgestellte Bestandsbeobachtungen prüfen, revisionsgebunden in den | nach einer ausdrücklich dokumentierten Bestandsaufnahme | wenige Sekunden pro Bestandsordner |
-| **Kalenderconnector sicher planen und simulieren** [`calendar-connectors.md`](./workflows/calendar-connectors.md) | Aus belegten Phase-17-Terminkandidaten einen providerneutralen Connectorplan | bei ausdrücklich gewünschter Kalenderübergabe | Planung wenige Sekunden; ein realer Connectorlauf ist nicht Teil der Abnahme |
-| **Kontoauszüge lokal und centgenau übernehmen** [`finance-import.md`](./workflows/finance-import.md) | Ausdrücklich bereitgestellte Kontoauszüge prüfen, revisionsgebunden in den | nach Bereitstellung neuer Kontoauszüge | wenige Sekunden pro Auszugsordner |
-| **Korrespondenz sicher erstellen** [`correspondence-studio.md`](./workflows/correspondence-studio.md) | Einen Brief aus einer kontrollierten Vorlage und einem eigenen, vererbbaren | ad-hoc | wenige Sekunden pro Brief |
-| **Leistungsvorcheck lokal ausführen** [`benefit-screening.md`](./workflows/benefit-screening.md) | Ein lokales Leistungsprofil mit groben, datierten Routingkriterien abgleichen | bei geänderter Lebenssituation oder frischem Katalog | wenige Sekunden zuzüglich amtlichem Vorcheck |
-| **Lokale FolderHome-App starten** [`local-app.md`](./workflows/local-app.md) | Die gemeinsame FolderHome-Oberfläche auf genau dem aktuellen | pro lokaler Arbeitssitzung | wenige Sekunden zuzüglich der interaktiven Nutzung |
-| **Mail sicher lesen, zuordnen und freigeben** [`mail-connector.md`](./workflows/mail-connector.md) | Einen Postfachabruf ohne Postfachänderung planen, eingehende | bei ausdrücklich ausgelöstem Mailabruf oder Versand | Plan unter einer Sekunde; Providerlauf abhängig vom Postfach |
-| **Medikamentenplan und bestätigte Einnahme** [`medication-intake.md`](./workflows/medication-intake.md) | Einen bereitgestellten Medikamentenplan lokal und evidenzgebunden übernehmen, | nach ausdrücklich bereitgestelltem Plan oder einer Einnahmebestätigung | wenige Sekunden |
-| **Mehrere Beobachtungsroutinen read-only bewerten** [`routine-queue.md`](./workflows/routine-queue.md) | Alle aktivierten Watches zu einem expliziten Zeitpunkt planen, Zustände | bei jedem geplanten Scheduler- oder manuellen Prüflauf | abhängig von Watch- und Dokumentzahl |
-| **Persönliche Notiz geführt und revisionssicher ablegen** [`personal-notes.md`](./workflows/personal-notes.md) | Einen menschlich formulierten Notizinhalt mit getrennten Fragen und | bei ausdrücklich gewünschter persönlicher Notiz | Planung und lokale Ablage wenige Sekunden |
-| **Private Steuer-Arbeitsunterlage aus bestätigten Belegen** [`tax-workpaper.md`](./workflows/tax-workpaper.md) | Einen katalogisierten Beleg nach menschlicher Kategorienbestätigung lokal in | nach ausdrücklich bereitgestellten und eingeordneten Belegen | wenige Sekunden pro Beleg und Export |
-| **Read-only Queue für einen Scheduler vorbereiten** [`scheduler-handoff.md`](./workflows/scheduler-handoff.md) | Einen portablen Aufruf und ein Windows-Task-Artefakt erzeugen und einen | einmal pro Zeitplan sowie bei Konfigurationsänderungen | Plan unter einer Sekunde; Lauf abhängig von Dokumentzahl |
-| **Rechtsänderungen als Prüfkandidaten erfassen** [`legal-change-monitor.md`](./workflows/legal-change-monitor.md) | Zwei lokale, datierte Rechtsquellenstände technisch vergleichen und geänderte | nach fachlich erstelltem neuen Rechtsquellensnapshot | wenige Sekunden ohne Beschaffung oder Rechtsprüfung |
-| **Sozialrechtlichen Bescheid verstehen** [`official-notice-understanding.md`](./workflows/official-notice-understanding.md) | Ausdrücklich beschriftete Angaben eines lokalen Bescheids nachvollziehbar | pro bereitgestelltem Bescheid | wenige Sekunden zuzüglich menschlicher Prüfung |
-| **Strands-Agent und Wettbewerbsdemo ausführen** [`strands-agent.md`](./workflows/strands-agent.md) | Den echten Strands-Agents-Loop von FolderHome begrenzt planen, mit | pro Demo- oder Agentenabnahme | wenige Sekunden ohne Bedrock; providerabhängig mit Bedrock |
-| **Verwaltungsentwurf sicher erstellen** [`administrative-drafts.md`](./workflows/administrative-drafts.md) | Einen sichtbar ungeprüften und unversandten Verwaltungsbrief aus belegter | pro Widerspruchs-, Antwort- oder Antragsentwurf | wenige Sekunden zuzüglich vollständiger menschlicher Prüfung |
-| **Wetter- und Newspaper-Brief lokal zustellen** [`daily-briefing.md`](./workflows/daily-briefing.md) | Einen Wetter- und Nachrichtensnapshot nachvollziehbar zu einem HTML-Brief | nach Bereitstellung eines neuen, datierten Snapshotpaars | wenige Sekunden |
-| **Workflow — Gesundheitsdossier** [`health-dossier.md`](./workflows/health-dossier.md) | (kein Purpose-Abschnitt gefunden) | — | — |
-| **Workflow — Versicherungs- und Vertragscockpit** [`contract-cockpit.md`](./workflows/contract-cockpit.md) | (kein Purpose-Abschnitt gefunden) | — | — |
+| **Approve and Undo Document Action** [`document-action-execution.md`](./workflows/document-action-execution.md) | Execute a previously verified rename/move prefix for exactly one document, bound to plan, hash, and action, log it without gaps, and, if needed, re... | ad-hoc after human plan review | a few seconds per document on the same storage medium |
+| **Build Local Document Library** [`document-library.md`](./workflows/document-library.md) | Index an explicitly chosen folder locally, search it naturally, and generate a thematic dossier or a folder report from it without moving source do... | ad‑hoc | depends on number of documents and file size |
+| **Bundle Documents as TXT or PDF** [`document-bundle.md`](./workflows/document-bundle.md) | Merge a deliberately selected folder into a new TXT or PDF file without altering, archiving, or deleting the originals. | ad-hoc | dependent on number of documents, page count, and image size |
+| **Capture Legal Changes as Review Candidates** [`legal-change-monitor.md`](./workflows/legal-change-monitor.md) | Technically compare two local, dated legal source states and match changed topics against explicitly recorded profile or contract interests. The re... | after a professionally created new legal source snapshot | a few seconds without procurement or legal review |
+| **Check Document Contact and Register Locally** [`contact-register.md`](./workflows/contact-register.md) | Detect labeled contact data from explicitly selected documents locally, verify it against the responsible profile and a revision‑bound register, an... | for new or changed documents with responsibility data | a few seconds per document folder |
+| **Create Document Action Plan from Profile Rules** [`document-action-plan.md`](./workflows/document-action-plan.md) | Check a synthetic or explicitly selected document against the rules of an organization profile and generate a traceable plan without altering the s... | ad-hoc or before each subsequent file execution | a few seconds per document |
+| **Create FCSA Sorting Plan** [`fcsa-dry-run.md`](./workflows/fcsa-dry-run.md) | Inspect an existing document folder with the pinned FCSA component and create a traceable sorting plan without modifying the inbox folder, the targ... | ad-hoc | dependent on folder size |
+| **Evaluate Multiple Observation Routines Read-Only** [`routine-queue.md`](./workflows/routine-queue.md) | Schedule all activated watches at a specific point in time, bundle comparable states, and detect conflicts across watch boundaries, without modifyi... | on every scheduled or manual check run | depends on the number of watches and documents |
+| **Generate a ZIP package with one document per file type** [`document-package.md`](./workflows/document-package.md) | Deterministically group a nested folder by file type and output it as a new ZIP containing one document per group together with a verification mani... | ad-hoc | dependent on number of documents, page count, and image size |
+| **Import bank statements locally and cent‑accurately** [`finance-import.md`](./workflows/finance-import.md) | Explicitly provided bank statements are checked, revision‑bound imported into the local finance store, and then coverage, transactions, and recurri... | after provision of new bank statements | a few seconds per statement folder |
+| **Local Delivery of Weather and Newspaper Brief** [`daily-briefing.md`](./workflows/daily-briefing.md) | Bundle a weather and news snapshot into a traceable HTML brief and copy exactly this output after a second approval into a chosen Desktop folder. | after provisioning a new dated snapshot pair | a few seconds |
+| **Medication Plan and Confirmed Intake** [`medication-intake.md`](./workflows/medication-intake.md) | Adopt a provided medication plan locally and evidence‑based, read the organizational daily view, and confirm an explicit intake as a separate appen... | according to an explicitly provided plan or an intake confirmation | a few seconds |
+| **Personal Note Managed and Stored Revision‑Safely** [`personal-notes.md`](./workflows/personal-notes.md) | Review a human‑written note content with separate questions and suggestions, approve it precisely, and store it as a new version in the pinned loca... | when a personal note is explicitly requested | planning and local storage a few seconds |
+| **Planned cleanup of observed folder** [`folder-routine.md`](./workflows/folder-routine.md) | Check a declared observed folder against its last checkpoint, plan a due set of changes or the full inventory, and execute a deliberately approved ... | after an explicitly triggered scan point | depending on file count and extraction formats |
+| **Prepare a read‑only queue for a scheduler** [`scheduler-handoff.md`](./workflows/scheduler-handoff.md) | Create a portable invocation and a Windows‑task artifact and safely coordinate a headless queue run without registering an operating‑system task or... | once per schedule and when configuration changes | plan under one second; runtime depends on document count |
+| **Private tax worksheet from confirmed receipts** [`tax-workpaper.md`](./workflows/tax-workpaper.md) | Incorporate a cataloged receipt, after human category confirmation, locally into the pinned tax agents and optionally generate a private, non‑offic... | after explicitly provided and categorized receipts | a few seconds per receipt and export |
+| **Run Strands Agent and Competition Demo** [`strands-agent.md`](./workflows/strands-agent.md) | Plan a limited execution of the real Strands‑Agents loop from FolderHome, run it reproducibly with synthetic data, and generate a hash‑bound compet... | per demo or agent acceptance | a few seconds without Bedrock; provider‑dependent with Bedrock |
+| **Run benefit and funding pre-screen locally** [`benefit-screening.md`](./workflows/benefit-screening.md) | Match a local benefit profile against coarse, dated routing criteria and display appropriate official pre-checks. The result is guidance, not a cla... | when life situation changes or a fresh catalog | a few seconds plus official pre-check |
+| **Safely clean up a batch folder** [`folder-cleanup.md`](./workflows/folder-cleanup.md) | Fully plan an explicitly selected folder, identify target conflicts across all documents, and then execute only a deliberately chosen subset with a... | ad-hoc, later as part of an observed routine | dependent on document count and extraction formats |
+| **Safely hand over document appointment to calendar** [`calendar-handoff.md`](./workflows/calendar-handoff.md) | Check labeled appointment data from an explicitly selected document folder and, after exact approval, transfer it to the local FolderHome calendar ... | for new or changed documents with appointment information | a few seconds per document folder |
+| **Safely plan and design artifacts** [`artifact-studio.md`](./workflows/artifact-studio.md) | Assign a desired presentation, table, file, business card, or media output to the existing specialist, keep missing quality gates visible, and gene... | ad-hoc | a few seconds for plan and local design output |
+| **Safely plan and simulate calendar connector** [`calendar-connectors.md`](./workflows/calendar-connectors.md) | Generate a provider‑neutral connector plan for UpToday, Routinika, or Google from documented Phase‑17 appointment candidates and optionally test th... | upon explicitly requested calendar handoff | planning takes a few seconds; a real connector run is not part of the acceptance |
+| **Scan Observed Folder and Verify Corrections** [`directory-observation.md`](./workflows/directory-observation.md) | Check a declared folder (without raw document text) against its last verified checkpoint, explain changes, and emit documented manual moves as lear... | ad‑hoc, later per scheduled scan run | dependent on file count and file size |
+| **Securely Create Correspondence** [`correspondence-studio.md`](./workflows/correspondence-studio.md) | View a letter generated from a controlled template and a custom, inheritable design entirely locally first, and then output it as new Markdown and ... | ad-hoc | a few seconds per letter |
+| **Securely create administrative draft** [`administrative-drafts.md`](./workflows/administrative-drafts.md) | Prepare a visibly unchecked and unsent administrative letter from a documented notice structure and provided information. The workflow generates on... | per objection, response, or application draft | a few seconds plus full human review |
+| **Securely read, assign, and approve Mail** [`mail-connector.md`](./workflows/mail-connector.md) | Plan a mailbox fetch without changing the mailbox, adopt incoming message references in a provider‑neutral way, and prepare a letter for idempotent... | when mail fetch or send is explicitly triggered | plan under one second; provider runtime depends on mailbox |
+| **Start Local FolderHome App** [`local-app.md`](./workflows/local-app.md) | Start the shared FolderHome interface on the exact current operating system account and operate the existing document search and topic dossiers in ... | per local work session | a few seconds plus interactive usage |
+| **Supplement Local Household Inventory** [`inventory-import.md`](./workflows/inventory-import.md) | Validate provided inventory observations, ingest them in a revision‑bound manner into the local append‑only inventory store, and then display curre... | after an explicitly documented inventory | few seconds per inventory folder |
+| **Understanding a Social Law Official Notice** [`official-notice-understanding.md`](./workflows/official-notice-understanding.md) | Capture explicitly labeled information from a local official notice in a traceable way and output it as a verifiable Markdown/JSON report. This wor... | per provided official notice | a few seconds plus human review |
+| **Workflow — Insurance and Contract Cockpit** [`contract-cockpit.md`](./workflows/contract-cockpit.md) | Answer a request such as “What is my latest car insurance for my Hyundai i10?” as a read‑only overview. The cockpit combines existing document vers... | — | — |
+| **Workflow — health dossier** [`health-dossier.md`](./workflows/health-dossier.md) | Create an evidence‑based health dossier as Markdown and JSON from an explicitly selected local folder. The workflow is extractive: it chronological... | — | — |
 
 <!-- @end:workflow-index -->
 
-## Beispiel (handschriftlich, zur Orientierung)
+## Example (handwritten, for orientation)
 
-Falls du lieber ohne Auto-Generator arbeitest, kann die Tabelle so aussehen:
+If you prefer to work without the auto‑generator, the table could look like this:
 
-| Du willst... | Öffne |
+| You want... | Open |
 |---|---|
-| [Vom Beispiel auf einen echten Workflow starten] | [`workflows/_example-workflow.md`](./workflows/_example-workflow.md) |
-| [Einen Release-Prozess dokumentieren] | `workflows/release.md` (falls angelegt) |
-| [Ein Security-Playbook dokumentieren] | `workflows/security-audit.md` (falls angelegt) |
-| [Einen Hotfix-Ablauf dokumentieren] | `workflows/hotfix.md` (falls angelegt) |
-| [Ein Admin-Playbook für Force-Push pflegen] | `workflows/force-push.md` (falls angelegt) |
+| [Start from the example to a real workflow] | [`workflows/_example-workflow.md`](./workflows/_example-workflow.md) |
+| [Document a release process] | `workflows/release.md` (if created) |
+| [Document a security playbook] | `workflows/security-audit.md` (if created) |
+| [Document a hotfix process] | `workflows/hotfix.md` (if created) |
+| [Maintain an admin playbook for force‑push] | `workflows/force-push.md` (if created) |
 
-(Diesen Beispiel-Block kannst du löschen wenn `workflows-sync` eingerichtet ist.)
+(You can delete this example block once `workflows-sync` is set up.)
 
-## Wann welcher Workflow?
+## When which workflow?
 
-- **Nach Dependabot-Alert** → vorhandenes Security-Playbook nutzen oder neu anlegen
-- **Nach Feature-Branch-Merge** → Release-Workflow nutzen oder anlegen
-- **Bei Crash in Production** → Hotfix-Workflow nutzen oder anlegen
-- **Bei Neuem Team-Mitglied** → Orientierungs- oder Onboarding-Workflow anlegen
-- **Bei History-Bereinigung** → eigenes Admin-Force-Push-Playbook des Projekts
+- **After Dependabot alert** → use existing security playbook or create a new one  
+- **After feature‑branch merge** → use or create release workflow  
+- **When a crash in production** → use or create hotfix workflow  
+- **When a new team member joins** → create orientation or onboarding workflow  
+- **When cleaning up history** → own admin‑force‑push playbook of the project  
 
-## Wann einen neuen Workflow anlegen
+## When to create a new workflow
 
-Ein neuer Workflow ist gerechtfertigt wenn:
-- Mindestens **5 Schritte** mit **Side-Effects** (nicht nur „docs lesen")
-- Das Prozedere mindestens **alle 3 Monate** wiederkehrt
-- Es **Fallstricke** gibt, die ein LLM-Agent spontan nicht rekonstruieren kann
-- Ein **klares Exit-Criterion** existiert (wann ist der Workflow fertig?)
+A new workflow is justified when:
+- At least **5 steps** with **side effects** (not just “read docs”)  
+- The procedure recurs at least **every 3 months**  
+- There are **pitfalls** that an LLM agent cannot spontaneously reconstruct  
+- A **clear exit criterion** exists (when is the workflow finished?)
 
-Wenn einer dieser Punkte fehlt: **kein eigener Workflow**, sondern Abschnitt
-in einem existierenden oder Pattern in `PATTERNS.md`.
+If any of these points is missing: **no separate workflow**, but a section in an existing one or a pattern in `PATTERNS.md`.
 
-## Konventionen
+## Conventions
 
-Siehe [`workflows/README.md`](./workflows/README.md) für:
-- Datei-Struktur eines einzelnen Workflows
-- Namens-Konvention (kein `WORKFLOW-A.md` — sprechende Namen!)
-- Pflicht-Abschnitte (Purpose, Steps, Exit-Criteria, Fallstricke)
+See [`workflows/README.md`](./workflows/README.md) for:
+- File structure of an individual workflow  
+- Naming convention (no `WORKFLOW-A.md` — descriptive names!)  
+- Required sections (Purpose, Steps, Exit Criteria, Pitfalls)

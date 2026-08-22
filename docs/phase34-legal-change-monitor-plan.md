@@ -1,90 +1,55 @@
-# Phase 34: Law-Checker-Anbindung und Rechtsänderungsmonitor
+# Phase 34: Law-Checker Integration and Legal Change Monitor
 
-**Stand:** 2026-08-22  
-**Zweck:** Einen vorhandenen quellengebundenen Rechtsworkflow revisionsgenau
-qualifizieren und technische Änderungen zwischen lokalen Rechtsquellenständen
-als begründete, aber unverbindliche Profil-/Vertragsprüfkandidaten ausgeben.
+**English** | [Deutsch](./phase34-legal-change-monitor-plan.de.md)
 
-## Bestandsabgleich
+**Status:** 2026-08-22  
+**Purpose:** Precisely qualify an existing source‑bound legal workflow and output technical changes between local legal source versions as justified but non‑binding profile/contract review candidates.
 
-Der frühere OneDrive-Checkout war zurückliegend und durch fremde Änderungen
-nicht als Runtime qualifizierbar. Für Phase 34 wurde deshalb ein separater,
-sauberer Checkout unter `C:\_Local_DEV\repos\law-checker` angelegt und auf
-Revision `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b` geprüft. Seine vier Tests
-bestanden am 2026-08-22.
+## Baseline Reconciliation
 
-`law-checker` Version 0.2.2 stellt einen Skill, eine versionierte
-Gesetzesregistry und einen Fetcher bereit. Es besitzt keine stabile Python-API
-für eine automatische Einzelfallprüfung. FolderHome importiert daher keinen
-Agentenlauf. Die neue read-only Bridge prüft stattdessen:
+The previous OneDrive checkout was outdated and could not be qualified as a runtime due to external modifications. Therefore, for Phase 34 a separate, clean checkout was created under `C:\_Local_DEV\repos\law-checker` and validated against revision `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b`. Its four tests passed on 2026-08-22.
 
-- saubere, exakt gepinnte Git-Revision,
-- Paketname und Version,
-- stabile Modul-ID und deklarierte Quellenfunktionen,
-- Registryversion und aktivierte Gesetzesschlüssel.
+`law-checker` version 0.2.2 provides a skill, a versioned law registry, and a fetcher. It does not have a stable Python API for automatic case‑by‑case verification. Consequently, FolderHome does not import an agent run. The new read‑only bridge instead checks:
 
-Ein Snapshot kann einen aktiven Registryschlüssel binden. Ein fehlender oder
-deaktivierter Schlüssel blockiert. Die derzeitige Registry enthält SGB V,
-aber kein vollständiges allgemeines Sozialverwaltungs- und
-Sozialgerichtsrecht. FolderHome behauptet deshalb keine umfassende
-Sozialrechtsprüfung.
+- clean, precisely pinned Git revision,
+- package name and version,
+- stable module ID and declared source functions,
+- registry version and activated law keys.
 
-## Amtliche Veröffentlichungswege
+A snapshot can bind an active registry key. A missing or deactivated key blocks the process. The current registry contains SGB V, but not a complete general social administration and social court law. Therefore, FolderHome does not claim comprehensive social law verification.
 
-Für Produktivsnapshots sind nur ausdrücklich zugelassene amtliche Domains
-erlaubt. Die [Verkündungsplattform des Bundes](https://www.recht.bund.de/de/home/home_node.html)
-stellt die amtliche Fassung des Bundesgesetzblatts bereit. Das
-[DIP des Deutschen Bundestages](https://www.bundestag.de/dokumente/parlamentsdokumentation)
-dokumentiert parlamentarische Vorgänge bis zur Verkündung. Konsolidierte
-Bundesgesetze können aus `gesetze-im-internet.de` stammen.
+## Official Publication Channels
 
-Diese Quellen erfüllen unterschiedliche Rollen: Ein parlamentarischer
-Entwurf ist keine Verkündung; eine Verkündung ist nicht automatisch derselbe
-Darstellungstyp wie ein konsolidierter Normstand. Das Snapshotmodell hält
-deshalb `legislative_proposal`, `promulgated` und `consolidated_current`
-getrennt. Die Beschaffung selbst gehört nicht in den lokalen Vergleichslauf.
+For production snapshots, only expressly authorized official domains are permitted. The [Federal Announcement Platform](https://www.recht.bund.de/de/home/home_node.html) provides the official version of the Federal Law Gazette. The [DIP of the German Bundestag](https://www.bundestag.de/dokumente/parlamentsdokumentation) documents parliamentary proceedings up to the proclamation. Consolidated federal statutes may originate from `gesetze-im-internet.de`.
 
-## Neuer gekapselter Kern
+These sources serve different roles: a parliamentary draft is not a proclamation; a proclamation is not automatically the same representation type as a consolidated normative state. Consequently, the snapshot model keeps `legislative_proposal`, `promulgated`, and `consolidated_current` separate. The acquisition itself is not part of the local comparison run.
 
-`contracts.legal_change_monitor` und `application.legal_change_monitor` sind
-providerunabhängig und später wiederverwendbar. Sie modellieren:
+## New Encapsulated Core
 
-- unvollständige, quellen- und hashgebundene Normabschnittssnapshots,
-- explizite `user_provided`-Interessen für Profil oder Vertrag,
-- technische Änderungen `added`, `modified` und `removed`,
-- reine `review_candidate`-Zuordnungen über gemeinsame Themen-Tags,
-- lokale Markdown-/JSON-Ausgaben hinter einem Never-overwrite-Gate.
+`contracts.legal_change_monitor` and `application.legal_change_monitor` are provider‑agnostic and reusable later. They model:
 
-Die Dateien werden vor Vergleich und Ausgabe erneut gehasht. Quellen dürfen
-nicht in der Zukunft liegen und die konfigurierte Altersgrenze nicht
-überschreiten. Produktivquellen außerhalb der Allowlist blockieren. Der
-synthetische Wettbewerbscase ist durch `fixture_only=true`,
-`authoritative=false`, `example.invalid` und ein explizites CLI-Testgate
-isoliert.
+- incomplete, source‑ and hash‑bound norm‑section snapshots,
+- explicit `user_provided` interests for profile or contract,
+- technical changes `added`, `modified`, and `removed`,
+- pure `review_candidate` assignments via shared topic tags,
+- local Markdown/JSON outputs behind a Never‑overwrite gate.
 
-## Nicht verklebte Folgeschritte
+The files are re‑hashed before comparison and output. Sources must not be dated in the future and must not exceed the configured age limit. Production sources outside the allowlist are blocked. The synthetic competition case is isolated by `fixture_only=true`, `authoritative=false`, `example.invalid`, and an explicit CLI test gate.
 
-Der Monitor verbindet bewusst nicht automatisch:
+## Non‑Sticky Follow‑up Steps
 
-- Bescheidextraktion oder Verwaltungsentwurf,
-- rechtliche Einzelfallprüfung,
-- Übergangs- und Fristberechnung,
-- periodische Webbeschaffung,
-- Desktop-, Kalender- oder Mailbenachrichtigung.
+The monitor deliberately does not automatically connect:
 
-Diese Trennung verhindert, dass ein technischer Textdiff als Rechtswirkung
-oder ein Tag-Match als persönliche Betroffenheit erscheint. Künftige
-Provider können den gekapselten Snapshotvertrag speisen; Freigaben und
-Fachprüfung bleiben eigene Grenzen.
+- official notice extraction or administrative draft,
+- legal case‑by‑case verification,
+- transition and deadline calculation,
+- periodic web acquisition,
+- desktop, calendar, or email notification.
 
-## Abnahme
+This separation prevents a technical text diff from being interpreted as legal effect or a tag match as personal impact. Future providers can feed the encapsulated snapshot contract; approvals and expert review remain separate boundaries.
 
-Die Phase-34-Tests decken Provideridentität, falsche Revision, fehlenden
-Registryschlüssel, geänderten Wortlaut, nicht passendes Interesse, Entwurf,
-Quellenalter, nichtamtliche Domain, Sensitivitäts-/Fixture-Gates,
-Hashänderung, Output-Gate und Never-overwrite ab. Der CLI-Usecase qualifiziert
-den Provider, vergleicht den synthetischen Stand und schreibt einen lokalen
-Bericht ohne Netzwerkzugriff oder Außenwirkung.
+## Acceptance
+
+The Phase‑34 tests cover provider identity, incorrect revision, missing registry key, altered wording, mismatched interest, draft, source age, non‑official domain, sensitivity/fixture gates, hash change, output gate, and never‑overwrite. The CLI use case qualifies the provider, compares the synthetic state, and writes a local report without network access or external impact.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

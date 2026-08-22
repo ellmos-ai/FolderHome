@@ -1,22 +1,23 @@
-# BACH Wetter, Newspaper und Daily Agent — Designreferenz
+# BACH Weather, Newspaper and Daily Agent — Design Reference
 
-Geprüft wurde der lokale BACH-Checkout auf Commit
-`9ff3df23d6e8e27b9c9eaad71f2430923224d4d9`, Repository
-`https://github.com/ellmos-ai/bach.git`, Lizenz MIT. Die relevanten Wetter-,
-Newspaper- und Daily-Agent-Dateien sind gegenüber Git unverändert; der
-Gesamtcheckout enthält jedoch fremde Änderungen und wird nicht als
-FolderHome-Runtime geladen. Die fokussierten Newspaper-Tests waren 11/11
-grün.
+**English** | [Deutsch](./README.de.md)
 
-BACH belegt die Produktidee eines Wetterabschnitts, einer gruppierten
-HTML-/PDF-Zeitung und einer Desktopzustellung. FolderHome kopiert den Code
-nicht: Der BACH-Bestand ist an eine zentrale Datenbank, implizite Systemzeit,
-einen fest codierten Ort, direkten Netzwerkzugriff, Edge und unmittelbare
-Desktop-/Telegram-Side-Effects gekoppelt.
+The local BACH checkout was verified at commit
+`9ff3df23d6e8e27b9c9eaad71f2430923224d4d9`, repository
+`https://github.com/ellmos-ai/bach.git`, license MIT. The relevant weather,
+newspaper, and daily‑agent files are unchanged relative to Git; the
+overall checkout, however, contains foreign changes and is not loaded as
+a FolderHome runtime. The focused newspaper tests were 11/11
+green.
 
-Neu gekapselte FolderHome-Verträge verwenden stattdessen lokale,
-hashgebundene Snapshots, explizite Zeitpunkte und getrennte Render- und
-Desktopfreigaben. Live-Netzwerk und Scheduler bleiben sichtbar blockiert.
+BACH embodies the product idea of a weather segment, a grouped
+HTML/PDF newspaper, and a desktop delivery. FolderHome does not copy the code:
+the BACH inventory is tied to a central database, implicit system time,
+a hard‑coded location, direct network access, Edge, and immediate
+desktop/Telegram side‑effects.
+
+Newly encapsulated FolderHome contracts instead use local,
+hash‑bound snapshots, explicit timestamps, and separate render and
+desktop releases. Live network and scheduler remain visibly blocked.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

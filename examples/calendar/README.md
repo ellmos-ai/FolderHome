@@ -1,12 +1,13 @@
-# Kalenderconnector-Beispiele
+# Calendar connector examples
 
-`calendar-config.json` demonstriert den bestehenden UpToday-ICS-Handoff aus Phase 17.
-`calendar-config-google.json`, `connector-accounts.json` und
-`connector-request-google.json` demonstrieren den providerneutralen Connectorplan aus
-Phase 27. Das Google-Konto enthält nur eine Connector-Referenz, keine Zugangsdaten.
+**English** | [Deutsch](./README.de.md)
 
-`calendar connector-plan` bleibt nebenwirkungsfrei. Für eine lokale Ende-zu-Ende-Abnahme
-kann derselbe Plan mit `--use-synthetic-provider` vorbereitet und mit
-`calendar connector-simulate` sowie `--approve-synthetic-calendar` ausschließlich gegen
-den No-Network-Fixture-Provider ausgeführt werden. Ein echter Google-Kalender wird dabei
-nicht verändert.
+`calendar-config.json` demonstrates the existing UpToday-ICS-Handoff from Phase 17.  
+`calendar-config-google.json`, `connector-accounts.json` and  
+`connector-request-google.json` demonstrate the provider‑neutral connector plan from  
+Phase 27. The Google account contains only a connector reference, no credentials.
+
+`calendar connector-plan` remains side‑effect free. For a local end‑to‑end acceptance  
+the same plan can be prepared with `--use-synthetic-provider` and executed with  
+`calendar connector-simulate` as well as `--approve-synthetic-calendar` exclusively against  
+the No‑Network‑Fixture provider. A real Google calendar will not be modified in the process.

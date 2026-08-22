@@ -1,11 +1,10 @@
-# Synthetische Mailkonfiguration
+# Synthetic Mail Configuration
 
-Die Beispiele enthalten ausschließlich reservierte `example.invalid`-Adressen
-und Secret-Referenzen. Es werden weder Zugangsdaten hinterlegt noch echte
-Postfächer angesprochen.
+**English** | [Deutsch](./README.de.md)
 
-Der normale Plan prüft den revisionsgenauen UniversalDocsGrabber-Checkout und
-bleibt bei fehlendem, abweichendem oder verändertem Checkout blockiert:
+The examples contain only reserved `example.invalid` addresses and Secret references. No credentials are stored and no real mailboxes are accessed.
+
+The standard plan checks the revision‑accurate UniversalDocsGrabber checkout and remains blocked when the checkout is missing, deviating, or altered:
 
 ```powershell
 python -m folderhome mail ingest-plan `
@@ -15,10 +14,7 @@ python -m folderhome mail ingest-plan `
   --approve-sensitive-local-read --json
 ```
 
-Für die lokale Abnahme kann derselbe Plan mit
-`--use-synthetic-provider` ohne Netzwerk freigegeben werden. Auch dieser Plan
-ruft noch keinen Provider auf. Postfach-Löschen, Verschieben und Versand sind
-keine Ingest-Operationen.
+
+For local testing the same plan can be approved without network using `--use-synthetic-provider`. This plan also does not call any provider yet. Mailbox deletion, moving, and sending are not ingest operations.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

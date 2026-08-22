@@ -1,46 +1,37 @@
-# Phase 20 — Haushalts- und Lagerbestand
+# Phase 20 — Household and Stock Inventory
 
-**Status:** lokal abgeschlossen, 189 Tests grün  
+**English** | [Deutsch](./phase20-household-inventory-reuse-and-plan.de.md)
+
+**Status:** locally completed, 189 tests green  
 **Stand:** 2026-08-22  
-**Produktname im Wettbewerb:** FolderHome
+**Product name in competition:** FolderHome
 
-## Ziel
+## Goal
 
-FolderHome übernimmt ausdrücklich bereitgestellte Bestandsaufnahmen in einen
-lokalen, append-only geführten Haushaltsbestand. Aktueller Bestand,
-Mindestbestand, Ablaufdatum und Einkaufsbedarf bleiben nach Profil, Bereich,
-Ort und Quelldokument belegbar.
+FolderHome explicitly takes over provided inventory records into a local, append‑only household stock. Current stock, minimum stock, expiration date and purchase requirements remain provable by profile, area, location and source document.
 
-## Wiederverwendung
+## Reuse
 
 ### UpToday
 
-- lokaler sauberer Checkout: `C:\_Local_DEV\repos\UpToday`
-- geprüfte Revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
-- Lizenz: MIT
-- fokussierte Vertragsabnahme: 4 Tests grün
-- wiederverwendete Fachbegriffe: Artikel, Kategorie/Bereich, Ort, Basiseinheit,
-  Bestand, Mindestbestand und prüfbare Einkaufsableitung
+- local clean checkout: `C:\_Local_DEV\repos\UpToday`
+- verified revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
+- License: MIT
+- focused contract acceptance: 4 tests green
+- reused domain terms: item, category/area, location, base unit, stock, minimum stock and verifiable purchase derivation
 
-UpToday wird nicht als Runtime-Provider geladen. Sein bisheriger
-`InventoryEngine` verwendet Fließkommazahlen, einen globalen DB-Singleton,
-direkte `UPDATE`-/`DELETE`-Operationen und `date.today()`. Diese Eigenschaften
-passen nicht zu FolderHomes revisionsgebundenem, deterministischem
-Append-only-Vertrag. FolderHome kopiert keinen UpToday-Quellcode.
+UpToday is not loaded as a runtime provider. Its previous `InventoryEngine` uses floating‑point numbers, a global DB singleton, direct `UPDATE`-/`DELETE` operations and `date.today()`. These characteristics do not fit FolderHome's revision‑bound, deterministic append‑only contract. FolderHome does not copy any UpToday source code.
 
-### Bestehende FolderHome-Bausteine
+### Existing FolderHome components
 
-- doc-services extrahiert die ausdrücklich gewählten Dateien read-only.
-- Profilregeln liefern die organisatorische Profil-ID; ein Profil ist keine
-  Sicherheitsgrenze innerhalb desselben Betriebssystemkontos.
-- Das Plan-/Approval-/Revision-Muster aus Kontakt-, Kalender- und
-  Finanzdiensten wird wiederverwendet.
-- Der neue Store bleibt als eigenständige Capability für spätere Module
-  wiederverwendbar.
+- doc-services extracts the explicitly selected files read‑only.
+- Profile rules provide the organizational profile ID; a profile is not a security boundary within the same operating‑system account.
+- The plan/approval/revision pattern from contact, calendar, and finance services is reused.
+- The new store remains a standalone capability reusable for later modules.
 
-## Deklaratives V1-Eingabeformat
+## Declarative V1 input format
 
-Eine Textdatei beschreibt genau eine Bestandsaufnahme:
+A text file describes exactly one inventory record:
 
 ```text
 Gegenstand: Reis
@@ -53,12 +44,10 @@ Erfasst-am: 2026-08-22
 Ablaufdatum: 2027-02-28
 ```
 
-`Ablaufdatum` ist optional. Mengen werden dezimal gelesen und intern als
-ganzzahlige Tausendstel der angegebenen Einheit gespeichert. Mehr als drei
-Nachkommastellen, negative Werte, doppelte Felder und unbeklare Pflichtfelder
-führen zu `review_required`; FolderHome rundet nicht still.
 
-## Neuer gekapselter Bauplan
+`Ablaufdatum` is optional. Quantities are read as decimal and stored internally as integer thousandths of the specified unit. More than three fractional digits, negative values, duplicate fields and unknown mandatory fields result in `review_required`; FolderHome does not round silently.
+
+## New encapsulated blueprint
 
 ```text
 expliziter Bestandsordner + Profil + lokale Sensitivitätsfreigabe
@@ -76,33 +65,31 @@ Inventarstore + Profil + expliziter Stichtag
   → Fehlmenge und Evidenz ausgeben, aber keinen Einkauf auslösen
 ```
 
-Neue Pakete:
+
+New packages:
 
 - `folderhome.contracts.inventory`
 - `folderhome.application.household_inventory`
 - `folderhome.capabilities.inventory_store`
 
-## Sicherheits- und Produktgrenzen
+## Security and product boundaries
 
-- Kein stilles Überschreiben und kein SQL-`DELETE`.
-- Kein automatischer Einkauf, keine Bestellung und kein Lieferantenkontakt.
-- Kein Anspruch auf Vollständigkeit eines Haushaltsbestands.
-- Ablauf- und Einkaufshinweise sind prüfpflichtige Kandidaten.
-- Quelldokumente bleiben unverändert; der Store enthält normalisierte Felder
-  und Provenienz, keinen Dokumentrohtext.
-- Familienprofile organisieren Datensichten, ersetzen aber keine
-  Betriebssystemkontentrennung.
+- No silent overwriting and no SQL‑`DELETE`.
+- No automatic purchasing, no ordering, and no supplier contact.
+- No claim to completeness of a household inventory.
+- Expiration and purchase hints are candidates requiring verification.
+- Source documents remain unchanged; the store contains normalized fields and provenance, no raw document text.
+- Family profiles organize data views, but do not replace operating‑system account separation.
 
-## Abnahme
+## Acceptance
 
-- Parser und Dezimalexaktheit
-- Datenschutzstatus und Zeilenevidenz
-- konfliktfreie read-only Planung
-- Approval-, Revisions-, Quellhash- und State-Gates
-- atomarer Append-only-Store
-- profilgetrennte aktuelle Sicht und vollständige Historie
-- Mindestbestand und Ablaufkandidaten mit explizitem Stichtag
-- synthetischer CLI-End-to-End-Lauf
+- Parser and decimal accuracy
+- Data‑privacy status and line evidence
+- Conflict‑free read‑only planning
+- Approval, revision, source‑hash and state gates
+- Atomic append‑only store
+- Profile‑separated current view and complete history
+- Minimum stock and expiration candidates with explicit cut‑off date
+- Synthetic CLI end‑to‑end run
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

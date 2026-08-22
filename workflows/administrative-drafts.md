@@ -1,28 +1,26 @@
-# Workflow: Verwaltungsentwurf sicher erstellen
+# Workflow: Securely create administrative draft
 
-> **Last verified:** 2026-08-22
-> **Frequency:** pro Widerspruchs-, Antwort- oder Antragsentwurf
-> **Duration:** wenige Sekunden zuzüglich vollständiger menschlicher Prüfung
+**English** | [Deutsch](./administrative-drafts.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** per objection, response, or application draft  
+> **Duration:** a few seconds plus full human review
 
 ## Purpose
 
-Einen sichtbar ungeprüften und unversandten Verwaltungsbrief aus belegter
-Bescheidstruktur und bereitgestellten Angaben vorbereiten. Der Workflow
-erzeugt nur lokale Markdown-/TXT-Dateien.
+Prepare a visibly unchecked and unsent administrative letter from a documented notice structure and provided information. The workflow generates only local Markdown/TXT files.
 
 ## Preconditions
 
-- Profil, Absender, Empfänger, gewünschtes Ergebnis und Nutzeraussagen wurden
-  ausdrücklich bereitgestellt.
-- Bei Widerspruch oder Behördenantwort liegt eine aktuelle Phase-31-Analyse
-  derselben unveränderten Quelle vor.
-- Die Anfrage enthält den SHA-256 der erwarteten Bescheidquelle.
-- Briefdesign und spezielle Verwaltungsbriefvorlagen sind geprüft.
-- Frist, Rechtsweg, Zuständigkeit und Inhalt werden fachlich separat geprüft.
+- Profile, sender, recipient, desired outcome, and user statements have been explicitly provided.  
+- For an objection or authority response, a current Phase‑31 analysis of the same unchanged source is available.  
+- The request contains the SHA‑256 of the expected notice source.  
+- Letter design and special administrative letter templates have been reviewed.  
+- Deadline, legal route, jurisdiction, and content are examined separately by subject‑matter experts.
 
 ## Steps
 
-1. **Vorschau read-only erzeugen.**
+1. **Generate read‑only preview.**
 
    ```powershell
    $env:PYTHONPATH = "src"
@@ -37,17 +35,16 @@ erzeugt nur lokale Markdown-/TXT-Dateien.
      --approve-sensitive-local-read --json
    ```
 
-2. **Provenienz prüfen.** Dokumentfakten müssen Zeile, Dokument-ID und
-   Quellhash nennen. Nutzeraussagen müssen `user_provided` bleiben.
-3. **Offene Punkte prüfen.** Insbesondere Frist, Zuständigkeit,
-   Rechtsbehelfsart, Aktenzeichen, Empfänger und Anlagen gegen das Original
-   kontrollieren. `review_required` wird nicht zu „rechtlich geprüft“.
-4. **Brief vollständig lesen.** Der sichtbare `ENTWURF`-Hinweis muss in
-   Markdown und TXT enthalten sein.
-5. **Approval erzeugen.** Plan-ID, Markdownhash und TXThash aus genau dieser
-   Vorschau übernehmen. Inhalt geprüft, fehlende Rechtsprüfung verstanden und
-   ausschließlich lokale Ausgabe jeweils boolesch bestätigen.
-6. **Lokale Ausgabe hinter eigenem Gate schreiben.**
+
+2. **Check provenance.** Document facts must specify line, document ID, and source hash. User statements must remain `user_provided`.
+
+3. **Check open items.** In particular, verify deadline, jurisdiction, type of legal remedy, file reference, recipient, and attachments against the original. `review_required` is not considered “legally reviewed.”
+
+4. **Read the letter in full.** The visible `ENTWURF` notice must be included in both Markdown and TXT.
+
+5. **Generate approval.** Adopt the plan ID, Markdown hash, and TXT hash from exactly this preview. Content reviewed, missing legal review understood, and confirm local output only with a boolean each.
+
+6. **Write local output behind its own gate.**
 
    ```powershell
    python -m folderhome drafts render <Argumente aus Schritt 1> `
@@ -57,39 +54,36 @@ erzeugt nur lokale Markdown-/TXT-Dateien.
      --approve-output-write --json
    ```
 
-7. **Außenwirkung separat entscheiden.** FolderHome Phase 32 besitzt keinen
-   Versand. Vor jeder realen Verwendung ist die aktuelle fachliche Prüfung
-   einschließlich Frist, Form, Stelle und Anlagen erforderlich.
 
-## Exit-Criteria
+7. **Decide external impact separately.** FolderHome Phase 32 has no dispatch. Before any real use, the current subject‑matter review, including deadline, form, authority, and attachments, is required.
 
-- [ ] Bescheidquelle, Profil, Empfänger und Quellhash stimmen überein.
-- [ ] Dokumentevidenz und bereitgestellte Angaben sind getrennt.
-- [ ] Der konkrete Briefinhalt und beide Ausgabehashes wurden bestätigt.
-- [ ] Markdown und TXT tragen sichtbar den Entwurfs-/Prüfhinweis.
-- [ ] Vorhandene Dateien wurden nicht überschrieben.
-- [ ] Rechtsprüfung, Leistungsprüfung und Fristberechnung blieben aus.
-- [ ] Keine E-Mail, kein Portal, kein Druck und kein Versand wurde ausgelöst.
+## Exit‑Criteria
 
-## Fallstricke
+- [ ] Notice source, profile, recipient, and source hash match.  
+- [ ] Document evidence and provided information are separate.  
+- [ ] The specific letter content and both output hashes have been confirmed.  
+- [ ] Markdown and TXT visibly carry the draft/review notice.  
+- [ ] Existing files were not overwritten.  
+- [ ] Legal review, benefit review, and deadline calculation were omitted.  
+- [ ] No email, portal, printing, or dispatch was triggered.
 
-- Ein im Bescheid gedruckter Rechtsbehelf beweist nicht dessen Richtigkeit
-  oder Anwendbarkeit im Einzelfall.
-- Ein berechneter Resttagewert aus Phase 31 ist keine gesetzliche Frist.
-- `user_provided` bedeutet nicht bereits bestätigt oder belegt.
-- Eine lokale Output-Freigabe ist keine Versandfreigabe.
-- Ein Leistungsantragsentwurf ist kein Leistungs- oder Fördervorcheck.
+## Pitfalls
 
-## Verwandte
+- A legal remedy printed in the notice does not prove its correctness or applicability in the individual case.  
+- A calculated remaining‑days value from Phase 31 is not a legal deadline.  
+- `user_provided` does not already mean confirmed or evidenced.  
+- A local output approval is not a dispatch approval.  
+- A benefit application draft is not a benefit and funding pre‑screen.
 
-- [`../docs/phase32-administrative-drafts-plan.md`](../docs/phase32-administrative-drafts-plan.md)
-- [`./official-notice-understanding.md`](./official-notice-understanding.md)
-- [`./correspondence-studio.md`](./correspondence-studio.md)
+## Related
+
+- [`../docs/phase32-administrative-drafts-plan.md`](../docs/phase32-administrative-drafts-plan.md)  
+- [`./official-notice-understanding.md`](./official-notice-understanding.md)  
+- [`./correspondence-studio.md`](./correspondence-studio.md)  
 - [`../skills/folderhome-administrative-drafts/SKILL.md`](../skills/folderhome-administrative-drafts/SKILL.md)
 
-## Historie
+## History
 
-- **2026-08-22** — evidenzgebundene lokale Verwaltungsentwürfe abgenommen
+- **2026-08-22** — evidence‑based local administrative drafts approved
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

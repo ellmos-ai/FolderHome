@@ -1,19 +1,20 @@
-# Synthetischer Leistungs- und Fördervorcheck
+# Synthetic benefit and funding pre-screen
 
-`Lukas-benefit-profile.json` enthält ausschließlich erfundene,
-nutzerbereitgestellte Routingangaben. Es ist eine fachlich getrennte
-Ergänzung des organisatorischen Profils und keine automatische
-Dokumentenextraktion.
+**English** | [Deutsch](./README.de.md)
 
-`official-routing-catalog.json` enthält drei am 2026-08-22 geprüfte amtliche
-Handoffs: den allgemeinen Sozialleistungsfinder, den KiZ-Lotsen und den
-Wohngeld-Plus-Rechner. Die Kriterien sind nur grobe Routingmerkmale. Jede
-Leistung nennt ausdrücklich nicht modellierte Anforderungen; der Katalog ist
-absichtlich `complete=false`.
+`Lukas-benefit-profile.json` contains only fictional,
+user‑provided routing information. It is a functionally separate
+addition to the organizational profile and not an automatic
+document extraction.
 
-Ein Ergebnis `official_handoff_recommended` bedeutet nur, dass sich der
-amtliche Vorcheck als nächster Prüfschritt anbietet. FolderHome prüft keine
-Leistungsberechtigung, berechnet keine Höhe und erzeugt keinen Antrag.
+`official-routing-catalog.json` contains three official handoffs verified on 2026-08-22:
+the general social benefit finder, the KiZ guide and the
+housing benefit plus calculator. The criteria are only coarse routing attributes. Each
+benefit explicitly lists non‑modeled requirements; the catalog is
+intentionally `complete=false`.
+
+A result `official_handoff_recommended` only indicates that the
+official pre‑check is offered as the next verification step. FolderHome does not check
+benefit eligibility, does not calculate an amount and does not generate an application.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

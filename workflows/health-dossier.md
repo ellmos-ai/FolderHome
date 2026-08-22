@@ -1,13 +1,12 @@
-# Workflow — Gesundheitsdossier
+# Workflow — health dossier
 
-## Zweck
+**English** | [Deutsch](./health-dossier.de.md)
 
-Aus einem ausdrücklich gewählten lokalen Ordner ein evidenzgebundenes
-Gesundheitsdossier als Markdown und JSON erstellen. Der Workflow ist
-extraktiv: Er ordnet dokumentierte Aussagen zeitlich ein, weist aber keine
-Diagnose, Therapieentscheidung oder medizinische Vollständigkeit aus.
+## Purpose
 
-## Lokaler Lauf
+Create an evidence‑based health dossier as Markdown and JSON from an explicitly selected local folder. The workflow is extractive: it chronologically orders documented statements, but does not provide a diagnosis, therapy decision, or medical completeness.
+
+## Local run
 
 ```powershell
 $env:PYTHONPATH = "src"
@@ -23,36 +22,27 @@ python -m folderhome health dossier `
   --json
 ```
 
-Die beiden Ausgabedateien müssen neu sein und außerhalb des analysierten
-Quellordners liegen. Vorhandene Dateien werden nicht überschrieben.
 
-## Eingabekonvention
+The two output files must be new and located outside the analyzed source folder. Existing files are not overwritten.
 
-Für die erste Version sind folgende Labels besonders aussagekräftig:
+## Input convention
+
+For the first version, the following labels are particularly meaningful:
 
 - `Dokumenttyp`, `Dokumentdatum`, `Fachbereich`
 - `Befund`, `Ergebnis`, `Medikament`, `Termin`, `Offene Frage`
 - `Dokumentierte Angabe: Feld = Wert`
 
-Andere lesbare Dokumente können bis zu drei reine Quellenauszüge liefern.
-Ohne eindeutiges Dokumentdatum bleibt eine Quelle sichtbar, wird aber nicht in
-die Zeitlinie einsortiert. Direkte Konflikte werden nur bei gleich bezeichneten
-`Dokumentierte Angabe`-Feldern erkannt.
+Other readable documents can provide up to three pure source extracts. Without a clear document date, a source remains visible but is not sorted into the timeline. Direct conflicts are only detected for equally labeled `Dokumentierte Angabe` fields.
 
-## Sicherheitsgrenzen
+## Security boundaries
 
-- Das Sensitivitäts-Gate wird vor der ersten Extraktion geprüft.
-- ROT klassifizierte Inhalte werden nur lokal übernommen, wenn der
-  Providerbefund ausschließlich `Gesundheitsdaten` nennt.
-- Weitere rote Befunde wie IBAN, API-Token oder Zugangsdaten bleiben blockiert.
-- Nicht lesbare, blockierte, undatierte und zukünftige Quellen bleiben im
-  Bericht sichtbar.
-- Zeitlücken bedeuten nur, dass zwischen zwei datierten Quellen ein Abstand
-  liegt; sie beweisen keine Versorgungslücke.
-- Es gibt keinen Netzwerkzugriff, keinen LLM-Aufruf und keine automatische
-  Kalender-, Medikamenten- oder Kontaktaktion.
-- `report-forge` wird wegen seiner uneinheitlichen Provideridentität nicht
-  aufgerufen; Markdown und JSON sind die kanonischen Ausgaben dieser Phase.
+- The sensitivity gate is checked before the first extraction.
+- RED classified content is only taken locally if the provider finding exclusively mentions `Gesundheitsdaten`.
+- Other red findings such as IBAN, API token, or credentials remain blocked.
+- Unreadable, blocked, undated, and future sources remain visible in the report.
+- Time gaps only indicate that there is an interval between two dated sources; they do not prove a care gap.
+- There is no network access, no LLM call, and no automatic calendar, medication, or contact action.
+- `report-forge` is not invoked because of its inconsistent provider identity; Markdown and JSON are the canonical outputs of this phase.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

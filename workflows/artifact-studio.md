@@ -1,24 +1,24 @@
-# Workflow: Artefakte sicher planen und gestalten
+# Workflow: Safely plan and design artifacts
 
-> **Last verified:** 2026-08-22
-> **Frequency:** ad-hoc
-> **Duration:** wenige Sekunden für Plan und lokale Designausgabe
+**English** | [Deutsch](./artifact-studio.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** ad-hoc  
+> **Duration:** a few seconds for plan and local design output  
 
 ## Purpose
 
-Eine gewünschte Präsentation, Tabelle, Datei, Visitenkarte oder
-Medienausgabe dem vorhandenen Spezialisten zuordnen, fehlende Qualitätsgates
-sichtbar halten und ein lokales Designset kontrolliert erzeugen.
+Assign a desired presentation, table, file, business card, or media output to the existing specialist, keep missing quality gates visible, and generate a local design set in a controlled manner.
 
 ## Preconditions
 
-- Anfrage und Profilkonfiguration liegen lokal als UTF-8-Dateien vor.
-- Personenbezogene Inhalte dürfen für diesen Lauf gelesen werden.
-- Für lokale Designausgaben sind drei neue, verschiedene Zielpfade gewählt.
+- Request and profile configuration are available locally as UTF-8 files.  
+- Personal data may be read for this run.  
+- Three new, distinct target paths are chosen for local design outputs.
 
 ## Steps
 
-1. **Artefaktplan erzeugen** — keine Provider oder Skills werden ausgeführt.
+1. **Generate artifact plan** — no providers or skills are executed.
 
    ```powershell
    $env:PYTHONPATH = "src"
@@ -29,12 +29,10 @@ sichtbar halten und ein lokales Designset kontrolliert erzeugen.
      --json
    ```
 
-2. **Routen prüfen** — `blocked` stoppen, bei `review_required` alle genannten
-   Gates erfüllen und nur `ready` ohne zusätzliche Providerabhängigkeit
-   weiterführen.
 
-3. **Designvorschau erzeugen** — Designtokens, Kontrastchecks und SVG-Inhalt
-   kontrollieren; dieser Schritt schreibt nichts.
+2. **Check routes** — stop `blocked`, at `review_required` satisfy all listed gates and only continue `ready` without additional provider dependency.
+
+3. **Generate design preview** — verify design tokens, contrast checks, and SVG content; this step writes nothing.
 
    ```powershell
    python -m folderhome artifacts design-preview `
@@ -44,8 +42,8 @@ sichtbar halten und ein lokales Designset kontrolliert erzeugen.
      --json
    ```
 
-4. **Lokale Ausgabe freigeben** — erst nach der Inhaltsprüfung drei neue
-   Dateien als zusammengehörigen Batch schreiben.
+
+4. **Release local output** — only after content review write three new files as a single batch.
 
    ```powershell
    $artifactOutput = Join-Path $env:TEMP "folderhome-artifact-demo"
@@ -61,36 +59,31 @@ sichtbar halten und ein lokales Designset kontrolliert erzeugen.
      --json
    ```
 
-5. **Visuell prüfen** — jede konkrete SVG-Karte rasterisieren oder in einem
-   vertrauenswürdigen lokalen Viewer vollständig ansehen. Erst danach darf
-   eine separate Druckfreigabe erwogen werden.
+
+5. **Visually inspect** — rasterize each concrete SVG card or view it fully in a trusted local viewer. Only after that may a separate print release be considered.
 
 ## Exit-Criteria
 
-- [ ] Jede angeforderte Artefaktart besitzt eine begründete Route.
-- [ ] Kein blockierter Provider wurde aufgerufen oder ersetzt.
-- [ ] Designkontraste sind bestanden und nutzerbezogene Inhalte korrekt.
-- [ ] Drei neue Dateien stimmen mit den Reporthashes überein.
-- [ ] Versand, Upload, Druck, Veröffentlichung und Remote-Verarbeitung blieben aus.
+- [ ] Each requested artifact type has a justified route.  
+- [ ] No blocked provider was invoked or replaced.  
+- [ ] Design contrasts have passed and user‑related content is correct.  
+- [ ] Three new files match the report hashes.  
+- [ ] Shipping, upload, printing, publishing, and remote processing did not occur.
 
-## Fallstricke
+## Pitfalls
 
-- Ein installierter Skill beweist nicht, dass sein Runtime- oder Render-Gate
-  in der aktuellen Sitzung verfügbar ist.
-- Poppler kann Office-Dateien nicht selbst rendern; ohne `soffice` ist die
-  entsprechende Office-Sichtprüfung nicht erfüllt.
-- Eine synthetisch geprüfte Beispielkarte beweist nicht die visuelle Qualität
-  einer späteren Karte mit anderen Textlängen.
-- Ein zweiter Ausgabelauf mit denselben Pfaden überschreibt nichts.
+- An installed skill does not prove that its runtime or render gate is available in the current session.  
+- Poppler cannot render Office files itself; without `soffice` the corresponding Office view check is not satisfied.  
+- A synthetically verified sample card does not prove the visual quality of a later card with different text lengths.  
+- A second output run with the same paths overwrites nothing.
 
-## Verwandte
+## Related
 
-- [`../docs/phase25-artifact-studio-plan.md`](../docs/phase25-artifact-studio-plan.md)
+- [`../docs/phase25-artifact-studio-plan.md`](../docs/phase25-artifact-studio-plan.md)  
 - [`../skills/folderhome-artifact-studio/SKILL.md`](../skills/folderhome-artifact-studio/SKILL.md)
 
-## Historie
+## History
 
-- **2026-08-22** — Providerplan, Designset und SVG-Visitenkarte erstmals abgenommen
+- **2026-08-22** — Provider plan, design set, and SVG business card approved for the first time
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

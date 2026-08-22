@@ -1,45 +1,35 @@
 ---
 name: folderhome-tax-workpaper
-description: Plant und erfasst vom Menschen eingeordnete Steuerbelege evidenzgebunden im lokalen steuer-assistent und exportiert nach separater Freigabe private Arbeitsunterlagen ohne Steuerberatung oder Portalübermittlung.
+description: Plans and records human‑sorted tax receipts evidence‑bound in the local tax‑assistant and exports private work documents after separate approval without tax advice or portal transmission.
 ---
 
 # FolderHome Tax Workpaper
 
-Nutze diesen Skill, wenn ein Mensch bereitgestellte Belege für eine private
-Steuer-Arbeitsunterlage ordnen oder eine solche Unterlage exportieren möchte.
+**English** | [Deutsch](./SKILL.de.md)
 
-## Ablauf
+Use this skill when a person wants to organize provided receipts for a private tax workpaper or export such a workpaper.
 
-1. Prüfe mit `folderhome tax providers --json` den gepinnten, sauberen
-   Providercheckout.
-2. Verwende nur eine Dokument-ID aus dem FolderHome-Katalog. Prüfe den
-   aktuellen Dokumenthash und bei angegebener Finanzbuchung Profil und
-   Centbetrag.
-3. Behandle `category_candidate` ausschließlich als Vorschlag. Ohne
-   `confirmed_category` bleibt der Plan nicht ausführbar.
-4. Erzeuge `tax receipt-plan` erst nach lokaler Sensitivitätsfreigabe.
-5. Zeige dem Menschen Profil, Betrag, Datum, Kategorie, Dokumentbindung,
-   Planhash und Providerstore-Revision.
-6. Führe `tax receipt-apply` nur mit exakt passender Approval und
-   `--approve-state-write` aus.
-7. Plane eine ZIP-Arbeitsunterlage mit `tax export-plan` separat für genau ein
-   Profil und Steuerjahr.
-8. Exportiere nur mit eigener Export-Approval sowie State- und Output-Gate.
+## Procedure
 
-## Verbindliche Grenzen
+1. Check the pinned, clean provider checkout with `folderhome tax providers --json`.  
+2. Use only a document ID from the FolderHome catalog. Verify the current document hash and, if a financial posting is provided, the profile and cent amount.  
+3. Treat `category_candidate` solely as a suggestion. Without `confirmed_category` the plan is not executable.  
+4. Generate `tax receipt-plan` only after local sensitivity approval.  
+5. Show the person the profile, amount, date, category, document binding, plan hash, and provider-store revision.  
+6. Execute `tax receipt-apply` only with an exactly matching approval and `--approve-state-write`.  
+7. Plan a ZIP workpaper with `tax export-plan` separately for exactly one profile and tax year.  
+8. Export only with your own export approval as well as state and output gate.
 
-- Keine steuerliche Abziehbarkeitsprüfung, Steuerberatung oder Empfehlung.
-- Keine Steuerberechnung, amtliche Steuererklärung oder Vollständigkeitszusage.
-- Kein ELSTER-, ERiC-, Finanzamt-, Netzwerk- oder Versandzugriff.
-- Keine automatische Übernahme eines Kategorienvorschlags.
-- Keine Speicherung ohne Plan-, Approval-, Dokumenthash- und
-  Providerstore-Bindung.
-- Keine Vermischung verschiedener Profile in derselben Providerdatenbank.
-- Profile sind organisatorisch; das Betriebssystemkonto bleibt die
-  Sicherheitsgrenze.
-- Keine vorhandene Exportdatei überschreiben.
-- Keine echten Belege, Kontodaten oder Geheimnisse in Repository-Beispiele
-  übernehmen.
+## Binding Limits
+
+- No tax deductibility verification, tax advice, or recommendation.  
+- No tax calculation, official tax return, or completeness guarantee.  
+- No ELSTER, ERiC, tax office, network, or transmission access.  
+- No automatic adoption of a category suggestion.  
+- No storage without plan, approval, document hash, and provider-store binding.  
+- No mixing of different profiles in the same Provider database.  
+- Profiles are organizational; the operating system account remains the security boundary.  
+- Do not overwrite an existing export file.  
+- Do not incorporate real receipts, account data, or secrets into repository examples.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

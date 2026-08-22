@@ -1,7 +1,9 @@
 # file-collect-sort-action
 
-- Herkunft: `https://github.com/ellmos-ai/file-collect-sort-action.git`
+**English** | [Deutsch](./README.de.md)
+
+- Origin: `https://github.com/ellmos-ai/file-collect-sort-action.git`
 - Revision: `8ebac2739c11c6a041abdd7b30131cef648b4753`
-- Lizenz: MIT
+- License: MIT
 - Manifest: `../../manifests/components/file-collect-sort-action.toml`
-- Klasse: `REUSED_UNCHANGED`
+- Class: `REUSED_UNCHANGED`

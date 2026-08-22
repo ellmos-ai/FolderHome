@@ -1,69 +1,59 @@
-# Workflow: Beobachteten Ordner geplant aufräumen
+# Workflow: Planned cleanup of observed folder
 
-> **Last verified:** 2026-08-21
-> **Frequency:** nach einem explizit ausgelösten Scanzeitpunkt
-> **Duration:** abhängig von Dateizahl und Extraktionsformaten
+**English** | [Deutsch](./folder-routine.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** after an explicitly triggered scan point  
+> **Duration:** depending on file count and extraction formats  
 
 ## Purpose
 
-Einen deklarierten Beobachtungsordner gegen seinen letzten Checkpoint prüfen,
-eine fällige Änderungsmenge oder den vollständigen Bestand planen und einen
-bewusst freigegebenen Batch mit anschließendem Checkpoint ausführen.
+Check a declared observed folder against its last checkpoint, plan a due set of changes or the full inventory, and execute a deliberately approved batch with a subsequent checkpoint.
 
 ## Preconditions
 
-- Watch-ID, Profilregeln, Zielwurzel, Stichtag und Beobachtungszeit sind explizit.
-- Die Zielwurzel liegt außerhalb des beobachteten Ordners.
-- Der letzte Checkpoint ist identitätsgeprüft und eindeutig.
-- Für eine Ausführung liegen Batchfreigabe, Datei-Gate und State-Gate vor.
+- Watch ID, profile rules, target root, reference date, and observation time are explicit.  
+- The target root is outside the observed folder.  
+- The last checkpoint is identity‑verified and unambiguous.  
+- Batch approval, file gate, and state gate are present for execution.
 
 ## Steps
 
-1. **Watch laden** — Root, Profil, Bereich, Intervall, Rekursion und Aktivstatus prüfen.
-2. **Read-only scannen** — aktuellen inhaltsfreien Snapshot gegen den letzten
-   Checkpoint vergleichen, ohne einen neuen Checkpoint zu schreiben.
-3. **Modus anwenden** — `changes` nur bei Fälligkeit auf neue, geänderte und
-   eindeutig verschobene Pfade begrenzen; `full` ausdrücklich auf alle Dateien anwenden.
-4. **Cleanup planen** — nur die ausgewählten Pfade durch die ordnerweite
-   Konflikt- und Dokumentaktionsplanung führen.
-5. **Plan prüfen** — Routine-ID, Status, Auswahl, Batch-ID, Konflikte und
-   freigabefähige Dokumente kontrollieren.
-6. **Batch freigeben** — eine separate Approval-Datei für die bewusst
-   ausgewählten Dokument-, Plan-, Hash- und Aktions-IDs erstellen.
-7. **Ausführung preflighten** — erwarteten letzten Checkpoint und vollständige
-   Scan-ID ohne Schreibzugriff erneut bestätigen.
-8. **Batch ausführen** — Intent schreiben und die freigegebenen
-   Einzeltransaktionen ausführen.
-9. **Checkpoint abschließen** — nur nach Batcherfolg den resultierenden
-   Ordnerzustand unveränderlich speichern und den Routinebericht schreiben.
-10. **Fehler prüfen** — bei gescheitertem Checkpoint müssen Dateiaktionen
-    rückwärts laufen und der Bericht `rolled_back` oder `failed` ausweisen.
+1. **Load watch** — Verify root, profile, scope, interval, recursion, and active status.  
+2. **Read-only scan** — compare the current content‑free snapshot against the last checkpoint without writing a new checkpoint.  
+3. **Apply mode** — limit `changes` to new, changed, and uniquely moved paths only when due; apply `full` explicitly to all files.  
+4. **Plan cleanup** — run only the selected paths through the folder‑wide conflict and document action planning.  
+5. **Validate plan** — check routine ID, status, selection, batch ID, conflicts, and release‑eligible documents.  
+6. **Approve batch** — create a separate approval file for the deliberately selected document, plan, hash, and action IDs.  
+7. **Preflight execution** — reconfirm the expected last checkpoint and full scan ID without write access.  
+8. **Execute batch** — write intent and execute the approved individual transactions.  
+9. **Finalize checkpoint** — only after successful batch, store the resulting folder state immutably and write the routine report.  
+10. **Check errors** — if the checkpoint fails, file actions must run backwards and the report must indicate `rolled_back` or `failed`.
 
 ## Exit-Criteria
 
-- [ ] `routine-plan` hat weder Quellen, Ziele noch State verändert.
-- [ ] `not_due`, `no_changes` und `planned` sind eindeutig unterscheidbar.
-- [ ] Der Vollmodus wurde ausdrücklich gewählt und umgeht keine Freigabe.
-- [ ] Eine Ausführung stimmt mit Routine-, Scan- und Batchzustand überein.
-- [ ] Ein erfolgreicher Lauf besitzt Routine-Intent, Batchaudit und Checkpoint.
-- [ ] Ein Checkpointfehler hinterlässt einen belegten Rückwegstatus.
+- [ ] `routine-plan` has not altered sources, targets, or state.  
+- [ ] `not_due`, `no_changes`, and `planned` are clearly distinguishable.  
+- [ ] Full mode was explicitly selected and bypasses no approval.  
+- [ ] An execution matches the routine, scan, and batch state.  
+- [ ] A successful run possesses routine intent, batch audit, and checkpoint.  
+- [ ] A checkpoint error leaves a documented return status.
 
-## Fallstricke
+## Pitfalls
 
-- Ein Routinenplan ist keine Freigabe und schreibt auch keinen Checkpoint.
-- Reine Zeitstempeländerungen lösen im Änderungsmodus keine Verarbeitung aus.
-- Ein Ziel im beobachteten Root kann eine endlose Wiederaufnahme erzeugen und
-  wird deshalb blockiert.
-- Ein geänderter Ordner oder konkurrierender Checkpoint entwertet den Plan.
-- Phase 13 registriert keinen Betriebssystem-Scheduler.
+- A routine plan is not an approval and does not write a checkpoint.  
+- Pure timestamp changes do not trigger processing in change mode.  
+- A target within the observed root can cause an endless resumption and is therefore blocked.  
+- A modified folder or competing checkpoint invalidates the plan.  
+- Phase 13 does not register an operating system scheduler.
 
-## Verwandte
+## Related
 
-- [`./directory-observation.md`](./directory-observation.md) — Scan und Checkpoint
-- [`./folder-cleanup.md`](./folder-cleanup.md) — ordnerweiter Batchplan
-- [`./document-action-execution.md`](./document-action-execution.md) — Undo
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-13-Datenfluss
+- [`./directory-observation.md`](./directory-observation.md) — Scan and checkpoint  
+- [`./folder-cleanup.md`](./folder-cleanup.md) — folder‑wide batch plan  
+- [`./document-action-execution.md`](./document-action-execution.md) — Undo  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-13 data flow  
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-13-End-to-End-Abnahme erstellt
+- **2026-08-21** — Created after Phase-13 end-to-end acceptance

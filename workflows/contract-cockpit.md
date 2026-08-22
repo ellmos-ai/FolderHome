@@ -1,13 +1,12 @@
-# Workflow — Versicherungs- und Vertragscockpit
+# Workflow — Insurance and Contract Cockpit
 
-## Zweck
+**English** | [Deutsch](./contract-cockpit.de.md)
 
-Eine Anfrage wie „Was ist meine neueste KFZ-Versicherung für meinen Hyundai
-i10?“ als read-only Überblick beantworten. Das Cockpit setzt vorhandene
-Dokumentversionen, Kontaktregister, wiederkehrende Kosten, Kalenderereignisse
-und Kontoauszugsabdeckung zusammen. Fehlende Evidenz bleibt sichtbar.
+## Purpose
 
-## Synthetischer Lauf
+Answer a request such as “What is my latest car insurance for my Hyundai i10?” as a read‑only overview. The cockpit combines existing document versions, contact registers, recurring costs, calendar events, and bank statement coverage. Missing evidence remains visible.
+
+## Synthetic Run
 
 ```powershell
 $env:PYTHONPATH = "src"
@@ -28,34 +27,30 @@ python -m folderhome contracts cockpit `
   --json
 ```
 
-Wenn derselbe State zuvor über die freigegebenen Kontakt-, Finanz- oder
-Kalenderworkflows befüllt wurde, erscheinen passende Einträge zusätzlich.
-Das Cockpit erzeugt diese Zustände nicht selbst.
 
-## Explizite Zuordnung
+If the same state was previously populated via the approved contact, finance, or calendar workflows, matching entries appear additionally. The cockpit does not generate these states itself.
 
-Die Anfrage deklariert:
+## Explicit Mapping
 
-- Dokumentensuchanfrage und Vertragsobjekt
-- Gegenparteibegriffe für Kostenkandidaten
-- Begriffe für Kalenderereignisse
-- Kontokennungen und gewünschten Abdeckungszeitraum
-- ob ältere Versionen als Archivierungskandidaten erscheinen sollen
+The request declares:
 
-Keine fuzzy oder LLM-basierte Verknüpfung wird still vorgenommen.
+- Document search request and contract object
+- Counterparty terms for cost candidates
+- Terms for calendar events
+- Account identifiers and desired coverage period
+- whether older versions should appear as archival candidates
 
-## Sicherheitsgrenzen
+No fuzzy or LLM‑based linking is performed silently.
 
-- Ohne Sensitivitätsfreigabe wird kein Dokument-, Kontakt-, Finanz- oder
-  Kalenderzustand gelesen.
-- Der Cockpit-Lauf verändert den gemeinsamen State nicht.
-- Archivierungsvorschläge bleiben ungefreigt und werden nicht ausgeführt.
-- Kontakte werden nicht gewechselt oder gelöscht.
-- Termine werden nicht angelegt und Nachrichten nicht gesendet.
-- Kosten sind belegte Kandidaten oder Hochrechnungen; Vertragsstatus,
-  Deckung, Kündigung und künftige Abbuchung werden nicht bewiesen.
-- Kontoauszugslücken bleiben sichtbar; Salden werden nicht interpoliert.
-- JSON enthält keinen extrahierten Dokumentrohtext.
+## Security Boundaries
+
+- Without a sensitivity approval, no document, contact, finance, or calendar state is read.
+- The cockpit run does not modify the shared state.
+- Archiving suggestions remain unapproved and are not executed.
+- Contacts are not switched or deleted.
+- Appointments are not created and messages are not sent.
+- Costs are documented candidates or projections; contract status, coverage, termination, and future debits are not proven.
+- Bank statement gaps remain visible; balances are not interpolated.
+- JSON contains no extracted document raw text.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

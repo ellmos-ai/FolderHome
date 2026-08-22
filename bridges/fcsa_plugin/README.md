@@ -1,17 +1,14 @@
 # FCSA Bridge
 
-Implementierter Adapter zwischen `folderhome.plugin.v1` und dem separat
-gepinnten Repository `file-collect-sort-action`.
+**English** | [Deutsch](./README.de.md)
 
-Der Code liegt installierbar unter `src/folderhome/bridges/fcsa.py`. Er prüft
-Version, Git-Revision und einen sauberen Provider-Checkout, lädt die
-dokumentierte FCSA-Python-Pipeline und führt ausschließlich einen Dry-Run mit
-temporärem Schattenzustand aus. Anschließend übersetzt der Application Service
-den Plan in `ellmos.home-agent.run-report.v1`.
+Implemented adapter between `folderhome.plugin.v1` and the separately pinned repository `file-collect-sort-action`.
 
-Nicht implementiert und weiterhin gesperrt:
+The code is available for installation at `src/folderhome/bridges/fcsa.py`. It verifies the version, Git revision, and a clean provider checkout, loads the documented FCSA Python pipeline, and performs only a dry run with a temporary shadow state. Afterwards, the Application Service translates the plan into `ellmos.home-agent.run-report.v1`.
 
-- Live-Ausführung von FCSA-Aktionen
-- produktive Dry-Run-Bestätigung im FCSA-State
-- implizite Auswahl eines echten Nutzerordners
-- kopierter oder veränderter FCSA-Quellcode
+Not implemented and still locked:
+
+- Live execution of FCSA actions
+- Production dry-run confirmation in the FCSA state
+- Implicit selection of a real user folder
+- Copied or modified FCSA source code

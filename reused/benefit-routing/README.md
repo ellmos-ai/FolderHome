@@ -1,23 +1,16 @@
-# Amtliche Leistungsfinder — Handoff-Referenzen
+# Official Benefit Finder — Handoff References
 
-Phase 33 kopiert keinen Quellcode und automatisiert kein Behördenportal.
-Geprüft wurden am 2026-08-22:
+**English** | [Deutsch](./README.de.md)
 
-- der Sozialleistungsfinder der Sozialplattform,
-- der KiZ-Lotse der Bundesagentur für Arbeit,
-- der Wohngeld-Plus-Rechner des Bundesministeriums für Wohnen,
-  Stadtentwicklung und Bauwesen.
+Phase 33 does not copy source code and does not automate any government portal.  
+Reviewed on 2026-08-22:
 
-Die amtlichen Angebote sind als externe, vom Menschen bewusst zu öffnende
-Handoffs dokumentiert. FolderHome speichert nur URL, Herausgeber,
-Prüfzeitpunkt und eine hashgebundene kurze Evidenzzusammenfassung im lokalen
-Beispielkatalog. Es ruft die Dienste nicht auf und übermittelt keine
-Profildaten.
+- the Social Benefit Finder of the Social Platform,
+- the KiZ Navigator of the Federal Employment Agency,
+- the Housing Benefit Plus Calculator of the Federal Ministry for Housing, Urban Development and Construction.
 
-Der vorhandene `foerderplaner` im zentralen Skills-Repository ist eine
-pädagogische Förderungshilfe und fachlich kein Sozialleistungsprüfer. BACHs
-alte Sozialrechts-Wikiseiten sind ebenfalls keine aktuelle Vorcheck-Runtime.
-Beide werden deshalb nicht geladen oder kopiert.
+The official offerings are documented as external handoffs that must be deliberately opened by a human. FolderHome stores only URL, publisher, review timestamp, and a short hash‑bound evidence summary in the local example catalog. It does not invoke the services and does not transmit any profile data.
+
+The existing `foerderplaner` in the central Skills repository is an educational funding aid and is not a social benefit examiner by profession. BACH's old social‑law wiki pages are also not a current pre‑check runtime. Therefore, neither is loaded or copied.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

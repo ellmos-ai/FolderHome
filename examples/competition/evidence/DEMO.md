@@ -1,31 +1,33 @@
-# FolderHome — Synthetische Wettbewerbsdemo
+# FolderHome — Synthetic Competition Demo
 
-> Vollständig synthetisch: keine echten personenbezogenen Daten, kein Netzwerk und keine Außenwirkung.
+**English** | [Deutsch](./DEMO.de.md)
 
-## 1. Dokumentensuche über den Strands-Agenten
+> Fully synthetic: no real personal data, no network, and no external impact.
 
-Der Strands-Agent hat den lokalen Dokumentenindex durchsucht.
+## 1. Document search via the Strands agent
+
+The Strands agent searched the local document index.
 - Krankenversicherung-2026.txt
 - Arztbericht-Hausarzt-2026.txt
 
-## 2. Themendossier über denselben Agentenloop
+## 2. Topic dossier via the same agent loop
 
-Der Strands-Agent hat das lokale Themendossier erstellt.
+The Strands agent created the local topic dossier.
 
-# Themendossier: Krankenversicherung
+# Topic dossier: Health insurance
 
-> Lokale Fundstellen aus dem FolderHome-Dokumentindex; keine Rechts-, Finanz- oder Medizinbewertung.
+> Local references from the FolderHome document index; no legal, financial, or medical assessment.
 
-## Fundstellen
+## References
 
 ### Krankenversicherung-2026.txt
 
-Fundstelle für **Krankenversicherung**: synthetischer Tarifhinweis, Kontakt und Gültigkeit ab 2026.
+Reference for **Health insurance**: synthetic tariff note, contact and validity starting 2026.
 
 ### Arztbericht-Hausarzt-2026.txt
 
-Synthetischer Arztbericht mit Hinweis zur **Krankenversicherung** und einer kontrollbedürftigen Fundstelle.
+Synthetic medical report with reference to **Health insurance** and a reference requiring control.
 
-## Nachweisgrenzen
+## Evidence limits
 
-Der Fixture-Modelladapter macht Toolwahl und Antwort reproduzierbar. Der gleiche Strands-Agent kann nach getrennten Netzwerk- und Datenweitergabefreigaben mit Amazon Bedrock laufen; dieser Demo-Lauf verwendet weder AWS-Zugangsdaten noch einen Cloudaufruf.
+The fixture model adapter makes tool selection and response reproducible. The same Strands agent can run with Amazon Bedrock after separate network and data transfer approvals; this demo run uses neither AWS credentials nor a cloud call.

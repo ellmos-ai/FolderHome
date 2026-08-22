@@ -1,38 +1,35 @@
-# Workflow: Mail sicher lesen, zuordnen und freigeben
+# Workflow: Securely read, assign, and approve Mail
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei ausdrücklich ausgelöstem Mailabruf oder Versand
-> **Duration:** Plan unter einer Sekunde; Providerlauf abhängig vom Postfach
+**English** | [Deutsch](./mail-connector.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** when mail fetch or send is explicitly triggered  
+> **Duration:** plan under one second; provider runtime depends on mailbox  
 
 ## Purpose
 
-Einen Postfachabruf ohne Postfachänderung planen, eingehende
-Nachrichtenreferenzen providerneutral übernehmen und einen Brief nur über eine
-explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
+Plan a mailbox fetch without changing the mailbox, adopt incoming message references in a provider‑neutral way, and prepare a letter for idempotent sending only through an explicit contact assignment.
 
 ## Preconditions
 
-- Mailkonto enthält nur Secret-Referenzen und gehört zum gewählten Profil.
-- Postfach, Suchanfrage und Anhangsziel wurden ausdrücklich gewählt.
-- Für einen Entwurf liegen ein aktiver Kontakt und eine unveränderte
-  Korrespondenzvorschau vor.
-- Reale Netzwerkaktionen besitzen eine separate Freigabe.
+- Mail account contains only secret references and belongs to the selected profile.  
+- Mailbox, search query, and attachment target have been explicitly selected.  
+- For a draft, an active contact and an unchanged correspondence preview are available.  
+- Real network actions require a separate approval.  
 
 ## Steps
 
-1. **Provider inventarisieren** — Launcher, IMAP-Ingest, Cleaner,
-   Rechnungsarchiv und synthetischen Gateway voneinander unterscheiden.
+1. **Inventory providers** — Distinguish Launcher, IMAP ingest, Cleaner, invoice archive, and synthetic gateway from each other.  
 
    ```powershell
    $env:PYTHONPATH = "src"
    python -m folderhome mail providers --json
    ```
+  
 
-2. **Konfiguration lesen** — erst nach Freigabe; eingebettete Passwörter und
-   unbekannte Felder werden blockiert.
+2. **Read configuration** — only after approval; embedded passwords and unknown fields are blocked.  
 
-3. **Read-only Plan erzeugen** — Providerrevision, Konto, Ordner, Suche und
-   Maximalzahl prüfen. Ein blockierter Checkout beendet den Lauf.
+3. **Create read‑only plan** — Verify provider revision, account, folder, search, and maximum count. A blocked checkout terminates the run.  
 
    ```powershell
    python -m folderhome mail ingest-plan `
@@ -42,55 +39,42 @@ explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
      --approve-sensitive-local-read `
      --json
    ```
+  
 
-4. **Ingest exakt freigeben** — Plan-ID und Planhash binden. Netzwerklesen und
-   lokales Schreiben von Anhängen getrennt erlauben. Das Gateway muss
-   `read_only_ingest=true` garantieren.
+4. **Release ingest precisely** — Bind plan ID and plan hash. Allow network reads and local writing of attachments separately. The gateway must guarantee `read_only_ingest=true`.  
 
-5. **Empfänger ausdrücklich binden** — aktive Kontakt-ID und E-Mail-Adresse
-   müssen zur Profilzuordnung sowie zum Empfänger der Briefvorschau passen.
+5. **Explicitly bind recipient** — Active contact ID and email address must match the profile assignment and the recipient of the letter preview.  
 
-6. **Entwurf prüfen** — Betreff, Absender, Empfänger, Brieftext, Anlagen und
-   Hashes vollständig kontrollieren. Eine Vorschau ruft keinen Transport auf.
+6. **Validate draft** — Fully verify subject, sender, recipient, letter text, attachments, and hashes. A preview does not trigger any transport.  
 
-7. **Versand gesondert freigeben** — Entwurfs-ID, Entwurfshash, exakten
-   Empfänger und deterministischen Idempotenzschlüssel bestätigen. Bei einem
-   realen Gateway zusätzlich Netzwerkversand erlauben.
+7. **Approve sending separately** — Confirm draft ID, draft hash, exact recipient, and deterministic idempotency key. For a real gateway also allow network transmission.  
 
-8. **Ledger prüfen** — Status `simulated` oder `sent` und Transport-ID lesen.
-   Dieselbe Freigabe oder derselbe Idempotenzschlüssel darf kein zweites Mal
-   verwendet werden.
+8. **Check ledger** — Read status `simulated` or `sent` and transport ID. The same approval or the same idempotency key must not be used a second time.  
 
 ## Exit-Criteria
 
-- [ ] Konto und Profil stimmen überein; keine Zugangsdaten liegen im JSON.
-- [ ] Ingest enthält keine Move-, Delete-, Flag- oder Send-Operation.
-- [ ] Providerrevision und Checkoutstatus sind sichtbar.
-- [ ] Kontakt und Korrespondenz sind exakt und ausdrücklich gebunden.
-- [ ] Versandfreigabe und Ledger verhindern einen Wiederholungslauf.
-- [ ] Ohne reales Nutzer-Gate wurden weder Netzwerk noch E-Mail ausgelöst.
+- [ ] Account and profile match; no credentials are present in the JSON.  
+- [ ] Ingest contains no move, delete, flag, or send operation.  
+- [ ] Provider revision and checkout status are visible.  
+- [ ] Contact and correspondence are exact and explicitly bound.  
+- [ ] Send approval and ledger prevent a repeat run.  
+- [ ] Without a real user gate, neither network nor email was triggered.  
 
-## Fallstricke
+## Pitfalls
 
-- MailProcessor startet andere Programme, führt aber selbst keinen IMAP-Abruf
-  für FolderHome aus.
-- Ein vorhandener UniversalDocsGrabber-Ordner ist kein Beleg für eine saubere,
-  passende Revision.
-- UniversalMailCleaner darf wegen Lösch-/Verschiebefunktionen nicht als
-  read-only Ingest-Gateway behandelt werden.
-- `simulated` bedeutet ausdrücklich, dass keine E-Mail versendet wurde.
-- `reserved` nach einem Abbruch ist ein Prüfzustand, keine Einladung zum
-  automatischen Wiederholen.
+- MailProcessor launches other programs but does not itself perform an IMAP fetch for FolderHome.  
+- An existing UniversalDocsGrabber folder is not evidence of a clean, appropriate revision.  
+- UniversalMailCleaner must not be treated as a read‑only ingest gateway due to delete/move functionalities.  
+- `simulated` explicitly means that no email was sent.  
+- `reserved` after an abort is a verification state, not an invitation to automatically retry.  
 
-## Verwandte
+## Related
 
-- [`../docs/phase26-mail-connector-plan.md`](../docs/phase26-mail-connector-plan.md)
-- [`../skills/folderhome-mail-assistant/SKILL.md`](../skills/folderhome-mail-assistant/SKILL.md)
+- [`../docs/phase26-mail-connector-plan.md`](../docs/phase26-mail-connector-plan.md)  
+- [`../skills/folderhome-mail-assistant/SKILL.md`](../skills/folderhome-mail-assistant/SKILL.md)  
 
-## Historie
+## History
 
-- **2026-08-22** — Providerinventur, read-only Ingest und synthetischer
-  Entwurfs-/Versandablauf erstmals lokal abgenommen
+- **2026-08-22** — Provider inventory, read‑only ingest, and synthetic draft/sending flow first approved locally  
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

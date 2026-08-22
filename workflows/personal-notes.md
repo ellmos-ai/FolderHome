@@ -1,38 +1,35 @@
-# Workflow: Persönliche Notiz geführt und revisionssicher ablegen
+# Workflow: Personal Note Managed and Stored Revision‑Safely
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei ausdrücklich gewünschter persönlicher Notiz
-> **Duration:** Planung und lokale Ablage wenige Sekunden
+**English** | [Deutsch](./personal-notes.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** when a personal note is explicitly requested  
+> **Duration:** planning and local storage a few seconds  
 
 ## Purpose
 
-Einen menschlich formulierten Notizinhalt mit getrennten Fragen und
-Vorschlägen prüfen, exakt freigeben und als neue Version im gepinnten lokalen
-`llm-note`-Store ablegen.
+Review a human‑written note content with separate questions and suggestions, approve it precisely, and store it as a new version in the pinned local `llm-note` store.
 
 ## Preconditions
 
-- Profil, Notizbuch, Bereich und State-Ordner sind ausdrücklich gewählt.
-- Der `llm-note`-Checkout ist sauber und auf der Manifestrevision.
-- Der Mensch hat den zu speichernden Inhalt selbst formuliert oder sichtbar
-  bestätigt.
-- Eine reale Remote-LLM- oder Synchronisierungsfreigabe ist nicht Bestandteil
-  dieses Workflows.
+- Profile, notebook, area and state folder are explicitly selected.  
+- The `llm-note` checkout is clean and on the manifest revision.  
+- The person has authored or visibly confirmed the content to be stored.  
+- A real remote LLM or synchronization approval is not part of this workflow.
 
 ## Steps
 
-1. **Provider prüfen** — Checkout, Revision und Paketversion müssen `ready`
-   sein.
+1. **Check provider** — Checkout, revision and package version must be `ready`.
 
    ```powershell
    $env:PYTHONPATH = "src"
    python -m folderhome notes providers --provider-root ..\llm-note --json
    ```
 
-2. **Anfrage erstellen** — `create`, `edit` oder `revert` sowie ausschließlich
-   explizite Referenzen deklarieren.
-3. **Führung planen** — der read-only Lauf erzeugt Fragen und Vorschläge, aber
-   keinen State.
+
+2. **Create request** — `create`, `edit` or `revert` as well as declare only explicit references.
+
+3. **Plan execution** — the read‑only run generates questions and suggestions, but no state.
 
    ```powershell
    $plan = python -m folderhome notes guide `
@@ -42,12 +39,12 @@ Vorschlägen prüfen, exakt freigeben und als neue Version im gepinnten lokalen
      --provider-root ..\llm-note --json | ConvertFrom-Json
    ```
 
-4. **Menschlich prüfen** — `proposed_content`, Referenzen, Fragen,
-   Vorschläge, `plan_id`, `plan_sha256` und `content_sha256` kontrollieren.
-5. **Approval getrennt erstellen** — die Datei übernimmt exakt Plan-ID,
-   Planhash, Aktions-ID und Inhaltshash, einen Offset-Zeitstempel sowie
-   `allow_local_note_write=true`.
-6. **Version anhängen** — erst jetzt beide Schreibgates setzen.
+
+4. **Human review** — check `proposed_content`, references, questions, suggestions, `plan_id`, `plan_sha256` and `content_sha256`.
+
+5. **Create separate approval** — the file captures exactly the plan ID, plan hash, action ID and content hash, an offset timestamp, and `allow_local_note_write=true`.
+
+6. **Append version** — only now set both write gates.
 
    ```powershell
    python -m folderhome notes apply `
@@ -58,7 +55,8 @@ Vorschlägen prüfen, exakt freigeben und als neue Version im gepinnten lokalen
      --approval-file <approval.json> --approve-state-write --json
    ```
 
-7. **Historie lesen** — Notiz-ID aus dem Plan verwenden.
+
+7. **Read history** — use the note ID from the plan.
 
    ```powershell
    python -m folderhome notes history --note-id $plan.note_id `
@@ -66,36 +64,32 @@ Vorschlägen prüfen, exakt freigeben und als neue Version im gepinnten lokalen
      --provider-root ..\llm-note --json
    ```
 
-## Exit-Criteria
 
-- [ ] Providerrevision und Paketversion sind bestätigt.
-- [ ] Fragen und Vorschläge stehen getrennt vom bestätigten Inhalt.
-- [ ] Ohne Approval und State-Gate wurde nichts geschrieben.
-- [ ] Der Readback enthält genau die neue append-only Revision.
-- [ ] Frühere Revisionen blieben erhalten.
-- [ ] Netzwerk und externe Synchronisierung blieben aus.
+## Exit‑Criteria
 
-## Fallstricke
+- [ ] Provider revision and package version are confirmed.  
+- [ ] Questions and suggestions are separate from the approved content.  
+- [ ] Nothing was written without approval and state gate.  
+- [ ] The readback contains exactly the new append‑only revision.  
+- [ ] Earlier revisions remain intact.  
+- [ ] Network and external synchronization were omitted.
 
-- `llm-note` erzeugt selbst keine LLM-Fragen; es ist der lokale Speicher.
-- Ein Profil ist keine Zugriffskontrolle gegenüber anderen Prozessen im
-  selben Betriebssystemkonto.
-- `revert` löscht keine spätere Fassung, sondern hängt eine neue Version mit
-  dem früheren Inhalt an.
-- Ein Dokumenthash in einer Referenz beweist nicht, dass das Dokument später
-  unverändert verfügbar ist.
-- Ein Guide-Plan ist keine Speicherfreigabe.
+## Pitfalls
 
-## Verwandte
+- `llm-note` does not generate LLM questions itself; it is the local storage.  
+- A profile is not an access control mechanism against other processes in the same OS account.  
+- `revert` does not delete a later version, but appends a new version with the earlier content.  
+- A document hash in a reference does not prove that the document will remain unchanged later.  
+- A guide plan is not a storage approval.
 
-- [`../docs/phase28-llm-note-reuse-and-plan.md`](../docs/phase28-llm-note-reuse-and-plan.md)
-- [`../skills/folderhome-personal-notes/SKILL.md`](../skills/folderhome-personal-notes/SKILL.md)
+## Related
+
+- [`../docs/phase28-llm-note-reuse-and-plan.md`](../docs/phase28-llm-note-reuse-and-plan.md)  
+- [`../skills/folderhome-personal-notes/SKILL.md`](../skills/folderhome-personal-notes/SKILL.md)  
 - [`../reused/llm-note/README.md`](../reused/llm-note/README.md)
 
-## Historie
+## History
 
-- **2026-08-22** — gepinnten llm-note-Speicher, getrennte Führung und
-  append-only Versionsablage lokal abgenommen
+- **2026-08-22** — pinned llm‑note storage, separate execution and local append‑only version archive approved  
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

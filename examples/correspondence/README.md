@@ -1,24 +1,21 @@
-# Synthetische Korrespondenz
+# Synthetic Correspondence
 
-Die Dateien demonstrieren eine Kündigung für einen rein erfundenen Vertrag.
-Sie enthalten keine echten Personen-, Kontakt- oder Versicherungsdaten.
+**English** | [Deutsch](./README.de.md)
 
-Die Designauflösung läuft in dieser Reihenfolge:
+The files demonstrate a termination for a purely fictional contract.
+They contain no real personal, contact, or insurance data.
 
-1. Standarddesign
-2. Bereich
-3. Zweck
-4. Profil
-5. Kombination aus Profil und Zweck
+The design resolution proceeds in this order:
 
-Im Beispiel gewinnt deshalb `lukas-insurance`. `preview` schreibt nichts;
-`render` erzeugt nach eigener Freigabe eine neue Markdown- und TXT-Datei.
-Bestehende Ausgabedateien werden nie überschrieben.
+1. Standard design
+2. Area
+3. Purpose
+4. Profile
+5. Combination of profile and purpose
 
-DOCX und ODT sind hier bewusst nur blockierte Handoffs. Der lokal geprüfte
-report-forge-Checkout meldet unterschiedliche Distribution- und
-Runtime-Versionen; außerdem ist keine visuell geprüfte Office-Renderkette
-verfügbar.
+In the example, therefore `lukas-insurance` wins. `preview` writes nothing; `render` creates a new Markdown and TXT file after its own approval. Existing output files are never overwritten.
+
+DOCX and ODT are intentionally only blocked handoffs here. The locally verified
+report-forge-Checkout reports differing distribution and runtime versions; additionally, no visually verified Office rendering chain is available.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

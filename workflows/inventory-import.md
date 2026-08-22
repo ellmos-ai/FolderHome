@@ -1,69 +1,57 @@
-# Workflow: Haushaltsbestand lokal ergänzen
+# Workflow: Supplement Local Household Inventory
 
-> **Last verified:** 2026-08-22
-> **Frequency:** nach einer ausdrücklich dokumentierten Bestandsaufnahme
-> **Duration:** wenige Sekunden pro Bestandsordner
+**English** | [Deutsch](./inventory-import.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** after an explicitly documented inventory  
+> **Duration:** few seconds per inventory folder
 
 ## Purpose
 
-Bereitgestellte Bestandsbeobachtungen prüfen, revisionsgebunden in den
-lokalen Append-only-Inventarstore übernehmen und anschließend aktuelle
-Bestände sowie Einkaufs- und Ablaufkandidaten anzeigen.
+Validate provided inventory observations, ingest them in a revision‑bound manner into the local append‑only inventory store, and then display current inventories as well as purchase and expiration candidates.
 
 ## Preconditions
 
-- Bestandsordner und separater FolderHome-State sind festgelegt.
-- Profil und doc-services-Pin sind gültig.
-- Jede Eingabedatei entspricht dem deklarativen V1-Format.
-- Eine lokale sensible Verarbeitung wurde bei Bedarf bewusst erlaubt.
+- Inventory folder and separate FolderHome state are defined.  
+- Profile and doc‑services PIN are valid.  
+- Each input file conforms to the declarative V1 format.  
+- A local sensitive processing was deliberately allowed when needed.
 
 ## Steps
 
-1. **Plan bilden** — `inventory plan` mit Quelle, State, Profil und bei Bedarf
-   `--approve-sensitive-local-read` ausführen.
-2. **Evidenz prüfen** — Gegenstand, Bereich, Ort, Einheit, Menge,
-   Mindestbestand, Erfassungsdatum, optionales Ablaufdatum, Dokumenthash und
-   Zeilennummern kontrollieren.
-3. **Konflikte prüfen** — `blocked` bei widersprüchlichen Beobachtungen
-   desselben Gegenstands und Tages nicht übergehen.
-4. **Freigabe erstellen** — Plan-ID, Inventarrevision, konkrete Aktions-IDs,
-   Approval-ID und Zeitzonenzeitpunkt festhalten.
-5. **Plan erneut aufbauen** — `inventory apply` mit identischen Eingaben und
-   Approval-Datei starten.
-6. **State freigeben** — nur für diese lokale Transaktion
-   `--approve-state-write` setzen.
-7. **Ergebnis prüfen** — neue Ereignis-IDs, Revision und unveränderte Quellen
-   kontrollieren.
-8. **Aktuellen Bestand lesen** — `inventory current` mit Profil und optional
-   Bereich/Stichtag ausführen.
-9. **Historie lesen** — `inventory history` zeigt alle append-only Ereignisse
-   eines Profils, Bereichs oder Gegenstands.
-10. **Bedarf prüfen** — `inventory needs` mit explizitem Stichtag und
-    Ablaufhorizont ausführen; keinen automatischen Einkauf ableiten.
+1. **Create plan** — `inventory plan` with source, state, profile and, if needed, execute `--approve-sensitive-local-read`.  
+2. **Check evidence** — verify item, category, location, unit, quantity, minimum stock, capture date, optional expiration date, document hash and line numbers.  
+3. **Check conflicts** — do not skip `blocked` when contradictory observations of the same item and day exist.  
+4. **Create approval** — record plan ID, inventory revision, concrete action IDs, approval ID and timezone timestamp.  
+5. **Rebuild plan** — start `inventory apply` with identical inputs and the approval file.  
+6. **Release state** — set `--approve-state-write` only for this local transaction.  
+7. **Check result** — verify new event IDs, revision and unchanged sources.  
+8. **Read current inventory** — execute `inventory current` with profile and optional category/reference date.  
+9. **Read history** — `inventory history` shows all append‑only events of a profile, category or item.  
+10. **Check demand** — run `inventory needs` with explicit reference date and expiration horizon; do not derive automatic purchase.
 
 ## Exit-Criteria
 
-- [ ] Plan, Approval, Inventarrevision und Quellhashes stimmen überein.
-- [ ] Ereignisse und Audit wurden gemeinsam oder gar nicht ergänzt.
-- [ ] Quelldokumente blieben bytegleich.
-- [ ] Aktuelle Sicht und Historie sind nach Profil nachvollziehbar.
-- [ ] Mindestbestand und Ablaufdatum erscheinen nur als prüfpflichtige Kandidaten.
+- [ ] Plan, approval, inventory revision and source hashes match.  
+- [ ] Events and audit were added together or not at all.  
+- [ ] Source documents remain byte‑identical.  
+- [ ] Current view and history are traceable per profile.  
+- [ ] Minimum stock and expiration date appear only as candidates that must be checked.
 
-## Fallstricke
+## Gotchas
 
-- Mengen verwenden höchstens drei Nachkommastellen und werden nicht gerundet.
-- Eine neue Beobachtung überschreibt keine ältere; die aktuelle Sicht wird aus
-  der Ereignishistorie abgeleitet.
-- `--approve-sensitive-local-read` erlaubt keine externe Weitergabe.
-- Profile organisieren Ansichten innerhalb desselben Betriebssystemkontos.
-- FolderHome bestellt nichts und behauptet keinen vollständigen Haushalt.
+- Quantities use at most three decimal places and are not rounded.  
+- A new observation does not overwrite an older one; the current view is derived from the event history.  
+- `--approve-sensitive-local-read` permits no external distribution.  
+- Profiles organize views within the same OS account.  
+- FolderHome does not order anything and does not claim a complete household.
 
-## Verwandte
+## Related
 
-- [`../docs/phase20-household-inventory-reuse-and-plan.md`](../docs/phase20-household-inventory-reuse-and-plan.md)
-- [`./document-library.md`](./document-library.md) — lokale Dokumentextraktion
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-20-Datenfluss
+- [`../docs/phase20-household-inventory-reuse-and-plan.md`](../docs/phase20-household-inventory-reuse-and-plan.md)  
+- [`./document-library.md`](./document-library.md) — local document extraction  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑20 data flow  
 
-## Historie
+## History
 
-- **2026-08-22** — Nach Phase-20-End-to-End-Implementierung erstellt
+- **2026-08-22** — Created after Phase‑20 end‑to‑end implementation

@@ -1,17 +1,13 @@
-# Synthetisches Steuerbeispiel
+# Synthetic Tax Example
 
-Dieser Ordner enthält ausschließlich erfundene Daten. `Arbeitsmittel.txt`
-ist kein echter Beleg und `receipt-request.json` ist eine Vorlage.
+**English** | [Deutsch](./README.de.md)
 
-Vor einem Lauf muss `document_id` durch die ID ersetzt werden, die der lokale
-FolderHome-Dokument-Ingest für genau diese Datei ausgegeben hat. Der
-Kategorienkandidat ist noch keine Bestätigung; deshalb ist
-`confirmed_category` in der Vorlage `null` und der Plan bleibt
-`review_required`.
+This folder contains only fictional data. `Arbeitsmittel.txt` is not a real receipt and `receipt-request.json` is a template.
 
-Eine mögliche Testfolge steht in
-[`../../workflows/tax-workpaper.md`](../../workflows/tax-workpaper.md). Reale
-Belege, Kontoangaben oder Steuerkennungen gehören nicht in dieses Repository.
+Before a run, `document_id` must be replaced with the ID that the local FolderHome document ingest has generated for this exact file. The category candidate has not yet been confirmed; therefore `confirmed_category` is in the template `null` and the plan remains `review_required`.
+
+A possible test sequence is located in
+[`../../workflows/tax-workpaper.md`](../../workflows/tax-workpaper.md). Real
+receipts, account details, or tax identifiers must not be included in this repository.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

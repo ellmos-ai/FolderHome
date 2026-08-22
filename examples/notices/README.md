@@ -1,21 +1,13 @@
-# Synthetischer Bescheid
+# Synthetic Notice
 
-`Bescheid.txt` ist vollständig erfunden. Die gelabelten Zeilen dienen nur der
-deterministischen Extraktions- und Evidenzabnahme.
+**English** | [Deutsch](./README.de.md)
 
-FolderHome übernimmt ausschließlich ausdrücklich gedruckte Angaben. Das
-Beispiel nennt ein Fristdatum, damit die rein kalendarische Differenzanzeige
-getestet werden kann. FolderHome leitet dieses Datum nicht aus dem Fristtext
-oder dem Zugangsdatum ab und bestätigt seine rechtliche Richtigkeit nicht.
+`Bescheid.txt` is entirely fictional. The labeled lines are intended solely for deterministic extraction and evidence collection.
 
-Die Phase-31-Ausgabe ist keine Rechtsprüfung, kein Widerspruch und keine
-Kommunikation mit der Beispielbehörde.
+FolderHome processes only explicitly printed information. The example includes a deadline date so that the purely calendar‑based difference display can be tested. FolderHome does not derive this date from the deadline wording or the receipt date and does not confirm its legal correctness.
 
-`administrative-templates.json`, `objection-draft-request.json` und
-`application-draft-request.json` bilden die synthetische Phase-32-Kette ab.
-Die Widerspruchsanfrage ist an den SHA-256 des Beispielbescheids gebunden.
-Jeder erzeugte Brief trägt sichtbar `ENTWURF`, wird nicht versandt und enthält
-keine geprüfte Frist, Leistungsberechtigung oder Rechtsmeinung.
+The Phase‑31 output is not a legal review, not an objection, and not communication with the example authority.
+
+`administrative-templates.json`, `objection-draft-request.json` and `application-draft-request.json` represent the synthetic Phase‑32 chain. The objection request is bound to the SHA‑256 of the example notice. Every generated letter visibly contains `ENTWURF`, is not sent, and includes no verified deadline, benefit entitlement, or legal opinion.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

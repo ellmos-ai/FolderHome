@@ -1,63 +1,56 @@
-# Workflow: Dokumenttermin sicher an Kalender übergeben
+# Workflow: Safely hand over document appointment to calendar
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei neuen oder geänderten Dokumenten mit Terminangaben
-> **Duration:** wenige Sekunden pro Dokumentordner
+**English** | [Deutsch](./calendar-handoff.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** for new or changed documents with appointment information  
+> **Duration:** a few seconds per document folder
 
 ## Purpose
 
-Gelabelte Termindaten aus einem ausdrücklich gewählten Dokumentordner prüfen
-und nach exakter Freigabe in den lokalen FolderHome-Kalender oder als neue
-ICS-Dateien für UpToday übernehmen.
+Check labeled appointment data from an explicitly selected document folder and, after exact approval, transfer it to the local FolderHome calendar or adopt it as new ICS files for UpToday.
 
 ## Preconditions
 
-- Dokumentordner, Kalenderkonfiguration, Profile und separater State sind festgelegt.
-- Die doc-services-Revision entspricht dem gepinnten Manifest.
-- Bei `review_required` ist die lokale sensible Verarbeitung bewusst erlaubt.
-- Für ICS liegt ein eigener, nicht überlappender Ausgabepfad vor.
+- Document folder, calendar configuration, profiles and separate state are defined.  
+- The doc‑services revision matches the pinned manifest.  
+- For `review_required` the local sensitive processing is explicitly permitted.  
+- For ICS a dedicated, non‑overlapping output path is available.
 
 ## Steps
 
-1. **Plan bilden** — `calendar plan` mit Quelle, Profil, Bereich, State,
-   Konfiguration und Zeitzonenzeitpunkt ausführen.
-2. **Evidenz prüfen** — Titel, Datum, Zeit, Ort, Zeitzone, Dokumenthash und
-   Zeilennummern kontrollieren.
-3. **Konflikte prüfen** — `blocked` und unklare Dokumente nicht übergehen;
-   vorhandene identische lokale UIDs müssen `noop` sein.
-4. **Freigabe erstellen** — Schema, Plan-ID, Kalenderrevision, gewünschte
-   Aktions-IDs, stabile Approval-ID und Zeitzonenzeitpunkt festhalten.
-5. **Plan erneut aufbauen** — `calendar apply` mit identischen Planungseingaben
-   und der Approval-Datei starten.
-6. **State freigeben** — `--approve-state-write` nur für Ereignis und Audit setzen.
-7. **ICS gesondert freigeben** — ausschließlich beim Backend `uptoday_ics`
-   zusätzlich `--approve-output-write` setzen.
-8. **Ergebnis prüfen** — Event-ID oder ICS-Pfad und -Hash gegen den Bericht lesen.
-9. **Lokalen Kalender abfragen** — `calendar list` nach Profil, Bereich und
-   optionalem Datumsbereich verwenden.
+1. **Create plan** — execute `calendar plan` with source, profile, area, state, configuration and timezone timestamp.  
+2. **Check evidence** — verify title, date, time, location, timezone, document hash and line numbers.  
+3. **Check conflicts** — run `blocked` and do not skip unclear documents; existing identical local UIDs must be `noop`.  
+4. **Create approval** — record schema, plan ID, calendar revision, desired action IDs, stable approval ID and timezone timestamp.  
+5. **Rebuild plan** — start `calendar apply` with identical planning inputs and the approval file.  
+6. **Release state** — set `--approve-state-write` only for the event and audit.  
+7. **Release ICS separately** — only when using backend `uptoday_ics` additionally set `--approve-output-write`.  
+8. **Check result** — read event ID or ICS path and hash against the report.  
+9. **Query local calendar** — use `calendar list` by profile, area and optional date range.
 
-## Exit-Criteria
+## Exit criteria
 
-- [ ] Plan, Approval, Kalenderrevision und Quellhash stimmen überein.
-- [ ] Quelldokumente blieben bytegleich.
-- [ ] Lokale Ereignisse und Audit wurden gemeinsam geschrieben oder gar nicht.
-- [ ] Alle ICS-Dateien besitzen den geplanten Hash; es wurde nichts überschrieben.
-- [ ] `connector_invoked` ist `false`; ein UpToday-Import wurde nicht behauptet.
+- [ ] Plan, approval, calendar revision and source hash match.  
+- [ ] Source documents remained byte‑identical.  
+- [ ] Local events and audit were written together or not at all.  
+- [ ] All ICS files have the planned hash; nothing was overwritten.  
+- [ ] `connector_invoked` is `false`; an UpToday import was not claimed.
 
-## Fallstricke
+## Pitfalls
 
-- `--approve-sensitive-local-read` ist keine Kalender- oder Netzwerkfreigabe.
-- Eine geänderte Quelle, Revision oder vorhandene Zieldatei entwertet den Plan.
-- State, Quelle und ICS-Ausgabe dürfen sich nicht überlappen.
-- Routinika und Google bleiben bis zu eigenen geprüften Connectoren blockiert.
-- Terminerkennung ist best effort und garantiert keine Vollständigkeit.
+- `--approve-sensitive-local-read` is not a calendar or network release.  
+- A changed source, revision or existing target file invalidates the plan.  
+- State, source and ICS output must not overlap.  
+- Routinika and Google remain blocked until own verified connectors are available.  
+- Appointment detection is best effort and does not guarantee completeness.
 
-## Verwandte
+## Related
 
-- [`../docs/phase17-calendar-reuse-and-plan.md`](../docs/phase17-calendar-reuse-and-plan.md)
-- [`./document-library.md`](./document-library.md) — lokale Dokumentextraktion
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-17-Datenfluss
+- [`../docs/phase17-calendar-reuse-and-plan.md`](../docs/phase17-calendar-reuse-and-plan.md)  
+- [`./document-library.md`](./document-library.md) — local document extraction  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑17 data flow  
 
-## Historie
+## History
 
-- **2026-08-22** — Nach Phase-17-End-to-End-Abnahme erstellt
+- **2026-08-22** — Created after Phase‑17 end‑to‑end acceptance

@@ -1,71 +1,56 @@
-# Workflow: Beobachteten Ordner scannen und Korrektur prüfen
+# Workflow: Scan Observed Folder and Verify Corrections
 
-> **Last verified:** 2026-08-21
-> **Frequency:** ad-hoc, später pro geplantem Scanlauf
-> **Duration:** abhängig von Dateizahl und Dateigröße
+**English** | [Deutsch](./directory-observation.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** ad‑hoc, later per scheduled scan run  
+> **Duration:** dependent on file count and file size  
 
 ## Purpose
 
-Einen deklarierten Ordner ohne Dokumentrohtext gegen seinen letzten
-verifizierten Checkpoint prüfen, Änderungen erklären und belegte manuelle
-Verschiebungen als prüfpflichtige Lernkandidaten ausgeben.
+Check a declared folder (without raw document text) against its last verified checkpoint, explain changes, and emit documented manual moves as learning candidates that require review.
 
 ## Preconditions
 
-- `folderhome.watched-folders.v1` enthält Root, Profil, Bereich, Intervall,
-  Rekursion und Aktivstatus.
-- Lokaler Zustandsordner und Beobachtungszeitpunkt sind ausdrücklich gewählt.
-- Der Beobachtungszeitpunkt ist ein ISO-Zeitpunkt mit Zeitzone.
-- Das State-Gate gilt nur für die neuen Snapshot-Dateien.
-- Für Korrekturlernen liegt eine JSON-Datei im Schema
-  `folderhome.placement-receipts.v1` vor.
+- `folderhome.watched-folders.v1` contains root, profile, scope, interval, recursion, and active status.  
+- Local state folder and observation timestamp are explicitly selected.  
+- The observation timestamp is an ISO timestamp with time zone.  
+- The state gate applies only to the new snapshot files.  
+- For correction learning, a JSON file conforming to schema `folderhome.placement-receipts.v1` is available.
 
 ## Steps
 
-1. **Beobachtung auswählen** — Konfiguration laden und genau eine aktive
-   `watch_id` mit aufgelöstem Root wählen.
-2. **Letzten Checkpoint prüfen** — vorhandene Snapshot-IDs validieren und den
-   zeitlich neuesten eindeutigen Zustand desselben Roots bestimmen.
-3. **Aktuellen Zustand erfassen** — expliziten Zeitpunkt verwenden und nur
-   Pfad, Größe, Dateisystemzeit, Hash und Symlink-Auslassungen erheben.
-4. **Zustände vergleichen** — der Scan unterscheidet Hinzufügen, Entfernen,
-   Inhaltsänderung, Metadatenänderung und eindeutigen Move.
-5. **Ablagebelege zuordnen** — optionale Belege verbinden frühere Ablagen
-   mit Hash, Ausgangspfad, Profil, Bereich und Regelquellen.
-6. **Scanbericht prüfen** — Intervallfälligkeit, Diff und passende
-   Lernkandidaten kontrollieren; `automatic_promotion` muss `false` sein.
-7. **Checkpoint entscheiden** — ohne `--approve-state-write` bleibt der Lauf
-   read-only; mit Gate wird nach erneutem Historienabgleich genau ein neuer
-   Snapshot ergänzt.
+1. **Select observation** — Load configuration and choose exactly one active `watch_id` with resolved root.  
+2. **Check last checkpoint** — Validate existing snapshot IDs and determine the temporally latest unique state of the same root.  
+3. **Capture current state** — Use the explicit timestamp and collect only path, size, filesystem timestamp, hash, and symlink exclusions.  
+4. **Compare states** — The scan distinguishes addition, removal, content change, metadata change, and unique move.  
+5. **Assign storage evidence** — Link optional evidence to previous storages using hash, source path, profile, scope, and rule sources.  
+6. **Review scan report** — Check interval due‑ness, diff, and appropriate learning candidates; `automatic_promotion` must be `false`.  
+7. **Decide checkpoint** — Without `--approve-state-write` the run remains read‑only; with the gate, after a re‑verification of history, exactly one new snapshot is added.
 
-## Exit-Criteria
+## Exit‑Criteria
 
-- [ ] Beobachtung und alle vorhandenen Snapshot-IDs wurden validiert.
-- [ ] Vorheriger und aktueller Snapshot gehören zum selben Quellordner.
-- [ ] Mehrdeutige Hash-Duplikate wurden nicht als Move behauptet.
-- [ ] Jeder Lernkandidat besitzt einen passenden früheren Ablagebeleg.
-- [ ] `automatic_promotion` ist global und je Kandidat `false`.
-- [ ] Dokumente und Profilregeln wurden nicht verändert.
+- [ ] Observation and all existing snapshot IDs have been validated.  
+- [ ] The previous and current snapshots belong to the same source folder.  
+- [ ] Ambiguous hash duplicates were not claimed as a move.  
+- [ ] Each learning candidate has a matching prior storage evidence.  
+- [ ] `automatic_promotion` is global and per candidate `false`.  
+- [ ] Documents and profile rules have not been altered.
 
-## Fallstricke
+## Pitfalls
 
-- Ein gleicher Hash beweist bei mehreren identischen Kopien keinen bestimmten
-  Quell- und Zielpfad; deshalb bleibt dieser Fall absichtlich mehrdeutig.
-- Ein beobachteter Move ohne Ablagebeleg kann eine Nutzerhandlung zeigen,
-  belegt aber keinen Fehler einer FolderHome-Regel.
-- Ein vor Intervallablauf gestarteter Scan ist zulässig, weist aber
-  `interval_due=false` aus; Phase 10 installiert keinen Scheduler.
-- `mtime_ns` ist Dateisystemmetadatum und kein Dokument- oder Vertragsdatum.
-- Der Snapshot enthält Hashes und Pfade; er ist inhaltsfrei, aber weiterhin
-  schützenswerte Haushaltsmetadaten.
+- An identical hash does not prove a specific source and destination path when there are multiple identical copies; therefore this case is intentionally left ambiguous.  
+- An observed move without storage evidence may indicate a user action, but it does not constitute a violation of a FolderHome rule.  
+- A scan started before the interval expires is permissible, but it exhibits `interval_due=false`; Phase 10 does not install a scheduler.  
+- `mtime_ns` is a filesystem metadata field, not a document or contract date.  
+- The snapshot contains hashes and paths; it is content‑free but still contains household metadata that must be protected.
 
-## Verwandte
+## Related
 
-- [`./document-action-plan.md`](./document-action-plan.md) — Herkunft der
-  später benötigten Ablagebelege
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-9-/Phase-10-Datenfluss
+- [`./document-action-plan.md`](./document-action-plan.md) — Source of the storage evidence needed later  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑9 / Phase‑10 data flow  
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-9-End-to-End-Abnahme erstellt
-- **2026-08-21** — Auf deklarative Phase-10-Scanläufe erweitert
+- **2026-08-21** — Created after Phase‑9 end‑to‑end acceptance  
+- **2026-08-21** — Extended for declarative Phase‑10 scan runs

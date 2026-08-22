@@ -1,10 +1,10 @@
-# Synthetischer FCSA-Dry-Run
+# Synthetic FCSA Dry-Run
 
-Dieses Beispiel enthält ausschließlich erfundene Dokumente. Es zeigt einen
-FolderHome-Sortierplan mit zwei Kategorien und geplanten Verschiebeaktionen,
-ohne Dateien zu verschieben oder den konfigurierten FCSA-State anzulegen.
+**English** | [Deutsch](./README.de.md)
 
-Vom Repository-Root aus:
+This example contains only fictional documents. It shows a FolderHome sorting plan with two categories and scheduled move actions, without moving any files or creating the configured FCSA state.
+
+From the repository root:
 
 ```powershell
 python -m folderhome run fcsa-plan `
@@ -15,9 +15,10 @@ python -m folderhome run fcsa-plan `
   --json
 ```
 
-Erwartung:
 
-- beide Dateien bleiben in `inbox/`;
-- `sorted/` und `runtime/` werden durch FolderHome nicht angelegt;
-- der Bericht enthält ausschließlich geplante Dateisystemaktionen mit
-  verweigertem Live-Gate und eine offene Entscheidungskarte.
+Expectation:
+
+- both files remain in `inbox/`;
+- `sorted/` and `runtime/` are not created by FolderHome;
+- the report contains only scheduled filesystem actions with
+  denied live gate and an open decision card.

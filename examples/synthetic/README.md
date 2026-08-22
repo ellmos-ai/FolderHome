@@ -1,5 +1,7 @@
-# Synthetische Beispiele
+# Synthetic Examples
 
-Die Beispiele enthalten keine realen Personen-, Gesundheits-, Rechts- oder
-Finanzdaten. Sie dienen ausschließlich dazu, Erfolg, Blockierung, Fehler und
-Wiederaufnahme der Phase-1-Verträge demonstrierbar zu machen.
+**English** | [Deutsch](./README.de.md)
+
+The examples contain no real personal, health, legal, or
+financial data. They are solely intended to demonstrate success, blockage, error, and
+the resumption of Phase-1 contracts.

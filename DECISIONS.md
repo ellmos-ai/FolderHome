@@ -1,109 +1,85 @@
-# DECISIONS.md — Aktuelle Architekturentscheidungen
+# DECISIONS.md — Current Architecture Decisions
+
+**English** | [Deutsch](./DECISIONS.de.md)
 
 **Version:** 0.36  
-**Stand:** 2026-08-22  
-**Direkter Vorläufer:**
+**Date:** 2026-08-22  
+**Direct predecessor:**  
 [`docs/archive/DECISIONS-through-phase35.md`](./docs/archive/DECISIONS-through-phase35.md)
 
-> Der Vorläufer enthält Kontext, Entscheidung und Folgen jeder Phase bis 35.
-> Diese kurze Fassung ist der aktuelle Entscheidungsindex und ergänzt die
-> Phase-36-Entscheidungen.
+> The predecessor contains context, decision, and consequences for each phase up to 35.  
+> This short version is the current decision index and supplements the phase‑36 decisions.
 
-## Gültige Leitentscheidungen
+## Valid Guiding Decisions
 
-| Entscheidung | Konsequenz |
+| Decision | Consequence |
 |---|---|
-| FolderHome ist ein neues Integrations-Repository | Neuer Kern und neue Bridges bleiben sichtbar von gepinntem Bestand getrennt |
-| Wettbewerbsname bleibt FolderHome | Light-/Sovereign-Branding erfolgt frühestens nach dem Wettbewerb |
-| Default deny für Side-Effects | Analyse oder Agententool erteilt keine Datei-, Mail-, Kalender-, Telefon-, Netzwerk- oder Publikationsberechtigung |
-| Plan und Ausführung sind getrennt | Approval bindet Operation, Quelle, Ziel und Hash; unmittelbar vor Ausführung erfolgt ein Recheck |
-| Betriebssystemkonto ist die Sicherheitsgrenze | Familienprofile organisieren Regeln, ersetzen aber keine OS-Rechte |
-| „Neueste Fassung“ bleibt eine erklärte Heuristik | Vertragsdaten schlagen Dateiname/Änderungszeit; Archivierung bleibt ein separater reversibler Plan |
-| Nutzerlernen braucht belegte Korrekturen | Beispiele erzeugen nur prüfpflichtige Regelkandidaten |
-| Ausgaben sind neu und hashgebunden | Never-overwrite, atomare Veröffentlichung und Rollback eigener Teilergebnisse |
-| Bestandsmodule werden nicht neu etikettiert | Exakte Revision, Lizenz, API/Seam und Side-Effect-Grenze stehen in Manifesten |
-| Domänenzustände sind evidenzgebunden | Kontakte, Termine, Finanzen, Bestand, Medikation, Gesundheit, Verträge und Bescheide behalten Quellenstatus und Unsicherheit |
-| Fachassistenz ist kein Fachurteil | Keine Diagnose, Rechts-, Steuer-, Leistungs- oder Finanzentscheidung |
-| UI, CLI und Agent verwenden dieselbe Anwendungsgrenze | Keine duplizierte Fachlogik und kein direkter Providerzugriff aus der Oberfläche |
-| Live-Connectoren besitzen eigene Gates | Fixture-, Handoff- oder Dry-Run-Erfolg ist kein Live-Nachweis |
+| FolderHome is a new integration repository | New core and new bridges remain visible, separated from pinned existing assets |
+| Competition name remains FolderHome | Light-/Sovereign branding occurs no earlier than after the competition |
+| Default deny for side‑effects | Analysis or agent tool does not grant any file, mail, calendar, phone, network, or publishing permission |
+| Plan and execution are separated | Approval binds operation, source, destination, and hash; a recheck occurs immediately before execution |
+| Operating‑system account is the security boundary | Family profiles organize rules but do not replace OS privileges |
+| “Latest version” remains an explicit heuristic | Contract data overrides filename/modification time; archiving remains a separate reversible plan |
+| User learning requires documented corrections | Examples generate only rule candidates that must be reviewed |
+| Outputs are new and hash‑bound | Never‑overwrite, atomic publishing and rollback of own partial results |
+| Existing modules are not re‑tagged | Exact revision, license, API/Seam and side‑effect boundary are listed in manifests |
+| Domain states are evidence‑bound | Contacts, appointments, finances, inventory, medication, health, contracts and official notices retain source status and uncertainty |
+| Specialist assistance is not a specialist opinion | No diagnosis, legal, tax, benefit, or financial decision |
+| UI, CLI and agent use the same application boundary | No duplicated domain logic and no direct provider access from the UI |
+| Live connectors have their own gates | Fixture, handoff, or dry‑run success is not live evidence |
 
-## 2026-08-22: Strands ist der begrenzte Agentenlayer
+## 2026-08-22: Strands is the constrained agent layer
 
-### Kontext
+### Context
 
-Die aktuellen Agents-for-Humans-Regeln verlangen einen neu gebauten Agenten
-mit dem Strands Agents SDK. Der vorhandene FolderHome-Kern war bereits eine
-breite deterministische Assistenzplattform, aber noch keine Strands-
-Orchestrierung.
+The current Agents‑for‑Humans rules require a newly built agent using the Strands Agents SDK. The existing FolderHome core was already a broad deterministic assistance platform, but not a Strands orchestration.
 
-### Entscheidung
+### Decision
 
-`strands-agents==1.53.0` ist eine verpflichtende Runtime-Abhängigkeit. Ein
-echter `strands.Agent` erhält genau zwei profilspezifische read-only Tools:
-Dokumentensuche und Themendossier. Beide rufen `LocalApplication` auf.
+`strands-agents==1.53.0` is a mandatory runtime dependency. A real `strands.Agent` receives exactly two profile‑specific read‑only tools: document search and topic dossier. Both invoke `LocalApplication`.
 
-Turns, Toolaufrufe, Prompt, Antwort, Toolresultat und Ausgabetokens sind
-begrenzt. Ein deterministischer Fixture-Modelladapter macht denselben Loop
-ohne Zugangsdaten reproduzierbar. Bedrock ist optional und benötigt Modell-ID,
-Region sowie getrennte Freigaben für Netzwerkzugriff und die Weitergabe
-lokaler Suchergebnisse an das Cloudmodell.
+Turns, tool calls, prompt, response, tool result and output tokens are limited. A deterministic fixture model adapter makes the same loop reproducible without credentials. Bedrock is optional and requires a model ID, region, and separate approvals for network access and for forwarding local search results to the cloud model.
 
-### Folgen
+### Consequences
 
-- Der Agent erfüllt die Wettbewerbsanforderung, ohne die vorhandenen
-  Sicherheitsgrenzen zu umgehen.
-- Fixture-Evidenz belegt Orchestrierung, nicht Modellqualität.
-- Schreibende Domänenfähigkeiten werden nicht vorschnell als Agententools
-  freigeschaltet.
-- Eine technische Netzwerkfreigabe allein autorisiert keine Weitergabe
-  potenziell sensibler lokaler Dokumentdaten.
+- The agent meets the competition requirement without bypassing existing security boundaries.  
+- Fixture evidence demonstrates orchestration, not model quality.  
+- Writing domain capabilities are not prematurely released as agent tools.  
+- A technical network approval alone does not authorize the sharing of potentially sensitive local document data.
 
-## 2026-08-22: Ressourcenbudgets sind ein gemeinsamer Vertrag
+## 2026-08-22: Resource budgets are a shared contract
 
-### Kontext
+### Context
 
-Der Phase-36-Security-Scan fand unbeschränkte Dokumentarbeit und parallele
-Loopback-Verbindungen. Einzelne ad-hoc Grenzen würden bei neuen Modulen leicht
-auseinanderlaufen.
+The phase‑36 security scan observed unrestricted document processing and parallel loopback connections. Individual ad‑hoc limits would easily diverge with new modules.
 
-### Entscheidung
+### Decision
 
-`capabilities/resource_budget` kapselt Dateizahl, Bytes und Laufzeit für alle
-betroffenen Workflows. Der Loopbackserver ergänzt Semaphore, Sockettimeout und
-Überlastabweisung. Der Agent besitzt eigene endliche Modell-/Toolbudgets.
+`capabilities/resource_budget` encapsulates file count, bytes, and runtime for all affected workflows. The loopback server adds semaphores, socket timeout, and overload rejection. The agent has its own finite model/tool budgets.
 
-### Folgen
+### Consequences
 
-- Neue Fähigkeiten können dieselbe fail-closed Mechanik wiederverwenden.
-- Budgetüberschreitung wird als kontrollierter Fehler statt als Teilresultat
-  oder Ressourcenerschöpfung behandelt.
+- New capabilities can reuse the same fail‑closed mechanism.  
+- Budget overruns are treated as controlled errors rather than as partial results or resource exhaustion.
 
-## 2026-08-22: Amtliche URLs sind publishergebunden
+## 2026-08-22: Official URLs are publisher‑bound
 
-### Entscheidung
+### Decision
 
-Leistungs-Handoffs akzeptieren nur HTTPS und exakt geprüfte Hosts des
-deklarierten Publishers. Ähnlich aussehende Subdomains, Userinfo, andere Ports,
-Trailing-dot- und percent-encoding-Varianten blockieren.
+Benefit handoffs accept only HTTPS and exactly verified hosts of the declared publisher. Look‑alike subdomains, userinfo, other ports, trailing‑dot and percent‑encoding variants are blocked.
 
-### Folge
+### Consequence
 
-Ein Datenkatalog kann keinen beliebigen Host allein durch das Etikett
-„amtlich“ vertrauenswürdig machen.
+A data catalog cannot deem an arbitrary host trustworthy solely by the label “official”.
 
-## 2026-08-22: Lokaler Abschluss und externe Submission bleiben getrennt
+## 2026-08-22: Local completion and external submission remain separate
 
-### Entscheidung
+### Decision
 
-Die 36 Phasen enden mit einem lokal installierbaren, getesteten und
-demonstrierbaren Wettbewerbspaket. Öffentliche Repositoryanlage,
-Videoveröffentlichung, AWS Builder ID, Live-Demo und Devpost-Submit bleiben
-eigenständige menschliche Gates.
+The 36 phases conclude with a locally installable, tested, and demonstrable competition package. Public repository creation, video release, AWS Builder ID, live demo, and Devpost submission remain independent human gates.
 
-### Folge
+### Consequence
 
-Ein lokal fertiger Build darf als lokal abgeschlossen gelten, aber niemals als
-veröffentlicht oder eingereicht bezeichnet werden.
+A locally built artifact may be considered locally completed, but must never be described as published or submitted.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

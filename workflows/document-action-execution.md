@@ -1,78 +1,59 @@
-# Workflow: Dokumentaktion freigeben und rückgängig machen
+# Workflow: Approve and Undo Document Action
 
-> **Last verified:** 2026-08-21
-> **Frequency:** ad-hoc nach menschlicher Planprüfung
-> **Duration:** wenige Sekunden pro Dokument auf demselben Datenträger
+**English** | [Deutsch](./document-action-execution.de.md)
+
+> **Last verified:** 2026-08-21  
+> **Frequency:** ad-hoc after human plan review  
+> **Duration:** a few seconds per document on the same storage medium
 
 ## Purpose
 
-Einen vorher geprüften Rename-/Move-Präfix für genau ein Dokument
-plan-, hash- und aktionsgebunden ausführen, lückenlos protokollieren und bei
-Bedarf über eine getrennte Freigabe zurückführen.
+Execute a previously verified rename/move prefix for exactly one document, bound to plan, hash, and action, log it without gaps, and, if needed, revert it via a separate approval.
 
 ## Preconditions
 
-- Quelle, Profilregeln, Zielwurzel und `as_of` entsprechen dem geprüften Plan.
-- Die Plan-ID und jede freizugebende Aktions-ID wurden aus `documents plan`
-  abgelesen und bewusst ausgewählt.
-- Quelle und Ziel liegen auf demselben Datenträger; Cross-Volume-Fallback ist
-  nicht erlaubt.
-- Lokaler State-Ordner und Datei-Schreibgate sind ausdrücklich gewählt.
-- Die Freigabe gilt nicht für Konvertierung, Papierkorb, Review oder
-  blockierte Aktionen.
+- Source, profile rules, target root, and `as_of` match the verified plan.  
+- The plan ID and each action ID to be approved were read from `documents plan` and deliberately selected.  
+- Source and target reside on the same storage medium; cross-volume fallback is not allowed.  
+- Local state folder and file write gates are explicitly chosen.  
+- The approval does not apply to conversion, recycle bin, review, or blocked actions.
 
 ## Steps
 
-1. **Plan erneut bilden** — `documents execute` extrahiert die Quelle erneut,
-   löst dieselben Profilregeln auf und berechnet die vollständige `plan_id`.
-2. **Freigabe binden** — `--approve-plan-id` und alle wiederholten
-   `--approve-action-id` müssen einen lückenlosen ausführbaren Planpräfix
-   bilden; `--approved-at` braucht eine Zeitzone.
-3. **Quelle verifizieren** — Dokument-ID und SHA-256 müssen weiterhin zum
-   ursprünglichen Pfad passen.
-4. **Gesamte Zielkette prüfen** — jedes Ziel muss unbesetzt, symlinkfrei und
-   entsprechend der Aktionsart innerhalb des erlaubten Bereichs sein.
-5. **Intent schreiben** — vor der ersten Dateiaktion wird im State-Ordner ein
-   neues `000-intent.json` ohne Rohtext veröffentlicht.
-6. **Schritte ausführen** — der Transaktionskern legt das Ziel ohne
-   Überschreiben an, prüft dessen Hash und entfernt erst danach die Quelle.
-7. **Abschluss prüfen** — `100-completed.json` weist Planprovider, Executor,
-   Pfade, Hashes, Regeln und Ablagebeleg aus.
-8. **Optional Undo freigeben** — `documents undo` benötigt Abschlussdatei,
-   Ausführungs-ID, Hash, neue Freigabe-ID, Zeitpunkt und Schreibgate.
-9. **Undo verifizieren** — Zielhash und Intent müssen passen; der Ursprung
-   darf nicht existieren. Erst dann wird der inverse Move ausgeführt.
+1. **Recreate plan** — `documents execute` extracts the source again, resolves the same profile rules, and computes the full `plan_id`.  
+2. **Bind approval** — `--approve-plan-id` and all repeated `--approve-action-id` must form a seamless executable plan prefix; `--approved-at` requires a time zone.  
+3. **Verify source** — Document ID and SHA-256 must still match the original path.  
+4. **Check entire target chain** — each target must be unoccupied, symlink‑free, and, according to the action type, within the allowed scope.  
+5. **Write intent** — before the first file action, a new `000-intent.json` without raw text is published in the state folder.  
+6. **Execute steps** — the transaction core creates the target without overwriting, verifies its hash, and only then removes the source.  
+7. **Check completion** — `100-completed.json` displays the plan provider, executor, paths, hashes, rules, and storage evidence.  
+8. **Optionally grant undo** — `documents undo` requires a completion file, execution ID, hash, new approval ID, timestamp, and write gate.  
+9. **Verify undo** — target hash and intent must match; the original must not exist. Only then is the inverse move executed.
 
 ## Exit-Criteria
 
-- [ ] Plan-ID, Quellhash und freigegebene Aktions-IDs stimmen exakt überein.
-- [ ] Kein bestehendes Ziel wurde überschrieben oder umbenannt.
-- [ ] Intent und Abschlussbericht liegen append-only im Ausführungsordner.
-- [ ] Der Ablagebeleg enthält Root, Relativpfad, Profil, Bereich und Regeln.
-- [ ] Planprovider und tatsächlicher Executor sind getrennt ausgewiesen.
-- [ ] Ohne Datei-Schreibgate wurde keine Quelle verändert.
-- [ ] Nach erfolgreichem Undo liegt der ursprüngliche Inhalt am Ursprung und
-      nicht mehr am Endziel.
+- [ ] Plan ID, source hash, and approved action IDs match exactly.  
+- [ ] No existing target was overwritten or renamed.  
+- [ ] Intent and completion report reside in the execution folder in append‑only mode.  
+- [ ] The evidence contains root, relative path, profile, scope, and rules.  
+- [ ] Plan provider and actual executor are listed separately.  
+- [ ] Without a file write gate, no source was altered.  
+- [ ] After a successful undo, the original content resides at the source and no longer at the final target.
 
-## Fallstricke
+## Pitfalls
 
-- Eine Plan-ID ist nicht selbst die Freigabe; konkrete Aktions-IDs und das
-  Dateisystem-Gate sind zusätzlich erforderlich.
-- Ein nach der Planung geänderter Dateiinhalt entwertet die Freigabe.
-- FCSA bestätigt Sortiersemantik im Dry-Run, führt diesen exakten
-  Einzeldokument-Move aber nicht live aus. Der Bericht nennt deshalb den
-  FolderHome-Transaktionskern als Executor.
-- Cross-Volume-Moves werden nicht durch Kopieren-und-Löschen ersetzt.
-- Undo ist kein Überschreiben: Existiert der Ursprung erneut, wird blockiert.
+- A plan ID is not the approval itself; concrete action IDs and the filesystem gate are additionally required.  
+- File content changed after planning invalidates the approval.  
+- FCSA confirms sorting semantics in the dry run but does not execute this exact single‑document move live. Therefore the report names the FolderHome transaction core as the executor.  
+- Cross‑volume moves are not replaced by copy‑and‑delete.  
+- Undo is not an overwrite: if the source reappears, it is blocked.
 
-## Verwandte
+## Related
 
-- [`./document-action-plan.md`](./document-action-plan.md) — Plan und
-  Regelprovenienz erzeugen
-- [`./directory-observation.md`](./directory-observation.md) — spätere
-  Nutzerkorrekturen anhand des Ablagebelegs erkennen
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-11-Datenfluss
+- [`./document-action-plan.md`](./document-action-plan.md) — generate plan and rule provenance  
+- [`./directory-observation.md`](./directory-observation.md) — detect later user corrections based on the evidence  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑11 data flow  
 
-## Historie
+## History
 
-- **2026-08-21** — Nach Phase-11-End-to-End-Roundtrip erstellt
+- **2026-08-21** — Created after Phase‑11 end‑to‑end roundtrip

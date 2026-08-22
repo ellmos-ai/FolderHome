@@ -51,7 +51,7 @@ if sys.platform == "win32":
 # ============================================================================
 
 WORKFLOWS_DIR_NAME = "workflows"
-OUTPUT_FILE_NAME = "WORKFLOWS.md"
+OUTPUT_FILE_NAMES = {"en": "WORKFLOWS.md", "de": "WORKFLOWS.de.md"}
 
 # AUTOGEN-Marker im Output-File — nur Inhalt dazwischen wird ersetzt
 AUTOGEN_START = "<!-- @auto-generated:workflow-index -->"
@@ -66,6 +66,15 @@ DEFAULT_HEADER = """# WORKFLOWS.md — Router zu Multi-Step-Playbooks
 
 """
 
+DEFAULT_HEADER_DE = """# WORKFLOWS.md — Router zu mehrstufigen Playbooks
+
+> **Zweck:** Navigation. „Welcher Workflow für welches Problem?"
+> **Inhalt:** Siehe `workflows/*.de.md` — hier steht **kein** Prozedurdetail.
+> **Automatisch erzeugt** durch `_tools/workflows-sync` zwischen den AUTOGEN-Markern.
+> Alles außerhalb bleibt unangetastet.
+
+"""
+
 
 # ============================================================================
 # PARSING
@@ -73,7 +82,8 @@ DEFAULT_HEADER = """# WORKFLOWS.md — Router zu Multi-Step-Playbooks
 
 H1_PATTERN = re.compile(r"^#\s+(.+?)$", re.MULTILINE)
 PURPOSE_PATTERN = re.compile(
-    r"^##\s+Purpose\s*\n+(.+?)(?=\n\n|\n##|\Z)", re.MULTILINE | re.DOTALL
+    r"^##\s+(?:Purpose|Zweck)\s*\n+(.+?)(?=\n\n|\n##|\Z)",
+    re.MULTILINE | re.DOTALL,
 )
 FREQUENCY_PATTERN = re.compile(r"\*\*Frequency:\*\*\s*([^\n]+)", re.IGNORECASE)
 DURATION_PATTERN = re.compile(r"\*\*Duration:\*\*\s*([^\n]+)", re.IGNORECASE)
@@ -97,8 +107,8 @@ def parse_workflow_file(path: Path) -> dict:
     purpose_match = PURPOSE_PATTERN.search(content)
     if purpose_match:
         purpose = purpose_match.group(1).strip()
-        # Erste Zeile / bis ersten Doppelpunkt
-        purpose = purpose.split("\n")[0].strip()
+        # Markdown-Zeilenumbruch innerhalb des ersten Absatzes normalisieren
+        purpose = " ".join(line.strip() for line in purpose.splitlines())
         # Kürzen auf ~150 Zeichen
         if len(purpose) > 150:
             purpose = purpose[:147] + "..."
@@ -121,7 +131,7 @@ def parse_workflow_file(path: Path) -> dict:
     }
 
 
-def collect_workflows(workflows_dir: Path) -> dict[str, list[dict]]:
+def collect_workflows(workflows_dir: Path, language: str = "en") -> dict[str, list[dict]]:
     """Sammelt alle Workflows, kategorisiert nach Unterordner.
 
     Returns dict: {category_name: [workflow_dict, ...]}
@@ -133,18 +143,20 @@ def collect_workflows(workflows_dir: Path) -> dict[str, list[dict]]:
     categories = {}
 
     for md_file in sorted(workflows_dir.rglob("*.md")):
+        is_german = md_file.name.endswith(".de.md")
+        if language == "en" and is_german:
+            continue
+        if language == "de" and not is_german:
+            continue
         # Skip README.md und Files mit _example-Prefix
-        if md_file.name == "README.md":
+        if md_file.name in {"README.md", "README.de.md"}:
             continue
         if md_file.name.startswith("_example"):
             continue
 
         # Kategorie = direkter Parent-Ordner relativ zu workflows_dir
         rel = md_file.relative_to(workflows_dir)
-        if len(rel.parts) == 1:
-            category = "general"
-        else:
-            category = rel.parts[0]
+        category = "general" if len(rel.parts) == 1 else rel.parts[0]
 
         wf = parse_workflow_file(md_file)
         wf["relative_path"] = str(rel).replace("\\", "/")
@@ -158,7 +170,9 @@ def collect_workflows(workflows_dir: Path) -> dict[str, list[dict]]:
 # GENERATION
 # ============================================================================
 
-def generate_workflow_block(categories: dict[str, list[dict]]) -> str:
+def generate_workflow_block(
+    categories: dict[str, list[dict]], language: str = "en"
+) -> str:
     """Generiert den AUTOGEN-Block-Inhalt."""
     lines = []
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -166,12 +180,17 @@ def generate_workflow_block(categories: dict[str, list[dict]]) -> str:
 
     lines.append(AUTOGEN_START)
     lines.append(f"<!-- last-updated: {timestamp} -->")
-    lines.append(f"<!-- tool: _tools/workflows-sync -->")
+    lines.append("<!-- tool: _tools/workflows-sync -->")
     lines.append(f"<!-- count: {total} workflows in {len(categories)} categories -->")
     lines.append("")
 
     if not categories:
-        lines.append("_Noch keine Workflows in `workflows/` vorhanden._")
+        empty_message = (
+            "_No workflows exist in `workflows/` yet._"
+            if language == "en"
+            else "_Noch keine Workflows in `workflows/` vorhanden._"
+        )
+        lines.append(empty_message)
         lines.append("")
         lines.append(AUTOGEN_END)
         return "\n".join(lines)
@@ -182,9 +201,16 @@ def generate_workflow_block(categories: dict[str, list[dict]]) -> str:
     for category in sorted_cats:
         workflows = categories[category]
         cat_display = category.replace("-", " ").replace("_", " ").title()
+        if language == "de" and category == "general":
+            cat_display = "Allgemein"
         lines.append(f"## {cat_display} ({len(workflows)})")
         lines.append("")
-        lines.append("| Workflow | Purpose | Frequency | Duration |")
+        table_header = (
+            "| Workflow | Purpose | Frequency | Duration |"
+            if language == "en"
+            else "| Workflow | Zweck | Häufigkeit | Dauer |"
+        )
+        lines.append(table_header)
         lines.append("|---|---|---|---|")
         for wf in sorted(workflows, key=lambda w: w["title"]):
             path_link = f"[`{wf['relative_path']}`](./workflows/{wf['relative_path']})"
@@ -205,13 +231,18 @@ def generate_workflow_block(categories: dict[str, list[dict]]) -> str:
 # OUTPUT-FILE-UPDATE
 # ============================================================================
 
-def update_workflows_md(output_path: Path, new_block: str, dry_run: bool):
+def update_workflows_md(
+    output_path: Path,
+    new_block: str,
+    dry_run: bool,
+    default_header: str = DEFAULT_HEADER,
+):
     """Ersetzt den AUTOGEN-Block in WORKFLOWS.md, behält Rest unverändert.
 
     Falls WORKFLOWS.md nicht existiert: legt neue Datei mit DEFAULT_HEADER an.
     """
     if not output_path.exists():
-        content = DEFAULT_HEADER + "\n" + new_block + "\n"
+        content = default_header + "\n" + new_block + "\n"
         if dry_run:
             print(f"  [DRY] Würde neues File anlegen: {output_path}")
             return
@@ -232,7 +263,7 @@ def update_workflows_md(output_path: Path, new_block: str, dry_run: bool):
     else:
         # Keine Marker vorhanden — am Ende anhängen
         new_content = content.rstrip() + "\n\n" + new_block + "\n"
-        print(f"  WARN: Keine AUTOGEN-Marker gefunden, füge am Ende ein")
+        print("  WARN: Keine AUTOGEN-Marker gefunden, füge am Ende ein")
 
     if dry_run:
         print(f"  [DRY] Würde updaten: {output_path}")
@@ -298,11 +329,14 @@ def main():
 
     root = args.root.resolve()
     workflows_dir = root / WORKFLOWS_DIR_NAME
-    output_path = root / OUTPUT_FILE_NAME
+    output_paths = {
+        language: root / filename for language, filename in OUTPUT_FILE_NAMES.items()
+    }
 
     print(f"==> Root:       {root}")
     print(f"==> Workflows:  {workflows_dir}")
-    print(f"==> Output:     {output_path}")
+    print(f"==> Output EN:  {output_paths['en']}")
+    print(f"==> Output DE:  {output_paths['de']}")
 
     if not workflows_dir.exists():
         print(f"\nWARN: workflows/ existiert nicht in {root}", file=sys.stderr)
@@ -310,27 +344,49 @@ def main():
         sys.exit(0 if not args.check else 1)
 
     print("\n==> Scanning workflows...")
-    categories = collect_workflows(workflows_dir)
-    total = sum(len(wfs) for wfs in categories.values())
-    print(f"    Found {total} workflows in {len(categories)} categories")
-    for cat, wfs in categories.items():
-        print(f"    - {cat}: {len(wfs)}")
+    categories_by_language = {
+        language: collect_workflows(workflows_dir, language)
+        for language in OUTPUT_FILE_NAMES
+    }
+    for language, categories in categories_by_language.items():
+        total = sum(len(wfs) for wfs in categories.values())
+        print(
+            f"    {language.upper()}: Found {total} workflows "
+            f"in {len(categories)} categories"
+        )
+        for cat, wfs in categories.items():
+            print(f"      - {cat}: {len(wfs)}")
 
     print("\n==> Generating block...")
-    new_block = generate_workflow_block(categories)
+    new_blocks = {
+        language: generate_workflow_block(categories, language)
+        for language, categories in categories_by_language.items()
+    }
 
     if args.check:
-        fresh = check_freshness(output_path, new_block)
-        if fresh:
-            print("\n==> Check OK: WORKFLOWS.md ist aktuell")
+        stale = [
+            language
+            for language in OUTPUT_FILE_NAMES
+            if not check_freshness(output_paths[language], new_blocks[language])
+        ]
+        if not stale:
+            print("\n==> Check OK: beide WORKFLOWS-Sprachfassungen sind aktuell")
             sys.exit(0)
         else:
-            print("\n==> Check FAIL: WORKFLOWS.md ist veraltet", file=sys.stderr)
+            print(
+                f"\n==> Check FAIL: veraltete Sprachfassungen: {', '.join(stale)}",
+                file=sys.stderr,
+            )
             print("Run 'workflows-sync' (ohne --check) zum Updaten", file=sys.stderr)
             sys.exit(1)
 
     print("\n==> Updating output...")
-    update_workflows_md(output_path, new_block, args.dry_run)
+    update_workflows_md(
+        output_paths["en"], new_blocks["en"], args.dry_run, DEFAULT_HEADER
+    )
+    update_workflows_md(
+        output_paths["de"], new_blocks["de"], args.dry_run, DEFAULT_HEADER_DE
+    )
 
     print("\n==> Fertig.")
 

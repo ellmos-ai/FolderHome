@@ -1,92 +1,63 @@
-# Phase 27 — Kalender-Connectoren und Erinnerungs-Handoffs
+# Phase 27 — Calendar Connectors and Reminder Handoffs
 
-**Status:** lokal abgeschlossen, 233 Tests grün  
+**English** | [Deutsch](./phase27-calendar-connector-plan.de.md)
+
+**Status:** locally completed, 233 tests green  
 **Stand:** 2026-08-22  
-**Produktname im Wettbewerb:** FolderHome
+**Product name in competition:** FolderHome
 
-## Ziel
+## Goal
 
-FolderHome verbindet den vorhandenen Phase-17-Kalenderkern mit expliziten
-Kalenderkonten und providerneutralen Operationen. Ereignisse aus Dokumenten
-werden weiterhin nur als belegte Kandidaten behandelt. Erstellen,
-Aktualisieren, Löschen und Erinnern sind getrennte Operationen; ein Plan ruft
-keinen Connector auf.
+FolderHome connects the existing Phase-17 calendar core with explicit calendar accounts and provider‑neutral operations. Events from documents continue to be treated only as documented candidates. Create, update, delete, and remind are separate operations; a plan does not invoke any connector.
 
-## Revisionsinventur
+## Revision inventory
 
-| Baustein | Revisionsbefund | Phase-27-Rolle |
+| Component | Revision finding | Phase-27 role |
 |---|---|---|
-| UpToday | sauberer lokaler Checkout `7582ca87e17e458bb99a7379d2c54003c15415a4`; 21 ICS-Tests grün | vorhandenen RFC-5545-Dateihandoff aus Phase 17 wiederverwenden, kein Live-Sync |
-| Routinika | dateibasierter `routinika-bundle-v1`-Vertrag; `portable_bundle.py` SHA-256 `3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2` | hashgebundene Designreferenz, bis zu einem Live-Connector-Vertrag blockiert |
-| Google Calendar | lokaler Skill `google-calendar` 1.2.5 | agentischer, gesondert freizugebender Handoff; kein Lauf im Wettbewerbscode |
-| FolderHome Phase 17 | lokaler Kalenderstore und UpToday-ICS-Ausgabe | Quelle für Kandidaten, Profilauflösung und lokalen Handoff; kein Doppelbau |
-| FolderHome Synthetic Calendar | `working-tree`, neu im Wettbewerbszeitraum | deterministischer No-Network-Fixture-Provider für die lokale Abnahme |
+| UpToday | clean local checkout `7582ca87e17e458bb99a7379d2c54003c15415a4`; 21 ICS tests green | reuse existing RFC-5545 file handoff from Phase 17, no live sync |
+| Routinika | date‑based `routinika-bundle-v1` contract; `portable_bundle.py` SHA-256 `3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2` | hash‑bound design reference, blocked up to a live connector contract |
+| Google Calendar | local skill `google-calendar` 1.2.5 | agentic, separately approvable handoff; no run in competition code |
+| FolderHome Phase 17 | local calendar store and UpToday ICS output | source for candidates, profile resolution and local handoff; no duplicate build |
+| FolderHome Synthetic Calendar | `working-tree`, new in competition period | deterministic no‑network fixture provider for local acceptance |
 
-Die Inventur ist ein Snapshot vom 22. August 2026. Der Routinika-Bestand in
-OneDrive wurde nur über FileCommander gelesen und gehasht. Kein fremder
-Checkout, Kalender oder Benutzerkonto wurde verändert.
+The inventory is a snapshot as of 22 August 2026. The Routinika inventory in OneDrive was only read and hashed via FileCommander. No external checkout, calendar, or user account was modified.
 
-## Neuer gekapselter Kern
+## New encapsulated core
 
 - `folderhome.contracts.calendar_connectors`
 - `folderhome.application.calendar_connectors`
 - `folderhome.capabilities.calendar_connector_gateway`
-- `folderhome-calendar-connectors`-Skill
+- `folderhome-calendar-connectors`‑Skill
 
-Der Vertrag modelliert Konto, Erinnerung, Anfrage, Route, Ereignispayload,
-Operation, Freigabe, Provider-Ereignisreferenz und Ausführungsreport. Die
-Konfiguration darf nur eine `connector://`-Referenz enthalten, keine Tokens.
-Unbekannte Felder werden fail-closed abgewiesen.
+The contract models account, reminder, request, route, event payload, operation, approval, provider‑event reference and execution report. The configuration may contain only a `connector://` reference, no tokens. Unknown fields are rejected fail‑closed.
 
-## Wiederverwendung statt Doppelbau
+## Reuse instead of duplicate build
 
-Der Connectorplan wird ausschließlich auf einem vollständigen
-`folderhome.calendar-handoff-plan.v1` aus Phase 17 aufgebaut. Dadurch bleiben
-Dokumentextraktion, Zeilenevidenz, Profil-/Bereichsregel, Zeitzone,
-Duplikaterkennung, lokaler Store und ICS-Ausgabe an einer Stelle.
+The connector plan is built exclusively on a complete `folderhome.calendar-handoff-plan.v1` from Phase 17. This keeps document extraction, line evidence, profile/area rule, time zone, duplicate detection, local store and ICS output in one place.
 
-- UpToday-Erstellung wird an den bestehenden ICS-Handoff delegiert.
-- Der lokale FolderHome-Kalender bleibt der vorhandene Phase-17-Store.
-- Routinika bleibt eine Dateiübergabe-Referenz und wird nicht als Live-Sync
-  ausgegeben.
-- Google erhält ein explizites, prüfbares Handoff-Payload, aber der Skill wird
-  im Plan nicht aufgerufen.
+- UpToday creation is delegated to the existing ICS handoff.  
+- The local FolderHome calendar remains the existing Phase‑17 store.  
+- Routinika remains a file handoff reference and is not emitted as a live sync.  
+- Google receives an explicit, verifiable handoff payload, but the skill is not invoked in the plan.
 
-`backend_source` und `source_rule_ids` werden in den Connectorplan übernommen.
-Damit ist sichtbar, ob das Ziel aus Konfigurationsstandard oder Profilregel
-stammt.
+`backend_source` and `source_rule_ids` are incorporated into the connector plan. This makes visible whether the target originates from configuration standard or profile rule.
 
-## Google-Handoff
+## Google handoff
 
-Ein Google-Erstellungspayload enthält immer eine explizite `calendar_id`, eine
-leere Teilnehmerliste, `transparency=opaque`, strukturierte Popup-Reminder und
-Start-/Endzeiten mit UTC-Offset sowie IANA-Zeitzone. Update und Löschen bleiben
-blockiert, bis eine bestehende Provider-Ereignisreferenz vorliegt. Wiederholte
-Ereignisse benötigen später zusätzlich das bewusste Auswählen von Master oder
-Einzelinstanz.
+A Google creation payload always includes an explicit `calendar_id`, an empty attendee list, `transparency=opaque`, structured popup reminders and start/end times with UTC offset as well as IANA time zone. Update and delete remain blocked until an existing provider‑event reference is present. Recurring events later also require the deliberate selection of master or single instance.
 
-## Synthetische Abnahme
+## Synthetic acceptance
 
-Der synthetische Provider akzeptiert nur exakt hash- und aktionsgebundene
-Freigaben für `create` und optional `remind`. Er besitzt keinen Netzwerkpfad,
-schreibt keinen Live-Kalender und gibt ausschließlich synthetische
-Provider-Ereignisreferenzen zurück. Doppelte Idempotenzschlüssel werden
-innerhalb eines Gateway-Laufs abgewiesen. Ein als netzwerkpflichtig
-deklarierter Gateway wird ohne Netzwerkfreigabe vor dem Aufruf gestoppt.
+The synthetic provider accepts only exact hash‑ and action‑bound approvals for `create` and optionally `remind`. It has no network path, does not write to a live calendar, and returns only synthetic provider‑event references. Duplicate idempotency keys are rejected within a gateway run. A gateway declared as network‑required is stopped before invocation without network approval.
 
-## Produktgrenzen
+## Product limits
 
-- `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
-  wurde.
-- Eine synthetische Ereignisreferenz ist kein Live-Kalendereintrag.
-- Es wurden weder Google-Zugangsdaten gelesen noch Google-Tools aufgerufen.
-- UpToday erhält eine ICS-Datei erst über den getrennt freigegebenen
-  Phase-17-Handoff.
-- Routinika-Live-Sync, Update, Löschen und Serienereignisse bleiben offen.
-- Automatische Terminerkennung ist best effort und besitzt keine
-  Vollständigkeitsgarantie.
-- Profile innerhalb eines Betriebssystemkontos sind organisatorische Regeln,
-  keine kryptografische Mandantentrennung.
+- `ready` or `review_required` does not mean that a calendar was modified.  
+- A synthetic event reference is not a live calendar entry.  
+- No Google credentials were read nor were Google tools invoked.  
+- UpToday receives an ICS file only via the separately approved Phase‑17 handoff.  
+- Routinika live sync, update, delete and series events remain open.  
+- Automatic appointment detection is best effort and carries no completeness guarantee.  
+- Profiles within an operating system account are organizational rules, not cryptographic tenant separation.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

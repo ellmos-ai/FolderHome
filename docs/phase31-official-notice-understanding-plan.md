@@ -1,48 +1,37 @@
-# Phase 31: Sozialrechtliche Bescheide sicher verstehen
+# Phase 31: Understanding Social Law Notices Safely
 
-**Stand:** 2026-08-22  
-**Zweck:** Aus einem bereitgestellten Bescheid ausdrücklich beschriftete
-Angaben mit Evidenz extrahieren, Widersprüche sichtbar machen und einen
-verständlichen lokalen Prüfbericht erzeugen, ohne eine Rechtsprüfung,
-Fristberechnung oder Antwort zu behaupten.
+**English** | [Deutsch](./phase31-official-notice-understanding-plan.de.md)
 
-## Bestandsabgleich
+**Status:** 2026-08-22  
+**Purpose:** Extract explicitly labeled data with evidence from a provided official notice, surface contradictions, and produce a clear local audit report, without asserting any legal review, deadline calculation, or response.
 
-Für Phase 31 wurden der zentrale Skills-Bestand und der vorhandene
-`law-checker` geprüft:
+## Inventory Reconciliation
 
-| Bestand | Revision | Befund | Verwendung |
+For Phase 31, the central skills inventory and the existing `law-checker` were examined:
+
+| Inventory | Revision | Finding | Usage |
 |---|---|---|---|
-| `ellmos-ai/skills` | `0317f32310eed11d21f603cb6f22a689485af226` | lokaler Checkout sauber, aber einen Commit hinter Upstream | Methodenreferenz über den `law-checker`-Pointer |
-| `ellmos-ai/law-checker` | `330fe47b3621c69ec824cd05ca5b283e107f9eaf` | Checkout einen Commit hinter Upstream und fremd verändert | keine Runtime-Anbindung |
-| `doc-services` | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | gepinnter, sauberer Provider | lokale Textextraktion ohne OCR |
+| `ellmos-ai/skills` | `0317f32310eed11d21f603cb6f22a689485af226` | local checkout clean, but one commit behind upstream | method reference via the `law-checker` pointer |
+| `ellmos-ai/law-checker` | `330fe47b3621c69ec824cd05ca5b283e107f9eaf` | checkout one commit behind upstream and externally modified | no runtime binding |
+| `doc-services` | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | pinned, clean provider | local text extraction without OCR |
 
-Der vorhandene `law-checker` ist für eine erste rechtliche Orientierung
-konzipiert und verlangt genaue Quellen, Fristprüfung und menschliche
-Eskalation. Sein lokales Gesetzesregister deckt jedoch kein vollständiges
-allgemeines Verfahrens- und Sozialgerichtsrecht für beliebige Bescheidarten
-ab. Außerdem ist der Checkout nicht sauber und nicht aktuell. FolderHome lädt
-ihn deshalb in Phase 31 nicht als Runtime und kopiert keinen Code.
+The existing `law-checker` is designed for an initial legal orientation and requires precise sources, deadline verification, and human escalation. However, its local law register does not cover a complete general procedural and social court law for arbitrary notice types. Additionally, the checkout is not clean and not up to date. Therefore, FolderHome does not load it as a runtime in Phase 31 and does not copy any code.
 
-## Neuer gekapselter Kern
+## New Encapsulated Core
 
-`contracts.official_notices` und `application.official_notices` sind neuer,
-wiederverwendbarer Wettbewerbscode. Sie kapseln:
+`contracts.official_notices` and `application.official_notices` are new, reusable competition code. They encapsulate:
 
-- die Profil-, Zeit-, Dokument- und Quellhashbindung einer Bescheidanalyse,
-- streng beschriftete Felder für Bescheidart, Behörde, Aktenzeichen,
-  Bescheiddatum, Leistungszeitraum, Entscheidung und Begründung,
-- ausdrücklich gedruckte Rechtsbehelfs-, Frist- und Stellenangaben,
-- Evidenz pro Feld mit Zeilennummer, Dokument-ID und Quellhash,
-- sichtbare Mehrdeutigkeiten statt willkürlicher Auswahl,
-- fehlende Felder, Warnungen und einen eindeutigen Prüfstatus,
-- getrennte Markdown-/JSON-Ausgabe mit Schreibgate und Never-overwrite.
+- the profile, time, document, and source hash binding of a notice analysis,
+- strictly labeled fields for notice type, authority, file reference, notice date, benefit period, decision, and justification,
+- explicitly printed legal remedy, deadline, and office information,
+- evidence per field with line number, document ID, and source hash,
+- visible ambiguities instead of arbitrary selection,
+- missing fields, warnings, and a clear audit status,
+- separate Markdown/JSON output with write gate and never-overwrite.
 
-Die Kapsel kann später auch in Sovereign verwendet werden. Der vorhandene
-`doc-services`-Provider übernimmt ausschließlich die lokale Extraktion; die
-fachliche Bescheidstruktur gehört FolderHome.
+The capsule can later also be used in Sovereign. The existing `doc-services` provider handles only the local extraction; the domain‑specific notice structure belongs to FolderHome.
 
-## Ablauf
+## Process
 
 ```text
 Bescheid + Profil + explizite Sensitivitätsfreigabe
@@ -56,32 +45,17 @@ Bescheid + Profil + explizite Sensitivitätsfreigabe
   → nach separatem Schreibgate neue Markdown-/JSON-Dateien erzeugen
 ```
 
-Ein optionales Zugangsdatum ist immer als Nutzerangabe ausgewiesen. Es wird
-nicht aus Metadaten erraten. Ein ausdrücklich gedrucktes Fristdatum darf zur
-Orientierung gegen `as_of` gezählt werden; das Ergebnis ist keine gesetzliche
-Fristberechnung. Relative Fristtexte werden nicht in Daten umgerechnet.
 
-## Rechts- und Sicherheitsgrenze
+An optional access date is always indicated as a user‑provided value. It is not guessed from metadata. An explicitly printed deadline date may be counted for orientation against `as_of`; the result is not a legal deadline calculation. Relative deadline wordings are not converted into data.
 
-Phase 31 führt keine Rechtsprüfung durch. Sie bestimmt weder, ob ein Bescheid
-rechtmäßig ist, noch wann eine gesetzliche Frist tatsächlich beginnt oder
-endet. Sie erstellt keinen Widerspruch, keinen Antrag und keine Nachricht an
-eine Behörde. OCR ist in dieser Anbindung deaktiviert, damit ein unsicheres
-Erkennungsergebnis nicht still als belastbare Fristangabe erscheint.
+## Legal and Safety Boundary
 
-Der Bericht weist diese Grenzen sichtbar aus. Fehlende oder widersprüchliche
-Kernangaben führen zu `review_required`. Laufende oder unklare Fristen
-erfordern unverzügliche qualifizierte sozialrechtliche Hilfe. Eine spätere
-Rechtsprüfung muss den `law-checker` zuerst aktualisieren, bereinigen,
-fachlich erweitern und an aktuelle amtliche Quellen binden.
+Phase 31 performs no legal review. It does not determine whether a notice is lawful, nor when a legal deadline actually starts or ends. It does not create an objection, an application, or a message to an authority. OCR is disabled in this integration so that an uncertain recognition result does not silently appear as a reliable deadline indication.
 
-## Abnahme
+The report makes these limitations visible. Missing or contradictory core data lead to `review_required`. Ongoing or unclear deadlines require immediate qualified social law assistance. A later legal review must first update, clean, expand the domain of `law-checker`, and bind it to current official sources.
 
-Die synthetische Abnahme prüft Feld- und Evidenzbindung, relative Fristtexte,
-Konflikte, Sensitivitäts- und Ausgabegates, geänderte Quellen und
-Never-overwrite. Der CLI-Test führt Providerinventar, read-only Analyse und
-Berichtsausgabe Ende zu Ende aus. Er bestätigt ausdrücklich, dass keine
-Rechtsprüfung, Antwort oder Außenwirkung stattgefunden hat.
+## Acceptance
+
+The synthetic acceptance checks field and evidence binding, relative deadline wordings, conflicts, sensitivity and output gates, changed sources, and never‑overwrite. The CLI test runs provider inventory, read‑only analysis, and report generation end‑to‑end. It explicitly confirms that no legal review, response, or external effect has taken place.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

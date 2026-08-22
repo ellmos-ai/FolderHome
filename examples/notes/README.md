@@ -1,10 +1,10 @@
-# Persönliche Notizen — synthetisches Beispiel
+# Personal Notes — Synthetic Example
 
-`create-request.json` beschreibt einen ausschließlich synthetischen,
-menschlich formulierten Notizinhalt. Dokument- und Kalenderverweise sind
-explizit angegeben; FolderHome sucht oder ergänzt keine Verknüpfung selbst.
+**English** | [Deutsch](./README.de.md)
 
-Zuerst wird nur ein Guide-Plan erzeugt:
+`create-request.json` describes a purely synthetic, human‑written note content. Document and calendar references are explicitly specified; FolderHome does not search for or add any link itself.
+
+First, only a guide plan is generated:
 
 ```powershell
 python -m folderhome notes guide `
@@ -14,16 +14,9 @@ python -m folderhome notes guide `
   --provider-root ..\llm-note --json
 ```
 
-Der Mensch prüft `proposed_content`, Fragen, Vorschläge, Referenzen und Hashes.
-Aus genau diesem Plan wird anschließend eine separate
-`folderhome.personal-note-approval.v1`-Datei erstellt. Erst
-`notes apply --approval-file <Datei> --approve-state-write` hängt eine Version
-an die lokale `llm-note`-Datenbank an.
 
-Für `edit` werden `note_id` und die aktuelle `expected_revision` übernommen
-und neuer menschlicher Inhalt angegeben. Für `revert` bleibt `human_content`
-`null`; `revert_to_revision` nennt die ältere Fassung. Auch eine Rückkehr ist
-eine neue Version und keine Löschung.
+The user reviews `proposed_content`, questions, suggestions, references, and hashes. From this exact plan, a separate `folderhome.personal-note-approval.v1` file is then created. Only after that `notes apply --approval-file <Datei> --approve-state-write` attaches a version to the local `llm-note` database.
+
+For `edit`, `note_id` and the current `expected_revision` are taken over and new human content is provided. For `revert`, `human_content` `null` remains; `revert_to_revision` names the older version. A rollback is also a new version and not a deletion.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

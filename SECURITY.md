@@ -1,62 +1,36 @@
 # Security Policy
 
-FolderHome verarbeitet potenziell sensible Haushalts-, Gesundheits-, Finanz-
-und Verwaltungsdokumente. Der Wettbewerbsstand ist deshalb local-first,
-fail-closed und trennt Planung, Freigabe und Ausführung.
+**English** | [Deutsch](./SECURITY.de.md)
 
-## Unterstützter Stand
+FolderHome processes potentially sensitive household, health, financial, and administrative documents. The competition state is therefore local‑first, fail‑closed, and separates planning, approval, and execution.
 
-Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
-`phase1-foundation` gepflegt. Es gibt noch keine veröffentlichte Release-Serie
-und keinen produktiven Cloudbetrieb.
+## Supported State
 
-## Sicherheitsgrenzen
+Security fixes are maintained on the current competition state on the branch `phase1-foundation`. There is no published release series yet and no production cloud operation.
 
-- Das Betriebssystemkonto samt Dateirechten ist die Sicherheitsgrenze.
-  Familienprofile organisieren Regeln und Ansichten, sind aber keine ACLs.
-- Der lokale HTTP-Adapter bindet ausschließlich an `127.0.0.1`, benötigt ein
-  kurzlebiges Sitzungstoken, prüft Host und Origin exakt und erlaubt kein CORS.
-- Gleichzeitige HTTP-Anfragen und unvollständige Verbindungen besitzen harte
-  Obergrenzen und Timeouts.
-- Datei-, Parser- und Rendererarbeit ist durch nicht abschaltbare Budgets für
-  Einträge, Dateien, Bytes, PDF-Seiten, Bildframes, Pixel, Text und Ausgaben
-  begrenzt.
-- Der Strands-Agent besitzt ausschließlich zwei profilgebundene read-only
-  Tools. Turns, Toolaufrufe, Prompt, Toolergebnis und Antwort sind endlich
-  begrenzt; Toolausführung erfolgt sequenziell.
-- Das deterministische Agenten-Fixture verwendet kein Netzwerk. Amazon
-  Bedrock benötigt Modell-ID, Region sowie getrennte ausdrückliche Freigaben
-  für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
-  Suchergebnisse.
-- Amtliche Leistungslinks werden per HTTPS, exaktem Host und Publisherbindung
-  geprüft. IP-Adressen, Zugangsdaten, Ports und Domain-Lookalikes werden
-  blockiert.
-- Schreibende Aktionen benötigen fachlich getrennte Approvals und Gates,
-  prüfen Quellhashes erneut und überschreiben vorhandene Ziele nicht.
-- Live-Mail, Live-Kalender, Telefon, Banking, Upload und Veröffentlichung sind
-  keine impliziten Agentenfähigkeiten.
+## Security Boundaries
 
-## Vertraulichkeit und Testdaten
+- The operating system account together with file permissions is the security boundary. Family profiles organize rules and views, but they are not ACLs.
+- The local HTTP adapter binds exclusively to `127.0.0.1`, requires a short‑lived session token, checks host and origin exactly, and does not allow CORS.
+- Concurrent HTTP requests and incomplete connections have hard limits and timeouts.
+- File, parser, and renderer work is limited by non‑disableable budgets for entries, files, bytes, PDF pages, image frames, pixels, text, and outputs.
+- The Strands agent has only two profile‑bound read‑only tools. Turns, tool calls, prompt, tool result, and response are finitely limited; tool execution occurs sequentially.
+- The deterministic agent fixture uses no network. Amazon Bedrock requires a model ID, region, as well as separate explicit approvals for network access and the sharing of potentially sensitive local search results.
+- Official benefit links are verified via HTTPS, exact host, and publisher binding. IP addresses, credentials, ports, and domain look‑alikes are blocked.
+- Write actions require domain‑separate approvals and gates, re‑verify source hashes, and do not overwrite existing targets.
+- Live mail, live calendar, phone, banking, upload, and publishing are not implicit agent capabilities.
 
-Repository, Tests und Wettbewerbsdemo verwenden ausschließlich synthetische
-Daten. Reale Dokumente, Zugangsdaten, Sitzungstoken, Mailadressen,
-Kontokennungen oder Gesundheitsinformationen dürfen nicht committed,
-hochgeladen oder in öffentliche Demoartefakte übernommen werden.
+## Confidentiality and Test Data
 
-Die Demoausgabe nennt ausdrücklich, dass sie synthetisch ist. Ein Fixture-Lauf
-belegt den Strands-Agentenloop, aber weder Modellqualität noch AWS-
-Verfügbarkeit.
+The repository, tests, and competition demo use exclusively synthetic data. Real documents, credentials, session tokens, email addresses, account identifiers, or health information must not be committed, uploaded, or incorporated into public demo artifacts.
 
-## Sicherheitsprüfung
+The demo output explicitly states that it is synthetic. A fixture run exercises the Strands agent loop, but neither model quality nor AWS availability.
 
-Der Phase-36-Scan erfasste 357 Dateien auf 12 von 12 deklarierten Flächen und
-meldete drei Befunde. Behoben wurden unbegrenzte Dokumentenarbeit, frei
-behauptbare amtliche Leistungshosts und unbegrenzte Loopback-Verbindungen.
-Der unveränderliche Vorfix-Scan und sein separater Fix-Report werden im lokalen
-Scanartefakt aufbewahrt; der Abschlussaudit dokumentiert zusätzliche
-Post-Fix- und Strands-Prüfungen.
+## Security Review
 
-Reproduzierbare lokale Prüfungen:
+The Phase‑36 scan captured 357 files across 12 of 12 declared areas and reported three findings. Fixed were unlimited document processing, freely claimable official benefit hosts, and unlimited loopback connections. The immutable pre‑fix scan and its separate fix report are stored in the local scan artifact; the final audit documents additional post‑fix and Strands checks.
+
+Reproducible local checks:
 
 ```powershell
 python -m pytest
@@ -67,20 +41,13 @@ python _tools\doc-lint
 python _tools\workflows-sync --check
 ```
 
-## Meldung einer Schwachstelle
 
-Bitte keine echten sensiblen Beispieldaten in ein öffentliches Issue stellen.
-Bis ein öffentlicher Sicherheitskontakt freigegeben wurde, Schwachstellen
-vertraulich an den Repository-Eigentümer melden. Eine Meldung sollte
-betroffene Version, minimale Reproduktion, erwartete Auswirkung und bekannte
-Workarounds enthalten.
+## Reporting a Vulnerability
 
-## Keine Sicherheitsbehauptung über Fachentscheidungen
+Please do not post real sensitive example data in a public issue. Until a public security contact has been approved, report vulnerabilities confidentially to the repository owner. A report should include the affected version, minimal reproduction steps, expected impact, and known workarounds.
 
-FolderHome ist keine medizinische Diagnose, Rechts-, Steuer-, Leistungs- oder
-Finanzberatung. Evidenz, Fristenanzeigen, Konflikte und Kandidaten ersetzen
-keine fachliche Prüfung. Ein technisch erfolgreiches Toolergebnis beweist
-weder Vollständigkeit noch sachliche Richtigkeit eines Quelldokuments.
+## No Security Claim Regarding Professional Decisions
+
+FolderHome is not medical diagnosis, legal, tax, benefit, or financial advice. Evidence, deadline displays, conflicts, and candidates do not replace professional review. A technically successful tool result does not prove either completeness or factual correctness of a source document.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

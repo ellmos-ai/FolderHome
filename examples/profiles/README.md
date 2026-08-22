@@ -1,18 +1,16 @@
-# Synthetische Familienprofile
+# Synthetic Family Profiles
 
-Diese Dateien demonstrieren organisatorische Regeln für mehrere Personen im
-selben Betriebssystemkonto. Alle Namen und Einstellungen sind Beispiele.
+**English** | [Deutsch](./README.de.md)
 
-Die Profile sind **keine Zugriffsgrenze**. Wer Zugriff auf das gemeinsame
-OS-Konto und seine Dateien hat, wird durch FolderHome-Profile nicht technisch
-voneinander getrennt.
+These files demonstrate organizational rules for multiple persons in the same operating system account. All names and settings are examples.
 
-Vererbung, von allgemein nach spezifisch:
+The profiles are **no access boundary**. Whoever has access to the shared OS account and its files is not technically separated from each other by FolderHome profiles.
+
+Inheritance, from general to specific:
 
 1. global
-2. Bereich
-3. Profil
-4. Profil innerhalb eines Bereichs
+2. area
+3. profile
+4. profile within an area
 
-Zwei unterschiedliche Werte auf derselben Stufe führen zu einem Fehler; es
-gibt keine stille oder von der Dateireihenfolge abhängige Entscheidung.
+Two different values at the same level cause an error; there is no silent or file‑order‑dependent decision.

@@ -1,67 +1,57 @@
-# Workflow: Kontoauszüge lokal und centgenau übernehmen
+# Workflow: Import bank statements locally and cent‑accurately
 
-> **Last verified:** 2026-08-22
-> **Frequency:** nach Bereitstellung neuer Kontoauszüge
-> **Duration:** wenige Sekunden pro Auszugsordner
+**English** | [Deutsch](./finance-import.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** after provision of new bank statements  
+> **Duration:** a few seconds per statement folder  
 
 ## Purpose
 
-Ausdrücklich bereitgestellte Kontoauszüge prüfen, revisionsgebunden in den
-lokalen Finanzstore übernehmen und anschließend Abdeckung, Bewegungen und
-wiederkehrende Kostenkandidaten auswerten.
+Explicitly provided bank statements are checked, revision‑bound imported into the local finance store, and then coverage, transactions, and recurring cost candidates are evaluated.
 
 ## Preconditions
 
-- Auszugsordner und separater FolderHome-State sind festgelegt.
-- Profil und doc-services-Pin sind gültig.
-- Die Auszüge entsprechen dem deklarierten centgenauen V1-Format.
-- Lokale sensible Verarbeitung wurde bewusst erlaubt.
+- Statement folder and separate FolderHome state are defined.  
+- Profile and doc‑services PIN are valid.  
+- The statements conform to the declared cent‑accurate V1 format.  
+- Local sensitive processing has been explicitly permitted.
 
 ## Steps
 
-1. **Plan bilden** — `finance plan` mit Quelle, State, Profil und
-   `--approve-sensitive-local-read` ausführen.
-2. **Evidenz prüfen** — Kontokennung, maskierte Endung, Zeitraum, Salden,
-   Buchungen, Referenzen, Dokumenthash und Zeilennummern kontrollieren.
-3. **Saldo prüfen** — interne Arithmetik und Kontinuität zu angrenzenden
-   Auszügen nachvollziehen; `blocked` nicht übergehen.
-4. **Freigabe erstellen** — Plan-ID, Finanzrevision, konkrete Aktions-IDs,
-   Approval-ID und Zeitzonenzeitpunkt festhalten.
-5. **Plan erneut aufbauen** — `finance apply` mit identischen Eingaben und
-   Approval-Datei starten.
-6. **State freigeben** — ausschließlich für diese lokale Transaktion
-   `--approve-state-write` setzen.
-7. **Import prüfen** — erzeugte Auszugs-/Buchungs-IDs und neue Revision lesen;
-   Quellen müssen bytegleich geblieben sein.
-8. **Abdeckung prüfen** — `finance coverage` für den gewünschten Zeitraum
-   ausführen und Lücken sichtbar lassen.
-9. **Kontoperiode lesen** — `finance period` für Bewegungen und nur belegte
-   Grenzsalden verwenden.
-10. **Kostenkandidaten prüfen** — `finance recurring` mit explizitem Stichtag
-    ausführen und Ergebnis nicht als Vertragsstatus behandeln.
+1. **Create plan** — execute `finance plan` with source, state, profile and `--approve-sensitive-local-read`.  
+2. **Check evidence** — verify account identifier, masked suffix, period, balances, entries, references, document hash and line numbers.  
+3. **Check balance** — trace internal arithmetic and continuity with adjacent statements; do not skip `blocked`.  
+4. **Create approval** — record plan ID, finance revision, specific action IDs, approval ID and timezone timestamp.  
+5. **Rebuild plan** — start `finance apply` with identical inputs and approval file.  
+6. **Release state** — set `--approve-state-write` exclusively for this local transaction.  
+7. **Check import** — read generated statement/entry IDs and new revision; sources must have remained byte‑identical.  
+8. **Check coverage** — execute `finance coverage` for the desired period and leave gaps visible.  
+9. **Read account period** — use `finance period` for transactions and only documented boundary balances.  
+10. **Check cost candidates** — run `finance recurring` with explicit cutoff date and do not treat the result as contract status.
 
-## Exit-Criteria
+## Exit‑Criteria
 
-- [ ] Plan, Approval, Finanzrevision und alle Quellhashes stimmen überein.
-- [ ] Auszüge, Buchungen und Audit wurden gemeinsam oder gar nicht ergänzt.
-- [ ] Quelldokumente blieben bytegleich.
-- [ ] Datenlücken und Saldo-Diskontinuitäten sind sichtbar.
-- [ ] Abo-/Kostenstatus und Prognosen sind ausdrücklich nur Kandidaten.
+- [ ] Plan, approval, finance revision and all source hashes match.  
+- [ ] Statements, entries and audit were added together or not at all.  
+- [ ] Source documents remained byte‑identical.  
+- [ ] Data gaps and balance discontinuities are visible.  
+- [ ] Subscription/cost status and forecasts are expressly only candidates.
 
-## Fallstricke
+## Pitfalls
 
-- `--approve-sensitive-local-read` erlaubt weder Bankzugriff noch Weitergabe.
-- Freie PDF-Layouts werden in V1 nicht erraten; sie brauchen eigene Adapter.
-- Gleiche Buchungsreferenzen oder widersprechende Salden blockieren fail-closed.
-- Ein regelmäßiger Abbuchungstext beweist keinen aktiven Vertrag.
-- Familienprofile organisieren Daten innerhalb desselben OS-Kontos.
+- `--approve-sensitive-local-read` permits neither bank access nor distribution.  
+- Free‑form PDF layouts are not guessed in V1; they require dedicated adapters.  
+- Identical booking references or contradictory balances block fail‑closed.  
+- A regular debit text does not prove an active contract.  
+- Family profiles organize data within the same OS account.
 
-## Verwandte
+## Related
 
-- [`../docs/phase19-finance-reuse-and-plan.md`](../docs/phase19-finance-reuse-and-plan.md)
-- [`./document-library.md`](./document-library.md) — lokale Dokumentextraktion
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-19-Datenfluss
+- [`../docs/phase19-finance-reuse-and-plan.md`](../docs/phase19-finance-reuse-and-plan.md)  
+- [`./document-library.md`](./document-library.md) — local document extraction  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑19 data flow  
 
-## Historie
+## History
 
-- **2026-08-22** — Nach Phase-19-End-to-End-Abnahme erstellt
+- **2026-08-22** — Created after Phase‑19 end‑to‑end acceptance

@@ -1,93 +1,95 @@
 # workflows/ — Multi-Step-Playbooks
 
-> **Lokale Konventionen** für Workflow-Dateien in diesem Ordner.
-> **Router im Root:** [`../WORKFLOWS.md`](../WORKFLOWS.md) — enthält die
-> „Welcher Workflow wofür"-Übersicht.
+**English** | [Deutsch](./README.de.md)
+
+> **Local conventions** for workflow files in this folder.  
+> **Router in root:** [`../WORKFLOWS.md`](../WORKFLOWS.md) — contains the “Which workflow for what” overview.
 
 ---
 
-## Was gehört hier rein
+## What belongs here
 
-Playbooks für **wiederholbare Multi-Step-Prozesse** mit Side-Effects. Jeder
-Workflow ist eine eigene Datei mit sprechendem Namen (NICHT `WORKFLOW-A.md`).
+Playbooks for **repeatable multi-step processes** with side effects. Each workflow is its own file with a descriptive name (NOT `WORKFLOW-A.md`).
 
-**Beispiele für gute Workflows:**
-- `release.md` — Versions-Bump, Build, Test, Tag, Push, Publish, Verify
+**Examples of good workflows:**
+- `release.md` — Version bump, Build, Test, Tag, Push, Publish, Verify
 - `hotfix.md` — Branch, Fix, Test, Merge, Cherry-Pick, Deploy
-- `security-audit.md` — Dependabot-Scan, Update, Test, Commit, Push
-- `add-module.md` — Gerüst, Tests, Wire-Up, Doku, Commit
+- `security-audit.md` — Dependabot scan, Update, Test, Commit, Push
+- `add-module.md` — Scaffold, Tests, Wire-Up, Docs, Commit
 
-**Beispiele für schlechte Workflows (gehören anderswo):**
-- ❌ „Wie installiere ich das Projekt" → das ist `README.md`
-- ❌ „Warum haben wir X so entschieden" → das ist `DECISIONS.md`
-- ❌ „Ein 2-Schritt-Prozess" → zu klein, gehört als Bash-Alias oder in PATTERNS.md
+**Examples of bad workflows (belong elsewhere):**
+- ❌ “How do I install the project” → that is `README.md`
+- ❌ “Why did we decide X that way” → that is `DECISIONS.md`
+- ❌ “A 2-step process” → too small; use a command alias or local operator note
 
-## Datei-Struktur eines Workflows
+## File structure of a workflow
 
 ```markdown
-# Workflow: [Kurzer Imperativ-Titel]
+# Workflow: [Short imperative title]
 
 > **Last verified:** 2026-08-21
-> **Frequency:** [täglich / wöchentlich / pro Release / ad-hoc]
+> **Frequency:** [daily / weekly / per release / ad-hoc]
 > **Duration:** [~5 min / ~30 min]
 
 ## Purpose
 
-[1-2 Sätze: Wann brauche ich diesen Workflow? Was ist das Ziel?]
+[1-2 sentences: When do I need this workflow? What is the goal?]
 
 ## Preconditions
 
-- [Was muss vor dem Start wahr sein]
-- [Welche Tools/Permissions braucht der Workflow]
+- [What must be true before starting]
+- [Which tools and permissions the workflow requires]
 
 ## Steps
 
-1. **[Schritt 1]** — [Beschreibung]
+1. **[Step 1]** — [Description]
    ```bash
-   [konkreter Befehl]
+  
+   [specific command]  
    ```
 
-2. **[Schritt 2]** — [Beschreibung]
+2. **[Step 2]** — [Description]
    ```bash
-   [konkreter Befehl]
+  
+   [specific command]  
    ```
 
 ...
 
-## Exit-Criteria (vor Abschluss prüfen)
+## Exit Criteria (check before completion)
 
-- [ ] [Bedingung 1 — was muss wahr sein damit wir „fertig" sind]
-- [ ] [Bedingung 2]
-- [ ] [Optional: STATE.md aktualisiert, CHANGELOG.md Eintrag]
+- [ ] [Condition 1 — what must be true before the workflow is complete]
+- [ ] [Condition 2]
+- [ ] [Optional: changelog entry or local operator-state update]
 
-## Fallstricke
+## Pitfalls
 
-- ⚠️ [Häufiger Fehler 1 mit Lösungsansatz]
-- ⚠️ [Häufiger Fehler 2]
+- ⚠️ [Common failure 1 with a remedy]
+- ⚠️ [Common failure 2]
 
-## Verwandte
+## Related
 
-- `x.md` — illustrativer Platzhalter, wenn Y der Fall ist
-- [PATTERNS.md#sektion](../PATTERNS.md) — für Do/Don't
+- `x.md` — illustrative placeholder for the case where Y applies
+- [`../SECURITY.md`](../SECURITY.md) — safety boundaries and approval gates
 
-## Historie
+## History
 
-- **2026-08-21** — Erstellt
-- **2026-08-21** — Schritt 3 erweitert um [Fallstrick X]
+- **2026-08-21** — Created
+- **2026-08-21** — Extended step 3 with [pitfall X]
 ```
+
 
 ## Naming
 
-- **Sprechend**, nicht Buchstaben-Suffix: `release.md`, `hotfix.md` — nicht `WORKFLOW-A.md`
-- **Imperativ** wo möglich: `add-module.md` statt `module-adding.md`
-- **Kurz**: max. 3 Wörter, mit Bindestrich: `security-audit.md`, `force-push.md`
-- **Kleinbuchstaben**: im Unterordner ist das Konvention
+- **Descriptive**, not letter suffix: `release.md`, `hotfix.md` — not `WORKFLOW-A.md`
+- **Imperative** where possible: `add-module.md` instead of `module-adding.md`
+- **Short**: max. 3 words, hyphenated: `security-audit.md`, `force-push.md`
+- **Lowercase**: in the subfolder is the convention
 
-## Wann einen Workflow aktualisieren
+## When to update a workflow
 
-- Beim **ersten Mal** dass der alte Workflow einen Fehler produziert → Root-Cause in „Fallstricke" dokumentieren
-- Bei **Tool-Updates** die den Ablauf ändern → Version prüfen, Last verified bumpen
-- Bei **Abwicklungs-Änderung** (z.B. neuer Registry, neue Auth) → Steps überarbeiten
+- On the **first time** the old workflow produces an error → document the root cause in “Pitfalls”
+- On **tool updates** that change the flow → check version, bump last verified
+- On **process changes** (e.g., new registry, new auth) → revise steps
 
-**Staleness-Check:** Jeder Workflow hat `Last verified`-Datum. Wenn älter als
-6 Monate und du stehst grad vor dem Lauf → erst verifizieren, dann nutzen.
+**Staleness check:** Each workflow has a `Last verified` date. If older than 6 months and you are about to run it → verify first, then use.

@@ -1,6 +1,8 @@
-# Ringedingeding Bridge
+# Ringeding Bridge
 
-`folderhome.bridges.call_plugins` prüft Revision, sauberen Checkout, Version
-und den lokalen `FixtureTransport`, ohne einen Poll auszuführen. Das Plugin
-bleibt für Mehrpersonen- und Terminabfragen zuständig und wird nicht als
-Anbietersuche ausgegeben. Netzwerk- und Telefonaktionen sind deaktiviert.
+**English** | [Deutsch](./README.de.md)
+
+`folderhome.bridges.call_plugins` checks revision, clean checkout, version  
+and the local `FixtureTransport`, without performing a poll. The plugin  
+remains responsible for multi‑person and appointment queries and is not presented as  
+a provider search. Network and telephone actions are disabled.

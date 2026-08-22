@@ -1,35 +1,20 @@
 # FolderHome
 
+**English** | [Deutsch](./README-phase36-draft.de.md)
+
 > Assistantify your home.
 
-FolderHome ist ein lokaler Dokument- und Assistenzservice-Agent für den
-Alltag. Er verbindet vorhandene, offen ausgewiesene Komponenten über sichere
-Plugin-Verträge und baut neue Fähigkeiten als wiederverwendbare Pakete. Der
-erste Baustein ist ein fail-closed Integrationskern mit nachvollziehbaren
-JSON-Laufberichten. FCSA erzeugt Sortierpläne ohne Dateibewegung; die lokale
-Dokumenten-Pipeline extrahiert, indexiert, durchsucht und beschreibt Dateien
-über exakt gepinnte Provider, ohne die Quelldokumente zu verändern.
+FolderHome is a local document and assistance service agent for everyday use. It connects existing, openly declared components via secure plugin contracts and builds new capabilities as reusable packages. The first building block is a fail‑closed integration core with traceable JSON run reports. FCSA generates sorting plans without moving files; the local document pipeline extracts, indexes, searches, and describes files through precisely pinned providers, without altering the source documents.
 
 ## Status
 
-Alle 36 Wettbewerbsphasen sind lokal umgesetzt und geprüft. Phase 36 ergänzt
-einen echten, endlich begrenzten Strands-Agenten, gemeinsame
-Ressourcenbudgets, den vollständigen Security-Scan, eine reproduzierbare
-synthetische Demo und vorbereitete englische Einreichungsunterlagen. Die
-vollständige Suite umfasst **331 bestandene Tests**. Externe Connectoren,
-Amazon Bedrock, Veröffentlichung, Video-Upload und Devpost-Submit sind davon
-getrennte Nutzer-Gates. Der Stand liegt auf `phase1-foundation` und besitzt
-weiterhin keinen Remote.
+All 36 competition phases have been implemented and tested locally. Phase 36 adds a real, finitely bounded Strands agent, shared resource budgets, the full security scan, a reproducible synthetic demo, and prepared English submission materials. The complete suite comprises **331 passed tests**. External connectors, Amazon Bedrock, publication, video upload, and Devpost submit are separate user gates. The current state is at `phase1-foundation` and still has no remote.
 
-Während des Wettbewerbs heißt das Projekt ausschließlich **FolderHome**.
-Ein späteres Rebranding gehört nicht in diesen Wettbewerbsstand.
+During the competition the project is called **FolderHome** exclusively. A later rebranding is not part of this competition state.
 
-Der belegte Abschluss steht im
-[`Phase-36-Completion-Audit`](../phase36-completion-audit.md), das
-Sicherheitsmodell in [`SECURITY.md`](../../SECURITY.md). Die englischen Entwürfe
-liegen unter [`docs/submission/`](../submission/).
+The documented final version is in [`Phase-36-Completion-Audit`](../phase36-completion-audit.md), the security model in [`SECURITY.md`](../../SECURITY.md). The English drafts are available at [`docs/submission/`](../submission/).
 
-## Reproduzierbare Wettbewerbsdemo
+## Reproducible Competition Demo
 
 ```powershell
 python -m venv .venv
@@ -40,16 +25,10 @@ python -m venv .venv
   --output-dir .local-demo\competition --approve-output-write --json
 ```
 
-Die Demo durchläuft den echten `strands.Agent` und zwei echte FolderHome-
-Tools mit einem deterministischen Fixture-Modell. Sie benötigt keine
-Zugangsdaten, verwendet kein Netzwerk und schreibt nur vier neue Artefakte in
-den ausdrücklich freigegebenen Ausgabeordner. Ein zweiter Lauf in denselben
-Ordner blockiert statt zu überschreiben. Die mitgelieferte Referenzevidenz
-liegt unter [`examples/competition/evidence/`](../../examples/competition/evidence/).
 
-Bedrock ist optional und nur mit Modell-ID, AWS-Region und ausdrücklichem
-`--allow-network` erreichbar; der lokale Nachweis behauptet keinen
-Cloudbetrieb.
+The demo runs the real `strands.Agent` and two real FolderHome tools with a deterministic fixture model. It requires no credentials, uses no network, and writes only four new artifacts to the explicitly approved output folder. A second run into the same folder blocks rather than overwriting. The supplied reference evidence is located at [`examples/competition/evidence/`](../../examples/competition/evidence/).
+
+Bedrock is optional and reachable only with model ID, AWS region, and explicit `--allow-network`; the local evidence claims no cloud operation.
 
 ## Quick Start
 
@@ -252,38 +231,10 @@ python -m folderhome legal compare `
   --allow-test-fixture --json
 ```
 
-Die absichtlich getrennten Approval- und Apply-Sequenzen stehen im
-[Kontaktregister-Workflow](../../workflows/contact-register.md) und im
-[Kalender-Handoff-Workflow](../../workflows/calendar-handoff.md), im
-[Finanz-Workflow](../../workflows/finance-import.md) und im
-[Inventar-Workflow](../../workflows/inventory-import.md).
-Der getrennte Plan-/Bestätigungsablauf für Einnahmen steht im
-[Medikamenten-Workflow](../../workflows/medication-intake.md). Vorschau und
-kontrollierte Briefausgabe beschreibt der
-[Korrespondenz-Workflow](../../workflows/correspondence-studio.md).
-Office-/Medienrouting und lokale Designausgaben stehen im
-[Artefaktstudio-Workflow](../../workflows/artifact-studio.md).
-Read-only Postfachabruf, Kontaktbindung und gesonderten Versand beschreibt der
-[Mail-Workflow](../../workflows/mail-connector.md).
-Geführte persönliche Notizen, Freigabe und append-only Historie beschreibt
-der [Notiz-Workflow](../../workflows/personal-notes.md).
-Bestätigte Steuerbelege und den getrennt freigegebenen privaten ZIP-Export
-beschreibt der [Steuer-Workflow](../../workflows/tax-workpaper.md).
-Lokale Wetter- und Nachrichtensnapshots sowie die getrennte Desktopzustellung
-beschreibt der [Briefing-Workflow](../../workflows/daily-briefing.md).
-Evidenzgebundenes Bescheidverständnis ohne Rechtsprüfung beschreibt der
-[Bescheid-Workflow](../../workflows/official-notice-understanding.md).
-Kontrollierte lokale Widerspruchs-, Antwort- und Antragsentwürfe beschreibt
-der [Verwaltungsentwurf-Workflow](../../workflows/administrative-drafts.md).
-Den lokalen Orientierungslauf und amtliche nächste Prüfschritte beschreibt der
-[Leistungsvorcheck-Workflow](../../workflows/benefit-screening.md).
-Technische Normänderungen und unverbindliche Profil-/Vertragsprüfkandidaten
-beschreibt der
-[Rechtsänderungs-Workflow](../../workflows/legal-change-monitor.md).
-Die endlich begrenzte Strands-Schleife und ihre beiden read-only Tools
-beschreibt der [Agenten-Workflow](../../workflows/strands-agent.md).
 
-## Entwicklungsprüfung
+The intentionally separated approval and apply sequences are in the [Kontaktregister-Workflow](../../workflows/contact-register.md), the [Kalender-Handoff-Workflow](../../workflows/calendar-handoff.md), the [Finanz-Workflow](../../workflows/finance-import.md), and the [Inventar-Workflow](../../workflows/inventory-import.md). The separate plan/confirmation flow for income is in the [Medikamenten-Workflow](../../workflows/medication-intake.md). Preview and controlled letter output is described by the [Korrespondenz-Workflow](../../workflows/correspondence-studio.md). Office/media routing and local design outputs are in the [Artefaktstudio-Workflow](../../workflows/artifact-studio.md). Read‑only mailbox retrieval, contact binding, and separate dispatch are described by the [Mail-Workflow](../../workflows/mail-connector.md). Guided personal notes, approval, and append‑only history are described by the [Notiz-Workflow](../../workflows/personal-notes.md). Confirmed tax receipts and the separately approved private ZIP export are described by the [Steuer-Workflow](../../workflows/tax-workpaper.md). Local weather and news snapshots as well as the separate desktop delivery are described by the [Briefing-Workflow](../../workflows/daily-briefing.md). Evidence‑bound notice understanding without legal review is described by the [Bescheid-Workflow](../../workflows/official-notice-understanding.md). Controlled local objection, response, and application drafts are described by the [Verwaltungsentwurf-Workflow](../../workflows/administrative-drafts.md). The local orientation run and official next review steps are described by the [Leistungsvorcheck-Workflow](../../workflows/benefit-screening.md). Technical standard changes and non‑binding profile/contract review candidates are described by the [Rechtsänderungs-Workflow](../../workflows/legal-change-monitor.md). The finitely bounded Strands loop and its two read‑only tools are described by the [Agenten-Workflow](../../workflows/strands-agent.md).
+
+## Development Review
 
 ```powershell
 .venv\Scripts\python.exe -m pytest
@@ -294,7 +245,8 @@ beschreibt der [Agenten-Workflow](../../workflows/strands-agent.md).
 .venv\Scripts\python.exe _tools\workflows-sync --check
 ```
 
-## Repository-Grenzen
+
+## Repository Boundaries
 
 ```text
 src/folderhome/       neuer Wettbewerbskern einschließlich installierbarer Bridges
@@ -321,243 +273,82 @@ examples/correspondence/ synthetische Briefvorlage, Designs und Anfrage
 examples/artifacts/   synthetischer Office-/Medienplan und lokales Designset
 ```
 
-Die genaue Einordnung steht in
-[`COMPETITION_CODE_MAP.md`](../../COMPETITION_CODE_MAP.md), die Revisionen und
-Lizenzen in [`THIRD_PARTY_LICENSES.md`](../../THIRD_PARTY_LICENSES.md).
 
-## Sicherheitsgrenzen
+The precise classification is in [`COMPETITION_CODE_MAP.md`](../../COMPETITION_CODE_MAP.md), the revisions and licenses in [`THIRD_PARTY_LICENSES.md`](../../THIRD_PARTY_LICENSES.md).
 
-- Side-Effects werden standardmäßig blockiert.
-- FCSA führt keine echten Datei-, Netzwerk- oder Telefonaktionen aus.
-- Der FCSA-Dry-Run verwendet einen temporären Schattenzustand und bestätigt
-  dadurch keinen späteren Live-Lauf im produktiven FCSA-State.
-- Der Dokumenten-Ingest schreibt ausschließlich nach ausdrücklichem CLI-Gate
-  in einen angegebenen lokalen Indexordner; Quellen werden nie archiviert,
-  verschoben oder überschrieben.
-- Dokumentensuche verwendet einen schreibgeschützten SQLite-Zugriff und lässt
-  die KnowledgeDigest-Indexdatei bytegenau unverändert.
-- Versionsanalysen bevorzugen explizite Vertragsdaten, erklären schwächere
-  Dateiname-/Änderungsdatum-Fallbacks und lassen ältere Fassungen von FCSA nur
-  als ungefreigten, reversiblen Dry-Run-Plan bestätigen.
-- Profile sind nur organisatorische Präferenzen im selben OS-Konto. Die feste
-  Vererbung lautet global → Bereich → Profil → Profilbereich; gleichrangige
-  Widersprüche blockieren die Auflösung und `hard_delete` ist unzulässig.
-- Dokumentaktionspläne nennen für jeden Schritt Regelquelle, Ziel, Provider,
-  Gate und Rückweg. Benennen, Sortieren, Konvertieren, Archivieren und
-  Papierkorb bleiben ungefreigt; Zielkonflikte werden sichtbar blockiert.
-- Archivierungs- und Papierkorbschritte werden gegen den real gepinnten
-  FCSA-Dry-Run geprüft. PDF/TXT werden durch den neuen Transformationskern
-  geplant; andere Zielformate bleiben ohne geprüften Provider blockiert.
-- Der neue Transformationskern bündelt ausgewählte Quellen als UTF-8-TXT oder
-  PDF. PDF-Seiten bleiben erhalten, Bilder werden gerastert und andere
-  Dokumente aus extrahiertem Text neu gesetzt; jeder Layoutverlust steht im
-  Plan. Ohne `--approve-output-write` wird keine Ausgabe geschrieben.
-- Transformationen veröffentlichen atomar, überschreiben nie, prüfen vor dem
-  Schreiben alle Quellhashes erneut und verändern Originale nicht. Eine
-  Originalaktion wird erst nach verifiziertem Ausgabehash freischaltbar.
-- `documents package` gruppiert einen Ordner nach Dateityp: Bilder und PDFs
-  werden jeweils ein PDF, Text-/Markdown- und weitere extrahierbare Typen je
-  ein TXT. Ein deterministisches ZIP enthält alle Gruppenausgaben und ein
-  Manifest; unbekannte Formate bleiben darin mit Hash und Grund sichtbar.
-- `folders snapshot` speichert nach ausdrücklichem State-Gate nur Pfad,
-  Dateigröße, Zeitstempel und SHA-256. `folders diff` unterscheidet neue,
-  entfernte, geänderte und nur bei eindeutigem Hash verschobene Dateien.
-- Eine manuelle Verschiebung wird nur zusammen mit einem früheren
-  Ablagebeleg zum Lernkandidaten. `folders learning` schreibt nichts und
-  übernimmt niemals automatisch eine Regel.
-- `folders scan` bindet diese Bausteine an ein deklaratives
-  Beobachtungsprofil. Es findet den letzten verifizierten Checkpoint desselben
-  Roots, meldet Intervallfälligkeit, Diff und Lernkandidaten in einem
-  Auditbericht und schreibt nur mit `--approve-state-write` einen neuen
-  unveränderlichen Checkpoint.
-- `documents execute` baut den Plan aus Quelle und Profil erneut auf. Nur wenn
-  angegebene Plan-ID und ein lückenloser Präfix konkreter Aktions-IDs passen,
-  darf `--approve-file-write` Rename-/Move-Schritte ausführen. Quelle und
-  jedes Zwischenziel werden erneut gehasht; vorhandene Ziele werden nie
-  überschrieben.
-- Jede Ausführung schreibt vor der Dateiaktion ein unveränderliches Intent
-  und danach Abschlussbericht sowie Ablagebeleg ohne Rohtext. `documents undo`
-  benötigt eine eigene, an Ausführungs-ID und Hash gebundene Freigabe und
-  blockiert bei geändertem Ziel oder manipuliertem Audit.
-- `folders cleanup-plan` erstellt für einen ganzen ausdrücklich gewählten
-  Ordner deterministische Einzelpläne und eine gemeinsame Batch-ID. Nicht
-  unterstützte Dateien bleiben mit Hash und Grund sichtbar; gemeinsame Ziele,
-  bestehende Ziele und Quelle-Ziel-Abhängigkeiten blockieren betroffene
-  Dokumente vor jeder Ausführung.
-- `folders cleanup-execute` liest eine eigenständige Approval-Datei und führt
-  nur die dort genannten Dokument-/Plan-/Aktionskombinationen aus. Scheitert
-  ein späteres Dokument, werden bereits abgeschlossene Dokumentaktionen
-  rückwärts ausgeführt und der Batch als `rolled_back` oder `failed`
-  protokolliert.
-- `folders routine-plan` verbindet einen Watch mit seinem letzten Checkpoint
-  und einem gefilterten Cleanup-Plan, schreibt aber weder Checkpoint noch
-  Datei. `changes` plant nur fällige neue, geänderte oder eindeutig
-  verschobene Dateien; `full` prüft den vollständigen Bestand ausdrücklich.
-- `folders routine-execute` benötigt dieselbe exakte Batchfreigabe sowie
-  Datei- und State-Gate. Vor der ersten Änderung werden Watch-Historie und
-  Ordnerzustand erneut geprüft. Erst nach erfolgreichem Batch folgt der neue
-  Checkpoint; scheitert er, werden die Dateiaktionen rückwärts ausgeführt.
-- Ein Routinenziel innerhalb des beobachteten Eingangs wird blockiert, damit
-  verschobene Dateien nicht erneut als Eingang verarbeitet werden.
-- `folders routine-queue` liest Watch- und Binding-Konfiguration gemeinsam
-  und gibt alle aktiven Watches als `ready`, `not_due`, `empty` oder
-  `blocked` aus. Überlappende Eingänge, Ziele in einem anderen beobachteten
-  Eingang und gemeinsame Aktionsziele blockieren betroffene Queue-Einträge.
-- Die Queue schreibt weder Dateien noch State, registriert keinen Scheduler
-  und besitzt deshalb absichtlich kein Approval- oder Installationsflag.
-- `scheduler plan` serialisiert einen portablen Argumentvektor und ein
-  Windows-Task-XML, führt aber keine Installation aus. Der Plan weist
-  `registration_performed=false` und `installation_supported=false` aus.
-- `scheduler run` benötigt ein enges Scheduler-State-Gate, sperrt nur seine
-  eigene Schedule-ID und schreibt einen append-only Queue-Bericht. Exitcodes
-  unterscheiden Leerlauf (0), Freigabebedarf (10), Blockierung (20) und einen
-  bereits laufenden oder ungeklärten Lauf (30).
-- Ein bestehendes Scheduler-Lock wird weder übernommen noch automatisch
-  gelöscht. Der Lock betrifft ausschließlich operativen FolderHome-State,
-  niemals beobachtete Ordner oder Nutzerdokumente.
-- `contacts plan` speichert weder Dokumentrohtext noch Registerstate. Gelabelte
-  Kontaktfelder bleiben an Dokument-ID, Quellhash und genaue Zeilenevidenz
-  gebunden; widersprüchliche neueste Kontakte blockieren die Planung.
-- `review_required` benötigt für die lokale Kontaktextraktion ein eigenes
-  Gate. Dieses erlaubt keine externe Weitergabe; `blocked` und `not_checked`
-  bleiben gesperrt.
-- `contacts apply` prüft Plan, Registerrevision und Quellhash erneut und
-  schreibt nur nach `--approve-state-write` eine SQLite-Transaktion samt
-  append-only Ereignissen. Es existiert keine automatische Löschoperation.
-- `calendar plan` erkennt ausschließlich gelabelte Terminfelder und weist
-  ausdrücklich `completeness_guaranteed=false` aus. Backend und Zeitzone
-  folgen Konfigurationsfallback und derselben Profilvererbung wie Dokumentregeln.
-- `calendar apply` baut den Plan erneut auf und bindet die Freigabe an Plan-ID,
-  Kalenderrevision und konkrete Aktionen. Quellen, Ziele und Inhaltshashes
-  werden vor jeder Ausführung erneut geprüft.
-- `folderhome_local` schreibt nach State-Gate Ereignis und append-only Audit in
-  einer SQLite-Transaktion. Identische UIDs werden beim nächsten Plan `noop`;
-  Zeitkonflikte bleiben blockiert.
-- `uptoday_ics` publiziert nach getrenntem State- und Output-Gate pro Kandidat
-  nur eine neue deterministische ICS-Datei. Ein Batchfehler nimmt eigene,
-  unveränderte Ausgaben zurück. UpToday wird weder aufgerufen noch importiert.
-  Routinika und Google bleiben ohne eigenen geprüften Connector blockiert.
-- `calendar connector-plan` übernimmt Kandidaten, Profilregelquelle und
-  Zeitzone aus Phase 17. UpToday delegiert weiter an ICS; Routinika bleibt
-  blockiert; Google erzeugt nur einen prüfpflichtigen Handoff mit expliziter
-  Kalender-ID, Solo-Teilnehmerliste, Offsetzeiten und Reminderstruktur.
-- `calendar connector-simulate` läuft nur mit zwei ausdrücklichen
-  Synthetikschaltern. Der Fixture-Provider nutzt weder Netzwerk noch echten
-  Kalender; Update und Löschen bleiben ohne Provider-Ereignisreferenz gesperrt.
-- `findcall plugins` importiert ausschließlich die lokalen Dry-Run-Seams der
-  exakt gepinnten, sauberen HungryCall- und Ringedingeding-Checkouts. Es wird
-  kein Live-Transport konstruiert.
-- FindCall übernimmt HungryCalls serielles Early-Stop-Muster in einen neuen
-  providerneutralen Kern; Restaurantmodelle werden nicht für Arztpraxen oder
-  Werkstätten missbraucht. Ringedingeding bleibt das getrennte Plugin für
-  Mehrpersonen-Polls und Terminabstimmungen.
-- `findcall simulate` akzeptiert ausschließlich einen Provider mit
-  `simulated=true`, ohne Netzwerk und Telefonwirkung. Ergebnisse bewahren
-  Call-Status und Ablehnungsgründe, maskieren Rufnummern und dürfen bei
-  `inquiry_only` keine Buchung, Bestellung oder Preiszusage erzeugen.
-- Kontoauszüge verwenden die bestehende doc-services-Extraktion und ein enges
-  deklaratives V1-Format. Beträge sind ganzzahlige Cent; Anfangssaldo plus
-  Buchungen muss exakt dem Endsaldo entsprechen.
-- `finance apply` baut den Plan neu, prüft Approval, Finanzrevision und
-  Quellhash und ergänzt Konto, Auszug, Buchungen und append-only Audit in einer
-  SQLite-Transaktion. Es existieren weder Bankzugriff noch Löschoperation.
-- `finance coverage` zeigt ausschließlich belegte Auszugsbereiche und Lücken.
-  `finance period` gibt Salden nur bei vollständiger Abdeckung und
-  kontinuierlichen angrenzenden Auszügen aus; es interpoliert nichts.
-- `finance recurring` gruppiert nur centgleiche monatliche Belastungen mit
-  mindestens zwei Belegen. Aktiv/inaktiv, Folgemonatsfenster und
-  Jahressumme sind Kandidaten/Prognosen, keine Vertrags- oder Zahlungsbeweise.
-- `inventory plan` normalisiert höchstens drei Dezimalstellen ohne Rundung und
-  schreibt nichts. Widersprüchliche Beobachtungen desselben Gegenstands und
-  Tages werden vor einer Freigabe blockiert.
-- `inventory apply` bindet Approval, Inventarrevision, konkrete Aktionen und
-  Quellhashes. Der lokale Store ergänzt ausschließlich Ereignisse und Audit;
-  eine aktuelle Sicht wird aus der Historie abgeleitet.
-- `inventory needs` meldet Unterbestand und Ablaufdaten nur als
-  prüfpflichtige Kandidaten. FolderHome bestellt nichts und behauptet keinen
-  vollständigen Haushaltsbestand.
-- `medication plan/apply` übernimmt nur dokumentierte Zeitpläne und bindet
-  jede Version an Profil, Quelle, Hash, Zeilenevidenz, Revision und Approval.
-- `medication day` erzeugt stabile Dosis-IDs ohne Write-on-read. Statuswerte
-  unterscheiden bevorstehend, Bestätigung ausstehend und ausdrücklich
-  bestätigt, ohne eine tatsächliche Einnahme zu erraten.
-- `medication confirm` ergänzt genau ein idempotentes Einnahmeereignis nach
-  State-Gate. Bestand, Kalender, Nachrichten und Erinnerungen bleiben
-  unverändert; medizinische Richtigkeit wird nicht behauptet.
-- `health dossier` liest erst nach lokaler Sensitivitätsfreigabe. Ein roter
-  Providerbefund wird nur verarbeitet, wenn sämtliche roten Fundstellen
-  ausschließlich Gesundheitsdaten betreffen; weitere rote Muster bleiben
-  blockiert. Zeitlinie und Konflikte bleiben extraktiv und quellgebunden.
-- `contracts cockpit` liest den gemeinsamen State erst nach
-  Sensitivitätsfreigabe und verknüpft nur ausdrücklich konfigurierte Begriffe.
-  Es ändert weder State noch Quelldateien und führt keinen Archivierungs-,
-  Kontakt-, Kalender-, Bank- oder Zahlungsvorgang aus.
-- `correspondence preview` liest Anfragedaten erst nach
-  Sensitivitätsfreigabe. Nur einfache sichere Platzhalter sind erlaubt;
-  `render` schreibt Markdown/TXT erst nach getrenntem Output-Gate als
-  Never-overwrite-Batch. DOCX/ODT, Versand, Druck und Remote-Provider bleiben
-  aus.
-- `artifacts plan` ruft weder Office-Skills noch ai-media-editor auf und hält
-  fehlende Runtime-/Rendergates sichtbar. Lokale Designtokens und SVG werden
-  erst nach Sensitivitäts- und Output-Gate geschrieben; jede konkrete Karte
-  braucht eine eigene visuelle Prüfung vor Druck oder Veröffentlichung.
-- `mail ingest-plan` enthält nur Header- und optionalen Anhangsabruf. Ein
-  abweichender oder veränderter Provider-Checkout blockiert; Verschieben,
-  Löschen, Markieren und Senden sind keine Ingest-Operationen.
-- Mailentwürfe binden aktive Kontakt-ID, Empfängeradresse,
-  Korrespondenz-Vorschau-ID und Texthash. Versand benötigt eine exakte
-  Freigabe und eine einmalige Ledger-Reservierung; ein echter SMTP-Transport
-  ist noch nicht implementiert oder getestet.
-- `notes guide` liest die gepinnte `llm-note`-Historie ohne Write-on-read und
-  hält Fragen sowie Vorschläge strikt vom menschlich bestätigbaren Inhalt
-  getrennt. Ein Remote-LLM wird in Phase 28 nicht aufgerufen.
-- `notes apply` bindet Approval an Plan, Aktion, Inhaltshash und Store-Revision
-  und hängt über die öffentliche `llm-note`-API genau eine Version an. Edit und
-  Revert überschreiben oder löschen keine frühere Fassung.
-- Dokument- und Kalenderreferenzen werden nur explizit übernommen. Profile
-  ordnen die Notizen; allein das Betriebssystemkonto bleibt Sicherheitsgrenze.
-- `tax receipt-plan` bindet einen Beleg an Dokumenthash, Profil, optional eine
-  passende Finanzbuchung und den aktuellen Providerstore. Ein
-  Kategorienkandidat bleibt ohne menschliche Bestätigung nicht ausführbar.
-- `tax receipt-apply` schreibt über die öffentliche Provider-API genau einen
-  bestätigten Beleg. `tax export` benötigt eine separate Freigabe und erzeugt
-  nur eine neue private ZIP-Arbeitsunterlage; Steuerberatung, amtliches Format
-  und Portalübermittlung sind ausgeschlossen.
-- `briefing plan` liest lokale Wetter- und Nachrichtensnapshots nach
-  Sensitivitätsfreigabe, markiert veraltete Daten und erzeugt deterministisches
-  HTML nur im Speicher. Live-Connectoren bleiben sichtbar blockiert.
-- `briefing render` und `briefing deliver` besitzen getrennte Approvals und
-  Schreibgates. Die Desktopkopie muss exakt dem gerenderten Hash entsprechen;
-  ein Scheduler wird nicht registriert.
-- `notices inspect` übernimmt ausschließlich bekannte, ausdrücklich
-  beschriftete Bescheidangaben und bindet sie an Zeile, Dokument-ID und
-  Quellhash. Relative Fristtexte werden nicht umgerechnet; `notices render`
-  schreibt nur neue Berichte und führt keine Rechtsprüfung oder Antwort aus.
-- `drafts preview` hält Dokumentevidenz und bereitgestellte Angaben getrennt,
-  erzwingt einen sichtbaren Entwurfshinweis und verwendet den vorhandenen
-  Korrespondenzkern. `drafts render` benötigt eine exakte Inhaltsfreigabe;
-  Leistungsprüfung, Rechtsprüfung und Versand sind nicht implementiert.
-- `benefits check` verwendet einen datierten, unvollständigen Routingkatalog
-  und lokale Nutzerangaben. Veraltete Quellen blockieren; passende Routen
-  verweisen nur auf amtliche Vorchecks. Anspruch, Höhe, Antrag und Webaufruf
-  bleiben ausgeschlossen.
-- `legal providers` lädt keinen Rechtsprüfagenten, sondern qualifiziert nur
-  den sauberen gepinnten `law-checker`-Checkout und dessen Registry.
-  `legal compare` verarbeitet bereits beschaffte lokale Snapshots; Themen-
-  Treffer sind ausschließlich `review_candidate`. Rechtswirkung,
-  Betroffenheit, Fristen, Netzwerk und Benachrichtigung bleiben ausgeschlossen.
-- OCR, externe LLM-Synthesen und reale Nutzerordner sind nicht Teil der
-  bisherigen synthetischen Abnahme.
-- Der Strands-Agent besitzt in der Wettbewerbsfassung genau zwei
-  profilspezifische read-only Tools. Prompt, Antwort, Toolresultat, Turns,
-  Toolaufrufe und Ausgabetokens sind hart begrenzt; der Fixture-Lauf bleibt
-  ohne Netzwerk und Side-Effects.
-- Gesundheits-, Rechts- und Finanzfunktionen sind als administrative
-  Assistenz geplant, nicht als Diagnose oder verbindliche Beratung.
-- OS-Konten bilden die Sicherheitsgrenze; Familienprofile sind nur
-  Organisationsregeln innerhalb eines Kontos.
+## Security Boundaries
 
-## Lizenz
+- Side effects are blocked by default.  
+- FCSA performs no real file, network, or telephone actions.  
+- The FCSA dry run uses a temporary shadow state and therefore does not confirm any later live run in the production FCSA state.  
+- The document ingest writes only after an explicit CLI gate to a specified local index folder; sources are never archived, moved, or overwritten.  
+- Document search uses a read‑only SQLite access and leaves the KnowledgeDigest index file byte‑exactly unchanged.  
+- Version analyses prefer explicit contract data, explain weaker filename/modification‑date fallbacks, and treat older FCSA versions only as unapproved, reversible dry‑run plans.  
+- Profiles are merely organizational preferences within the same OS account. The fixed inheritance is global → domain → profile → profile‑area; peer‑level conflicts block resolution and `hard_delete` is prohibited.  
+- Document action plans specify for each step the rule source, target, provider, gate, and rollback. Naming, sorting, converting, archiving, and trash remain unapproved; target conflicts are visibly blocked.  
+- Archiving and trash steps are validated against the real pinned FCSA dry run. PDF/TXT are planned by the new transformation core; other target formats remain blocked without a verified provider.  
+- The new transformation core bundles selected sources as UTF‑8 TXT or PDF. PDF pages are preserved, images are rasterized, and other documents are reconstituted from extracted text; any layout loss is recorded in the plan. No output is written without `--approve-output-write`.  
+- Transformations are published atomically, never overwrite, re‑verify all source hashes before writing, and do not modify originals. An original action becomes unlockable only after a verified output hash.  
+- `documents package` groups a folder by file type: images and PDFs each become a PDF, text/Markdown and other extractable types each become a TXT. A deterministic ZIP contains all group outputs and a manifest; unknown formats remain inside with hash and reason visible.  
+- `folders snapshot` stores only path, file size, timestamp, and SHA‑256 after an explicit state gate. `folders diff` distinguishes new, removed, modified, and only uniquely‑hashed moved files.  
+- A manual move is only performed together with an earlier storage receipt for the learning candidate. `folders learning` writes nothing and never automatically adopts a rule.  
+- `folders scan` binds these building blocks to a declarative observation profile. It finds the last verified checkpoint of the same root, reports interval expiry, diff, and learning candidates in an audit report, and writes a new immutable checkpoint only with `--approve-state-write`.  
+- `documents execute` rebuilds the plan from source and profile. Only if the specified plan ID and a seamless prefix of concrete action IDs match may `--approve-file-write` execute rename/move steps. Source and each intermediate target are re‑hashed; existing targets are never overwritten.  
+- Each execution writes an immutable intent before the file action and then a completion report plus storage receipt without raw text. `documents undo` requires its own approval bound to execution ID and hash and blocks if the target is changed or the audit is tampered with.  
+- `folders cleanup-plan` creates deterministic individual plans and a shared batch ID for an entirely explicitly selected folder. Unsupported files remain visible with hash and reason; shared targets, existing targets, and source‑target dependencies block affected documents before any execution.  
+- `folders cleanup-execute` reads a standalone approval file and executes only the document/plan/action combinations listed there. If a later document fails, already completed document actions are rolled back and the batch is logged as `rolled_back` or `failed`.  
+- `folders routine-plan` links a watch with its last checkpoint and a filtered cleanup plan, but writes neither checkpoint nor file. `changes` schedules only due new, modified, or uniquely moved files; `full` explicitly checks the full inventory.  
+- `folders routine-execute` requires the same exact batch approval as well as file and state gates. Before the first change, the watch history and folder state are re‑checked. Only after a successful batch does the new checkpoint follow; if it fails, file actions are rolled back.  
+- A routine target within the observed input is blocked so that moved files are not processed again as input.  
+- `folders routine-queue` reads watch and binding configuration together and outputs all active watches as `ready`, `not_due`, `empty`, or `blocked`. Overlapping inputs, targets in another observed input, and shared action targets block affected queue entries.  
+- The queue writes neither files nor state, registers no scheduler, and therefore intentionally has no approval or installation flag.  
+- `scheduler plan` serializes a portable argument vector and a Windows task XML, but performs no installation. The plan references `registration_performed=false` and `installation_supported=false`.  
+- `scheduler run` requires a tight scheduler‑state gate, locks only its own schedule ID, and writes an append‑only queue report. Exit codes distinguish idle (0), approval needed (10), blocked (20), and an already running or unresolved run (30).  
+- An existing scheduler lock is neither taken over nor automatically removed. The lock applies only to operational FolderHome state, never to observed folders or user documents.  
+- `contacts plan` stores neither document raw text nor register state. Labeled contact fields remain bound to document ID, source hash, and precise line evidence; contradictory latest contacts block planning.  
+- `review_required` requires its own gate for local contact extraction. This permits no external sharing; `blocked` and `not_checked` remain locked.  
+- `contacts apply` re‑checks plan, register revision, and source hash and writes only after `--approve-state-write` a SQLite transaction with append‑only events. No automatic delete operation exists.  
+- `calendar plan` detects only labeled appointment fields and explicitly references `completeness_guaranteed=false`. Backend and timezone follow configuration fallback and the same profile inheritance as document rules.  
+- `calendar apply` rebuilds the plan and binds approval to plan ID, calendar revision, and concrete actions. Sources, targets, and content hashes are re‑checked before each execution.  
+- `folderhome_local` writes an event and append‑only audit after a state gate in a SQLite transaction. Identical UIDs are handled in the next plan `noop`; time conflicts remain blocked.  
+- `uptoday_ics` publishes, after separate state and output gates per candidate, only a new deterministic ICS file. A batch error rolls back its own unchanged outputs. UpToday is neither called nor imported. Routinika and Google remain blocked without their own verified connector.  
+- `calendar connector-plan` inherits candidates, profile rule source, and timezone from Phase 17. UpToday delegates further to ICS; Routinika remains blocked; Google generates only a compliance‑required handoff with explicit calendar ID, solo participant list, offset times, and reminder structure.  
+- `calendar connector-simulate` runs only with two explicit synthetic switches. The fixture provider uses neither network nor a real calendar; update and delete remain locked without a provider event reference.  
+- `findcall plugins` imports only the local dry‑run seams of the precisely pinned, clean HungryCall and Ringedingeding checkouts. No live transport is constructed.  
+- FindCall adopts HungryCalls' serial early‑stop pattern into a new provider‑neutral core; restaurant models are not misused for medical practices or workshops. Ringedingeding remains the separate plugin for multi‑person polls and appointment voting.  
+- `findcall simulate` accepts only a provider with `simulated=true`, without network or telephone effect. Results preserve call status and rejection reasons, mask phone numbers, and must not generate a booking, order, or price quote at `inquiry_only`.  
+- Account statements use the existing doc‑services extraction and a tight declarative V1 format. Amounts are integer cents; opening balance plus transactions must exactly equal the ending balance.  
+- `finance apply` rebuilds the plan, checks approval, financial revision, and source hash, and adds account, statement, transactions, and an append‑only audit in a SQLite transaction. There is no bank access nor delete operation.  
+- `finance coverage` displays only covered statement ranges and gaps. `finance period` reports balances only when there is full coverage and continuous adjacent statements; it does not interpolate.  
+- `finance recurring` groups only cent‑equal monthly charges with at least two receipts. Active/inactive, follow‑month window, and annual sum are candidates/forecasts, not contract or payment evidence.  
+- `inventory plan` normalizes to at most three decimal places without rounding and writes nothing. Contradictory observations of the same item and day are blocked before approval.  
+- `inventory apply` binds approval, inventory revision, concrete actions, and source hashes. The local store adds only events and audit; a current view is derived from history.  
+- `inventory needs` reports under‑stock and expiration dates only as compliance‑required candidates. FolderHome orders nothing and does not claim a complete household inventory.  
+- `medication plan/apply` adopts only documented schedules and binds each version to profile, source, hash, line evidence, revision, and approval.  
+- `medication day` generates stable dose IDs without write‑on‑read. Status values distinguish upcoming, confirmation pending, and explicitly confirmed, without guessing an actual intake.  
+- `medication confirm` adds exactly one idempotent intake event after a state gate. Inventory, calendar, messages, and reminders remain unchanged; medical accuracy is not claimed.  
+- `health dossier` reads only after local sensitivity approval. A red provider finding is processed only if all red findings exclusively involve health data; other red patterns remain blocked. Timeline and conflicts remain extractive and source‑bound.  
+- `contracts cockpit` reads the shared state only after sensitivity approval and links only explicitly configured terms. It changes neither state nor source files and performs no archiving, contact, calendar, banking, or payment operation.  
+- `correspondence preview` reads request data only after sensitivity approval. Only simple safe placeholders are allowed; `render` writes Markdown/TXT only after a separate output gate as a never‑overwrite batch. DOCX/ODT, shipping, printing, and remote providers are omitted.  
+- `artifacts plan` does not invoke Office skills nor ai‑media‑editor and keeps missing runtime/render gates visible. Local design tokens and SVG are written only after sensitivity and output gates; each concrete card requires its own visual review before printing or publishing.  
+- `mail ingest-plan` contains only header and optional attachment retrieval. A deviating or altered provider checkout is blocked; moving, deleting, tagging, and sending are not ingest operations.  
+- Mail drafts bind active contact ID, recipient address, correspondence preview ID, and text hash. Sending requires an exact approval and a one‑time ledger reservation; a real SMTP transport is not yet implemented or tested.  
+- `notes guide` reads the pinned `llm-note` history without write‑on‑read and keeps questions and suggestions strictly separate from human‑verifiable content. A remote LLM is not invoked in Phase 28.  
+- `notes apply` binds approval to plan, action, content hash, and store revision and attaches exactly one version via the public `llm-note` API. Edit and revert do not overwrite or delete an earlier version.  
+- Document and calendar references are only taken over explicitly. Profiles organize the notes; only the operating system account remains the security boundary.  
+- `tax receipt-plan` binds a receipt to document hash, profile, optionally a matching financial entry, and the current provider store. A category candidate is not executable without human confirmation.  
+- `tax receipt-apply` writes exactly one confirmed receipt via the public provider API. `tax export` requires a separate approval and creates only a new private ZIP tax worksheet; tax consulting, official format, and portal transmission are excluded.  
+- `briefing plan` reads local weather and news snapshots after sensitivity approval, marks outdated data, and generates deterministic HTML only in memory. Live connectors remain visibly blocked.  
+- `briefing render` and `briefing deliver` have separate approvals and write gates. The desktop copy must exactly match the rendered hash; a scheduler is not registered.  
+- `notices inspect` adopts only known, explicitly labeled notice information and binds it to line, document ID, and source hash. Relative deadline wording is not recalculated; `notices render` writes only new reports and performs no legal review or response.  
+- `drafts preview` keeps document evidence and provided information separate, enforces a visible draft notice, and uses the existing correspondence core. `drafts render` requires an exact content approval; performance verification, legal review, and sending are not implemented.  
+- `benefits check` uses a dated, incomplete routing catalog and local user data. Outdated sources are blocked; appropriate routes point only to official pre‑checks. Claim, amount, application, and web call remain excluded.  
+- `legal providers` does not load a legal‑review agent but only qualifies the clean pinned `law-checker` checkout and its registry. `legal compare` processes already acquired local snapshots; topic matches are exclusively `review_candidate`. Legal effect, affected parties, deadlines, network, and notification remain excluded.  
+- OCR, external LLM syntheses, and real user folders are not part of the current synthetic acceptance.  
+- The Strands agent in the competition version has exactly two profile‑specific read‑only tools. Prompt, response, tool result, turns, tool calls, and output tokens are tightly limited; the fixture run remains without network or side effects.  
+- Health, legal, and financial functions are intended as administrative assistance, not as diagnosis or binding advice.  
+- OS accounts form the security boundary; family profiles are merely organizational rules within an account.
 
-FolderHome ist für eine Veröffentlichung unter MIT vorgesehen. Bis zur
-ausdrücklichen Freigabe bleibt dieses Repository lokal und ohne Remote.
+## License
+
+FolderHome is intended for release under the MIT license. Until explicit approval, this repository remains local and without remote.

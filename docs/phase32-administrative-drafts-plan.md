@@ -1,66 +1,46 @@
-# Phase 32: Kontrollierte Verwaltungsentwürfe
+# Phase 32: Controlled Administrative Drafts
 
-**Stand:** 2026-08-22  
-**Zweck:** Widerspruchs-, Behördenantwort- und Leistungsantragsentwürfe aus
-Profilangaben, Bescheidevidenz und bereitgestellten Nutzeraussagen erzeugen,
-ohne Rechtsprüfung, Leistungsprüfung oder Versand zu behaupten.
+**English** | [Deutsch](./phase32-administrative-drafts-plan.de.md)
 
-## Wiederverwendungsabgleich
+**Status:** 2026-08-22  
+**Purpose:** Generate appeal, authority‑response, and benefit‑application drafts from profile data, official‑notice evidence, and provided user statements, without asserting any legal review, benefit verification, or transmission.
 
-Phase 32 baut keinen zweiten Briefgenerator. Der Phase-24-Kern übernimmt
-weiterhin:
+## Reuse Alignment
 
-- Absender, Empfänger und Anschriften,
-- Designauflösung nach Bereich, Zweck und Profil,
-- streng geprüfte Vorlagen und Platzhalter,
-- deterministische Markdown-/TXT-Vorschauen,
-- Ausgabehashes, Never-overwrite und teilweises Rollback,
-- sichtbare, weiterhin blockierte DOCX-/ODT-Handoffs.
+Phase 32 does not build a second letter generator. The Phase‑24 core continues to handle:
 
-Phase 31 liefert Bescheidart, Behörde, Aktenzeichen, Bescheiddatum,
-Rechtsbehelf und weitere Felder mit Zeile, Dokument-ID und Quellhash. Neu ist
-nur die Kapsel `contracts.administrative_drafts` und
-`application.administrative_drafts`, welche beide Bestände sicher verbindet.
+- sender, recipient and addresses,
+- design resolution by area, purpose and profile,
+- strictly validated templates and placeholders,
+- deterministic Markdown/TXT previews,
+- output hashes, Never‑overwrite and partial rollback,
+- visible, still blocked DOCX/ODT handoffs.
 
-## Aktueller amtlicher Gegencheck
+Phase 31 provides official‑notice type, authority, file reference, official‑notice date, legal remedy and additional fields with line, document ID and source hash. New are only the capsule `contracts.administrative_drafts` and `application.administrative_drafts`, which securely connect both records.
 
-Für die Produktgrenze wurden am 2026-08-22 drei amtliche Normseiten geprüft:
+## Current Official Countercheck
 
-- [§ 84 SGG](https://www.gesetze-im-internet.de/sgg/__84.html) zur Form,
-  Einreichungsstelle und grundsätzlich an die Bekanntgabe geknüpften
-  Widerspruchsfrist,
-- [§ 36 SGB X](https://www.gesetze-im-internet.de/sgb_10/__36.html) zu den
-  Angaben einer Rechtsbehelfsbelehrung,
-- [§ 16 SGB I](https://www.gesetze-im-internet.de/sgb_1/__16.html) zur
-  Antragstellung und Weiterleitung.
+For the product boundary, three official statutory pages were examined on 2026-08-22:
 
-Diese Quellen werden nicht als pauschale Einzelfallentscheidung in den
-Entwurf geschrieben. Welcher Rechtsweg, welche Frist, welche Form und welcher
-Träger tatsächlich gelten, benötigt eine aktuelle fachliche Prüfung. Phase 32
-berechnet deshalb keine Frist und bestätigt keine Zuständigkeit.
+- [§ 84 SGG](https://www.gesetze-im-internet.de/sgg/__84.html) concerning form, filing office and the appeal deadline generally tied to the announcement,
+- [§ 36 SGB X](https://www.gesetze-im-internet.de/sgb_10/__36.html) regarding the information required for a legal‑remedy instruction,
+- [§ 16 SGB I](https://www.gesetze-im-internet.de/sgb_1/__16.html) concerning application submission and forwarding.
 
-## Neuer gekapselter Entwurfsvertrag
+These sources are not written into the draft as a blanket case‑by‑case decision. Which legal route, which deadline, which form and which carrier actually apply requires a current professional assessment. Therefore Phase 32 does not calculate any deadline and does not confirm any jurisdiction.
 
-Eine Anfrage nennt genau eine Art:
+## New Encapsulated Draft Contract
 
-- `objection` für einen Widerspruchsentwurf,
-- `authority_response` für einen Behördenantwortentwurf,
-- `benefit_application` für einen Leistungsantragsentwurf.
+A request specifies exactly one type:
 
-Bescheidbezogene Entwürfe müssen an den erwarteten Quell-SHA-256 gebunden
-sein. FolderHome analysiert die Quelle erneut und verlangt dasselbe Profil,
-eindeutige Behörde, Aktenzeichen, Bescheidart und Bescheiddatum. Der Empfänger
-muss der gelesenen Behörde entsprechen. Ein Widerspruchsentwurf wird nur
-vorbereitet, wenn das Dokument ausdrücklich den Rechtsbehelf
-`Widerspruch` nennt. Diese Prüfung ist keine Aussage darüber, ob er im
-Einzelfall zulässig oder rechtzeitig ist.
+- `objection` for an appeal draft,
+- `authority_response` for an authority‑response draft,
+- `benefit_application` for a benefit‑application draft.
 
-Nutzeraussagen und gewünschtes Ergebnis heißen in der Vorschau
-`user_provided`. Sie werden nicht als Dokumenttatsache ausgegeben. Erst eine
-separate Approval bestätigt den konkreten Vorschauinhalt für eine lokale
-Ausgabe. Dokumentfakten bleiben an ihre Phase-31-Evidenz gebunden.
+Official‑notice‑related drafts must be bound to the expected source SHA‑256. FolderHome re‑analyzes the source and requires the same profile, unique authority, file reference, official‑notice type and official‑notice date. The recipient must match the read authority. An appeal draft is only prepared if the document explicitly mentions the legal remedy `Widerspruch`. This check does not constitute a statement about whether it is permissible or timely in a particular case.
 
-## Ablauf und Side-Effect-Grenze
+User statements and the desired outcome are called `user_provided` in the preview. They are not emitted as document facts. Only a separate approval confirms the concrete preview content for a local output. Document facts remain bound to their Phase‑31 evidence.
+
+## Process and Side‑Effect Boundary
 
 ```text
 Anfrage + Profil + Sensitivitätsfreigabe
@@ -74,19 +54,11 @@ Anfrage + Profil + Sensitivitätsfreigabe
   → exakte Approval + Output-Gate schreibt neue Markdown-/TXT-Dateien
 ```
 
-Es gibt kein Sende-Kommando. `send_supported`, `sent`,
-`eligibility_assessed` und `deadline_legally_calculated` bleiben `false`.
-Die lokale Freigabe ist keine Freigabe für E-Mail, Upload, Behördenportal,
-Druck oder Postversand.
 
-## Abnahme
+There is no send command. `send_supported`, `sent`, `eligibility_assessed` and `deadline_legally_calculated` remain `false`. The local approval is not an approval for email, upload, authority portal, printing or postal dispatch.
 
-Die synthetische Abnahme prüft Widerspruchs-, Antwort- und Antragsgrenzen,
-Dokument-/Nutzerprovenienz, Profil- und Behördenbindung, expliziten
-Rechtsbehelf, portable Quellhashbindung, boolesche Freigabefelder,
-Quelländerung, Output-Gate und Never-overwrite. Der CLI-Test führt
-Bescheidanalyse, Vorschau, hashgebundene Bestätigung und lokale Ausgabe Ende
-zu Ende aus und bestätigt, dass keine Außenwirkung erfolgte.
+## Acceptance
+
+The synthetic acceptance checks appeal, response and application boundaries, document/user provenance, profile and authority binding, explicit legal remedy, portable source‑hash binding, boolean approval fields, source changes, output gate and Never‑overwrite. The CLI test performs official‑notice analysis, preview, hash‑bound confirmation and local output end‑to‑end and confirms that no external effect occurred.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

@@ -1,43 +1,30 @@
-# Phase 18: FindCall-Wiederverwendung und Bauplan
+# Phase 18: FindCall Reuse and Blueprint
 
-**Stand:** 2026-08-22  
-**Status:** Providerinventur, generischer Vertrag und Fixture-CLI abgeschlossen
+**English** | [Deutsch](./phase18-findcall-reuse-and-plan.de.md)
 
-## Nutzerziel
+**Status:** 2026-08-22  
+**Status:** Provider inventory, generic contract and Fixture CLI completed
 
-FindCall soll nacheinander geeignete Anbieter kontaktieren, bis eine Anfrage
-innerhalb vorher festgelegter Grenzen erfolgreich ist. Kernfälle sind ein
-Arzttermin in einem Zeitfenster, ein Werkstatttermin samt Kostenvoranschlag
-und das Einholen vergleichbarer Angebote. Reale Telefonate, Reservierungen
-und finanzielle Zusagen bleiben außerhalb der lokalen Wettbewerbsabnahme.
+## User Goal
 
-## Verifizierter Bestand
+FindCall shall contact suitable providers sequentially until a request is successful within previously defined limits. Core cases are a medical appointment within a time window, a workshop appointment with a cost estimate, and obtaining comparable offers. Real phone calls, reservations, and financial commitments remain outside the local competitive assessment.
+
+## Verified Inventory
 
 ### HungryCall, Revision `d2138476d23234cf1d23ec9609f124c58455b8e7`
 
-- Checkout und Manifest sind sauber, Version `0.1.0`, MIT; 301 Provider-Tests
-  liefen lokal grün.
-- Wiederverwendbar ist das generalisierte Kaskadenprinzip: Kandidaten filtern
-  und ordnen, seriell kontaktieren, strukturierte Ergebnisse gegen Muss-,
-  Preis- und Zugeständnisgrenzen prüfen und nach dem ersten Erfolg stoppen.
-- E.164-Prüfung, maskierte Ausgaben, Idempotency-Key, differenzierte
-  Call-Status und ein netzloser Fixture-Client sind bereits belegt.
-- Die konkrete Runtime ist absichtlich auf Restaurant, Bestellung, Abholung
-  und Tischreservierung typisiert. Arzt-, Werkstatt- oder Angebotsmodelle
-  dürfen nicht als Restaurantdaten hineingezwängt werden.
+- Checkout and manifest are clean, version `0.1.0`, MIT; 301 provider tests ran locally green.
+- Reusable is the generalized cascade principle: filter and sort candidates, contact them serially, evaluate structured results against mandatory, price, and concession limits, and stop after the first success.
+- E.164 validation, masked outputs, Idempotency-Key, differentiated call status, and a network‑less fixture client are already in place.
+- The concrete runtime is intentionally typed to restaurant, order, pickup, and table reservation. Medical, workshop, or offer models must not be forced into restaurant data.
 
 ### Ringedingeding, Revision `01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf`
 
-- Checkout und Manifest sind sauber, Version `0.1.0`, MIT; die vollständige
-  Provider-Suite lief lokal grün.
-- Wiederverwendbar sind schema-geführte Anfragen an mehrere bekannte
-  Personen, stabile Idempotency-Keys, erhaltene Endstatus, maskierte Nummern
-  und der lokale `FixtureTransport`.
-- Das Produkt löst Gruppenverfügbarkeit, Auswahlfragen und offene
-  Rückmeldungen. Das ist kein Anbieter-Suchlauf und besitzt keinen frühen
-  Stopp nach dem ersten passenden Angebot.
+- Checkout and manifest are clean, version `0.1.0`, MIT; the full provider suite ran locally green.
+- Reusable are schema‑driven queries to multiple known persons, stable Idempotency‑Keys, received final status, masked numbers, and the local `FixtureTransport`.
+- The product resolves group availability, selection questions, and open feedback. This is not a provider search run and does not have an early stop after the first suitable offer.
 
-## Verantwortungsgrenzen
+## Responsibility Boundaries
 
 ```text
 HungryCall
@@ -53,68 +40,41 @@ FolderHome
   prüft Pins, wählt den Anwendungsfall und hält Live-Gates geschlossen
 ```
 
-FolderHome lädt beide Provider nur aus dem exakt gepinnten, sauberen Checkout.
-Eine Plugin-Probe darf ausschließlich lokale Klassen und Dry-Run-Eigenschaften
-prüfen. Der neue FindCall-Kern liegt gekapselt unter
-`folderhome.capabilities.findcall` und importiert keine Restaurant- oder
-Poll-Datentypen in seine öffentlichen Verträge.
 
-## FindCall-Vertrag V1
+FolderHome loads both providers only from the exactly pinned, clean checkout. A plugin probe may test only local classes and dry‑run properties. The new FindCall core resides encapsulated under `folderhome.capabilities.findcall` and does not import restaurant or poll data types into its public contracts.
 
-1. Ein Auftrag nennt organisatorisches Profil, Bereich, Anfrageart,
-   Leistungsbeschreibung, Ort, mindestens ein Zeitfenster, optionale
-   Preisobergrenze und ausdrücklich erlaubte Verbindlichkeit.
-2. V1 unterstützt `appointment` und `quote`. Medizinische Angaben bleiben auf
-   Fachrichtung und administrative Terminbedingungen beschränkt; Symptome,
-   Diagnosen und Notfälle werden abgelehnt.
-3. Kandidaten besitzen stabile lokale IDs, Name, maskierbare E.164-Nummer,
-   optionale Distanz und Priorität. Klarnummern erscheinen nie in Plan oder
-   Bericht.
-4. Vorfilterung entfernt unpassende Leistung, zu große Entfernung oder
-   fehlende Kontaktmöglichkeit. Die verbleibenden Kandidaten werden
-   deterministisch nach Priorität, Distanz und ID geordnet.
-5. Der Dry-Run arbeitet streng seriell. Er bewahrt `NO_ANSWER`, `BUSY`,
-   `DECLINED`, `FAILED` und `COMPLETED`, prüft strukturierte Ergebnisse und
-   stoppt nach dem ersten Ergebnis innerhalb aller Grenzen.
-6. `inquiry_only` darf weder buchen noch einen Auftrag erteilen. Eine spätere
-   verbindliche Aktion benötigt eine eigene, konkrete Live-Freigabe und wird
-   in Phase 18 nicht implementiert.
-7. Fixture-Ergebnisse sind ausdrücklich `simulated=true`, führen keinen
-   Netzwerkzugriff aus und werden nicht als tatsächliche Verfügbarkeit oder
-   Preiszusage ausgegeben.
+## FindCall Contract V1
 
-## Usecases
+1. A request specifies an organizational profile, domain, request type, service description, location, at least one time window, optional price ceiling, and expressly permitted commitment.
+2. V1 supports `appointment` and `quote`. Medical information is limited to specialty and administrative appointment conditions; symptoms, diagnoses, and emergencies are rejected.
+3. Candidates have stable local IDs, name, maskable E.164 number, optional distance and priority. Plain numbers never appear in plan or report.
+4. Pre‑filtering removes unsuitable services, excessive distance, or missing contact capability. The remaining candidates are deterministically ordered by priority, distance, and ID.
+5. The dry‑run operates strictly serially. It preserves `NO_ANSWER`, `BUSY`, `DECLINED`, `FAILED` and `COMPLETED`, evaluates structured results, and stops after the first result within all limits.
+6. `inquiry_only` may neither book nor issue an order. A later binding action requires its own concrete live approval and will not be implemented in Phase 18.
+7. Fixture results are expressly `simulated=true`, perform no network access, and are not presented as actual availability or price commitment.
 
-### USECASE 018-1: Arzttermin suchen
+## Use Cases
 
-- **Eingabe:** Fachrichtung Dermatologie, Ort, zwei Zeitfenster, drei
-  synthetische Praxen, `inquiry_only`.
-- **Erwartung:** Der erste nicht erreichbare Kandidat bleibt sichtbar; der
-  zweite passende Fixture-Termin beendet die Kaskade. Keine Buchung erfolgt.
+### USECASE 018-1: Search for Medical Appointment
 
-### USECASE 018-2: Werkstattangebot prüfen
+- **Input:** Specialty dermatology, location, two time windows, three synthetic practices, `inquiry_only`.
+- **Expectation:** The first unreachable candidate remains visible; the second suitable fixture appointment ends the cascade. No booking occurs.
 
-- **Eingabe:** Bremsenprüfung für Hyundai i10, Zeitfenster und maximale
-  Kostenschätzung.
-- **Erwartung:** Ein unklares oder zu teures Angebot wird abgelehnt; das erste
-  genaue Angebot innerhalb der Grenze wird als simulierter Treffer gemeldet.
+### USECASE 018-2: Evaluate Workshop Offer
 
-### USECASE 018-3: Keine passende Option
+- **Input:** Brake inspection for Hyundai i10, time window and maximum cost estimate.
+- **Expectation:** An unclear or overly expensive offer is rejected; the first precise offer within the limit is reported as a simulated hit.
 
-- **Eingabe:** Mehrere synthetische Anbieter, deren Ergebnisse Status- oder
-  Mussgrenzen verfehlen.
-- **Erwartung:** Alle Versuche bleiben mit konkretem Grund erhalten; Erfolg
-  und externe Nebenwirkungen sind `false`.
+### USECASE 018-3: No Suitable Option
 
-### USECASE 018-4: Plugin-Pins prüfen
+- **Input:** Multiple synthetic providers whose results miss status or mandatory limits.
+- **Expectation:** All attempts remain with a concrete reason; success and external side effects are `false`.
 
-- **Eingabe:** FolderHome-Manifeste und lokale Providercheckouts.
-- **Erwartung:** HungryCall und Ringedingeding werden nur bei exakter Version,
-  Revision, sauberem Git-Status und vorhandenem Dry-Run-Einstieg akzeptiert.
+### USECASE 018-4: Verify Plugin Pins
 
-## Abnahmegrenze
+- **Input:** FolderHome manifests and local provider checkouts.
+- **Expectation:** HungryCall and Ringedingeding are accepted only with exact version, revision, clean Git status, and an available dry‑run entry point.
 
-Phase 18 ist mit 170 FolderHome-Tests abgeschlossen. Plugin-Probe,
-FindCall-Plan, serieller Fixture-Lauf und CLI sind auf synthetischen Daten
-grün. Es wurden keine echten Rufnummern, Konten, Netzwerke, Termine,
-Werkstattaufträge oder Kosten ausgelöst.
+## Acceptance Boundary
+
+Phase 18 is completed with 170 FolderHome tests. Plugin probe, FindCall plan, serial fixture run, and CLI are green on synthetic data. No real phone numbers, accounts, networks, appointments, workshop orders, or costs were triggered.

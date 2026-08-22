@@ -1,36 +1,29 @@
-# Phase 35: Gemeinsame lokale API, GUI und Betriebssystemkonto-Grenze
+# Phase 35: Shared Local API, GUI and Operating System Account Boundary
 
-**Stand:** 2026-08-22  
-**Zweck:** Bestehende FolderHome-Fähigkeiten über eine kleine lokale
-Anwendungsgrenze bedienbar machen, ohne einen zweiten Fachkern oder eine
-scheinbare Profil-Zugriffskontrolle zu bauen.
+**English** | [Deutsch](./phase35-local-app-plan.de.md)
 
-## Ist-Stand
+**Status:** 2026-08-22  
+**Purpose:** Make existing FolderHome capabilities usable across a small local application boundary, without building a second domain core or an apparent profile access control.
 
-Die Phasen 1 bis 34 besitzen bereits gemeinsame Python-Verträge und eine
-umfangreiche CLI. Dokumentensuche und Themendossier verwenden den gepinnten
-KnowledgeDigest-Index read-only. Familienprofile teilen laut bestehendem
-Vertrag genau ein `os_account` und sind ausdrücklich nur organisatorisch.
+## Current State
 
-Es gibt noch keinen gemeinsamen Server und keine visuelle Oberfläche. Die
-neue Schicht soll deshalb bestehende Application-Services aufrufen und keine
-Fachlogik duplizieren.
+Phases 1 through 34 already have shared Python contracts and an extensive CLI. Document search and topic dossier use the pinned KnowledgeDigest index read‑only. Family profiles share exactly one `os_account` according to the existing contract and are expressly only organizational.
 
-## Funktionaler Umfang
+There is still no shared server and no visual interface. The new layer should therefore call existing application services and not duplicate domain logic.
 
-Die erste lokale Oberfläche bietet:
+## Functional Scope
 
-- Systemstatus und sichtbare Sicherheitsgrenze,
-- organisatorische Profilauswahl,
-- Capability-Übersicht über den vorhandenen Stack,
-- natürliche lokale Dokumentensuche,
-- lokales Themendossier als extraktive Fundstellenliste.
+The first local interface provides:
 
-Weitere schreibende oder fachlich sensible Abläufe bleiben zunächst in ihren
-vorhandenen CLI-, Approval- und Gate-Verträgen. Die API darf deren Grenzen
-nicht durch einen allgemeinen Befehls- oder Pfadparameter umgehen.
+- System status and visible security boundary,
+- organizational profile selection,
+- capability overview of the existing stack,
+- natural local document search,
+- local topic dossier as an extractive hit list.
 
-## Sicherheitsvertrag
+Further write or domain‑sensitive processes remain initially in their existing CLI, Approval, and Gate contracts. The API must not circumvent their boundaries through a generic command or path parameter.
+
+## Security Contract
 
 ```text
 explizites Server-Gate + 127.0.0.1 + konfigurierte Roots
@@ -44,69 +37,49 @@ explizites Server-Gate + 127.0.0.1 + konfigurierte Roots
   → keine CORS-Freigabe, Shell, freien Pfade oder externen Ressourcen anbieten
 ```
 
-Das Sitzungstoken ist eine zusätzliche lokale Prozesshürde, aber kein zweites
-Benutzer- oder Rechteverwaltungssystem. Die dauerhafte Datenisolation bleibt
-Aufgabe des Betriebssystemkontos und seiner Dateirechte. Profile wie Lukas,
-Hanna oder Simon ordnen Inhalte und Regeln; sie trennen keine Geheimnisse
-innerhalb desselben Kontos.
 
-## Technische Form
+The session token is an additional local process hurdle, but not a second user or rights management system. Permanent data isolation remains the responsibility of the operating system account and its file permissions. Profiles such as Lukas, Hanna, or Simon organize content and rules; they do not separate secrets within the same account.
 
-- Python-Standardbibliothek `ThreadingHTTPServer`, keine neue Runtimeabhängigkeit
-- gebundener Host ausschließlich `127.0.0.1`; dynamischer Testport `0` erlaubt
-- eine testbare `LocalApplication` zwischen HTTP und vorhandenen Services
-- paketierte statische HTML-/CSS-/JS-Dateien ohne CDN oder Telemetrie
-- Content-Security-Policy, `no-store`, `nosniff`, Frame- und Referrer-Schutz
-- `app plan` für read-only Preflight und `app serve` hinter explizitem Gate
+## Technical Form
 
-## Visuelle Richtung
+- Python standard library `ThreadingHTTPServer`, no new runtime dependency
+- bound host exclusively `127.0.0.1`; dynamic test port `0` allowed
+- a testable `LocalApplication` between HTTP and existing services
+- packaged static HTML/CSS/JS files without CDN or telemetry
+- Content‑Security‑Policy, `no-store`, `nosniff`, frame and referrer protection
+- `app plan` for read‑only preflight and `app serve` behind an explicit gate
 
-**Gegenstand:** private Dokumentarbeit für Menschen, die nicht erst ein
-Dokumentenmanagementsystem lernen möchten. **Einzige Hauptaufgabe:** einen
-bekannten lokalen Bestand verständlich durchsuchen oder zu einem Thema
-bündeln.
+## Visual Direction
 
-- **Farben:** Desktopgrau `#edf2f5`, Papierweiß `#fbfdfe`, Tinte `#152638`,
-  Aktenschrankblau `#194d68`, Ordnertürkis `#25796d` und Ablagegelb `#f2b84b`.
-- **Typografie:** `Bahnschrift`/`Aptos Display` für prägnante Überschriften,
-  `Segoe UI` für ruhigen Lesetext und eine Monospace-Schrift für technische
-  Statuslabels.
-- **Layout:** großzügiger Kopf, darunter ein einziger aktiver Arbeitsordner;
-  die Fähigkeiten stehen wie geordnete Registerkarten im unteren Raster.
-- **Signatur:** Die gelbe Lasche „Aktiver Arbeitsordner“ verbindet die
-  physische Alltagserfahrung einer Ablage mit der lokalen digitalen Suche.
+**Subject:** private document work for people who do not want to first learn a document management system. **Only primary task:** to search a known local collection intelligibly or bundle it by topic.
 
-Die erste Creme-/Serifenrichtung wurde verworfen, weil sie austauschbar wirkte
-und den funktionalen Dokumentgegenstand nicht sichtbar machte. Bewegung bleibt
-auf einen kurzen Ergebniszustand begrenzt und respektiert
-`prefers-reduced-motion`.
+- **Colors:** desktop gray `#edf2f5`, paper white `#fbfdfe`, ink `#152638`, filing‑cabinet blue `#194d68`, folder turquoise `#25796d` and archive yellow `#f2b84b`.
+- **Typography:** `Bahnschrift`/`Aptos Display` for concise headings, `Segoe UI` for calm body text and a monospaced font for technical status labels.
+- **Layout:** generous header, followed by a single active work folder; the capabilities are presented as ordered tabs in the lower grid.
+- **Signature:** The yellow tab “Active Work Folder” connects the physical everyday experience of a filing system with the local digital search.
 
-## Abnahmekriterien
+The initial cream/serif direction was discarded because it seemed interchangeable and did not make the functional document subject visible. Motion remains limited to a brief result state and respects `prefers-reduced-motion`.
 
-- Nicht-Loopback-Bindung blockiert vor dem Start.
-- Ohne explizites Server-Gate wird kein Listener erzeugt.
-- Fehlendes/falsches Token, falscher Host und fremder Origin blockieren.
-- Requests können keine Dateipfade oder Befehle einschleusen.
-- Nur bekannte Profile desselben OS-Konto-Vertrags werden akzeptiert.
-- Suche und Dossier verwenden den vorhandenen Search-Service.
-- Die GUI funktioniert ohne externe Assets und ist tastatur-/mobil nutzbar.
-- API und GUI verändern keine Dokumente und schreiben keinen State.
-- Ein echter Loopback-End-to-End-Test belegt Status, Suche und Schutzheader.
+## Acceptance Criteria
 
-## Abnahmenachweis
+- Non‑loopback binding blocked before start.
+- Without an explicit server gate, no listener is created.
+- Missing/invalid token, wrong host and foreign origin block.
+- Requests cannot inject file paths or commands.
+- Only known profiles of the same OS‑account contract are accepted.
+- Search and dossier use the existing Search service.
+- The GUI works without external assets and is usable via keyboard / mobile.
+- API and GUI do not modify documents and do not write any state.
+- A real loopback end‑to‑end test demonstrates status, search and security headers.
 
-- `297 passed in 89.60s` im vollständigen FolderHome-Testlauf
-- Ruff über `src` und `tests` ohne Befund; `compileall` ohne Fehler
-- Realer temporärer Index mit zwei synthetischen Dokumenten, davon eine
-  Krankenversicherungsfundstelle im GUI-Lauf
-- Desktop-Viewport `1440 × 1100` und Mobil-Viewport `390 × 844` mit
-  `scrollWidth == innerWidth`
-- In beiden Viewports: eine Fundstelle, Profil `lukas`, Fokus zurück auf der
-  Suchaktion, `aria-busy=false`, keine Konsolenfehler und keine HTTP-Fehler
-- Abnahmelistener nach dem Lauf verifiziert beendet
-- Isolierter Wheel-Build `folderhome-0.1.0-py3-none-any.whl`; alle vier
-  GUI-Assets (`index.html`, `app.css`, `app.js`, `favicon.svg`) in der
-  Paketdatei zurückgelesen
+## Acceptance Evidence
+
+- `297 passed in 89.60s` in the full FolderHome test run
+- Ruff over `src` and `tests` without findings; `compileall` without errors
+- Real temporary index with two synthetic documents, including one health‑insurance hit in the GUI run
+- Desktop viewport `1440 × 1100` and mobile viewport `390 × 844` with `scrollWidth == innerWidth`
+- In both viewports: one hit, profile `lukas`, focus returned to the search action, `aria-busy=false`, no console errors and no HTTP errors
+- Acceptance listener verified terminated after the run
+- Isolated wheel build `folderhome-0.1.0-py3-none-any.whl`; all four GUI assets (`index.html`, `app.css`, `app.js`, `favicon.svg`) read back from the package file
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

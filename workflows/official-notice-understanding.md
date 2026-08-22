@@ -1,37 +1,36 @@
-# Workflow: Sozialrechtlichen Bescheid verstehen
+# Workflow: Understanding a Social Law Official Notice
 
-> **Last verified:** 2026-08-22
-> **Frequency:** pro bereitgestelltem Bescheid
-> **Duration:** wenige Sekunden zuzüglich menschlicher Prüfung
+**English** | [Deutsch](./official-notice-understanding.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** per provided official notice  
+> **Duration:** a few seconds plus human review  
 
 ## Purpose
 
-Ausdrücklich beschriftete Angaben eines lokalen Bescheids nachvollziehbar
-erfassen und als prüfbaren Markdown-/JSON-Bericht ausgeben. Dieser Workflow
-ist Dokumentenverständnis und keine Rechtsprüfung.
+Capture explicitly labeled information from a local official notice in a traceable way and output it as a verifiable Markdown/JSON report. This workflow is for document understanding, not legal review.
 
 ## Preconditions
 
-- Der Bescheid liegt lokal in einem von `doc-services` unterstützten Format.
-- Das betroffene Profil existiert in der gewählten Profilkonfiguration.
-- Ein optionales Zugangsdatum stammt vom Menschen und ist als solches bekannt.
-- Der gepinnte `doc-services`-Checkout ist sauber und revisionsgenau.
-- Für laufende oder unklare Fristen ist qualifizierte Hilfe erreichbar.
+- The official notice is stored locally in a format supported by `doc-services`.  
+- The relevant profile exists in the selected profile configuration.  
+- An optional receipt date comes from a human and is known as such.  
+- The pinned `doc-services` checkout is clean and revision‑accurate.  
+- Qualified assistance is reachable for ongoing or unclear deadlines.
 
 ## Steps
 
-1. **Providergrenzen prüfen.**
+1. **Check provider boundaries.**
 
    ```powershell
    $env:PYTHONPATH = "src"
    python -m folderhome notices providers --json
    ```
+  
 
-   `document_extraction` muss `ready` sein. `legal_review` bleibt in Phase 31
-   erwartungsgemäß `blocked_not_integrated`.
+   `document_extraction` must be `ready`. `legal_review` remains in Phase 31 as expected `blocked_not_integrated`.
 
-2. **Bescheid read-only analysieren.** Das Zugangsdatum nur angeben, wenn es
-   der Mensch tatsächlich bestätigt hat.
+2. **Analyze official notice read‑only.** Provide the receipt date only if the human actually confirmed it.
 
    ```powershell
    python -m folderhome notices inspect `
@@ -43,13 +42,12 @@ ist Dokumentenverständnis und keine Rechtsprüfung.
      --approve-sensitive-local-read --json
    ```
 
-3. **Evidenz und Grenzen prüfen.** Quellhash, Zeilen, fehlende Felder,
-   Konflikte, gedruckten Fristtext und jedes ausdrücklich gedruckte
-   Fristdatum kontrollieren. Resttage sind nur Kalenderarithmetik zu diesem
-   gedruckten Datum.
-4. **Bericht separat freigeben.** Zwei neue, noch nicht vorhandene Ziele
-   wählen und die Quelle unverändert lassen.
-5. **Markdown und JSON rendern.**
+
+3. **Check evidence and limits.** Verify source hash, lines, missing fields, conflicts, printed deadline wording and any explicitly printed deadline date. Remaining days are only calendar arithmetic relative to that printed date.
+
+4. **Approve report separately.** Choose two new, not‑yet‑existing targets and leave the source unchanged.
+
+5. **Render Markdown and JSON.**
 
    ```powershell
    python -m folderhome notices render `
@@ -63,40 +61,35 @@ ist Dokumentenverständnis und keine Rechtsprüfung.
      --approve-sensitive-local-read --approve-output-write --json
    ```
 
-6. **Menschlich entscheiden.** Bei `review_required`, unklarer Frist oder
-   gewünschter rechtlicher Bewertung den Bericht mit dem Original an eine
-   qualifizierte Stelle geben. Keine Antwort aus Phase 31 versenden.
 
-## Exit-Criteria
+6. **Make a human decision.** In case of `review_required`, unclear deadline, or desired legal assessment, give the report together with the original to a qualified entity. Do not send any response from Phase 31.
 
-- [ ] Profil, Analysezeit, Dokument-ID und Quellhash sind sichtbar.
-- [ ] Jedes übernommene Feld nennt seine genaue Quellzeile.
-- [ ] Konflikte und fehlende Angaben wurden nicht versteckt.
-- [ ] Relative Fristtexte wurden nicht zu gesetzlichen Daten umgerechnet.
-- [ ] Bericht und JSON sind neu angelegt; das Original blieb unverändert.
-- [ ] `legal_review_status` lautet `not_performed`.
-- [ ] Keine Antwort, E-Mail, Behördenaktion oder sonstige Außenwirkung erfolgte.
+## Exit‑Criteria
 
-## Fallstricke
+- [ ] Profile, analysis time, document ID and source hash are visible.  
+- [ ] Each adopted field cites its exact source line.  
+- [ ] Conflicts and missing information were not hidden.  
+- [ ] Relative deadline wordings were not converted to statutory dates.  
+- [ ] Report and JSON are newly created; the original remained unchanged.  
+- [ ] `legal_review_status` reads `not_performed`.  
+- [ ] No response, email, authority action, or other external effect occurred.
 
-- Ein gedrucktes Datum kann falsch, unvollständig oder rechtlich nicht das
-  tatsächliche Fristende sein.
-- Datei- und Scanzeitpunkte sind kein Zugangsdatum.
-- OCR ist in dieser Phase absichtlich deaktiviert.
-- `ready_for_review` bedeutet bereit für menschliche Prüfung, nicht rechtlich
-  richtig oder vollständig.
-- Ein relativer Fristtext wie „innerhalb eines Monats“ benötigt eine aktuelle
-  Rechtsprüfung und darf nicht automatisiert umgedeutet werden.
+## Pitfalls
 
-## Verwandte
+- A printed date may be incorrect, incomplete, or legally not the actual deadline end.  
+- File and scan timestamps are not receipt dates.  
+- OCR is intentionally disabled in this phase.  
+- `ready_for_review` means ready for human review, not legally correct or complete.  
+- A relative deadline wording such as “within one month” requires a current legal review and must not be automatically reinterpreted.
 
-- [`../docs/phase31-official-notice-understanding-plan.md`](../docs/phase31-official-notice-understanding-plan.md)
-- [`../skills/folderhome-official-notices/SKILL.md`](../skills/folderhome-official-notices/SKILL.md)
+## Related
+
+- [`../docs/phase31-official-notice-understanding-plan.md`](../docs/phase31-official-notice-understanding-plan.md)  
+- [`../skills/folderhome-official-notices/SKILL.md`](../skills/folderhome-official-notices/SKILL.md)  
 - [`../reused/law-checker/README.md`](../reused/law-checker/README.md)
 
-## Historie
+## History
 
-- **2026-08-22** — evidenzgebundenes Bescheidverständnis lokal abgenommen
+- **2026-08-22** — evidence‑based official notice understanding locally approved  
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

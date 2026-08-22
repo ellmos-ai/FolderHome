@@ -1,68 +1,56 @@
-# Workflow: Dokumentkontakt prüfen und lokal registrieren
+# Workflow: Check Document Contact and Register Locally
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei neuen oder geänderten Dokumenten mit Zuständigkeitsdaten
-> **Duration:** wenige Sekunden pro Dokumentordner
+**English** | [Deutsch](./contact-register.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** for new or changed documents with responsibility data  
+> **Duration:** a few seconds per document folder  
 
 ## Purpose
 
-Beschriftete Kontaktdaten aus ausdrücklich ausgewählten Dokumenten lokal
-erkennen, gegen das zuständige Profil und ein revisionsgebundenes Register
-prüfen und erst nach einer exakten Freigabe übernehmen.
+Detect labeled contact data from explicitly selected documents locally, verify it against the responsible profile and a revision‑bound register, and adopt it only after an exact approval.
 
 ## Preconditions
 
-- Dokumentordner und separater State-Pfad sind ausdrücklich festgelegt.
-- Profil und Bereich existieren in derselben OS-Konto-Konfiguration.
-- Die doc-services-Revision entspricht dem gepinnten Manifest.
-- Bei `review_required` wurde die rein lokale sensible Verarbeitung bewusst
-  mit `--approve-sensitive-local-read` erlaubt.
+- Document folder and separate state path are explicitly defined.  
+- Profile and area exist in the same OS‑account configuration.  
+- The doc‑services revision matches the pinned manifest.  
+- For `review_required`, purely local sensitive processing was deliberately allowed with `--approve-sensitive-local-read`.
 
 ## Steps
 
-1. **Plan bilden** — `contacts plan` mit Dokumentordner, Profil, Bereich und
-   State ausführen; noch entsteht keine Datenbank.
-2. **Evidenz prüfen** — Organisation, Ansprechpartner, Zweck, Objekt, Kanäle,
-   Wirksamkeitsdatum, Quellhash und Zeilennummern kontrollieren.
-3. **Konflikte prüfen** — `blocked` bei widersprüchlichen neuesten Kontakten
-   oder mehrfach aktiven Registerkontakten nicht übergehen.
-4. **Aktion prüfen** — `create`, `replace` oder `noop` nachvollziehen. Bei
-   `replace` bleibt der alte Kontakt erhalten und wird nur Löschkandidat.
-5. **Freigabe erstellen** — Schema, Plan-ID, Registerrevision, gewünschte
-   Aktions-IDs, stabile Approval-ID und Zeitzonenzeitpunkt festhalten.
-6. **Plan erneut ausführen** — `contacts apply` mit derselben Eingabe und der
-   Approval-Datei starten.
-7. **State freigeben** — ausschließlich für die beabsichtigte lokale
-   Registertransaktion `--approve-state-write` setzen.
-8. **Ergebnis prüfen** — neue und markierte Kontakt-IDs sowie Revision lesen;
-   `deleted_contact_ids` muss leer bleiben.
-9. **Zuständigkeit suchen** — mit `contacts list --object "Hyundai i10"`
-   den aktiven Ansprechpartner abfragen.
+1. **Create plan** — execute `contacts plan` with document folder, profile, area, and state; no database is created yet.  
+2. **Check evidence** — verify organization, contact person, purpose, object, channels, effective date, source hash, and line numbers.  
+3. **Check conflicts** — `blocked` must not be bypassed for contradictory latest contacts or multiple active register contacts.  
+4. **Check action** — trace `create`, `replace` or `noop`. With `replace` the old contact remains and becomes only a deletion candidate.  
+5. **Create approval** — record schema, plan ID, register revision, desired action IDs, stable approval ID, and timezone timestamp.  
+6. **Run plan again** — start `contacts apply` with the same input and the approval file.  
+7. **Grant state** — set `--approve-state-write` exclusively for the intended local register transaction.  
+8. **Check result** — read new and marked contact IDs as well as revision; `deleted_contact_ids` must remain empty.  
+9. **Search responsibility** — query the active contact with `contacts list --object "Hyundai i10"`.
 
-## Exit-Criteria
+## Exit‑Criteria
 
-- [ ] Plan, Approval und Quellhash stimmen überein.
-- [ ] Das Quelldokument blieb bytegleich.
-- [ ] Der aktive Kontakt ist über Profil, Bereich und Objekt auffindbar.
-- [ ] Ein früherer Kontakt wurde höchstens `deletion_candidate`, nie gelöscht.
-- [ ] Die append-only Ereigniszahl entspricht den ausgeführten Aktionen.
+- [ ] Plan, approval, and source hash match.  
+- [ ] The source document remained byte‑identical.  
+- [ ] The active contact is discoverable via profile, area, and object.  
+- [ ] An earlier contact was at most `deletion_candidate`, never deleted.  
+- [ ] The append‑only event number corresponds to the executed actions.
 
-## Fallstricke
+## Pitfalls
 
-- `--approve-sensitive-local-read` erlaubt keine externe Weitergabe.
-- Familienprofile innerhalb desselben OS-Kontos sind keine Zugriffsgrenzen.
-- Dokument- und State-Ordner dürfen sich nicht überlappen.
-- Ein gleiches Wirksamkeitsdatum bei verschiedenen Kontakten erfordert
-  menschliche Klärung.
-- Eine Approval-Datei ist nach Register- oder Dokumentänderungen absichtlich
-  nicht mehr gültig.
+- `--approve-sensitive-local-read` does not allow external distribution.  
+- Family profiles within the same OS account are not access boundaries.  
+- Document and state folders must not overlap.  
+- Identical effective dates across different contacts require human clarification.  
+- An approval file is intentionally no longer valid after register or document changes.
 
-## Verwandte
+## Related
 
-- [`../docs/phase16-contact-reuse-and-plan.md`](../docs/phase16-contact-reuse-and-plan.md)
-- [`./document-library.md`](./document-library.md) — lokale Dokumentextraktion
-- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase-16-Datenfluss
+- [`../docs/phase16-contact-reuse-and-plan.md`](../docs/phase16-contact-reuse-and-plan.md)  
+- [`./document-library.md`](./document-library.md) — local document extraction  
+- [`../ARCHITECTURE.md`](../ARCHITECTURE.md) — Phase‑16 data flow  
 
-## Historie
+## History
 
-- **2026-08-22** — Nach Phase-16-End-to-End-Abnahme erstellt
+- **2026-08-22** — created after Phase‑16 end‑to‑end acceptance

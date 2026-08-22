@@ -1,71 +1,46 @@
-# Phase 17: Kalender-Wiederverwendung und Bauplan
+# Phase 17: Calendar Reuse and Blueprint
 
-**Stand:** 2026-08-22  
-**Status:** Kandidaten, Planung und freigegebene lokale/ICS-Ausführung abgeschlossen
+**English** | [Deutsch](./phase17-calendar-reuse-and-plan.de.md)
 
-Der Abschlussstand ist mit 159 FolderHome-Tests lokal abgenommen. Planung
-bleibt read-only. Ausführung benötigt eine exakte Approval-Datei und ein
-State-Gate; ICS zusätzlich ein Output-Gate. Weder UpToday noch ein anderer
-externer Connector wird dabei aufgerufen.
+**As of:** 2026-08-22  
+**Status:** candidates, planning and approved local/ICS execution completed
 
-## Nutzerziel
+The final state has been locally accepted with 159 FolderHome tests. Planning remains read‑only. Execution requires an exact Approval file and a State Gate; ICS additionally requires an Output Gate. Neither UpToday nor any other external connector is invoked.
 
-FolderHome soll Datums- und Terminangaben aus ausdrücklich ausgewählten
-Dokumenten als prüfbare Kandidaten erfassen. Welcher Kalender verwendet wird,
-soll über eine allgemeine Konfiguration und optional spezifischer über
-Profilregeln festgelegt werden. Die Erkennung ist best effort und darf weder
-Vollständigkeit behaupten noch ohne eigene Freigabe einen Kalender verändern.
+## User Goal
 
-## Wiederverwendungsprüfung
+FolderHome shall capture date and appointment information from explicitly selected documents as verifiable candidates. Which calendar is used should be determined via a global configuration and optionally via profile rules. Detection is best‑effort and must not claim completeness nor modify a calendar without its own approval.
 
-### Quell-Skill `assist/kalender` 0.1.0
+## Reuse Evaluation
 
-- Der MIT-lizenzierte Skill definiert bereits das richtige Auswahlprinzip:
-  lokaler SQLite-Kalender sowie optionale Backends für Google, Routinika und
-  UpToday über eine Nutzerpräferenz.
-- Sein Python-Core implementiert nur den lokalen Store. UpToday und Routinika
-  sind im Skill ausdrücklich als „nicht implementiert“ ausgewiesen.
-- Der Core ist keine sichere direkte Laufzeitabhängigkeit für FolderHome: Er
-  besitzt keinen Git-Pin, legt den Store neben dem Skill an, erzeugt zufällige
-  IDs, öffnet die Datenbank auch bei Lesezugriffen schreibend und erlaubt
-  unmittelbares Hard-Delete ohne Plan-, Hash- oder Approval-Vertrag.
-- Wiederverwendet werden deshalb Backend-Auswahl, lokale Grundfelder und der
-  ICS-Gedanke, nicht der Core als schreibender Adapter.
+### Source Skill `assist/kalender` 0.1.0
+
+- The MIT‑licensed skill already defines the correct selection principle: a local SQLite calendar as well as optional back‑ends for Google, Routinika, and UpToday via a user preference.  
+- Its Python core implements only the local store. UpToday and Routinika are explicitly marked as “not implemented” in the skill.  
+- The core is not a safe direct runtime dependency for FolderHome: it has no Git pin, creates the store alongside the skill, generates random IDs, opens the database in write mode even for read accesses, and allows immediate hard‑delete without a plan, hash, or approval contract.  
+- Therefore, the backend selection, local base fields, and the ICS concept are reused, not the core as a writing adapter.
 
 ### UpToday, Revision `7582ca87e17e458bb99a7379d2c54003c15415a4`
 
-- Der lokale Checkout war bei der Inventur sauber, besitzt keinen
-  konfigurierten Remote und steht unter MIT.
-- UpToday implementiert einen dateibasierten RFC-5545-Kanal ohne Cloud-Sync.
-  Importierte ICS-Quellen werden nicht zurückgeschrieben; UIDs und
-  Inhaltshashes verhindern Duplikate und ermöglichen lokale Updates.
-- `build_ics` und der atomare Dateiexport sind brauchbare Referenzen. Der
-  direkte Import verändert jedoch die UpToday-Datenbank und ist kein stabiler
-  FolderHome-Connectorvertrag.
-- Phase 17 plant deshalb zunächst ein eigenes deterministisches ICS-Handoff.
-  Ein späterer UpToday-Import bleibt eine separat freizugebende Adapteraktion.
+- The local checkout was clean during the inventory, has no configured remote, and is under the MIT license.  
+- UpToday implements a file‑based RFC‑5545 channel without cloud sync. Imported ICS sources are not written back; UIDs and content hashes prevent duplicates and enable local updates.  
+- `build_ics` and the atomic file export are useful references. However, the direct import modifies the UpToday database and is not a stable FolderHome connector contract.  
+- Phase 17 therefore initially plans its own deterministic ICS handoff. A later UpToday import remains a separately approved adapter action.
 
 ### Routinika/RoutineMaster
 
-- Es wurde kein eigenständiger extrahierter Routinika-Connector und kein
-  implementierter Skill-Backendpfad gefunden.
-- UpToday enthält nur eine als „deprecated / ungenutzt“ markierte
-  RoutineMaster-Bridge. Sie sucht alte lokale Pfade und öffnet SQLite nicht
-  read-only; ihr eigener Header verlangt vor einer Reaktivierung Nachrüstung.
-- Das Backend bleibt im Vertrag auswählbar, aber bis zu einem versionierten,
-  geprüften Adapter sichtbar `blocked`.
+- No standalone extracted Routinika connector and no implemented skill backend path were found.  
+- UpToday contains only a “deprecated / unused” marked RoutineMaster bridge. It searches old local paths and does not open SQLite read‑only; its own header requires retrofitting before reactivation.  
+- The backend remains selectable in the contract, but only up to a versioned, verified adapter visible as `blocked`.
 
-### TerminPilot und Google Calendar
+### TerminPilot and Google Calendar
 
-- TerminPilot koordiniert Mehrpersonen-Abstimmungen und ist kein persönlicher
-  Kalender. Sein Checkout enthält außerdem fremde, uncommittete Änderungen;
-  FolderHome liest ihn nicht weiter ein und verändert ihn nicht.
-- Google Calendar ist ein externer Connector mit eigener Datenschutz- und
-  Netzwerkgrenze. Er gehört nicht in den lokalen Phase-17-Standardpfad.
+- TerminPilot coordinates multi‑person polls and is not a personal calendar. Its checkout also contains foreign, uncommitted changes; FolderHome does not read it further and does not modify it.  
+- Google Calendar is an external connector with its own data‑privacy and network boundary. It does not belong in the local Phase‑17 standard path.
 
-## Deklaratives Dokumentformat V1
+## Declarative Document Format V1
 
-V1 wertet nur eindeutig beschriftete Einzelzeilen aus:
+V1 evaluates only uniquely labeled single lines:
 
 ```text
 Termin: Kontrolltermin
@@ -76,94 +51,65 @@ Ort: Praxis Beispiel
 Zeitzone: Europe/Berlin
 ```
 
-Erforderlich sind Titel und Datum. Eine fehlende Uhrzeit ergibt einen
-Ganztagstermin; eine fehlende Endzeit wird nicht durch eine erfundene Dauer
-ersetzt. Mehrdeutige Werte, ungültige Zeitpunkte oder eine unbekannte
-Zeitzone erzeugen `review_required` statt eines ausführbaren Kandidaten.
 
-## Konfigurations- und Profilauflösung
+Title and date are required. A missing time results in an all‑day appointment; a missing end time is not replaced by an invented duration. Ambiguous values, invalid timestamps, or an unknown time zone generate `review_required` instead of an executable candidate.
 
-1. `folderhome.calendar-config.v1` legt `default_backend` und
-   `default_timezone` für das aktuelle OS-Konto fest.
-2. Die bestehende Profilvererbung erhält `calendar.backend` und
-   `calendar.timezone` als typisierte Regeln.
-3. Profilregeln überstimmen den allgemeinen Fallback nach derselben festen
-   Reihenfolge global → Bereich → Profil → Profilbereich.
-4. Unterstützte Werte sind zunächst `folderhome_local`, `uptoday_ics`,
-   `routinika` und `google`; nur die ersten beiden können in Phase 17 zu einem
-   lokalen Plan führen.
-5. Der synthetische Beispiel-Fallback lautet `uptoday_ics`, wie vom Nutzer
-   gewünscht. Das erzeugt nur ein Handoff-Artefakt und importiert nichts.
+## Configuration and Profile Resolution
 
-## Kandidaten- und Aktionsvertrag
+1. `folderhome.calendar-config.v1` sets `default_backend` and `default_timezone` for the current OS account.  
+2. The existing profile inheritance receives `calendar.backend` and `calendar.timezone` as typed rules.  
+3. Profile rules override the general fallback according to the same fixed order: global → domain → profile → profile domain.  
+4. Supported values are initially `folderhome_local`, `uptoday_ics`, `routinika`, and `google`; only the first two can lead to a local plan in Phase 17.  
+5. The synthetic example fallback is `uptoday_ics`, as requested by the user. This creates only a handoff artifact and imports nothing.
 
-1. Jeder Kandidat bindet Profil, Bereich, Titel, Datum/Zeit, Zeitzone, Ort,
-   Dokument-ID, Quellhash, Pfad und Zeilenevidenz.
-2. Eine stabile UID wird aus Kandidateninhalt und Dokumentidentität gebildet;
-   Zufalls-IDs sind ausgeschlossen.
-3. Planung bleibt read-only und nennt Backend, Providerstatus, Zielart,
-   Side-Effects, Konflikte und benötigte Gates.
-4. `folderhome_local` plant einen Eintrag im gekapselten lokalen Kalenderstore.
-5. `uptoday_ics` plant eine neue Never-overwrite-ICS-Datei mit deterministischer
-   UID; UpToday-Import ist nicht Bestandteil derselben Freigabe.
-6. `routinika` und `google` bleiben blockiert, bis ein eigener gepinnter
-   Connectorvertrag und seine Datenschutz-/Netzwerkfreigabe vorliegen.
-7. Vor jeder Ausführung werden Plan-ID, Quellhash, Kalenderrevision,
-   Zielkonflikt und Approval erneut geprüft.
-8. Terminerkennung ist ausdrücklich nicht vollständig; ausgelassene oder
-   unklare Dokumente bleiben sichtbar im Analysebericht.
+## Candidate and Action Contract
 
-## Ausführungsgrenze
+1. Each candidate binds profile, domain, title, date/time, time zone, location, document ID, source hash, path, and line evidence.  
+2. A stable UID is derived from the candidate content and document identity; random IDs are excluded.  
+3. Planning remains read‑only and lists backend, provider status, target type, side‑effects, conflicts, and required gates.  
+4. `folderhome_local` plans an entry in the encapsulated local calendar store.  
+5. `uptoday_ics` plans a new never‑overwrite ICS file with a deterministic UID; UpToday import is not part of the same approval.  
+6. `routinika` and `google` remain blocked until a dedicated pinned connector contract and its data‑privacy/network approval are available.  
+7. Before each execution, the plan ID, source hash, calendar revision, target conflict, and approval are re‑checked.  
+8. Appointment detection is explicitly not complete; omitted or ambiguous documents remain visible in the analysis report.
 
-1. `folderhome.calendar-handoff-approval.v1` bindet eine stabile Freigabe an
-   Plan-ID, Kalenderrevision, konkrete Aktions-IDs und einen Zeitpunkt mit
-   Zeitzone.
-2. Jede Ausführung schreibt ein append-only Audit. Deshalb benötigen sowohl
-   lokaler Kalender als auch ICS-Handoff `--approve-state-write`.
-3. Der lokale Store schreibt ausgewählte Ereignisse und Auditzeilen in einer
-   SQLite-Transaktion. Er bietet keine Löschoperation.
-4. ICS benötigt zusätzlich `--approve-output-write`. Alle Dateien werden
-   zunächst gehasht vorbereitet, dann per Never-overwrite veröffentlicht und
-   erneut gelesen.
-5. Scheitert ein späteres Element des Batches, entfernt FolderHome bereits
-   veröffentlichte Dateien nur dann, wenn Pfad und Hash noch dem eigenen
-   Ausführungsbeleg entsprechen.
-6. Das Ergebnis nennt je Aktion Event-ID oder Ausgabepfad/-hash und den
-   verfügbaren Rückweg. Ein UpToday-Import ist weiterhin ein anderer Vorgang.
+## Execution Boundary
+
+1. `folderhome.calendar-handoff-approval.v1` binds a stable approval to the plan ID, calendar revision, concrete action IDs, and a timestamp with time zone.  
+2. Each execution writes an append‑only audit. Therefore, both the local calendar and the ICS handoff require `--approve-state-write`.  
+3. The local store writes selected events and audit rows in a SQLite transaction. It provides no delete operation.  
+4. ICS additionally requires `--approve-output-write`. All files are first hashed, then published via never‑overwrite, and read again.  
+5. If a later element of the batch fails, FolderHome removes already published files only if the path and hash still match its own execution record.  
+6. The result reports, per action, the event ID or output path/hash and the available rollback path. An UpToday import remains a separate operation.
 
 ## Usecases
 
-### USECASE 017-1: Termin aus Dokument erkennen
+### USECASE 017-1: Detect Appointment from Document
 
-- **Eingabe:** Synthetisches Dokument mit Titel, Datum, Zeit und Ort.
-- **Erwartung:** Evidenzgebundener Kandidat; kein Kalender- oder Dateischreiben.
+- **Input:** Synthetic document with title, date, time, and location.  
+- **Expectation:** Evidence‑bound candidate; no calendar or file writing.
 
-### USECASE 017-2: Profilbackend auflösen
+### USECASE 017-2: Resolve Profile Backend
 
-- **Eingabe:** Fallback `uptoday_ics`, Profilregel `folderhome_local`.
-- **Erwartung:** Profilregel gewinnt mit vollständiger Regelprovenienz.
+- **Input:** Fallback `uptoday_ics`, profile rule `folderhome_local`.  
+- **Expectation:** Profile rule wins with full rule provenance.
 
-### USECASE 017-3: UpToday-Handoff planen
+### USECASE 017-3: Plan UpToday Handoff
 
-- **Eingabe:** Eindeutiger Kandidat und `uptoday_ics`.
-- **Erwartung:** Deterministische ICS-Vorschau und Zielpfad; kein Import und
-  keine Veränderung der UpToday-Datenbank.
+- **Input:** Unambiguous candidate and `uptoday_ics`.  
+- **Expectation:** Deterministic ICS preview and target path; no import and no modification of the UpToday database.
 
-### USECASE 017-4: Nicht vorhandenes Routinika-Backend blockieren
+### USECASE 017-4: Block Missing Routinika Backend
 
-- **Eingabe:** Profilregel `routinika`.
-- **Erwartung:** Sichtbarer blockierter Plan mit fehlender Providerrevision;
-  kein stiller Fallback auf einen anderen Kalender.
+- **Input:** Profile rule `routinika`.  
+- **Expectation:** Visible blocked plan with missing provider revision; no silent fallback to another calendar.
 
-### USECASE 017-5: Lokalen Termin freigegeben übernehmen
+### USECASE 017-5: Adopt Local Appointment with Approval
 
-- **Eingabe:** Eindeutiger Kandidat, aktueller Kalenderstand, exakte Approval-
-  Datei und State-Gate.
-- **Erwartung:** Ein aktives Ereignis und eine Auditzeile in derselben
-  Transaktion; identische Neuplanung wird `noop`.
+- **Input:** Unambiguous candidate, current calendar state, exact Approval file and State Gate.  
+- **Expectation:** An active event and an audit row in the same transaction; identical replanning will be `noop`.
 
-### USECASE 017-6: Mehrere ICS-Dateien sicher publizieren
+### USECASE 017-6: Safely Publish Multiple ICS Files
 
-- **Eingabe:** Zwei eindeutige Kandidaten sowie State- und Output-Gate.
-- **Erwartung:** Beide Dateien besitzen den geplanten Hash. Ein synthetischer
-  Fehler an Datei zwei entfernt Datei eins wieder und hinterlässt kein Audit.
+- **Input:** Two unambiguous candidates as well as State and Output Gates.  
+- **Expectation:** Both files have the planned hash. A synthetic error in file two removes file one again and leaves no audit.

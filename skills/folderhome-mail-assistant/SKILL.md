@@ -1,18 +1,20 @@
 ---
 name: folderhome-mail-assistant
-description: Plane FolderHome-Mailabrufe read-only, verbinde einen Brief ausdrücklich mit einem aktiven Kontakt und bereite einen exakt freigegebenen, idempotenten Versand vor.
+description: Plan FolderHome mail fetches read-only, explicitly associate a letter with an active contact, and prepare an exactly approved, idempotent send.
 ---
 
 # FolderHome Mail Assistant
 
-Beginne mit der revisionsgenauen Providerinventur:
+**English** | [Deutsch](./SKILL.de.md)
+
+Start with the revision-accurate provider inventory:
 
 ```powershell
 python -m folderhome mail providers --json
 ```
 
-Erzeuge danach einen Ingest-Plan. Der Plan liest noch kein Postfach und führt
-keinen Provider aus:
+
+Then generate an ingest plan. The plan does not read any mailbox yet and does not execute any provider:
 
 ```powershell
 python -m folderhome mail ingest-plan `
@@ -23,28 +25,16 @@ python -m folderhome mail ingest-plan `
   --json
 ```
 
-## Verbindliche Grenzen
 
-- Hinterlege nur `keyring://`, `env://` oder synthetische Secret-Referenzen,
-  niemals Passwörter oder Tokens in einer Konfigurationsdatei.
-- Ein Ingest-Plan enthält ausschließlich `fetch_headers` und optional
-  `fetch_attachments`. Verschieben, Löschen, Markieren und Senden sind davon
-  getrennte Fähigkeiten.
-- Verwende einen Entwurf nur, wenn Profil, Konto, aktive Kontakt-ID,
-  Empfängeradresse, Korrespondenz-Vorschau-ID und Texthash exakt passen.
-- Vorschau bedeutet nicht Versand. Eine Versandfreigabe bindet Entwurfs-ID,
-  Entwurfshash, Empfänger und Idempotenzschlüssel.
-- Reale Netzwerk-Lese- und Versandaktionen brauchen jeweils ein eigenes
-  Nutzer-Gate. Der synthetische Gateway beweist nur den Ablauf ohne Netzwerk
-  und ohne echte E-Mail.
-- Eine reservierte Versandfreigabe wird nicht automatisch wiederholt. Ein
-  unklar abgebrochener Lauf muss im Ledger geprüft werden.
+## Binding limits
 
-UniversalDocsGrabber bleibt der vorgesehene IMAP-Dokumentprovider. Lade ihn
-nur an der im Plan genannten sauberen Revision. UniversalMailCleaner bleibt
-wegen seiner Postfachmutationen außerhalb des read-only Ingests. MailProcessor
-ist ein Launcher, kein Runtime-Connector. Der lokale SMTP-Seam besitzt in
-Phase 26 ausschließlich einen synthetischen Provider.
+- Store only `keyring://`, `env://` or synthetic secret references, never passwords or tokens in a configuration file.
+- An ingest plan contains only `fetch_headers` and optionally `fetch_attachments`. Moving, deleting, flagging, and sending are separate capabilities.
+- Use a draft only when the profile, account, active contact ID, recipient address, correspondence preview ID, and text hash match exactly.
+- Preview does not mean sending. A send approval binds the draft ID, draft hash, recipient, and idempotency key.
+- Real network read and send actions each require a separate user gate. The synthetic gateway only demonstrates the flow without network and without a real email.
+- A reserved send approval is not automatically repeated. An unclear aborted run must be checked in the ledger.
+
+UniversalDocsGrabber remains the designated IMAP document provider. Load it only at the clean revision specified in the plan. UniversalMailCleaner stays outside the read-only ingest due to its mailbox mutations. MailProcessor is a launcher, not a runtime connector. The local SMTP seam has, in phase 26, exclusively a synthetic provider.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

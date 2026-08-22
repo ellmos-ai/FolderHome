@@ -1,32 +1,27 @@
-# GLOSSARY.md — FolderHome-Begriffe
+# GLOSSARY.md — FolderHome Terms
+
+**English** | [Deutsch](./GLOSSARY.de.md)
 
 ## Bridge
 
-Neuer FolderHome-Code, der den gemeinsamen Plugin-Vertrag in die Schnittstelle
-einer separat versionierten Komponente übersetzt.
+New FolderHome code that translates the common plugin contract into the interface of a separately versioned component.
 
 ## Capability
 
-Eine einzeln deklarierte Fähigkeit eines Plugins einschließlich Side-Effects,
-Dry-Run-Unterstützung und Gate-Anforderung.
+A singly declared capability of a plugin including side-effects, dry-run support, and gate requirement.
 
 ## Decision Card
 
-Maschinenlesbare, menschenverständliche Entscheidung, die vor einer
-freigabepflichtigen Aktion offen bleibt.
+Machine‑readable, human‑understandable decision that remains open before an approval‑required action.
 
 ## Gate
 
-Explizite Erlaubnisprüfung vor einer Nebenwirkung. Fehlende oder unbekannte
-Erlaubnis führt zu `blocked`, nicht zur Ausführung.
+Explicit permission check before a side-effect. Missing or unknown permission results in `blocked`, not execution.
 
 ## Run Report
 
-Versionierter JSON-Bericht eines Laufs im Schema
-`ellmos.home-agent.run-report.v1` mit Provenienz, Aktionen, Evidenz und
-Entscheidungen.
+Versioned JSON report of a run in schema `ellmos.home-agent.run-report.v1` with provenance, actions, evidence and decisions.
 
 ## Side-Effect
 
-Außenwirkung wie Dateischreiben, Netzwerkzugriff, Telefonanruf, Mailversand
-oder Kalendereintrag.
+External effect such as file writing, network access, phone call, email sending or calendar entry.

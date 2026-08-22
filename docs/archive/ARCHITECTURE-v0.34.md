@@ -1,16 +1,15 @@
-# ARCHITECTURE.md — Architektur und Grenzen
+# ARCHITECTURE.md — Architecture and Boundaries
 
-**Version:** 0.34
-**Aktualisiert:** 2026-08-22
-**Grund:** Gepinnten Rechtsquellen-Provider und lokalen Änderungsmonitor ergänzt
-**Zweck:** Beschreibt Komponenten, Datenfluss und Sicherheitsgrenzen.
+**English** | [Deutsch](./ARCHITECTURE-v0.34.de.md)
 
-## Überblick
+**Version:** 0.34  
+**Updated:** 2026-08-22  
+**Reason:** Added pinned legal‑source provider and local change monitor  
+**Purpose:** Describes components, data flow and security boundaries.
 
-FolderHome ist ein neuer Integrationskern. Vorbestehende Komponenten werden
-nicht verschmolzen, sondern über gepinnte Manifeste beschrieben und durch
-neuen Bridge-Code angebunden. Der Plugin-Host validiert Fähigkeiten,
-Side-Effects und Gates, bevor eine Ausführung überhaupt geplant werden darf.
+## Overview
+
+FolderHome is a new integration core. Existing components are not merged but described through pinned manifests and connected via new bridge code. The plugin host validates capabilities, side‑effects and gates before any execution may be scheduled.
 
 ```mermaid
 flowchart LR
@@ -103,28 +102,30 @@ flowchart LR
   Reused[reused: gepinnte Referenzen] -. Provenienz .-> Manifests
 ```
 
-## Bereiche
 
-| Pfad | Verantwortung |
+## Areas
+
+| Path | Responsibility |
 |---|---|
-| `src/folderhome/contracts/` | stabile Daten- und Statusverträge |
-| `src/folderhome/plugin_host/` | Manifestladen und fail-closed Validierung |
-| `src/folderhome/application/` | Ablaufsteuerung ohne domänenspezifische Side-Effects |
-| `src/folderhome/capabilities/audit/` | atomare, nachvollziehbare Laufberichte |
-| `src/folderhome/bridges/` | installierbare Adapter zu separat versionierten Komponenten |
-| `bridges/` | Provider-Dokumentation und Integrationsgrenzen |
-| `reused/` | maschinenlesbare Referenzen, kein kopierter Quellcode |
-| `manifests/` | deklarative Runtime- und Provenienzverträge |
-| `skills/` | agentisch steuerbare, gekapselte Fähigkeiten |
+| `src/folderhome/contracts/` | stable data and status contracts |
+| `src/folderhome/plugin_host/` | manifest loading and fail‑closed validation |
+| `src/folderhome/application/` | flow control without domain‑specific side‑effects |
+| `src/folderhome/capabilities/audit/` | atomic, auditable run reports |
+| `src/folderhome/bridges/` | installable adapters to separately versioned components |
+| `bridges/` | provider documentation and integration boundaries |
+| `reused/` | machine‑readable references, no copied source code |
+| `manifests/` | declarative runtime and provenance contracts |
+| `skills/` | agentically controllable, encapsulated capabilities |
 
-## Phase-1-Datenfluss
+## Phase‑1 Data Flow
 
 ```text
 CLI-Anfrage → Manifestprüfung → Gate-Prüfung → synthetische Ausführung
            → RunReport → atomare JSON-Datei und/oder JSON-stdout
 ```
 
-## Phase-2-Datenfluss
+
+## Phase‑2 Data Flow
 
 ```text
 CLI-Anfrage → FCSA-Manifest und Checkout-Pin prüfen → Konfiguration validieren
@@ -132,13 +133,10 @@ CLI-Anfrage → FCSA-Manifest und Checkout-Pin prüfen → Konfiguration validie
            → Aktionen in RunReport übersetzen → atomare JSON-Datei
 ```
 
-FCSAs Dry-Run legt normalerweise eine Bestätigung in seinem `state_dir` ab.
-Die FolderHome-Bridge ersetzt für den Planlauf ausschließlich `state_dir` und
-`trash_dir` durch ein temporäres Verzeichnis. Eingangsordner, Zielordner und
-produktiver FCSA-State bleiben unverändert; das temporäre Verzeichnis wird
-nach dem Lauf entfernt.
 
-## Phase-3-Datenfluss
+FCSAs Dry‑Run normally places a confirmation in its `state_dir`. The FolderHome bridge replaces for the plan run exclusively `state_dir` and `trash_dir` with a temporary directory. Inbox folder, target folder and productive FCSA state remain unchanged; the temporary directory is removed after the run.
+
+## Phase‑3 Data Flow
 
 ```text
 Ordner + explizites Index-Gate
@@ -149,22 +147,12 @@ Ordner + explizites Index-Gate
   → schreibgeschützte Suche / Themendossier / extraktiver Ordnerbericht
 ```
 
-Die Quelldatei wird vor dem Indexieren erneut gehasht. Stimmt sie nicht mehr
-mit dem Extraktionsstand überein, bricht die Bridge fail-closed ab.
-KnowledgeDigest schreibt bei seiner öffentlichen Suchmethode auch
-Schema-/WAL-Metadaten. FolderHome verwendet für die Suche deshalb einen eng
-gekapselten SQLite-Leseadapter im Modus `ro`/`immutable` und prüft zuvor die
-Schema-Version des gepinnten Providers. Nur die Indexierung nutzt die
-öffentliche KnowledgeDigest-Ingest-API; direkte Datenbankschreibvorgänge gibt
-es in FolderHome nicht.
 
-Der Ordnerbericht ist derzeit deterministisch und extraktiv. Er übernimmt
-höchstens zwei oder drei Sätze aus Dokumenten mit Datenschutzstatus `clear`.
-Bei `review_required`, `blocked` oder `not_checked` wird kein Inhalt kopiert.
-Eine freie LLM-Synthese und formatierte DOCX-/ODT-Ausgabe sind spätere,
-gesondert gegatete Provider-Schritte.
+The source file is re‑hashed before indexing. If it no longer matches the extraction state, the bridge aborts fail‑closed. KnowledgeDigest also writes schema/WAL metadata in its public search method. FolderHome therefore uses a tightly encapsulated SQLite read adapter in mode `ro`/`immutable` and checks the pinned provider’s schema version first. Only indexing uses the public KnowledgeDigest ingest API; direct database writes do not exist in FolderHome.
 
-## Phase-4-Datenfluss
+The folder report is currently deterministic and extractive. It takes at most two or three sentences from documents with privacy status `clear`. At `review_required`, `blocked` or `not_checked` no content is copied. A free LLM synthesis and formatted DOCX/ODT output are later, separately gated provider steps.
+
+## Phase‑4 Data Flow
 
 ```text
 freigegebener Ingest
@@ -178,19 +166,12 @@ freigegebener Ingest
   → echter FCSA-Dry-Run pro älterer Fassung
 ```
 
-Der FolderHome-Katalog ist eine atomar geschriebene Metadatenbrücke, kein
-zweiter Inhaltsindex. Eine nach dem Ingest geänderte Quelle passt nicht mehr
-zu Dokument-ID und SHA-256 und blockiert die Versionsaussage. „Neueste
-Fassung“ bedeutet nur: nach den offengelegten Datumssignalen am höchsten
-geordnet. Es ist keine Aussage über Wirksamkeit, Kündigung oder rechtlichen
-Vorrang.
 
-Archivierung bleibt zweistufig: FolderHome schlägt ältere Fassungen mit
-Zielordner und Rückweg vor; anschließend muss die gepinnte FCSA-Pipeline im
-Dry-Run `duplicate_check` und `move` bestätigen. Beide Ebenen bleiben
-`planned`, das Gate bleibt unerteilt. Phase 4 enthält keine Live-Verschiebung.
+The FolderHome catalog is an atomically written metadata bridge, not a second content index. A source changed after ingest no longer matches the document ID and SHA‑256 and blocks the version claim. “Latest version” means only: highest ordered according to the disclosed date signals. It makes no claim about effectiveness, termination or legal priority.
 
-## Phase-5-Profilmodell
+Archiving remains two‑stage: FolderHome suggests older versions with target folder and return path; subsequently the pinned FCSA pipeline must confirm in the Dry‑Run `duplicate_check` and `move`. Both layers remain `planned`, the gate remains undecided. Phase 4 contains no live move.
+
+## Phase‑5 Profile Model
 
 ```text
 household.json
@@ -202,19 +183,12 @@ household.json
 Auflösung: global → Bereich → Profil → Profilbereich
 ```
 
-Die spezifischere Stufe gewinnt. Zwei verschiedene Werte für denselben
-Regelschlüssel auf derselben Stufe sind ein Konflikt und werden fail-closed
-abgelehnt; Dateiname oder Ladefolge entscheiden nie. Unterstützt sind
-Benennung, Archivierungsdauer/-ordner, Löschdauer/-modus, Zielformat,
-Originalbehandlung, Sortierziel und Scanintervall. `hard_delete` ist nicht
-darstellbar; zulässig sind `disabled`, `review_only` und `recycle_bin`.
 
-Alle Profile eines Verzeichnisses müssen dasselbe deklarierte OS-Konto tragen
-und `organizational_only=true` ausweisen. Die Profile steuern Präferenzen,
-aber keine ACL, Dateiberechtigung oder Geheimhaltung unter Personen im selben
-OS-Konto.
+The more specific level wins. Two different values for the same rule key on the same level constitute a conflict and are rejected fail‑closed; filename or load order never decide. Supported are naming, archiving duration/folder, deletion duration/mode, target format, original handling, sorting target and scan interval. `hard_delete` is not representable; allowed are `disabled`, `review_only` and `recycle_bin`.
 
-## Phase-6-Aktionsplanung
+All profiles of a directory must carry the same declared OS account and expose `organizational_only=true`. Profiles drive preferences but no ACL, file permission or confidentiality for people in the same OS account.
+
+## Phase‑6 Action Planning
 
 ```text
 DocumentRecord + ResolvedProfilePolicy + target_root + as_of
@@ -226,27 +200,14 @@ DocumentRecord + ResolvedProfilePolicy + target_root + as_of
   → unterstützte Archiv-/Papierkorbschritte im echten FCSA-Dry-Run bestätigen
 ```
 
-Der Planner ist ein gekapselter Application Service. Er erzeugt weder Ordner
-noch Dateien und verwendet keine implizite aktuelle Zeit. Jeder verändernde
-Schritt trägt `filesystem.write`, einen ungefreigten Gate und einen
-Rückweg. Standardserialisierungen übernehmen nur die Metadaten des
-`DocumentRecord`, nicht dessen Rohtext.
 
-FCSA ist für `move` sowie `delete-to-trash` gebunden. Die FCSA-Konfiguration
-setzt `allow_hard_delete=false` und nutzt wie bisher ausschließlich temporäre
-State- und Papierkorbpfade. Benennung ist als neue interne
-`folderhome.document-actions`-Capability gekapselt. Konvertierungen werden
-nicht FCSA zugeschrieben: PDF und TXT sind an den neuen
-`folderhome.document-transform`-Provider gebunden; andere Zielformate bleiben
-ohne geprüften Provider auf `blocked`.
+The planner is a encapsulated Application Service. It creates neither folders nor files and uses no implicit current time. Every mutating step carries `filesystem.write`, an unfunded gate and a return path. Standard serializations adopt only the metadata of `DocumentRecord`, not its raw text.
 
-Sortierung, Archivierung und Papierkorb können verschiedene Endziele für
-dasselbe Dokument verlangen. Sobald solche Regeln gleichzeitig fällig sind,
-werden alle betroffenen Schritte blockiert und ein eigener menschlicher
-Review-Schritt ergänzt; Dateiname oder Regelreihenfolge lösen den Konflikt
-nicht stillschweigend.
+FCSA is bound to `move` as well as `delete-to-trash`. The FCSA configuration sets `allow_hard_delete=false` and, as before, uses only temporary state and trash paths. Naming is encapsulated as a new internal `folderhome.document-actions` capability. Conversions are not attributed to FCSA: PDF and TXT are bound to the new `folderhome.document-transform` provider; other target formats remain without a vetted provider on `blocked`.
 
-## Phase-7-Dokumenttransformation
+Sorting, archiving and trash can require different end targets for the same document. When such rules become due simultaneously, all affected steps are blocked and a separate human review step is added; filename or rule order do not silently resolve the conflict.
+
+## Phase‑7 Document Transformation
 
 ```text
 expliziter Quellordner
@@ -260,26 +221,14 @@ expliziter Quellordner
   → DocumentBundleResult mit Ausgabehash und Seitenzahl
 ```
 
-`application.document_transform` verantwortet Auswahl, Providergrenze,
-Datenschutz, Planung und Gate. Die wiederverwendbare Capability
-`capabilities.document_transform` enthält ausschließlich deterministisches
-Rendering und atomare Veröffentlichung. Dadurch kann der neue Kern später
-ohne FolderHome-CLI in Sovereign oder ein eigenes Modul übernommen werden.
 
-Für TXT wird ausschließlich der bereits von doc-services extrahierte Inhalt
-mit relativen Dokumentpfaden gebündelt. Für PDF werden vorhandene PDF-Seiten
-montiert, Bilder lokal gerastert und sonstige Dokumente als neu gesetzter Text
-angefügt. Behandlung, Datenschutzstatus und Verlusthinweis sind pro Quelle im
-Plan sichtbar. OCR ist kein automatischer Fallback.
+`application.document_transform` is responsible for selection, provider boundary, privacy, planning and gate. The reusable capability `capabilities.document_transform` contains only deterministic rendering and atomic publication. This allows the new core later to be adopted in Sovereign or a separate module without the FolderHome CLI.
 
-Der Provider schreibt nur nach einem expliziten Gate in einen bereits
-vorhandenen Ausgabeordner, prüft alle Quellhashes unmittelbar vorher und
-verwendet ein temporäres Ziel im selben Verzeichnis mit atomarer
-Never-overwrite-Veröffentlichung. Ein `DocumentBundleResult` kann die zuvor
-blockierte Originalbehandlung freischalten, wenn Provider, Dokument-ID,
-Zielpfad und Ausgabehash übereinstimmen. Es führt sie nicht selbst aus.
+For TXT only the content already extracted by doc‑services is bundled with relative document paths. For PDF existing PDF pages are assembled, images rasterized locally and other documents appended as newly set text. Treatment, privacy status and loss notice are visible per source in the plan. OCR is not an automatic fallback.
 
-## Phase-8-Typpakete
+The provider writes only after an explicit gate into an already existing output folder, checks all source hashes immediately beforehand and uses a temporary target in the same directory with atomic never‑overwrite publication. A `DocumentBundleResult` can unlock the previously blocked original handling if provider, document ID, target path and output hash match. It does not execute the step itself.
+
+## Phase‑8 Type Packages
 
 ```text
 verschachtelter Quellordner
@@ -294,20 +243,12 @@ verschachtelter Quellordner
   → atomare Never-overwrite-Veröffentlichung
 ```
 
-Bilder bilden gemeinsam `Bilder.pdf`, PDFs `PDFs.pdf`, TXT `TXT.txt` und
-Markdown `Markdown.txt`. Weitere von doc-services unterstützte Endungen
-erhalten eine eigene Textgruppe, beispielsweise `DOCX.txt`. Unbekannte
-Endungen werden nicht still verworfen und nicht an einen geratenen Parser
-gegeben; sie erscheinen im Manifest als `unsupported`.
 
-Es gibt keinen persistenten Zwischenordner. Gruppenausgaben und Manifest
-werden im Speicher erzeugt und als einziges neues ZIP veröffentlicht. Feste
-ZIP-Zeitstempel, Reihenfolge, Berechtigungsbits und Kompressionsparameter
-machen denselben Plan byte-deterministisch. Der ZIP-Hash steht im externen
-Resultat, die Hashes der enthaltenen Dokumente im internen Manifest; ein
-selbstreferenzieller ZIP-Hash im ZIP wird bewusst vermieden.
+Images collectively form `Bilder.pdf`, PDFs `PDFs.pdf`, TXT `TXT.txt` and Markdown `Markdown.txt`. Further extensions supported by doc‑services receive their own text group, e.g. `DOCX.txt`. Unknown extensions are not silently discarded nor handed to a guessed parser; they appear in the manifest as `unsupported`.
 
-## Phase-9-Ordnerbeobachtung
+There is no persistent intermediate folder. Group outputs and the manifest are generated in memory and published as a single new ZIP. Fixed ZIP timestamps, ordering, permission bits and compression parameters make the same plan byte‑deterministic. The ZIP hash is placed in the external result, the hashes of the contained documents in the internal manifest; a self‑referencing ZIP hash inside the ZIP is deliberately avoided.
+
+## Phase‑9 Folder Observation
 
 ```text
 expliziter Quellordner + caller-supplied captured_at
@@ -320,24 +261,14 @@ expliziter Quellordner + caller-supplied captured_at
   → Nutzerkorrektur nur mit früherem Ablagebeleg als candidate ausgeben
 ```
 
-Der Snapshot enthält keinen Dokumentrohtext und verwendet keine implizite
-Systemzeit. Der Aufrufer muss einen ISO-Zeitpunkt mit Zeitzone angeben. Beim
-Lesen wird die Snapshot-ID aus allen Metadaten erneut berechnet. Historien
-werden nur nach `--approve-state-write` angelegt, atomar veröffentlicht und
-nie überschrieben.
 
-Gleiche Dateiinhalte können mehrfach vorkommen. Deshalb gilt eine entfernte
-und an anderer Stelle hinzugefügte Datei nur dann als Verschiebung, wenn der
-Hash in beiden Mengen jeweils genau einmal vorkommt. Mehrdeutige Duplikate
-bleiben getrennte `removed`-/`added`-Ereignisse.
+The snapshot contains no raw document text and uses no implicit system time. The caller must supply an ISO timestamp with timezone. When reading, the snapshot ID is recomputed from all metadata. Histories are created according to `--approve-state-write`, atomically published and never overwritten.
 
-Ein beobachteter Move ist allein noch kein Lernsignal. Erst ein passender
-früherer Ablagebeleg verbindet Dokumenthash, ursprünglichen Pfad, Profil,
-Bereich und Regelquellen. Auch dann entsteht ausschließlich ein Kandidat mit
-`automatic_promotion=false`; Phase 9 ändert keine Profilregel und verschiebt
-keine Datei.
+Identical file contents may appear multiple times. Therefore a file that is removed and added elsewhere counts as a move only if the hash appears exactly once in each set. Ambiguous duplicates remain separate `removed`/`added` events.
 
-## Phase-10-Scanläufe
+An observed move alone is not a learning signal. Only a matching earlier storage receipt links document hash, original path, profile, area and rule sources. Even then only a candidate with `automatic_promotion=false` is created; Phase 9 does not change any profile rule and moves no file.
+
+## Phase‑10 Scan Runs
 
 ```text
 watched-folders.json + watch_id + captured_at + state_dir
@@ -349,20 +280,12 @@ watched-folders.json + watch_id + captured_at + state_dir
   → optional nach State-Gate genau einen neuen Checkpoint ergänzen
 ```
 
-Relative Quellpfade werden relativ zur Konfigurationsdatei aufgelöst. Eine
-Beobachtung bindet einen Root an Profil und Bereich, schafft aber keine neue
-Zugriffsgrenze. Deaktivierte Beobachtungen, unbekannte IDs, nicht monotone
-Zeitpunkte, geänderte Rekursionseinstellungen oder mehrdeutige letzte
-Checkpoints blockieren den Lauf.
 
-Das Intervall wird gegen die expliziten Zeitpunkte des letzten und aktuellen
-Snapshots ausgewertet. Ein vorzeitiger manueller Scan bleibt zulässig, wird
-aber mit `interval_due=false` ausgewiesen. Vor einem freigegebenen Schreiben
-wird der letzte Checkpoint erneut gelesen; eine zwischenzeitlich geänderte
-Historie blockiert die Veröffentlichung. Der Auditbericht enthält weiterhin
-keinen Dokumentrohtext und löst keine Dateiaktion aus.
+Relative source paths are resolved relative to the configuration file. An observation binds a root to profile and area but does not create a new access boundary. Disabled observations, unknown IDs, non‑monotonic timestamps, changed recursion settings or ambiguous last checkpoints block the run.
 
-## Phase-11-Aktionsausführung und Undo
+The interval is evaluated against the explicit timestamps of the last and current snapshots. A premature manual scan is allowed but is indicated with `interval_due=false`. Before a released write the last checkpoint is read again; an interim changed history blocks publication. The audit report still contains no raw document text and triggers no file action.
+
+## Phase‑11 Action Execution and Undo
 
 ```text
 Quelle + Profilregeln + as_of
@@ -376,29 +299,14 @@ Quelle + Profilregeln + as_of
   → Undo nur gegen Ausführungs-ID, Zielpfad und unveränderten Zielhash
 ```
 
-Die Freigabe darf nur einen lückenlosen Präfix der ausführbaren Planaktionen
-umfassen. Phase 11 unterstützt Rename sowie zielgerichtete Move-Schritte;
-Konvertierung, Papierkorb, Review und blockierte Schritte unterbrechen die
-ausführbare Kette. Jeder Zielpfad wird gegen Planart und `target_root`
-kontrolliert. Vorhandene Dateien, Symlinks, geänderte Quellen und
-Cross-Volume-Fallbacks blockieren fail-closed.
 
-FCSA bleibt der gepinnte Klassifikations- und Dry-Run-Provider. Sein aktueller
-Pipeline-Einstieg scannt ganze Ordner, schreibt Processing Memory und kann bei
-Kollisionen den Zielnamen ändern; er ist deshalb kein exakter Live-Executor
-für einen bereits freigegebenen Einzeldokumentplan. Der tatsächliche Executor
-steht im Bericht separat als `folderhome.filesystem-transaction`. Dieser neue
-gekapselte Kern klassifiziert nichts, sondern führt ausschließlich exakt
-geplante Einzeldatei-Moves ohne Überschreiben aus.
+The approval may only encompass a contiguous prefix of executable plan actions. Phase 11 supports rename as well as targeted move steps; conversion, trash, review and blocked steps break the executable chain. Every target path is checked against plan type and `target_root`. Existing files, symlinks, changed sources and cross‑volume fallbacks block fail‑closed.
 
-Der Auditpfad enthält vor der ersten Dateiaktion `000-intent.json` und nach
-Erfolg `100-completed.json`. Bei Fehlern wird die bisherige Kette rückwärts
-gerollt und ein Fehlerereignis ergänzt. Undo schreibt ein eigenes Intent und
-Abschlussereignis. Beim Einlesen wird der Abschlussbericht gegen das frühere
-Intent geprüft, sodass nachträglich umgelenkte Pfade blockieren. Alle
-Verträge enthalten Hashes und Provenienz, aber keinen Dokumentrohtext.
+FCSA remains the pinned classification and Dry‑Run provider. Its current pipeline entry scans whole folders, writes processing memory and can change the target name on collisions; therefore it is not an exact live executor for an already approved single‑document plan. The actual executor appears in the report separately as `folderhome.filesystem-transaction`. This new encapsulated core classifies nothing but exclusively executes precisely planned single‑file moves without overwriting.
 
-## Phase-12-Ordnerweiter Aufräumlauf
+The audit path contains before the first file action `000-intent.json` and after success `100-completed.json`. On errors the existing chain is rolled back and an error event added. Undo writes its own intent and completion event. When reading, the completion report is checked against the earlier intent, so retroactively redirected paths are blocked. All contracts contain hashes and provenance, but no raw document text.
+
+## Phase‑12 Folder‑wide Cleanup Batch
 
 ```text
 expliziter Quellordner + Profil + Bereich + target_root + as_of
@@ -413,21 +321,12 @@ expliziter Quellordner + Profil + Bereich + target_root + as_of
   → Batch-Intent, geordnete Einzeltransaktionen, Batch-Abschluss
 ```
 
-Der Batchplan ist keine Schleife über ungeprüfte Einzelaktionen. Erst nachdem
-alle Dokumentpläne feststehen, werden deren Zielketten gemeinsam analysiert.
-Ein Konflikt blockiert jedes beteiligte Dokument, während unabhängige
-Dokumente weiterhin einzeln auswählbar bleiben. Die Approval-Datei darf eine
-Teilmenge nennen, muss darin aber pro Dokument den exakten Plan, Quellhash und
-Aktionspräfix wiederholen.
 
-Die Batchausführung führt selektierte Dokumente in der Reihenfolge der
-Freigabe aus. Jeder Eintrag verwendet unverändert die Phase-11-Transaktion und
-deren eigenes Audit. Scheitert ein späterer Eintrag, werden frühere
-Ausführungen in umgekehrter Reihenfolge über ihre belegten Undo-Verträge
-zurückgeführt. Das Batchaudit unterscheidet `executed`, `rolled_back` und
-`failed`; aktive Ablagebelege werden nur nach vollständigem Erfolg gesammelt.
+The batch plan is not a loop over unchecked single actions. Only after all document plans are fixed are their target chains analyzed together. A conflict blocks each involved document, while independent documents remain individually selectable. The approval file may name a subset but must repeat for each document the exact plan, source hash and action prefix.
 
-## Phase-13-Beobachtungs- und Aufräumroutine
+Batch execution runs selected documents in the order of the approval. Each entry uses the unchanged Phase‑11 transaction and its own audit. If a later entry fails, earlier executions are rolled back in reverse order via their recorded undo contracts. The batch audit distinguishes `executed`, `rolled_back` and `failed`; active storage receipts are collected only after full success.
+
+## Phase‑13 Observation and Cleanup Routine
 
 ```text
 Watch + letzter Checkpoint + Profilregeln + explizite Zeit
@@ -443,24 +342,12 @@ Watch + letzter Checkpoint + Profilregeln + explizite Zeit
   → Routineabschluss oder belegtes Rollback
 ```
 
-Der Routinenplan führt keine neue Dateilogik ein. Er komponiert die
-Phase-10-Beobachtung mit der Phase-12-Batchplanung und filtert deren Eingaben
-über den inhaltsfreien Diff. Ein erster Änderungslauf berücksichtigt den
-Ausgangsbestand; ein noch nicht fälliger Lauf und ein fälliger Lauf ohne
-relevante Änderungen erzeugen einen leeren Cleanup-Plan. Metadatenänderungen
-allein lösen keine Dokumentverarbeitung aus.
 
-Der Vollmodus ist eine ausdrückliche Entscheidung und ignoriert nur die
-Intervallfälligkeit, nicht Gates oder Konflikte. Ziele innerhalb des
-beobachteten Roots sind unzulässig, damit kein selbstverstärkender
-Eingangskreislauf entsteht. Vor der Ausführung werden sowohl der erwartete
-letzte Checkpoint als auch die Scan-ID erneut bestätigt. Der Checkpoint wird
-erst nach einem vollständig erfolgreichen Batch geschrieben. Scheitert diese
-Abschlussbeobachtung, werden die Einzelaktionen über ihre Phase-11-Undo-
-Verträge zurückgeführt und der Routinenlauf als `rolled_back` oder `failed`
-protokolliert.
+The routine plan introduces no new file logic. It composes Phase‑10 observation with Phase‑12 batch planning and filters their inputs via the content‑free diff. The first change run considers the initial inventory; a not‑yet‑due run and a due run without relevant changes produce an empty cleanup plan. Metadata changes alone trigger no document processing.
 
-## Phase-14-Mehrfach-Watch-Queue
+Full mode is an explicit decision and ignores only interval due‑ness, not gates or conflicts. Targets within the observed root are disallowed to prevent a self‑reinforcing input loop. Before execution both the expected last checkpoint and the scan ID are re‑validated. The checkpoint is written only after a fully successful batch. If this final observation fails, the single actions are rolled back via their Phase‑11 undo contracts and the routine run is logged as `rolled_back` or `failed`.
+
+## Phase‑14 Multi‑Watch Queue
 
 ```text
 watched-folders.v1 + routine-bindings.v1 + Profile + explizite Zeit
@@ -472,22 +359,12 @@ watched-folders.v1 + routine-bindings.v1 + Profile + explizite Zeit
   → FolderRoutineQueue mit side_effects=[] und scheduler_registered=false
 ```
 
-Die Binding-Datei bleibt vom Watch-Vertrag getrennt: Beobachtung definiert
-Quelle, Profil, Bereich und Intervall; das Binding ergänzt ausschließlich
-Zielwurzel, Routinenmodus und Aktivstatus. Relative Ziele werden gegen den
-Ort der Binding-Datei aufgelöst. Fehlende oder deaktivierte Bindings für einen
-aktiven Watch bleiben als blockierter Queue-Eintrag sichtbar. Mehrere
-Bindings für denselben Watch und Bindings auf unbekannte Watches sind
-Konfigurationsfehler.
 
-Die Queue führt alle Phase-13-Planungen ohne Datei- oder State-Gate aus und
-schreibt selbst nichts. Anschließend prüft sie die Gesamtmenge: Überlappende
-Eingangsroots, ein Routinenziel im Eingang eines anderen Watch und identische
-Zwischen- oder Endziele blockieren alle betroffenen Einträge. Dadurch ist die
-Queue für einen späteren Scheduler aufrufbar, ohne Schedulerrechte oder
-Aktionsfreigaben zu erben.
+Binding file remains separate from the watch contract: observation defines source, profile, area and interval; the binding adds only target root, routine mode and active status. Relative targets are resolved against the location of the binding file. Missing or disabled bindings for an active watch remain visible as a blocked queue entry. Multiple bindings for the same watch and bindings on unknown watches are configuration errors.
 
-## Phase-15-Portabler Scheduler-Handoff
+The queue executes all Phase‑13 plans without file or state gate and writes nothing itself. It then checks the total set: overlapping input roots, a routine target in the input of another watch, and identical intermediate or final targets block all affected entries. The queue is callable for a later scheduler without inheriting scheduler rights or action approvals.
+
+## Phase‑15 Portable Scheduler Handoff
 
 ```text
 Zeitplan + Konfigurationspfade + Python/Working-Directory
@@ -504,21 +381,12 @@ scheduler run + explizite Laufzeit + Scheduler-State-Gate
   → eigenen Lock entfernen
 ```
 
-Der Handoff speichert Argumente als einzelne Listenelemente und vermeidet
-einen zusammengesetzten Shellbefehl. Das Windows-XML verlangt
-`LeastPrivilege`, verwendet `IgnoreNew` und begrenzt einen Lauf auf zehn
-Minuten. Es ist dennoch nur ein Artefakt im JSON-Plan: FolderHome bietet in
-Phase 15 keinen Installations- oder Registrierungsbefehl an.
 
-Der Runner ist die einzige neue schreibende Grenze. Sein Gate erlaubt nur
-operativen State für Lock und Laufbericht; Queue, Dokumente, Zielordner und
-Checkpoint-Historie bleiben unverändert. Ein bestehender Lock ergibt Exitcode
-30 und bleibt unangetastet. Ein eigener Lock wird nach Erfolg oder Fehler
-entfernt. Queue-Ergebnisse werden als Exitcode 0 (`idle`), 10 (`attention`)
-oder 20 (`blocked`) nach außen gegeben und bleiben vollständig im Bericht
-belegt.
+The handoff stores arguments as individual list elements and avoids a composite shell command. The Windows XML requires `LeastPrivilege`, uses `IgnoreNew` and limits a run to ten minutes. It is still only an artifact in the JSON plan: FolderHome offers no install or registration command in Phase 15.
 
-## Phase-16-Dokumentkontakte und Kontaktregister
+The runner is the only new writing boundary. Its gate allows only operational state for lock and run report; queue, documents, target folder and checkpoint history remain unchanged. An existing lock yields exit code 30 and stays untouched. An own lock is removed after success or error. Queue results are emitted as exit code 0 (`idle`), 10 (`attention`) or 20 (`blocked`) externally and remain fully recorded in the report.
+
+## Phase‑16 Document Contacts and Contact Register
 
 ```text
 expliziter Dokumentordner + Profil + Bereich + lokale Sensitivitätsfreigabe
@@ -532,23 +400,14 @@ expliziter Dokumentordner + Profil + Bereich + lokale Sensitivitätsfreigabe
   → Kontakte und append-only Ereignisse in einer SQLite-Transaktion schreiben
 ```
 
-Der Zuständigkeitsschlüssel besteht aus organisatorischem Profil, Bereich,
-Zweck und optionalem Vertragsobjekt. Nur ein eindeutig neuester Kandidat je
-Schlüssel kann ausgeführt werden. Verschiedene Kontakte mit demselben neuesten
-Wirksamkeitsdatum blockieren; ältere Kandidaten bleiben als `noop` sichtbar.
 
-`review_required` stammt aus der Weitergabeprüfung des Dokumentproviders. Für
-die rein lokale Verarbeitung gibt es deshalb ein zusätzliches enges Gate.
-`blocked` und `not_checked` bleiben auch damit gesperrt. Im Register landen nur
-normalisierte Kontaktfelder, Dokumentidentität, Hash, Pfad und Evidenzorte,
-nicht der übrige Dokumenttext.
+The responsibility key consists of organizational profile, area, purpose and optional contract object. Only a uniquely newest candidate per key may be executed. Different contacts with the same newest effective date block; older candidates remain visible as `noop`.
 
-Ein Kontaktwechsel ist atomar: Der neue Kontakt wird aktiv angelegt und der
-vorherige ausschließlich als `deletion_candidate` markiert. Es gibt weder
-SQL-`DELETE` noch eine automatische Löschaktion. Familienprofile organisieren
-den Registerinhalt, ändern aber die Sicherheitsgrenze des OS-Kontos nicht.
+`review_required` originates from the handoff verification of the document provider. For purely local processing there is therefore an additional tight gate. `blocked` and `not_checked` also remain locked. The register only contains normalized contact fields, document identity, hash, path and evidence locations, not the remaining document text.
 
-## Phase-17-Terminkandidaten und Kalender-Handoff
+Contact change is atomic: the new contact is actively created and the previous one marked solely as `deletion_candidate`. There is neither SQL‑`DELETE` nor an automatic deletion action. Family profiles organize the register content but do not change the security boundary of the OS account.
+
+## Phase‑17 Appointment Candidates and Calendar Handoff
 
 ```text
 Kalenderkonfiguration + aufgelöste Profilregeln
@@ -565,26 +424,12 @@ expliziter Dokumentordner + lokale Sensitivitätsfreigabe
   → lokales Ereignis + Audit atomar oder ICS-Batch never-overwrite publizieren
 ```
 
-Der allgemeine Fallback steht in `folderhome.calendar-config.v1` und kann
-durch `calendar.backend` beziehungsweise `calendar.timezone` aus der
-bestehenden Profilvererbung überstimmt werden. Der Beispiel-Fallback
-`uptoday_ics` erzeugt pro Kandidat einen stabilen Zielpfad, eine UID und den
-Hash eines deterministischen RFC-5545-Inhalts. Der Plan schreibt nichts. Erst
-`calendar apply` mit State- und Output-Gate veröffentlicht neue Dateien und
-protokolliert sie; ein UpToday-Import findet nicht statt.
 
-Der Kalender-Skill 0.1.0 liefert das Auswahlprinzip, ist aber mangels Git-Pin,
-Approval und sicherem Store kein Runtime-Provider. UpToday belegt den
-dateibasierten ICS-Kanal und die UID-Deduplizierung. Seine Datenbank wird nicht
-direkt gekoppelt. Die alte RoutineMaster-/Routinika-Bridge ist als ungenutzt
-und nachrüstungsbedürftig markiert; FolderHome behauptet daher keine
-Routinika-Unterstützung. Der neue lokale Kalenderstore und der ICS-Publisher
-sind getrennte Capabilities: SQLite-Ereignisse werden transaktional ergänzt,
-ICS-Batches rollen eigene unveränderte Dateien bei Teilfehlern zurück. Beide
-Pfade prüfen Kalenderrevision und Dokumenthash erneut und bieten keine
-automatische Löschung.
+General fallback is in `folderhome.calendar-config.v1` and can be overridden by `calendar.backend` or `calendar.timezone` from the existing profile inheritance. Example fallback `uptoday_ics` creates per candidate a stable target path, a UID and the hash of a deterministic RFC‑5545 content. The plan writes nothing. Only `calendar apply` with state and output gate publishes new files and logs them; an UpToday import does not occur.
 
-## Phase-18-FindCall und Call-Plugins
+Calendar skill 0.1.0 provides the selection principle, but due to lack of git pin, approval and secure store it is not a runtime provider. UpToday occupies the file‑based ICS channel and UID deduplication. Its database is not directly coupled. The old RoutineMaster/Routinika bridge is marked as unused and in need of retrofitting; FolderHome therefore claims no Routinika support. The new local calendar store and the ICS publisher are separate capabilities: SQLite events are added transactionally, ICS batches roll back their own unchanged files on partial failures. Both paths re‑check calendar revision and document hash and offer no automatic deletion.
+
+## Phase‑18 FindCall and Call Plugins
 
 ```text
 HungryCall-/Ringedingeding-Manifest + lokaler Checkout
@@ -601,17 +446,12 @@ FindCall-Auftrag + lokale Kandidaten + explizite Fixtures
   → beim ersten gültigen Ergebnis stoppen
 ```
 
-Die öffentlichen FindCall-Verträge enthalten keine HungryCall-Restaurants und
-keine Ringedingeding-Polls. Der neue Kern übernimmt nur das belegte serielle
-Kaskadenmuster. Jede öffentliche Kandidaten-/Versuchsserialisierung maskiert
-die E.164-Rufnummer. Ein Provider wird nur akzeptiert, wenn er sich als lokale
-Simulation ohne Netzwerk- und Telefonwirkung ausweist.
 
-Arzttermine sind rein administrativ: Fachrichtung, Ort und Zeitfenster sind
-zulässig, Notfall- oder Diagnoseinhalte nicht. `inquiry_only` ist die einzige
-V1-Autorität; selbst ein Fixture mit behaupteter Zusage wird abgelehnt.
+Public FindCall contracts contain no HungryCall restaurants and no Ringedingeding polls. The new core only adopts the recorded serial cascade pattern. Each public candidate/attempt serialization masks the E.164 phone number. A provider is accepted only if it presents itself as a local simulation without network or telephone effects.
 
-## Phase-19-Kontoauszüge und wiederkehrende Kosten
+Medical appointments are purely administrative: specialty, location and time window are allowed, emergency or diagnostic content not. `inquiry_only` is the sole V1 authority; even a fixture with claimed commitment is rejected.
+
+## Phase‑19 Account Statements and Recurring Costs
 
 ```text
 expliziter Auszugsordner + Profil + lokale Sensitivitätsfreigabe
@@ -634,19 +474,12 @@ lokale Belastungen + Profil + Stichtag
   → Abo-/Versicherungs-/Kostenkandidaten samt Beleg-IDs und Prognosefenster
 ```
 
-Der Finanzstore enthält normalisierte Werte und Provenienz, keinen
-Dokumentrohtext. Buchungsreferenzen sind je Konto eindeutig; Auszüge und
-Auditzeilen werden ausschließlich ergänzt. Ein angrenzender Auszug mit
-widersprechendem Anfangssaldo blockiert bereits den Plan. Nicht abgedeckte
-Tage bleiben Lücken, und ein Periodenbericht setzt Grenzsalden auf `null`,
-wenn die Kette nicht vollständig belegt ist.
 
-Wiederkehrende Kosten verwenden ganzzahlige Cent und mindestens zwei
-monatlich passende Belastungen. `active_candidate` ist nur ein
-Stichtagsheuristik-Status. Kündigung, Vertragsbestand oder künftige Abbuchung
-sind ausdrücklich nicht bewiesen.
+The financial store contains normalized values and provenance, no raw document text. Booking references are unique per account; statements and audit lines are only appended. An adjacent statement with a conflicting opening balance already blocks the plan. Uncovered days remain gaps, and a period report sets boundary balances to `null` when the chain is not fully populated.
 
-## Phase-20-Haushalts- und Lagerbestand
+Recurring costs use integer cents and at least two monthly matching charges. `active_candidate` is only a snapshot heuristic status. Termination, contract existence or future debit are expressly not proven.
+
+## Phase‑20 Household and Inventory
 
 ```text
 expliziter Bestandsordner + Profil + lokale Sensitivitätsfreigabe
@@ -665,24 +498,14 @@ Inventarstore + Profil + expliziter Stichtag
   → Review-Kandidaten samt Ereignis-ID und Fehlmenge ausgeben
 ```
 
-UpToday liefert die bereits extrahierten Fachbegriffe Artikel, Bereich, Ort,
-Einheit, Bestand und Mindestbestand. Sein vorhandener Engine wird wegen
-Fließkommazahlen, globalem DB-Singleton, direktem `UPDATE`/`DELETE` und
-implizitem Tagesdatum nicht geladen. FolderHome kopiert keinen UpToday-Code,
-sondern kapselt den neuen Vertrag unter `contracts.inventory`,
-`application.household_inventory` und `capabilities.inventory_store`.
 
-Eine V1-Datei beschreibt genau eine Beobachtung. Dezimalwerte werden ohne
-Rundung als ganzzahlige Tausendstel gespeichert. Der Store besitzt keine
-Bestandsspalte, die still überschrieben wird: Jede freigegebene Aufnahme ist
-ein neues Ereignis mit Dokument-ID, Hash, Pfad und Zeilenevidenz. Die aktuelle
-Sicht ist eine Abfrage der letzten belegten Beobachtung je Gegenstand.
+UpToday provides the already extracted domain terms article, area, location, unit, stock and minimum stock. Its existing engine is not loaded because of floating‑point numbers, a global DB singleton, direct `UPDATE`/`DELETE` and implicit daily date. FolderHome does not copy UpToday code, but encapsulates the new contract under `contracts.inventory`, `application.household_inventory` and `capabilities.inventory_store`.
 
-Unterbestand, abgelaufen und läuft-bald-ab sind Review-Gründe, keine
-Bestellung. Familienprofile filtern Ansichten, bilden innerhalb desselben
-Betriebssystemkontos aber keine Zugriffsgrenze.
+A V1 file describes exactly one observation. Decimal values are stored without rounding as integer thousandths. The store has no inventory column that is silently overwritten: each approved entry is a new event with document ID, hash, path and line evidence. The current view is a query of the last recorded observation per item.
 
-## Phase-21-Medikamentenplan und bestätigte Einnahme
+Understock, expired and soon‑to‑expire are review reasons, not orders. Family profiles filter views but create no access boundary within the same OS account.
+
+## Phase‑21 Medication Plan and Confirmed Intake
 
 ```text
 expliziter Medikamentenordner + Profil + lokale Sensitivitätsfreigabe
@@ -707,25 +530,14 @@ Bestätigungsdatei + State-Gate
   → keine Bestands-, Kalender-, Nachrichten- oder Erinnerungsaktion
 ```
 
-UpToday liefert die Trennung von Medikament, Zeitplan, Tagesdosis und
-Einnahmelog sowie das Idempotenzprinzip. Sein bestehender Health Engine wird
-nicht geladen, weil Tagesansichten dort Logs erzeugen, Bestätigungen Bestand
-direkt aktualisieren und Zeit/State implizit behandeln. Der öffentliche
-`gesundheit`-Skill und das deklarative Health-Assist-Bundle liefern die
-Grenzen „nur bereitgestellte Informationen“ und „Organisation only“.
 
-FolderHome kapselt neue Verträge unter `contracts.medication`, die
-Anwendungslogik unter `application.medication_intake` und den Store unter
-`capabilities.medication_store`. Zeitplanversionen und Einnahmeereignisse sind
-append-only. Eine Tagesansicht ist eine reine Abfrage. `bei Bedarf` bleibt in
-V1 unterminiert und benötigt menschliche Prüfung.
+UpToday provides the separation of medication, schedule, daily dose and intake log as well as the idempotence principle. Its existing health engine is not loaded because daily views there generate logs, confirmations directly update inventory and time/state are handled implicitly. Public `gesundheit` skill and the declarative health‑assist bundle provide the boundaries “only provided information” and “organization only”.
 
-Eine Bestätigung dokumentiert eine ausdrückliche Nutzereingabe, keinen
-Wirksamkeits- oder Einnahmenachweis von außen. Diagnose, Verordnung,
-Dosierungsentscheidung, Wechselwirkungsprüfung, automatische Erinnerung und
-Bestandsreduktion sind ausgeschlossen.
+FolderHome encapsulates new contracts under `contracts.medication`, the application logic under `application.medication_intake` and the store under `capabilities.medication_store`. Schedule versions and intake events are append‑only. Daily view is a pure query. `bei Bedarf` remains undermined in V1 and requires human review.
 
-## Phase-25-Office-, Medien- und Designstudio
+A confirmation documents an explicit user input, not an external effectiveness or intake proof. Diagnosis, prescription, dosage decision, interaction check, automatic reminder and inventory reduction are excluded.
+
+## Phase‑25 Office, Media and Design Studio
 
 ```text
 Sensitivitäts-Gate + Artefaktanfrage + vorhandenes Profil
@@ -740,26 +552,14 @@ Sensitivitäts-Gate + Designanfrage
   → jede konkrete SVG vor Druck oder Veröffentlichung visuell prüfen
 ```
 
-`contracts.artifact_studio` definiert Artefaktanfrage, Routen, Plan,
-Designanfrage, Vorschau und Ausgabereport. `application.artifact_studio`
-enthält ausschließlich providerneutrales Routing und den neuen lokalen
-Designkern. Präsentation, Spreadsheet, DOCX und Medienlogik werden nicht in
-FolderHome kopiert.
 
-PPTX, Spreadsheets und DOCX verweisen auf ihre spezialisierten Skills. Ein
-fehlender Workspace-Dependency-Loader, fehlendes `soffice`, report-forge-
-Versionsdrift oder ein fehlender ODT-Renderer blockiert die jeweilige Route.
-ai-media-editor ist revisionsgebunden, wird im Plan jedoch nicht importiert
-oder ausgeführt. `provider_invoked=false` und `side_effects=[]` bleiben feste
-Planinvarianten.
+`contracts.artifact_studio` defines artifact request, routes, plan, design request, preview and output report. `application.artifact_studio` contains only provider‑neutral routing and the new local design core. Presentation, spreadsheet, DOCX and media logic are not copied into FolderHome.
 
-Der Designkern akzeptiert ausschließlich `#RRGGBB`-Farben, sichere
-Schriftbezeichnungen und einzeilige Visitenkartendaten. Textpaare müssen
-mindestens 4,5:1 Kontrast erreichen. Nutzerdaten werden vor SVG-Ausgabe
-escaped. Der Drei-Dateien-Batch überschreibt nie und entfernt bei einem
-eigenen Teilfehler nur noch hashgleiche eigene Dateien.
+PPTX, spreadsheets and DOCX refer to their specialized skills. Missing workspace‑dependency loader, missing `soffice`, report‑forge version drift or a missing ODT renderer block the respective route. ai‑media‑editor is revision‑bound but is not imported or executed in the plan. `provider_invoked=false` and `side_effects=[]` remain fixed plan invariants.
 
-## Phase-26-Mail-Connector
+The design core accepts only `#RRGGBB` colors, safe font names and single‑line business‑card data. Text pairs must achieve at least a 4.5:1 contrast. User data is escaped before SVG output. The three‑file batch never overwrites and on its own partial error only removes its own hash‑matching files.
+
+## Phase‑26 Mail Connector
 
 ```text
 Mailkonto mit Secret-Referenzen + Profil + Ingest-Anfrage
@@ -775,27 +575,14 @@ aktiver Kontakt + Korrespondenzvorschau + Mailkonto
   → Versandversuch vor Transport im lokalen Ledger reservieren
 ```
 
-`contracts.mail` definiert Konten, Endpunkte, Ordner, Nachrichten, Anhänge,
-Ingest, Entwürfe, Freigaben und Reports. `application.mail_connector` lädt
-strenge JSON-Verträge und verbindet genau einen Kontakt mit genau einer
-Korrespondenzvorschau. `capabilities.mail_gateway` enthält nur den
-providerneutralen Seam, einen synthetischen No-Network-Gateway und das lokale
-SQLite-Idempotenzledger.
 
-Der Ingest-Vertrag kann weder verschieben noch löschen, markieren oder senden.
-Ein realer Gateway muss zusätzlich die read-only Eigenschaft deklarieren und
-exakt zum geplanten Provider passen. Der vorgesehene UniversalDocsGrabber-
-Checkout ist derzeit wegen Revision und fremder Änderungen blockiert.
-MailProcessor bleibt Launcher; UniversalMailCleaner bleibt eine eigene
-mutierende Fähigkeit.
+`contracts.mail` defines accounts, endpoints, folders, messages, attachments, ingest, drafts, approvals and reports. `application.mail_connector` loads strict JSON contracts and connects exactly one contact with exactly one correspondence preview. `capabilities.mail_gateway` contains only the provider‑neutral seam, a synthetic no‑network gateway and the local SQLite idempotence ledger.
 
-Eine Entwurfsvorschau ruft keinen Transport auf. Eine Freigabe kann nur exakt
-einen Entwurf an exakt einen Empfänger binden. Das Ledger reserviert vor dem
-Transport fail-closed; nach einem unklaren Abbruch wird nicht automatisch
-wiederholt. Phase 26 hat ausschließlich `simulated` ohne Netzwerk und ohne
-echte E-Mail abgenommen. Ein echter SMTP-Transport bleibt offen.
+The ingest contract can neither move nor delete, mark or send. A real gateway must also declare the read‑only property and match exactly the planned provider. The UniversalDocsGrabber checkout is currently blocked due to revision and external changes. MailProcessor remains launcher; UniversalMailCleaner remains a separate mutating capability.
 
-## Phase-27-Kalenderconnectoren
+A draft preview does not invoke transport. An approval can bind only exactly one draft to exactly one recipient. The ledger reserves before transport fail‑closed; after an unclear abort it is not automatically retried. Phase 26 has exclusively `simulated` without network and without real email accepted. A real SMTP transport remains open.
+
+## Phase‑27 Calendar Connectors
 
 ```text
 Phase-17-Handoff + Kalenderkonto + Connectoranfrage
@@ -810,25 +597,14 @@ synthetischer Plan + exakte Freigabe
   → synthetische Providerreferenz ausgeben, keinen Live-Kalender schreiben
 ```
 
-`contracts.calendar_connectors` definiert Konto, Erinnerung, Anfrage, Route,
-Ereignis, Aktion, Freigabe und Providerreferenz. Die Konfiguration speichert
-keine Zugangsdaten. `application.calendar_connectors` setzt ausschließlich auf
-dem vollständigen Phase-17-Plan auf und übernimmt `backend_source` sowie
-`source_rule_ids`. `capabilities.calendar_connector_gateway` enthält den
-Provider-Seam und den synthetischen Abnahmeprovider.
 
-UpToday wird nicht importiert; die Erstellung bleibt beim vorhandenen
-RFC-5545-Handoff. Routinika ist nur durch gehashte Bundle-Dateien belegt und
-bleibt ohne Live-Vertrag blockiert. Google wird als agentischer Skill-Handoff
-mit expliziter Kalender-ID, leeren Teilnehmern, Offsetzeit, Transparenz und
-Reminderpayload modelliert, aber nicht aufgerufen.
+`contracts.calendar_connectors` defines account, reminder, request, route, event, action, approval and provider reference. Configuration stores no credentials. `application.calendar_connectors` relies exclusively on the complete Phase‑17 plan and incorporates `backend_source` as well as `source_rule_ids`. `capabilities.calendar_connector_gateway` contains the provider seam and the synthetic acceptance provider.
 
-Update und Löschen bleiben ohne vorhandene Provider-Ereignisreferenz
-blockiert. Der synthetische Gateway lehnt doppelte Idempotenzschlüssel in einem
-Lauf ab, besitzt keinen Netzwerkpfad und kann niemals einen realen
-Kalendereintrag behaupten.
+UpToday is not imported; creation remains with the existing RFC‑5545 handoff. Routinika is only occupied by hashed bundle files and remains blocked without a live contract. Google is modeled as an agentic skill handoff with explicit calendar ID, empty participants, offset time, transparency and reminder payload, but is not invoked.
 
-## Phase-28-Persönliche Notizen
+Update and delete remain blocked without an existing provider event reference. The synthetic gateway rejects duplicate idempotence keys in a run, has no network path and can never claim a real calendar entry.
+
+## Phase‑28 Personal Notes
 
 ```text
 menschliche Notizanfrage + explizite Referenzen
@@ -841,27 +617,14 @@ menschliche Notizanfrage + explizite Referenzen
   → Providerdaten read-only zurücklesen und Ausführung belegen
 ```
 
-`contracts.personal_notes` definiert Anfrage, Referenzen, Guidance, Plan,
-Approval, Version und Report. `application.personal_notes` trennt Führung und
-Inhalt und erzwingt die Plan-/Statebindung.
-`capabilities.personal_note_guide` ist ein providerneutraler Seam mit einem
-deterministischen No-Network-Provider. `bridges.llm_note` prüft Checkout,
-Revision, Paketversion und Schema.
 
-Die öffentliche `NoteStore`-Klasse initialisiert beim Konstruktor das
-SQLite-Schema. Plan, Liste und Historie verwenden deshalb einen engen
-read-only Adapter mit `mode=ro&immutable=1`; nur ein freigegebener Apply-Lauf
-ruft `NoteStore.write()` auf. FolderHome erzeugt keine zweite Notizdatenbank.
-Create, Edit und Revert sind ausschließlich append-only. Ein Revert ist eine
-neue Fassung mit dem Inhalt einer früheren Revision.
+`contracts.personal_notes` defines request, references, guidance, plan, approval, version and report. `application.personal_notes` separates leadership and content and enforces the plan/state binding. `capabilities.personal_note_guide` is a provider‑neutral seam with a deterministic no‑network provider. `bridges.llm_note` checks checkout, revision, package version and schema.
 
-Der Mensch bleibt Autor. Der Guide darf nur Fragen und Vorschläge liefern und
-setzt `confirmed_content_changed=false`. Remote-LLMs und externe
-Synchronisierung sind in Phase 28 nicht ausführbar. Dokument- und
-Kalenderreferenzen entstehen nur aus der Anfrage. Profile sind organisatorisch;
-das Betriebssystemkonto bleibt die Sicherheitsgrenze.
+Public `NoteStore` class initializes the SQLite schema in its constructor. Plan, list and history therefore use a tight read‑only adapter with `mode=ro&immutable=1`; only an approved apply run invokes `NoteStore.write()`. FolderHome does not create a second note database. Create, edit and revert are exclusively append‑only. A revert is a new version with the content of an earlier revision.
 
-## Phase-29-Steuerarbeitsunterlage
+The human remains author. The guide may only provide questions and suggestions and sets `confirmed_content_changed=false`. Remote LLMs and external synchronization are not executable in Phase 28. Document and calendar references arise only from the request. Profiles are organizational; the OS account remains the security boundary.
+
+## Phase‑29 Tax Worksheet
 
 ```text
 Steuerbeleganfrage + Dokumentkatalog + optionaler Finanzstore + Profil
@@ -874,25 +637,14 @@ Steuerbeleganfrage + Dokumentkatalog + optionaler Finanzstore + Profil
   → privaten ZIP-Export separat planen und freigeben
 ```
 
-`contracts.tax` definiert Beleganfrage, Belegplan, Approvals und Berichte.
-`application.tax_workpaper` orchestriert ausschließlich vorhandenen
-Dokumentkatalog, Finanzstore und Profile. `bridges.tax_assistant` lädt den
-unveränderten Provider auf der Manifestrevision und nutzt seine öffentliche
-Beleg- und Export-API.
 
-Der Provider besitzt selbst kein Profilfeld. FolderHome legt deshalb pro
-Profil einen separaten Providerstore unter dem gemeinsamen lokalen State an.
-Das verhindert eine fachliche Vermischung von Arbeitsunterlagen, begründet
-aber keine Zugriffsbarriere innerhalb desselben Betriebssystemkontos.
+`contracts.tax` defines receipt request, receipt plan, approvals and reports. `application.tax_workpaper` orchestrates only the existing document catalog, financial store and profiles. `bridges.tax_assistant` loads the unchanged provider at the manifest revision and uses its public receipt and export API.
 
-Ein Kategorienkandidat ist nicht ausführbar. Erst eine ausdrückliche
-`confirmed_category` aus der begrenzten Providerliste kann nach Approval
-gespeichert werden. Das ist weiterhin keine Abziehbarkeitsprüfung. Exportziel,
-Steuerjahr, Profil und Store-Revision sind im Exportplan gebunden; bestehende
-Ziele werden nicht überschrieben. Netzwerk, amtliches Format, Steuerberatung,
-ELSTER, ERiC und Portalübermittlung sind nicht implementiert.
+The provider itself has no profile field. FolderHome therefore creates a separate provider store per profile under the shared local state. This prevents domain mixing of work documents but does not create an access barrier within the same OS account.
 
-## Phase-30-Wetter- und Newspaper-Desktopbrief
+A category candidate is not executable. Only an explicit `confirmed_category` from the limited provider list can be saved after approval. This is still not a deductibility check. Export target, tax year, profile and store revision are bound in the export plan; existing targets are not overwritten. Network, official format, tax advice, ELSTER, ERiC and portal transmission are not implemented.
+
+## Phase‑30 Weather and Newspaper Desktop Brief
 
 ```text
 Briefinganfrage + Profil + lokale Sensitivitätsfreigabe
@@ -905,23 +657,14 @@ Briefinganfrage + Profil + lokale Sensitivitätsfreigabe
   → nach Desktop-Approval exakt diesen Hash in den Desktopordner kopieren
 ```
 
-`contracts.daily_briefing` definiert Anfrage, Snapshots, Artikel, Plan,
-Approvals und Berichte. `application.daily_briefing` lädt die Eingaben,
-bewertet den Datenstand, rendert HTML und führt die zwei lokalen Schreibpfade
-aus. Es gibt keinen Briefingstore und keinen importierten BACH-Code.
 
-Ein Snapshot ist ein Providerseam, keine Aktualitätsbehauptung. Alter wird
-aus `as_of` und Abrufzeitpunkt berechnet; zukünftige Daten blockieren,
-veraltete Daten bleiben mit `review_required` sichtbar. Inhalte und URLs
-werden vor HTML-Ausgabe escaped, Quellen müssen HTTPS ohne eingebettete
-Zugangsdaten verwenden.
+`contracts.daily_briefing` defines request, snapshots, articles, plan, approvals and reports. `application.daily_briefing` loads the inputs, evaluates the data status, renders HTML and executes the two local write paths. There is no briefing store and no imported BACH code.
 
-Zwischenablage und Desktopziel liegen in getrennten Ordnern und werden nie
-überschrieben. Die Desktopzustellung liest ausschließlich die zuvor
-gerenderte Datei und prüft ihren HTML-Hash. Live-Wetter, Live-News und eine
-wiederkehrende Schedulerberechtigung bleiben explizit unimplementiert.
+A snapshot is a provider seam, not a timeliness claim. Age is calculated from `as_of` and retrieval timestamp; future data blocks, outdated data remains visible with `review_required`. Contents and URLs are escaped before HTML output; sources must use HTTPS without embedded credentials.
 
-## Phase-31-Bescheidverständnis
+Clipboard and desktop target reside in separate folders and are never overwritten. Desktop delivery reads only the previously rendered file and checks its HTML hash. Live weather, live news and a recurring scheduler permission remain explicitly unimplemented.
+
+## Phase‑31 Official Notice Understanding
 
 ```text
 lokaler Bescheid + Profil + Sensitivitätsfreigabe + explizites as_of
@@ -935,26 +678,14 @@ lokaler Bescheid + Profil + Sensitivitätsfreigabe + explizites as_of
   → nach Output-Gate neue Markdown-/JSON-Berichte schreiben
 ```
 
-`contracts.official_notices` definiert Feldevidenz, Konflikte, Analyse und
-Ausgabebericht. `application.official_notices` hält die Labelmenge eng,
-validiert ausdrücklich gedruckte ISO-Daten und rendert einen
-Never-overwrite-Bericht. Der vorhandene `DocServicesBridge` liefert nur die
-revisionsgebundene lokale Extraktion.
 
-Ein optionales Zugangsdatum ist ausschließlich eine Nutzerangabe. Relative
-Fristtexte werden nicht in Daten umgerechnet. Die Differenz zwischen
-`as_of` und einem ausdrücklich gedruckten Fristdatum ist nur
-Kalenderarithmetik und keine gesetzliche Fristberechnung. Mehrdeutige
-Einzelfelder werden nicht willkürlich aufgelöst.
+`contracts.official_notices` defines field evidence, conflicts, analysis and output report. `application.official_notices` keeps the label set tight, explicitly validates printed ISO dates and renders a never‑overwrite report. Existing `DocServicesBridge` provides only the revision‑bound local extraction.
 
-Der damalige OneDrive-Checkout wurde wegen fremder Änderungen,
-Upstreamrückstand und unvollständigem allgemeinem Sozialrechtskorpus nicht
-geladen. Phase 31 führt weiterhin keine Rechtsprüfung durch und erzeugt weder
-Antwort noch Widerspruch. Phase 34 qualifiziert einen getrennten sauberen
-Checkout ausschließlich als Registry-/Quellenprovider; diese spätere Bridge
-ändert die Grenzen der Bescheidanalyse nicht.
+Optional access date is solely a user‑provided value. Relative deadline wordings are not converted into dates. The difference between `as_of` and an explicitly printed deadline date is merely calendar arithmetic and not a legal deadline calculation. Ambiguous single fields are not arbitrarily resolved.
 
-## Phase-32-Verwaltungsentwürfe
+The OneDrive checkout was not loaded due to external changes, upstream lag and an incomplete general social‑law corpus. Phase 31 still performs no legal review and generates neither response nor objection. Phase 34 qualifies a separate clean checkout solely as a registry/source provider; this later bridge does not change the boundaries of the official notice analysis.
+
+## Phase‑32 Administrative Drafts
 
 ```text
 Entwurfsanfrage + Profil + Sensitivitätsfreigabe
@@ -968,23 +699,14 @@ Entwurfsanfrage + Profil + Sensitivitätsfreigabe
   → nach exakter Inhaltsapproval neue Markdown-/TXT-Dateien schreiben
 ```
 
-`contracts.administrative_drafts` definiert Anfrage, Faktprovenienz, Plan,
-Approval und Ausgabereport. `application.administrative_drafts` verbindet
-die Bescheidanalyse mit `application.correspondence`; es gibt keinen zweiten
-Renderer und keinen Entwurfsstore.
 
-Bescheidentwürfe binden den erwarteten SHA-256 portabel in der Anfrage und
-den konkreten Analyse-Lauf im Plan. Ein Widerspruchsentwurf verlangt einen
-ausdrücklich gelesenen Rechtsbehelf `Widerspruch`, eindeutige Bescheidfelder
-und denselben Empfänger wie die gelesene Behörde. Das ist nur ein
-Plausibilitätsgate, keine Rechtsentscheidung.
+`contracts.administrative_drafts` defines request, fact provenance, plan, approval and output report. `application.administrative_drafts` connects the official notice analysis with `application.correspondence`; there is no second renderer and no draft store.
 
-Vorschauen schreiben nichts. Die lokale Ausgabe benötigt eine Approval für
-Plan-ID, Markdownhash, TXThash, Inhaltsprüfung, verstandene fehlende
-Rechtsprüfung und lokalen Write. `send_supported`, `sent`,
-`eligibility_assessed` und `deadline_legally_calculated` bleiben falsch.
+Official notice drafts bind the expected portable SHA‑256 in the request and the concrete analysis run in the plan. An objection draft requires an explicitly read legal remedy `Widerspruch`, unique official‑notice fields and the same recipient as the read authority. This is only a plausibility gate, not a legal decision.
 
-## Phase-33-Leistungs- und Fördervorcheck
+Previews write nothing. The local output requires an approval for plan ID, markdown hash, TXThash, content check, understood missing legal review and local write. `send_supported`, `sent`, `eligibility_assessed` and `deadline_legally_calculated` remain incorrect.
+
+## Phase‑33 Benefit and Funding Pre‑Screen
 
 ```text
 Sensitivitätsfreigabe + bekanntes Profil
@@ -997,25 +719,14 @@ Sensitivitätsfreigabe + bekanntes Profil
   → optional neue Markdown-/JSON-Berichte hinter Output-Gate schreiben
 ```
 
-`contracts.benefit_screening` definiert Profilfakten, Quellen, Kriterien,
-Programme, Katalog, Auswertungen und Berichte.
-`application.benefit_screening` lädt die strikten JSON-Snapshots, prüft
-Quellenalter und führt ausschließlich lokale Routingvergleiche aus. Es gibt
-keinen Profilstore, Regelcrawler oder Portalclient.
 
-Ein passendes Routingmerkmal erzeugt nur
-`official_handoff_recommended`. Fehlende Fakten werden nicht geraten; ein
-Mismatch heißt nicht „nicht leistungsberechtigt“. Ist eine verwendete Quelle
-zu alt, werden ihre Kriterien nicht ausgewertet. Der Katalog muss
-`complete=false` und pro Programm alle nicht modellierten Anforderungen
-ausweisen.
+`contracts.benefit_screening` defines profile facts, sources, criteria, programs, catalog, evaluations and reports. `application.benefit_screening` loads the strict JSON snapshots, checks source age and performs only local routing comparisons. There is no profile store, rule crawler or portal client.
 
-Die drei Beispielhandoffs verweisen auf Sozialplattform, KiZ-Lotse und
-Wohngeld-Plus-Rechner. FolderHome öffnet sie nicht automatisch und überträgt
-keine Profildaten. Anspruch, Leistungshöhe, Antrag und Netzwerk bleiben
-außerhalb der Komponente.
+A matching routing feature generates only `official_handoff_recommended`. Missing facts are not guessed; a mismatch does not mean “not eligible for benefit”. If a used source is too old, its criteria are not evaluated. The catalog must expose `complete=false` and, per program, all unmodeled requirements.
 
-## Phase-34-Rechtsänderungsmonitor
+The three example handoffs refer to a social platform, KiZ guide and housing‑benefit‑plus calculator. FolderHome does not automatically open them nor transfer profile data. Entitlement, benefit amount, application and network remain outside the component.
+
+## Phase‑34 Legal Change Monitor
 
 ```text
 gepinntes law-checker-Manifest + sauberer Checkout
@@ -1029,25 +740,14 @@ gepinntes law-checker-Manifest + sauberer Checkout
   → nach Output-Gate neue Markdown-/JSON-Dateien schreiben
 ```
 
-`bridges.law_checker` importiert keinen Agentenworkflow und startet keinen
-Fetcher. Die Bridge validiert eine saubere Git-Revision, Paketversion,
-`ellmos.module.v2`-Identität sowie Registryversion und aktive Schlüssel. Der
-Provider bleibt unverändert; es gibt keine behauptete Python-API für eine
-automatische Rechtsprüfung.
 
-`contracts.legal_change_monitor` hält Rechtsquelle, Wortlauthash,
-Veröffentlichungsstufe, explizites Interesse, technischen Diff,
-Prüfkandidat und Ausgabe getrennt. `application.legal_change_monitor` prüft
-die drei gebundenen Eingabedateien vor Vergleich und Ausgabe erneut. Nur
-amtliche Produktivdomains sind erlaubt. Ein synthetischer Fixturepfad ist
-doppelt markiert und benötigt ein eigenes Testgate.
+`bridges.law_checker` imports no agent workflow and starts no fetcher. The bridge validates a clean git revision, package version, `ellmos.module.v2` identity as well as registry version and active keys. Provider remains unchanged; there is no claimed Python API for automatic legal review.
 
-Ein Themen-Treffer ist keine festgestellte Betroffenheit. Entwurf,
-Rechtswirkung, Übergangsrecht, Fristberechnung, Bescheidbewertung und
-Benachrichtigung bleiben eigenständige Folgeschritte. Der lokale Lauf nutzt
-kein Netzwerk und registriert keinen Scheduler.
+`contracts.legal_change_monitor` holds legal source, word hash, publication level, explicit interest, technical diff, test candidate and output separately. `application.legal_change_monitor` rechecks the three bound input files before comparison and output. Only official production domains are allowed. A synthetic fixture path is double‑marked and requires its own test gate.
 
-## Phase-24-Korrespondenzstudio
+A topic hit is not a determined impact. Draft, legal effect, transitional law, deadline calculation, official‑notice assessment and notification remain separate follow‑up steps. The local run uses no network and registers no scheduler.
+
+## Phase‑24 Correspondence Studio
 
 ```text
 Sensitivitäts-Gate + Anfrage + Vorlagen + Designs + vorhandenes Profil
@@ -1060,24 +760,14 @@ Sensitivitäts-Gate + Anfrage + Vorlagen + Designs + vorhandenes Profil
   → nach eigenem Output-Gate beide neuen Dateien hashgeprüft schreiben
 ```
 
-`contracts.correspondence` definiert Parteien, Briefdesign, Vorlage,
-Anfrage, Vorschau, Formathandoff und Ausgabereport.
-`application.correspondence` lädt die JSON-Konfiguration, löst das Design auf,
-füllt ausschließlich validierte Variablen und veröffentlicht den
-Never-overwrite-Batch. Der Kern besitzt keinen Store und keine Abhängigkeit
-von einem bestimmten Office- oder Versandprovider.
 
-Eine Vorschau ist read-only, enthält `llm_invoked=false` und schreibt nichts.
-Der Markdown-/TXT-Ausgabepfad benötigt eine zweite Freigabe, prüft vorab beide
-Ziele und löscht bei einem eigenen Teilfehler nur Dateien, deren Inhalt noch
-dem erwarteten Hash entspricht. Bestehende Dateien werden nicht verändert.
+`contracts.correspondence` defines parties, letter design, template, request, preview, format handoff and output report. `application.correspondence` loads the JSON configuration, resolves the design, fills only validated variables and publishes the never‑overwrite batch. The core has no store and no dependency on a specific office or shipping provider.
 
-report-forge wird wegen seiner uneinheitlichen Distribution-/Runtime-Version
-nicht aufgerufen. DOCX und ODT sind reine Handoff-Verträge. Versand, Druck,
-Upload, Rechtsprüfung und automatische Fristentscheidung liegen außerhalb
-dieser Komponente.
+Preview is read‑only, contains `llm_invoked=false` and writes nothing. The Markdown/TXT output path requires a second approval, pre‑checks both targets and on its own partial error deletes only files whose content still matches the expected hash. Existing files are not altered.
 
-## Phase-23-Versicherungs- und Vertragscockpit
+report‑forge is not invoked due to its inconsistent distribution/runtime version. DOCX and ODT are pure handoff contracts. Shipping, printing, upload, legal review and automatic deadline decision lie outside this component.
+
+## Phase‑23 Insurance and Contract Cockpit
 
 ```text
 explizite Cockpit-Anfrage + gemeinsamer FolderHome-State + Sensitivitäts-Gate
@@ -1091,18 +781,12 @@ explizite Cockpit-Anfrage + gemeinsamer FolderHome-State + Sensitivitäts-Gate
   → JSON und Markdown als neue Dateien außerhalb des State schreiben
 ```
 
-`contracts.contract_cockpit` definiert den expliziten Join und die
-read-only Ausgabe. `application.contract_cockpit` setzt ausschließlich
-vorhandene FolderHome-Verträge zusammen. Es gibt keinen neuen Cockpit-Store.
 
-Ein gemeinsamer Name ist kein Vertragsbeweis. Anfragefelder für Objekt,
-Gegenpartei, Kalenderbegriffe und Konten sind deshalb Pflicht beziehungsweise
-bewusst leere Zuordnungen. Der Report enthält Komponentenrevisionen und
-vorhandene Quell- oder Buchungs-IDs, aber keinen extrahierten Dokumentrohtext.
-Archivierung, Kontaktwechsel, Kalenderaktion, Zahlung und Bankzugriff bleiben
-ausgeschlossen; der Cockpit-Lauf verändert weder State noch Quelldokumente.
+`contracts.contract_cockpit` defines the explicit join and the read‑only output. `application.contract_cockpit` assembles only existing FolderHome contracts. There is no new cockpit store.
 
-## Phase-22-Gesundheitsdossier
+A shared name is not a contract proof. Request fields for object, counterparty, calendar terms and accounts are therefore mandatory or intentionally empty mappings. The report contains component revisions and existing source or booking IDs, but no extracted raw document text. Archiving, contact change, calendar action, payment and bank access remain excluded; the cockpit run changes neither state nor source documents.
+
+## Phase‑22 Health Dossier
 
 ```text
 expliziter Gesundheitsordner + Profil + Stichtag + Sensitivitätsfreigabe
@@ -1116,32 +800,16 @@ expliziter Gesundheitsordner + Profil + Stichtag + Sensitivitätsfreigabe
   → Markdown und JSON als neue Dateien außerhalb des Quellordners schreiben
 ```
 
-Der neue Kern liegt unter `contracts.health` und
-`application.health_dossier`. Er besitzt keinen Store und verändert weder
-Quelle noch Dokumentindex. Die optionale Capability
-`health_report_handoff` beschreibt nur einen möglichen DOCX-/ODT-Handoff;
-sie ruft keinen Provider auf und blockiert uneinheitliche Provideridentitäten.
 
-doc-services ROT wird nicht allgemein überstimmt. Nach dem ausdrücklichen
-lokalen Gate ist nur ein Providerbefund zugelassen, dessen sämtliche roten
-Fundzeilen `Gesundheitsdaten` sind. Ein zusätzlicher IBAN-, Token-,
-Zugangsdaten- oder Schlüsselfund blockiert weiterhin.
+The new core resides under `contracts.health` and `application.health_dossier`. It has no store and does not modify source or document index. The optional capability `health_report_handoff` describes only a possible DOCX/ODT handoff; it does not invoke a provider and blocks inconsistent provider identities.
 
-`Dokumentdatum` ist die einzige Zeitbasis. Dateiname und Dateisystemzeit
-werden nicht als medizinische Datierung geraten. Gleich benannte
-`Dokumentierte Angabe: Feld = Wert`-Zeilen können direkte Konflikte bilden.
-Abstände zwischen datierten Quellen werden als mögliche Dokumentlücken, nie
-als Behandlungs- oder Versorgungslücken bezeichnet. Diagnose, Empfehlung und
-Vollständigkeit werden ausdrücklich nicht behauptet.
+doc‑services ROT is not generally overridden. After the explicit local gate only a provider finding whose all red‑finding lines are `Gesundheitsdaten` is allowed. Additional IBAN, token, credential or key findings remain blocked.
 
-## Lokale Anwendungsgrenze
+`Dokumentdatum` is the sole time basis. Filename and filesystem timestamp are not guessed as medical dating. Identically named `Dokumentierte Angabe: Feld = Wert` lines can form direct conflicts. Gaps between dated sources are treated as possible document gaps, never as treatment or care gaps. Diagnosis, recommendation and completeness are expressly not claimed.
 
-Phase 35 legt eine schmale Bedienoberfläche über vorhandene Application-
-Services. `contracts.local_app` beschreibt Einstellungen, OS-Identität und
-HTTP-Antworten; `application.local_app` besitzt die feste Request-Allowlist;
-`local_server` übersetzt sie ausschließlich in einen lokalen
-`ThreadingHTTPServer`. Suche und Dossier bleiben Aufrufe des vorhandenen
-Dokumentkerns.
+## Local Application Boundary
+
+Phase 35 provides a narrow UI over existing application services. `contracts.local_app` describes settings, OS identity and HTTP responses; `application.local_app` holds the fixed request allowlist; `local_server` translates it solely into a local `ThreadingHTTPServer`. Search and dossier remain calls to the existing document core.
 
 ```text
 explizites app-serve-Gate
@@ -1153,92 +821,38 @@ explizites app-serve-Gate
   → keine Shell, freien Pfade, CORS oder externen Ressourcen
 ```
 
-Das Token begrenzt die lokale Sitzung, ist aber kein Benutzerkonto. Profile
-wie Lukas, Hanna und Simon liefern nur Organisationskontext. Dateirechte und
-Prozesskonto des Betriebssystems bleiben die dauerhafte Isolation. Schreibende
-oder sensible Fachketten werden nicht generisch über HTTP exponiert und
-behalten ihre vorhandenen Approvals und Gates.
 
-## Sicherheitsmodell
+The token limits the local session but is not a user account. Profiles such as Lukas, Hanna and Simon provide only organizational context. File rights and the OS process account remain the permanent isolation. Writing or sensitive domain chains are not generically exposed over HTTP and retain their existing approvals and gates.
 
-- Default deny für unbekannte oder ungedeckte Side-Effects.
-- Ein Profil innerhalb eines OS-Kontos ist keine Sicherheitsgrenze.
-- Die bisherigen End-to-End-Abnahmen verarbeiten ausschließlich synthetische
-  Dokumente.
-- Laufberichte enthalten Provenienz und Entscheidungen, aber keine Secrets.
-- Standardserialisierungen von `DocumentRecord` enthalten keinen Rohtext.
-- Der lokale Indexschreibzugriff benötigt eine ausdrückliche Freigabe.
-- Externe Live-Adapter bleiben gesperrt; die interne Einzeldateitransaktion
-  benötigt Plan-, Aktions-, Hash- und Dateisystemfreigabe.
-- Eine Routine benötigt zusätzlich eine State-Freigabe und registriert keinen
-  Betriebssystem-Scheduler.
-- Die Mehrfach-Watch-Queue ist ausschließlich ein Planartefakt und deklariert
-  `side_effects=[]` sowie `scheduler_registered=false`.
-- Der Scheduler-Runner darf ausschließlich seinen eigenen Lock und
-  append-only Laufberichte schreiben; Installation, Checkpoints und
-  Dokumentaktionen bleiben ausgeschlossen.
-- Das Kontaktregister schreibt nur nach Approval- und State-Gate. Dokument-
-  und State-Roots dürfen sich nicht überlappen; automatische Kontaktlöschung
-  und externe Weitergabe bleiben ausgeschlossen.
-- Der Kalenderplan deklariert `connector_invoked=false`,
-  `automatic_calendar_write=false` und `completeness_guaranteed=false`.
-  Ausführung benötigt Approval und State-Gate, ICS zusätzlich ein Output-Gate;
-  geplante ICS-Ziele dürfen weder Dokumentroot noch State überlappen.
-- FindCall lädt keinen Live-Transport und akzeptiert nur
-  `simulated=true`, `network_used=false` und `phone_calls_placed=false`.
-  Rufnummern bleiben in Plan und Bericht maskiert; eine Zusage ist verboten.
-- Der Finanzimport benötigt Approval, aktuelle Revision, Quellhash und
-  State-Gate. Es gibt keinen Bankzugriff, keine Zahlung, keine Löschung und
-  keine automatische Vertrags- oder Finanzentscheidung.
-- Der Inventarimport benötigt Approval, aktuelle Revision, Quellhash und
-  State-Gate. Ereignisse sind append-only; Bestellung, Lieferantenkontakt,
-  automatische Löschung und Vollständigkeitsbehauptung sind ausgeschlossen.
-- Der Medikamentenimport und jede Einnahmebestätigung benötigen eine aktuelle
-  Revision und ein State-Gate. Tagesansichten schreiben nicht; Diagnose,
-  Dosisentscheidung, automatische Erinnerung und Bestandsänderung sind
-  ausgeschlossen.
-- Das Gesundheitsdossier liest erst nach lokaler Sensitivitätsfreigabe und
-  verarbeitet rote Providerbefunde nur bei ausschließlich
-  gesundheitsbezogenen Fundstellen. Es schreibt ausschließlich neue, explizit
-  gewählte Markdown-/JSON-Ausgaben und ruft keinen externen Provider auf.
-- Das Vertragscockpit prüft die Sensitivitätsfreigabe vor dem ersten
-  Komponentenlesezugriff. Zuordnungen sind explizit; Archive, Kontakte,
-  Kalender und Finanzen bleiben read-only und der gemeinsame State
-  unverändert.
-- Das Korrespondenzstudio prüft das Sensitivitäts-Gate vor der Anfrage,
-  trennt Vorschau und Ausgabe und erlaubt ausschließlich neue Markdown-/TXT-
-  Dateien nach eigenem Gate. Office-Handoffs rufen keinen Provider auf.
-- Das Artefaktstudio führt in Planläufen keine Skills oder Module aus.
-  Designausgaben benötigen Sensitivitäts- und Output-Gate; SVG-Erzeugung ist
-  keine Druck- oder Veröffentlichungsfreigabe.
-- Mailkonten akzeptieren nur Secret-Referenzen; unbekannte Felder und
-  eingebettete Passwörter blockieren die Konfiguration. Ingest garantiert eine
-  leere Postfachmutationsliste. Versand erfordert exakte Empfänger-, Hash-,
-  Netzwerk- und Idempotenzbindung; die aktuelle Abnahme ist rein synthetisch.
-- Steuerbelege benötigen einen aktuellen Dokumenthash, eine menschlich
-  bestätigte Eingabegruppe, exakte Approval und State-Gate. Der private
-  ZIP-Export besitzt zusätzlich eine eigene Approval und ein Output-Gate;
-  Steuerberatung, amtliches Format, Netzwerk und Portal bleiben ausgeschlossen.
-- Der tägliche Brief liest ausschließlich lokale, hashgebundene Snapshots.
-  Veraltete Daten werden markiert; Rendern und Desktopkopie benötigen
-  getrennte Approvals. Live-Netzwerk und Schedulerregistrierung bleiben aus.
-- Die Bescheidanalyse übernimmt ausschließlich bekannte, ausdrücklich
-  gelabelte Angaben mit Zeilen- und Hashbeleg. Relative Fristtexte werden
-  nicht umgerechnet; Rechtsprüfung, Antwort und Behördenaktion bleiben aus.
-- Verwaltungsentwürfe verwenden den vorhandenen Korrespondenzkern, halten
-  Dokumentevidenz und bereitgestellte Angaben getrennt und tragen sichtbar
-  `ENTWURF`. Die Output-Approval erlaubt weder Rechtsprüfung noch Versand.
-- Der Leistungsvorcheck liest lokale `user_provided`-Fakten und einen
-  `complete=false`-Katalog. Veraltete Quellen blockieren die Route; amtliche
-  Vorchecks werden nur verlinkt und erhalten keine automatische Datenübergabe.
-- Der Rechtsänderungsmonitor akzeptiert produktiv nur zugelassene amtliche
-  HTTPS-Domains und bindet alle Eingaben per SHA-256. Themen-Treffer bleiben
-  Prüfkandidaten; Rechtswirkung, Betroffenheit, Fristen, Netzwerk und
-  Benachrichtigung bleiben technisch ausgeschlossen.
-- Die lokale App bindet nur an `127.0.0.1`, verlangt ein Startgate und ein
-  kurzlebiges Token, prüft Host und Origin und akzeptiert ausschließlich
-  allowlistete Schemas. Providerfehler geben keine internen Pfade aus; Profile
-  werden nicht als Zugriffskontrolle ausgegeben.
+## Security Model
+
+- Default deny for unknown or uncovered side‑effects.  
+- A profile within an OS account is not a security boundary.  
+- The existing end‑to‑end approvals process only synthetic documents.  
+- Run reports contain provenance and decisions, but no secrets.  
+- Standard serializations of `DocumentRecord` contain no raw text.  
+- Local index write access requires an explicit approval.  
+- External live adapters remain locked; the internal single‑file transaction requires plan, action, hash and filesystem approval.  
+- A routine additionally requires a state approval and does not register an OS scheduler.  
+- The multi‑watch queue is solely a plan artifact and declares `side_effects=[]` as well as `scheduler_registered=false`.  
+- The scheduler runner may only write its own lock and append‑only run reports; installation, checkpoints and document actions remain excluded.  
+- The contact register writes only after approval and state gate. Document and state roots may not overlap; automatic contact deletion and external sharing remain excluded.  
+- The calendar plan declares `connector_invoked=false`, `automatic_calendar_write=false` and `completeness_guaranteed=false`. Execution requires approval and state gate, and ICS additionally an output gate; planned ICS targets may not overlap either document root or state.  
+- FindCall loads no live transport and accepts only `simulated=true`, `network_used=false` and `phone_calls_placed=false`. Phone numbers remain masked in plan and report; a commitment is prohibited.  
+- The financial import requires approval, current revision, source hash and state gate. There is no bank access, no payment, no deletion and no automatic contract or financial decision.  
+- The inventory import requires approval, current revision, source hash and state gate. Events are append‑only; ordering, supplier contact, automatic deletion and completeness claim are excluded.  
+- The medication import and any intake confirmation require a current revision and a state gate. Daily views do not write; diagnosis, dosage decision, automatic reminder and inventory change are excluded.  
+- The health dossier reads only after local sensitivity approval and processes red provider findings only for exclusively health‑related findings. It writes only new, explicitly chosen markdown/JSON outputs and does not invoke any external provider.  
+- The contract cockpit checks the sensitivity approval before the first component read access. Mappings are explicit; archives, contacts, calendar and finances remain read‑only and the shared state unchanged.  
+- The correspondence studio checks the sensitivity gate before the request, separates preview and output and allows only new markdown/TXT files after its own gate. Office handoffs do not invoke any provider.  
+- The artifact studio runs no skills or modules in plan runs. Design outputs require sensitivity and output gate; SVG generation is not a printing or publishing approval.  
+- Mail accounts accept only secret references; unknown fields and embedded passwords block the configuration. Ingest guarantees an empty mailbox mutation list. Sending requires exact recipient, hash, network and idempotence binding; the current approval is purely synthetic.  
+- Tax receipts require a current document hash, a human‑confirmed input group, exact approval and state gate. The private ZIP export also has its own approval and an output gate; tax advice, official format, network and portal remain excluded.  
+- The daily brief reads only local, hash‑bound snapshots. Outdated data is marked; rendering and desktop copy require separate approvals. Live network and scheduler registration are omitted.  
+- The official notice analysis takes only known, explicitly labeled entries with line and hash evidence. Relative deadline wordings are not converted; legal review, response and authority action remain omitted.  
+- Administrative drafts use the existing correspondence core, keep document evidence and provided data separate and visibly carry `ENTWURF`. The output approval allows neither legal review nor shipping.  
+- The benefit pre‑screen reads local `user_provided` facts and a `complete=false` catalog. Outdated sources block the route; official pre‑checks are only linked and receive no automatic data transfer.  
+- The legal change monitor accepts in production only approved official HTTPS domains and binds all inputs via SHA‑256. Topic hits remain test candidates; legal effect, impact, deadlines, network and notification remain technically excluded.  
+- The local app binds only to `127.0.0.1`, requires a start gate and a short‑lived token, checks host and origin and accepts only allow‑listed schemas. Provider errors do not expose internal paths; profiles are not emitted as access control.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

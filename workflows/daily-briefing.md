@@ -1,36 +1,34 @@
-# Workflow: Wetter- und Newspaper-Brief lokal zustellen
+# Workflow: Local Delivery of Weather and Newspaper Brief
 
-> **Last verified:** 2026-08-22
-> **Frequency:** nach Bereitstellung eines neuen, datierten Snapshotpaars
-> **Duration:** wenige Sekunden
+**English** | [Deutsch](./daily-briefing.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** after provisioning a new dated snapshot pair  
+> **Duration:** a few seconds  
 
 ## Purpose
 
-Einen Wetter- und Nachrichtensnapshot nachvollziehbar zu einem HTML-Brief
-bündeln und exakt diese Ausgabe nach einer zweiten Freigabe in einen
-gewählten Desktopordner kopieren.
+Bundle a weather and news snapshot into a traceable HTML brief and copy exactly this output after a second approval into a chosen Desktop folder.
 
 ## Preconditions
 
-- Wetter- und Nachrichtensnapshot folgen den FolderHome-V1-Schemas.
-- Profil, Briefingdatum, `as_of`, Zeitzone und Kategorien sind ausdrücklich
-  gesetzt.
-- Snapshotquellen verwenden HTTPS und besitzen Abrufzeitpunkte.
-- Der Desktopordner existiert bereits und ist ausdrücklich gewählt.
-- Ein Live-Abruf oder eine automatische Schedulerregistrierung wird nicht
-  erwartet.
+- Weather and news snapshots follow the FolderHome‑V1 schemas.  
+- Profile, briefing date, `as_of`, time zone and categories are explicitly set.  
+- Snapshot sources use HTTPS and have fetch timestamps.  
+- The Desktop folder already exists and is explicitly chosen.  
+- A live fetch or an automatic scheduler registration is not expected.
 
 ## Steps
 
-1. **Providergrenzen prüfen.**
+1. **Check provider boundaries.**  
 
    ```powershell
    $env:PYTHONPATH = "src"
    python -m folderhome briefing providers --json
    ```
+  
 
-2. **Plan read-only erzeugen.** Zwischenablage und Desktopziel müssen
-   verschiedene Ordner sein.
+2. **Create read‑only plan.** Clipboard and Desktop target must be different folders.  
 
    ```powershell
    python -m folderhome briefing plan `
@@ -40,58 +38,53 @@ gewählten Desktopordner kopieren.
      --desktop-file <Desktop\Morgenbrief.html> `
      --approve-sensitive-local-read --json
    ```
+  
 
-3. **Datenstand prüfen.** Wetterort, Beobachtungszeit, Nachrichtenquellen,
-   Kategorien, ausgelassene Artikel und jede `stale`-Warnung kontrollieren.
-4. **Render separat freigeben.** Approval bindet Plan-ID, Planhash,
-   HTML-Hash und Zwischenausgabe.
-5. **Neue HTML-Datei rendern.**
+3. **Check data status.** Verify weather location, observation time, news sources, categories, omitted articles and any `stale` warning.  
+4. **Release render separately.** Approval binds plan ID, plan hash, HTML hash and intermediate output.  
+5. **Render new HTML file.**  
 
    ```powershell
    python -m folderhome briefing render <Argumente aus Schritt 2> `
      --approval-file <render-approval.json> --approve-output-write --json
    ```
+  
 
-6. **Gerenderte Datei lokal öffnen und prüfen.** Links, Umlaute, Wetterwerte,
-   Warnungen und Quellenstand kontrollieren.
-7. **Desktopkopie separat freigeben.** Approval bindet denselben Plan- und
-   HTML-Hash sowie exakt das Desktopziel.
-8. **Exakten Hash zustellen.**
+6. **Open rendered file locally and verify.** Check links, umlauts, weather values, warnings and source status.  
+7. **Release Desktop copy separately.** Approval binds the same plan and HTML hash as well as exactly the Desktop target.  
+8. **Deliver exact hash.**  
 
    ```powershell
    python -m folderhome briefing deliver <Argumente aus Schritt 2> `
      --approval-file <desktop-approval.json> --approve-desktop-write --json
    ```
+  
 
-## Exit-Criteria
+## Exit criteria
 
-- [ ] Profil, Datum, Zeitzone und beide Snapshot-Hashes sind sichtbar.
-- [ ] Veraltete Daten sind als `stale` und `review_required` markiert.
-- [ ] Rendern hat keine Desktopdatei erzeugt.
-- [ ] Desktopzustellung hat exakt den freigegebenen HTML-Hash kopiert.
-- [ ] Keine vorhandene Datei wurde überschrieben.
-- [ ] Kein Netzwerk oder Scheduler wurde verwendet oder registriert.
+- [ ] Profile, date, time zone and both snapshot hashes are visible.  
+- [ ] Outdated data is marked as `stale` and `review_required`.  
+- [ ] Rendering did not produce a Desktop file.  
+- [ ] Desktop delivery copied exactly the approved HTML hash.  
+- [ ] No existing file was overwritten.  
+- [ ] No network or scheduler was used or registered.
 
-## Fallstricke
+## Pitfalls
 
-- Ein lokaler Snapshot ist kein Beleg für einen aktuell erfolgreichen
-  Live-Abruf.
-- `review_required` darf nicht als aktuelle oder vollständige Zeitung
-  dargestellt werden.
-- Das Render-Gate ersetzt nicht das Desktop-Gate.
-- Eine Einzelfreigabe ist keine dauerhafte Scheduler- oder Netzwerkvollmacht.
-- Profile ordnen Briefings; das Betriebssystemkonto bleibt die
-  Sicherheitsgrenze.
+- A local snapshot is not evidence of a currently successful live fetch.  
+- `review_required` must not be presented as a current or complete newspaper.  
+- The render gate does not replace the Desktop gate.  
+- A single approval is not a permanent scheduler or network authorization.  
+- Profiles organize briefings; the operating system account remains the security boundary.
 
-## Verwandte
+## Related
 
-- [`../docs/phase30-daily-briefing-plan.md`](../docs/phase30-daily-briefing-plan.md)
-- [`../skills/folderhome-daily-briefing/SKILL.md`](../skills/folderhome-daily-briefing/SKILL.md)
+- [`../docs/phase30-daily-briefing-plan.md`](../docs/phase30-daily-briefing-plan.md)  
+- [`../skills/folderhome-daily-briefing/SKILL.md`](../skills/folderhome-daily-briefing/SKILL.md)  
 - [`../reused/bach-daily-briefing/README.md`](../reused/bach-daily-briefing/README.md)
 
-## Historie
+## History
 
-- **2026-08-22** — lokales Snapshotbriefing und getrennte Desktopzustellung abgenommen
+- **2026-08-22** — local snapshot briefing and separate Desktop delivery approved  
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

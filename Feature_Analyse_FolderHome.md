@@ -1,125 +1,118 @@
-# Feature-Analyse: FolderHome
+# Feature Analysis: FolderHome
+
+**English** | [Deutsch](./Feature_Analyse_FolderHome.de.md)
 
 **Version:** 0.36  
-**Stand:** 2026-08-22  
-**Wettbewerbsname:** FolderHome
+**Date:** 2026-08-22  
+**Competition name:** FolderHome
 
-FolderHome ist ein lokaler Dokument- und Assistenzservice-Agent. Der neue
-Wettbewerbskern verbindet deklarierte Bestandsmodule, kapselt neue
-Alltagsfähigkeiten und führt natürliche Dokumentanfragen über einen echten,
-endlich begrenzten Strands-Agenten aus.
+FolderHome is a local document and assistance service agent. The new competition core connects declared existing modules, encapsulates new everyday capabilities, and executes natural document queries via a real, finitely bounded Strands agent.
 
-## Statuslegende
+## Status legend
 
-- **Lokal umgesetzt:** ausführbarer FolderHome-Code mit automatisiertem
-  Erfolgs- und Fail-closed-Nachweis.
-- **Handoff:** geprüfter Plan oder Providergrenze, aber bewusst kein
-  behaupteter Live-Dienst.
-- **Teilweise:** der sichere Kern ist vorhanden; ein gewünschter Renderer,
-  Connector, OCR-/LLM-Provider oder eine fachliche Entscheidung bleibt offen.
-- **Außerhalb:** nur mit späterer Produktentscheidung oder externer Freigabe.
+- **Locally implemented:** executable FolderHome code with automated success and fail‑closed evidence.  
+- **Handoff:** vetted plan or provider boundary, but deliberately no claimed live service.  
+- **Partial:** the secure core is present; a desired renderer, connector, OCR/LLM provider, or a domain decision remains open.  
+- **Outside:** only with a later product decision or external approval.
 
-## Featuredeckung
+## Feature coverage
 
-| Gewünschter Bereich | Stand | Umsetzung und ehrliche Grenze |
+| Desired area | Status | Implementation and honest limitation |
 |---|---|---|
-| Dokumente einsammeln | Lokal umgesetzt | Gepinnter doc-services-Ingest, Datenschutzgate, lokaler Index; Quelldateien bleiben unverändert |
-| Foto-/PDF-OCR | Teilweise | Providergrenze ist vorbereitet; OCR realer Fotos wurde im Wettbewerbsnachweis nicht ausgeführt |
-| Natürliche Dokumentensuche | Lokal umgesetzt | Schreibgeschützte Suche, unter anderem „Ich suche nach einem Dokument, in dem …“ |
-| Verstreute Themen finden | Lokal umgesetzt | Evidenzgebundenes Themendossier, etwa zu Krankenversicherung, mit sichtbarer Abdeckung |
-| Ordnerzusammenfassungen | Lokal umgesetzt | Dokumentname plus zwei bis drei extraktive Sätze und frei erzeugbares Ordnerdossier |
-| Berichte aus Ordnern | Lokal umgesetzt | Deterministischer Markdown-Bericht; externe LLM-Synthese bleibt ein separater Provider |
-| Dokumentversionen vergleichen | Lokal umgesetzt | Erklärte Neueste-Fassung-Heuristik, Satzvergleich und revisionsgebundener Archivierungsplan |
-| „Neueste KFZ-Versicherung“ | Lokal umgesetzt | Vertragscockpit verbindet Version, Objekt, Kontakt, Kosten, Termine und Datenabdeckung; Archivierung bleibt freigabepflichtig |
-| Lose Ordner ordnen | Lokal umgesetzt | FCSA-Dry-Run, Profilregeln, Gesamtplan, Zielkonflikte und selektive Ausführung |
-| Vorhandene Ordnung fortführen | Lokal umgesetzt | Regelvererbung und beobachtete Ordnerzustände; keine unbelegte Musterbehauptung |
-| Aus Nutzerkorrekturen lernen | Lokal umgesetzt | Hashgebundene Korrekturbeispiele werden zu prüfpflichtigen Regelkandidaten, nie still aktiviert |
-| Regelmäßige Verzeichnisscans | Lokal umgesetzt | Deklarierte Watches, unveränderliche Checkpoints, Queue und portabler Scheduler-Handoff |
-| Falsch sortierte Dateien korrigieren | Lokal umgesetzt | Plan, Freigabe, frischer Quellhash, Never-overwrite, Ablagebeleg und geprüftes Undo |
-| Globale/bereichsspezifische Regeln | Lokal umgesetzt | Benennung, Archiv, Papierkorb, Dateityp und Ziel als feste Vererbung global → Bereich → Profil → Profilbereich |
-| Ein Zielformat pro Ordner | Lokal umgesetzt | PDF-/TXT-Transformation mit Verlusthinweisen; andere Formate blockieren ohne Provider |
-| Dokumente bündeln | Lokal umgesetzt | Ein TXT oder PDF sowie ein Dokument pro Typ in deterministischem ZIP; Videos werden nicht als Inhalt vorgetäuscht |
-| Familienprofile | Lokal umgesetzt | Lukas/Hanna/Simon-Fixtures und bereichsspezifische Regeln; Profile sind keine Sicherheitskonten |
-| Audit- und Aufräumberichte | Lokal umgesetzt | Atomare JSON-Berichte, Entscheidungen, Hashes, Checkpoints und Rollbackstatus |
-| Kontakte aus Dokumenten | Lokal umgesetzt | Evidenzkandidaten, lokales Register, Objektzuordnung und sicherer Kontaktwechsel ohne automatische Löschung |
-| Termine aus Dokumenten | Lokal umgesetzt | Kandidaten mit Zeilenbeleg, lokaler Kalender und atomarer ICS-Handoff; keine Erkennungsgarantie |
-| Kalenderwahl | Handoff | UpToday-ICS geprüft; Routinika sichtbar blockiert; Google nur nach eigener Live-Freigabe |
-| Kontoauszüge/virtuelle Konten | Lokal umgesetzt | Centgenaue Buchungen, Kontobezug, Perioden, Kontostand und sichtbare Lücken; kein Banking-Zugriff |
-| Abo- und Kostenanalyse | Lokal umgesetzt | Wiederkehrende Kosten, aktiv/inaktiv-Kandidat, Monats-/Jahressumme und vorsichtige Folgemonatsprognose |
-| Versicherungsübersicht | Lokal umgesetzt | Objektgebundene Policen-, Kontakt-, Kosten-, Termin- und Versionssicht |
-| Haushalts-/Lagerbestand | Lokal umgesetzt | Append-only Bestandsereignisse, Orte, Mindestbestand sowie Einkaufs- und Ablaufkandidaten |
-| Medikamentenplan/-einnahme | Lokal umgesetzt | Evidenzgebundener Plan und getrennte bestätigte Einnahme; keine Dosierungsentscheidung |
-| Arztberichte synthetisieren | Lokal umgesetzt | Extraktive Gesundheitszeitlinie, Konflikte, Medikamente, Termine und Fragen; keine Diagnose |
-| Bescheide verstehen | Lokal umgesetzt | Arten, beschriftete Angaben, Konflikte und bereitgestellte Fristen; keine Rechtsprüfung |
-| Bescheide beantworten/Anträge | Lokal umgesetzt | Kontrollierte Widerspruchs-, Antwort- und Antragsentwürfe aus Profil und Evidenz; kein Versand |
-| Leistungsvorcheck | Lokal umgesetzt | Datierter Routingkatalog und amtliche nächste Prüfschritte; kein Anspruchs- oder Höhenbescheid |
-| Rechtsänderungen | Lokal umgesetzt | Vergleich lokaler Snapshots und Betroffenheitskandidaten; kein Webmonitoring oder Rechtsurteil |
-| Law-Checker | Handoff | Sauber gepinnte, read-only Quellen-/Registry-Bridge; keine erfundene Rechtsprüf-API |
-| Präsentation/Tabelle/Word/ODT | Handoff | Providerneutraler Artefaktplan und Qualitätsgates; spezialisierte Renderer werden nicht kopiert oder als lokal ausgeführt behauptet |
-| Briefdesign/Designset | Lokal umgesetzt | Profil-/Zweckvorlagen, Kontrastprüfung, JSON-/CSS-Tokens und kontrollierte Markdown-/TXT-Ausgabe |
-| Visitenkarte | Lokal umgesetzt | Escaped SVG-Vorschau, visuelle Freigabe und Never-overwrite-Batch |
-| Medienerstellung | Handoff | Revisionsgebundener ai-media-editor-Handoff ohne behauptete Medienausführung |
-| Mail-Ingest/-Versand | Handoff | IMAP-Plan, Entwurf, exakte Versandfreigabe und synthetisches Idempotenzledger; kein Live-Postfachtest |
-| Persönliche LLM-Notizen | Lokal umgesetzt | Geführte Anfrage, Freigabe und append-only Versionen über den gepinnten llm-note-Provider |
-| Steueragent | Lokal umgesetzt | Gekapselte Belegablage und private ZIP-Arbeitsunterlage; keine Steuerberatung oder Portalübermittlung |
-| Wetter/Newspaper am Desktop | Lokal umgesetzt | Lokale Snapshots, Frischekennzeichnung, HTML-Render und getrennte Desktopfreigabe; keine Live-Feeds |
-| HungryCall/Ringedingeding | Handoff | Revisionsgebundene lokale Dry-Run-Probes, keine Telefonie |
-| FindCall | Lokal umgesetzt | Generische serielle Angebots-/Terminplanung mit Zeit-, Preis- und Stoppgrenzen; nur Fixture-Provider |
-| Strands-Agent | Lokal umgesetzt | Echte `strands.Agent`-Schleife mit zwei read-only Tools für Suche und Themendossier |
-| Amazon Bedrock | Handoff | Derselbe Agent unterstützt `BedrockModel`, aber nur mit Modell-ID, Region und getrennten Netzwerk-/Datenweitergabegates; nicht live getestet |
-| API/GUI/CLI | Lokal umgesetzt | Gemeinsamer Application Service, Loopback-API, responsive lokale GUI und umfassende CLI |
-| OS-Kontotrennung | Lokal umgesetzt | Betriebssystemkonto und Dateirechte sind die Sicherheitsgrenze; keine Scheinsicherheit zwischen Profilen |
+| Collect documents | Locally implemented | Pinned doc‑services ingest, privacy gate, local index; source files remain unchanged |
+| Photo/PDF OCR | Partial | Provider boundary is prepared; OCR of real photos was not performed in the competition proof |
+| Natural document search | Locally implemented | Read‑only search, including “I’m looking for a document where …” |
+| Find scattered topics | Locally implemented | Evidence‑bound topic dossier, e.g., on health insurance, with visible coverage |
+| Folder summaries | Locally implemented | Document name plus two to three extractive sentences and freely generated folder dossier |
+| Reports from folders | Locally implemented | Deterministic Markdown report; external LLM synthesis remains a separate provider |
+| Compare document versions | Locally implemented | Declared latest‑version heuristic, sentence comparison and revision‑bound archiving plan |
+| “Latest vehicle insurance” | Locally implemented | Contract cockpit links version, object, contact, cost, appointments and data coverage; archiving remains subject to approval |
+| Organize loose folders | Locally implemented | FCSA dry run, profile rules, overall plan, goal conflicts and selective execution |
+| Continue existing order | Locally implemented | Rule inheritance and observed folder states; no unsupported pattern claim |
+| Learn from user corrections | Locally implemented | Hash‑bound correction examples become rule candidates requiring review, never silently activated |
+| Regular directory scans | Locally implemented | Declared watches, immutable checkpoints, queue and portable scheduler handoff |
+| Correct mis‑sorted files | Locally implemented | Plan, approval, fresh source hash, never‑overwrite, storage evidence and verified undo |
+| Global/area‑specific rules | Locally implemented | Naming, archive, trash, file type and destination as fixed inheritance global → area → profile → profile area |
+| One target format per folder | Locally implemented | PDF/TXT transformation with loss warnings; other formats blocked without provider |
+| Bundle documents | Locally implemented | One TXT or PDF and one document per type in deterministic ZIP; videos are not masqueraded as content |
+| Family profiles | Locally implemented | Lukas/Hanna/Simon fixtures and area‑specific rules; profiles are not security accounts |
+| Audit and cleanup reports | Locally implemented | Atomic JSON reports, decisions, hashes, checkpoints and rollback status |
+| Contacts from documents | Locally implemented | Evidence candidates, local register, object mapping and secure contact transfer without automatic deletion |
+| Appointments from documents | Locally implemented | Candidates with line evidence, local calendar and atomic ICS handoff; no detection guarantee |
+| Calendar selection | Handoff | UpToday‑ICS vetted; Routinika visibly blocked; Google only after own live approval |
+| Account statements/virtual accounts | Locally implemented | Cent‑precise transactions, account reference, periods, balance and visible gaps; no banking access |
+| Subscription and cost analysis | Locally implemented | Recurring costs, active/inactive candidate, monthly/annual sum and cautious next‑month forecast |
+| Insurance overview | Locally implemented | Object‑bound policy, contact, cost, appointment and version view |
+| Household/inventory stock | Locally implemented | Append‑only inventory events, locations, minimum stock as well as purchase and expiry candidates |
+| Medication plan/intake | Locally implemented | Evidence‑bound plan and separate confirmed intake; no dosage decision |
+| Synthesize medical reports | Locally implemented | Extractive health timeline, conflicts, medications, appointments and questions; no diagnosis |
+| Understand official notices | Locally implemented | Types, labeled information, conflicts and provided deadlines; no legal review |
+| Answer official notices / applications | Locally implemented | Controlled objection, response and application drafts from profile and evidence; no sending |
+| Benefit and funding pre‑screen | Locally implemented | Dated routing catalog and official next review steps; no claim or amount notice |
+| Legal changes | Locally implemented | Comparison of local snapshots and impact candidates; no web monitoring or legal judgment |
+| Law‑Checker | Handoff | Cleanly pinned, read‑only source/registry bridge; no fabricated legal‑check API |
+| Presentation/Table/Word/ODT | Handoff | Provider‑neutral artifact plan and quality gates; specialized renderers are not copied or claimed to run locally |
+| Letter design/Design set | Locally implemented | Profile/purpose templates, contrast check, JSON/CSS tokens and controlled Markdown/TXT output |
+| Business card | Locally implemented | Escaped SVG preview, visual approval and never‑overwrite batch |
+| Media creation | Handoff | Revision‑bound ai‑media‑editor handoff without claimed media execution |
+| Mail ingest/send | Handoff | IMAP plan, draft, exact send approval and synthetic idempotence ledger; no live mailbox test |
+| Personal LLM notes | Locally implemented | Guided query, approval and append‑only versions via the pinned llm‑note provider |
+| Tax agent | Locally implemented | Encapsulated receipt storage and private ZIP work file; no tax advice or portal transmission |
+| Weather/Newspaper on desktop | Locally implemented | Local snapshots, freshness labeling, HTML render and separate desktop approval; no live feeds |
+| HungryCall/Ringedingeding | Handoff | Revision‑bound local dry‑run probes, no telephony |
+| FindCall | Locally implemented | Generic serial offer/appointment scheduling with time, price and stop limits; fixture provider only |
+| Strands agent | Locally implemented | Real `strands.Agent` loop with two read‑only tools for search and topic dossier |
+| Amazon Bedrock | Handoff | The same agent supports `BedrockModel`, but only with model ID, region and separate network/data transfer gates; not live tested |
+| API/GUI/CLI | Locally implemented | Shared application service, Loopback API, responsive local GUI and comprehensive CLI |
+| OS account separation | Locally implemented | Operating system account and file permissions are the security boundary; no pseudo‑security between profiles |
 
-## Wiederverwendung
+## Reuse
 
-| Rolle | Bestand | FolderHome-Anpassung |
+| Role | Asset | FolderHome adaptation |
 |---|---|---|
-| Sammeln und Sortieren | file-collect-sort-action | Dry-Run-Bridge, Hash-/Freigabevertrag und FolderHome-Regelmodell |
-| Extraktion und Suche | doc-services, KnowledgeDigest | Gepinnter Ingest sowie read-only Such- und Dossieradapter |
-| Telefonmuster | HungryCall, Ringedingeding | Capabilities prüfen; generische FindCall-Domäne bleibt neuer Kern |
-| Kalender | UpToday, Routinika, Google-Calendar-Skill | Providerneutrale Konten und getrennte Live-Gates |
-| Notizen/Steuern | llm-note, steuer-assistent | Enge öffentliche API, profilspezifische Stores und FolderHome-Audit |
-| Medizin/Analyse | gesundheit, docs-analysis | Sicherheits- und Extraktionsmuster; kein kopierter Runtimecode |
-| Recht/Briefing | law-checker, BACH | Read-only Registry beziehungsweise Designreferenz; neue Workflows bleiben gekapselt |
-| Medien/Office/Mail | ai-media-editor und doc-bricks | Revisionsgebundene Handoffs statt duplizierter Renderer/Connectoren |
+| Collecting and sorting | file-collect-sort-action | Dry‑run bridge, hash/approval contract and FolderHome rule model |
+| Extraction and search | doc-services, KnowledgeDigest | Pinned ingest as well as read‑only search and dossier adapter |
+| Phone patterns | HungryCall, Ringedingeding | Check capabilities; generic FindCall domain remains new core |
+| Calendar | UpToday, Routinika, Google-Calendar-Skill | Provider‑neutral accounts and separate live gates |
+| Notes/Taxes | llm-note, steuer-assistent | Tight public API, profile‑specific stores and FolderHome audit |
+| Medical/analysis | gesundheit, docs-analysis | Security and extraction patterns; no copied runtime code |
+| Law/briefing | law-checker, BACH | Read‑only registry or design reference; new workflows remain encapsulated |
+| Media/Office/Mail | ai-media-editor und doc-bricks | Revision‑bound handoffs instead of duplicated renderers/connectors |
 
-Die exakten Revisionen und Herkunftsklassen stehen in
-[`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) und
+The exact revisions and provenance classes are listed in
+[`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md) and
 [`COMPETITION_CODE_MAP.md`](./COMPETITION_CODE_MAP.md).
 
-## Bewertung der Wettbewerbsfassung
+## Evaluation of competition version
 
-| Kategorie | Bewertung (1–5) | Begründung |
+| Category | Rating (1–5) | Justification |
 |---|:---:|---|
-| Funktionsumfang | 4 | Alle gewünschten Bereiche besitzen mindestens einen ehrlichen lokalen Kern oder klaren Handoff; Live-Provider bleiben getrennt |
-| Agentik | 4 | Echter, endlich begrenzter Strands-Loop; zur Wettbewerbsabnahme bewusst nur zwei read-only Tools |
-| UI/UX | 4 | Responsive Loopback-GUI und CLI auf demselben Service; noch kein nativer Desktop-Installer |
-| Stabilität | 5 | Erfolgs-, Missbrauchs-, Gate-, Rollback- und Never-overwrite-Pfade werden breit automatisiert geprüft |
-| Dokumentation | 5 | Architektur, Entscheidungen, Herkunft, Sicherheit, aktueller Stand und Submission-Paket sind getrennt dokumentiert |
-| Datenschutz/Sicherheit | 5 | Local-first, OS-Kontogrenze, Default deny, Ressourcenbudgets, Provenienz und explizite Außenwirkungsgates |
-| Live-Integration | 2 | Absichtlich konservativ: keine Cloud-, Telefon-, Mail-, Kalender- oder Portalwirkung ohne gesonderte Freigabe |
+| Feature set | 4 | All desired areas have at least an honest local core or clear handoff; live providers remain separate |
+| Agentic | 4 | Real, finitely bounded Strands loop; for competition acceptance deliberately only two read‑only tools |
+| UI/UX | 4 | Responsive Loopback GUI and CLI on the same service; no native desktop installer yet |
+| Stability | 5 | Success, abuse, gate, rollback and never‑overwrite paths are broadly automatedly checked |
+| Documentation | 5 | Architecture, decisions, provenance, security, current status and submission package are documented separately |
+| Privacy/Security | 5 | Local‑first, OS account boundary, default deny, resource budgets, provenance and explicit outward‑effect gates |
+| Live integration | 2 | Deliberately conservative: no cloud, phone, mail, calendar or portal effect without separate approval |
 
-## Was nach dem lokalen Vollausbau verbleibt
+## What remains after the local full build‑out
 
-Die 36 Wettbewerbsphasen liefern den lokalen, demonstrierbaren FolderHome-
-Vollausbau. Nicht als unerledigter Kernfehler, sondern als getrennte
-Produkt-/Außenwirkungsgates verbleiben:
+The 36 competition phases deliver the local, demonstrable FolderHome full build‑out. Not as an unfinished core defect, but as separate product/external‑effect gates remain:
 
-1. öffentliche Repository- und Videoveröffentlichung sowie Devpost-Submit;
-2. reale Bedrock-, IMAP/SMTP-, Kalender-, Telefon-, OCR- und Webconnector-Tests;
-3. visuelle Abnahme zusätzlicher Office-/Medienrenderer;
-4. spätere Integration in FolderHome-Sovereign und mögliches Light-Rebranding.
+1. public repository and video release as well as Devpost submission;  
+2. real Bedrock, IMAP/SMTP, calendar, phone, OCR and web connector tests;  
+3. visual acceptance of additional office/media renderers;  
+4. later integration into FolderHome‑Sovereign and possible light rebranding.
 
-## Technischer Kern
+## Technical core
 
-- Python 3.11+, `strands-agents==1.53.0`
-- auf Windows `tzdata==2026.3`
-- Einstieg: `python -m folderhome`
-- Agent: `src/folderhome/application/strands_agent.py`
-- reproduzierbare Demo: `python -m folderhome demo run`
-- Sicherheitsmodell: [`SECURITY.md`](./SECURITY.md)
-- Architektur: [`ARCHITECTURE.md`](./ARCHITECTURE.md)
-- vollständiger Phasennachweis: [`docs/phase36-completion-audit.md`](./docs/phase36-completion-audit.md)
+- Python 3.11+, `strands-agents==1.53.0`  
+- on Windows `tzdata==2026.3`  
+- Entry point: `python -m folderhome`  
+- Agent: `src/folderhome/application/strands_agent.py`  
+- reproducible demo: `python -m folderhome demo run`  
+- Security model: [`SECURITY.md`](./SECURITY.md)  
+- Architecture: [`ARCHITECTURE.md`](./ARCHITECTURE.md)  
+- complete phase evidence: [`docs/phase36-completion-audit.md`](./docs/phase36-completion-audit.md)
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

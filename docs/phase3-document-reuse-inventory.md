@@ -1,49 +1,42 @@
-# Phase 3: Wiederverwendungsinventar für Dokumente
+# Phase 3: Document Reuse Inventory
 
-**Stand:** 2026-08-21  
-**Zweck:** Verhindert Doppelbau bei Ingest, Suche, Zusammenfassung und Berichtserzeugung.
+**English** | [Deutsch](./phase3-document-reuse-inventory.de.md)
 
-## Gewünschte FolderHome-Funktionen
+**Status:** 2026-08-21  
+**Purpose:** Prevents duplicate building in ingest, search, summarization, and report generation.
 
-1. Dokumente aus Ordnern lesen und mit stabiler Herkunft erfassen.
-2. „Ich suche ein Dokument, in dem …“ als lokale Volltextsuche beantworten.
-3. Verstreute Informationen zu einem Thema als Dossier zusammenführen.
-4. Für jedes Dokument Dateiname und zwei bis drei beschreibende Sätze liefern.
-5. Aus einem Ordner einen strukturierten Bericht erzeugen.
-6. Später PDF, Word, ODT, Präsentationen und Tabellen aus Ergebnissen erzeugen.
-7. Gesundheits-, Rechts- und Finanzdokumente administrativ unterstützen, ohne
-   Diagnose oder verbindliche Beratung zu behaupten.
+## Desired FolderHome Functions
 
-## Verifizierter Bestand
+1. Read documents from folders and capture them with stable provenance.  
+2. Answer “I’m looking for a document that …” via local full‑text search.  
+3. Consolidate scattered information on a topic into a dossier.  
+4. Provide the filename and two to three descriptive sentences for each document.  
+5. Generate a structured report from a folder.  
+6. Later generate PDFs, Word, ODT, presentations, and spreadsheets from results.  
+7. Administratively support health, legal, and financial documents without claiming diagnosis or binding advice.
 
-| Baustein | Aktueller Stand | Wiederverwendung in FolderHome | Nicht erneut bauen |
+## Verified Inventory
+
+| Component | Current Status | Reuse in FolderHome | Do not rebuild |
 |---|---|---|---|
-| `file-collect-sort-action` | `0.1.0`, Commit `8ebac273…`, 63 Tests grün | Dateibestand erkennen, kategorisieren und reversible Sortierpläne liefern | Scanner, Aktionsreihenfolge, Duplikatlogik und Verarbeitungszustand |
-| `doc-services` | `0.1.0`, lokaler Commit `037a432b…`, Testsuite grün | Bevorzugte Extraktion, OCR-Auswahl und inhaltsbasierte Datenschutzampel | Formatkonverter, OCR-Routing und Privacy-Erkennung |
-| `KnowledgeDigest` | `0.4.0`, Commit `7040c66a…`, 130 Tests grün | Lokale SQLite-FTS5-Ablage, Chunking, Suche und Treffer-Ranking | eigener Dokumentindex, BM25-Suche und zweites Chunking-System |
-| `report-forge` | Distribution `1.1.4`, Runtime `1.1.0`, Commit `355acb5f…`, Testsuite grün | Nach Bereinigung des Versionsdrifts: schema-gebundene Berichtserzeugung und DOCX-Ausgabe | eigener Template- oder Word-Renderer |
-| `llm-note` | `1.0.3`, Commit `b5fe59fc…`, 19 Tests grün | Seit Phase 28: append-only Speicher für menschlich bestätigte persönliche Notizen | zweite Notizdatenbank |
-| `document-chunker` | Skill `1.0.0`, Zero Dependencies | Fallback für Textpfade ohne KnowledgeDigest | nicht zusätzlich im normalen KnowledgeDigest-Pfad chunken |
-| `dokument-ingest` | Skill `1.0.0`, nutzt `doc-services` | Agentische Backendwahl und Datenschutzprüfung | keine eigenständige Runtime neben `doc-services` |
-| `docs-analysis` | Skill `1.0.0` | Entwicklungsseitiger Soll-Ist-Abgleich | nicht als Endnutzer-Dokumentensuche ausgeben |
+| `file-collect-sort-action` | `0.1.0`, Commit `8ebac273…`, 63 Tests green | Detect file inventory, categorize, and provide reversible sorting plans | Scanner, action ordering, duplicate logic and processing state |
+| `doc-services` | `0.1.0`, local Commit `037a432b…`, test suite green | Preferred extraction, OCR selection and content‑based privacy traffic light | Format converter, OCR routing and privacy detection |
+| `KnowledgeDigest` | `0.4.0`, Commit `7040c66a…`, 130 Tests green | Local SQLite‑FTS5 store, chunking, search and hit ranking | Own document index, BM25 search and second chunking system |
+| `report-forge` | Distribution `1.1.4`, Runtime `1.1.0`, Commit `355acb5f…`, test suite green | After correcting version drift: schema‑bound report generation and DOCX output | Own template or Word renderer |
+| `llm-note` | `1.0.3`, Commit `b5fe59fc…`, 19 Tests green | Since Phase 28: append‑only storage for human‑verified personal notes | Second note database |
+| `document-chunker` | Skill `1.0.0`, Zero Dependencies | Fallback for text paths without KnowledgeDigest | Do not additionally chunk in the normal KnowledgeDigest path |
+| `dokument-ingest` | Skill `1.0.0`, uses `doc-services` | Agentic backend selection and privacy check | No standalone runtime alongside `doc-services` |
+| `docs-analysis` | Skill `1.0.0` | Development‑side target‑actual alignment | Do not expose as end‑user document search |
 
-Der Skill `find-docs` ist ausdrücklich keine FolderHome-Dokumentensuche. Er
-fragt aktuelle Entwicklerdokumentation über Context7 ab und bleibt außerhalb
-dieses Produktpfads.
+The skill `find-docs` is explicitly not a FolderHome document search. It queries current developer documentation via Context7 and remains outside this product path.
 
-## Bestehende Bundle-Definition
+## Existing Bundle Definition
 
-Das deklarative Sovereign-Bundle `ellmos-doc-handler-bundle` enthält bereits
-`report-forge`, `KnowledgeDigest`, `llm-note`, `docs-analysis` und
-`document-chunker`. Es trennt Dokumentenhandwerk bewusst von der eigentlichen
-Wissenssuche.
+The declarative Sovereign bundle `ellmos-doc-handler-bundle` already includes `report-forge`, `KnowledgeDigest`, `llm-note`, `docs-analysis` and `document-chunker`. It deliberately separates document handling from the actual knowledge search.
 
-Aktuelle Lücke: `doc-services` und der Skill `dokument-ingest` fehlen noch im
-Bundle und in der Komponentenbindung. FolderHome verwendet sie daher während
-des Wettbewerbs über eigene gepinnte Komponentenmanifeste. Eine Änderung des
-Sovereign-Bundles erfolgt erst bei der Integration nach dem Wettbewerb.
+Current gap: `doc-services` and the skill `dokument-ingest` are still missing in the bundle and in the component binding. FolderHome therefore uses them during the competition via its own pinned component manifests. A change to the Sovereign bundle will only happen after integration post‑competition.
 
-## Verbindliche Verantwortungsgrenzen
+## Binding Responsibility Limits
 
 ```text
 FCSA
@@ -65,59 +58,33 @@ llm-note
   speichert ausdrücklich angelegte oder übernommene Nutzernotizen
 ```
 
-## Notwendiger neuer FolderHome-Code
 
-1. Ein stabiler `DocumentRecord` mit Dokument-ID, ursprünglichem Pfad,
-   Inhalts-Hash, Medientyp, Extraktionsherkunft, Datenschutzstatus und
-   Indexstatus.
-2. Gepinnte Bridge-Manifeste für `doc-services` und `KnowledgeDigest`; seit
-   Phase 28 auch für `llm-note`, für `report-forge` erst nach geklärter
-   Runtime-Identität.
-3. Adapter, die Provider-Ausgaben in FolderHome-Verträge übersetzen und
-   unbekannte Felder oder Zustände fail-closed behandeln.
-4. Eine Application-Schicht für Ingest, Suche, Themendossier und Ordnerbericht.
-5. Ein späterer LLM-Port für freie Synthesen. Der aktuelle Ordnerbericht ist
-   bewusst deterministisch und übernimmt höchstens zwei oder drei belegte
-   Sätze; eine echte Modellwahl bleibt ein separates Gate.
+## Required New FolderHome Code
 
-## Anpassungsbedarf am Bestand
+1. A stable `DocumentRecord` with document ID, original path, content hash, media type, extraction provenance, privacy status, and index status.  
+2. Pinned bridge manifests for `doc-services` and `KnowledgeDigest`; since Phase 28 also for `llm-note`, for `report-forge` only after a clarified runtime identity.  
+3. Adapters that translate provider outputs into FolderHome contracts and treat unknown fields or states as fail‑closed.  
+4. An application layer for ingest, search, topic dossier, and folder report.  
+5. A later LLM port for free syntheses. The current folder report is deliberately deterministic and includes at most two or three supported sentences; a real model selection remains a separate gate.
 
-- KnowledgeDigest archiviert bei `ingest()` standardmäßig Originale. Die
-  FolderHome-Bridge muss immer ausdrücklich `archive=False` setzen.
-- KnowledgeDigest verwendet intern einen eigenen Extraktor. Bis ein offizieller
-  Ingest-für-normalisierten-Text-Port existiert, schreibt FolderHome nicht
-  direkt in dessen SQLite-Schema. Die Index-Bridge nutzt die öffentliche API
-  und dokumentiert die verbleibende Extraktionsdopplung.
-- KnowledgeDigest führt in seiner öffentlichen Suche `ensure_schema()` mit
-  WAL-Umschaltung und `INSERT OR REPLACE` aus. FolderHome liest deshalb nur für
-  die Suche das gepinnte Schema per SQLite `mode=ro&immutable=1`, prüft dessen
-  Version und verändert die Indexdatei nachweislich nicht.
-- `report-forge` meldet im Runtime-Paket `1.1.0`, während `pyproject.toml` und
-  Changelog `1.1.4` ausweisen. Der Checkout ist sauber, aber vor einer
-  versionsgeprüften Bridge muss diese Provideridentität upstream vereinheitlicht
-  werden; FolderHome baut in der Zwischenzeit keinen eigenen Word-Renderer.
-- `doc-services` besitzt derzeit keinen Remote und ist noch nicht in der
-  Sovereign-Komponentenregistry gebunden. Vor Veröffentlichung braucht es eine
-  belastbare Quellenreferenz; lokal kann der vorhandene Git-Commit gepinnt
-  werden.
-- Berichtserzeugung mit externem LLM, OCR und reale Nutzerordner bleiben
-  gesonderte Freigaben. Der synthetische Phase-3-Pfad benötigt sie nicht.
+## Required Adjustments to the Existing Inventory
 
-## Reihenfolge für Phase 3
+- KnowledgeDigest archives originals by default at `ingest()`. The FolderHome bridge must always explicitly set `archive=False`.  
+- KnowledgeDigest uses its own extractor internally. Until an official ingest‑for‑normalized‑text port exists, FolderHome does not write directly to its SQLite schema. The index bridge uses the public API and documents the remaining extraction duplication.  
+- KnowledgeDigest performs its public search `ensure_schema()` with WAL switching and `INSERT OR REPLACE`. Therefore FolderHome reads only the pinned schema via SQLite `mode=ro&immutable=1` for search, checks its version, and does not modify the index file.  
+- `report-forge` reports in the runtime package `1.1.0`, while `pyproject.toml` and changelog `1.1.4` are listed. The checkout is clean, but before a version‑checked bridge this provider identity must be unified upstream; FolderHome does not build its own Word renderer in the meantime.  
+- `doc-services` currently has no remote and is not yet bound in the Sovereign component registry. Before release it needs a reliable source reference; locally the existing Git commit can be pinned.  
+- Report generation with external LLM, OCR, and real user folders remain separate approvals. The synthetic Phase‑3 path does not require them.
 
-1. Provider-neutrale Dokumentverträge testgetrieben ergänzen.
-2. `doc-services`- und KnowledgeDigest-Manifeste samt Pins validieren.
-3. Synthetischen Ingest mit temporärer Datenbank und `archive=False` bauen.
-4. Lokale Suche und Themendossier über die KnowledgeDigest-Bridge anbieten.
-5. Deterministische Kurzbeschreibungen und Ordnerbericht als Application
-   Service ergänzen.
-6. Nach Bereinigung des Versionsdrifts `report-forge` für formatierte
-   Ausgabedokumente anbinden.
+## Sequence for Phase 3
 
-## Abnahmegrenze
+1. Add provider‑neutral document contracts in a test‑driven manner.  
+2. Validate `doc-services` and KnowledgeDigest manifests along with pins.  
+3. Build synthetic ingest with a temporary database and `archive=False`.  
+4. Offer local search and topic dossier via the KnowledgeDigest bridge.  
+5. Add deterministic short descriptions and folder report as an application service.  
+6. After correcting version drift, bind `report-forge` for formatted output documents.
 
-Phase 3 ist abgeschlossen: Ein vollständig synthetischer Ordner kann über die
-CLI eingelesen, durchsucht und als Bericht zusammengefasst werden, ohne
-Quelldateien zu verschieben, externe Netze aufzurufen oder personenbezogene
-Daten zu verwenden. Die Gesamtsuite belegt zusätzlich, dass eine reine Suche
-die Indexdatei bytegenau unverändert lässt.
+## Acceptance Criteria
+
+Phase 3 is complete: A fully synthetic folder can be read, searched, and summarized as a report via the CLI without moving source files, calling external networks, or using personal data. The full suite additionally demonstrates that a pure search leaves the index file byte‑exactly unchanged.

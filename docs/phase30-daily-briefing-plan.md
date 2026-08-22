@@ -1,51 +1,41 @@
-# Phase 30: Lokaler Wetter- und Newspaper-Desktopbrief
+# Phase 30: Local Weather and Newspaper Desktop Brief
 
-**Stand:** 2026-08-22  
-**Zweck:** Wetter und ausgewählte Nachrichten aus belegten lokalen Snapshots
-zu einem täglichen HTML-Brief bündeln und nach separater Freigabe auf einen
-ausdrücklich gewählten Desktop kopieren.
+**English** | [Deutsch](./phase30-daily-briefing-plan.de.md)
 
-## Bestandsabgleich
+**Status:** 2026-08-22  
+**Purpose:** Bundle weather and selected news from occupied local snapshots into a daily HTML brief and, after separate approval, copy it to an explicitly chosen desktop.
 
-Unter den bereits extrahierten lokalen Modulen und Skills wurde kein
-eigenständiger Wetter- oder Newspaper-Provider gefunden. Der einzige
-passende Altbestand liegt weiterhin im BACH-Monolithen:
+## Inventory Check
 
-| Merkmal | Befund |
+Among the already extracted local modules and skills, no standalone weather or newspaper provider was found. The only suitable legacy component remains in the BACH monolith:
+
+| Feature | Finding |
 |---|---|
 | Repository | `https://github.com/ellmos-ai/bach.git` |
-| geprüfter Checkout | `9ff3df23d6e8e27b9c9eaad71f2430923224d4d9` |
-| relevante Dateien | Wetterservice, Newspaper-Generator, Daily Agent |
-| relevanter Pfadstatus | unverändert gegenüber Git |
-| Gesamtcheckout | fremd verändert; nicht als Runtime geladen |
-| Newspaper-Tests | 11/11 grün |
-| Lizenz | MIT |
+| verified checkout | `9ff3df23d6e8e27b9c9eaad71f2430923224d4d9` |
+| relevant files | Wetterservice, Newspaper-Generator, Daily Agent |
+| relevant path status | unchanged relative to Git |
+| overall checkout | externally modified; not loaded as runtime |
+| Newspaper tests | 11/11 green |
+| License | MIT |
 
-Der Wetterservice ruft `wttr.in` direkt auf. Der Newspaper-Generator liest
-die BACH-Datenbank, rendert HTML, startet optional Edge für PDF und kopiert
-oder sendet Ergebnisse direkt. Der Daily Agent enthält einen fest codierten
-Ort. Diese Kopplungen, impliziten Zeiten und direkten Side-Effects passen
-nicht zum FolderHome-Vertrag. Eine erneute Extraktion wurde deshalb nicht
-vorgenommen; BACH bleibt nur ausgewiesene Designreferenz.
+The weather service calls `wttr.in` directly. The newspaper generator reads the BACH database, renders HTML, optionally launches Edge for PDF, and copies or sends results directly. The daily agent contains a hard‑coded location. These couplings, implicit timings, and direct side‑effects do not comply with the FolderHome contract. Therefore no re‑extraction was performed; BACH remains only a designated design reference.
 
-## Neuer gekapselter Kern
+## New Encapsulated Core
 
-`contracts.daily_briefing` und `application.daily_briefing` sind neuer,
-wiederverwendbarer Wettbewerbscode. Sie definieren:
+`contracts.daily_briefing` and `application.daily_briefing` are new, reusable competition code. They define:
 
-- einen profilierten Briefingauftrag mit explizitem `as_of` und Zeitzone,
-- ganzzahlige Wetterwerte und genaue Beobachtungs-/Abrufzeitpunkte,
-- Nachrichtenartikel mit HTTPS-Quellen, Publikations- und Abrufzeit,
-- Kategorieauswahl und Obergrenzen pro Kategorie,
-- Altersgrenzen und sichtbare Warnungen für veraltete Snapshots,
-- deterministisches, vollständig escaptes UTF-8-HTML,
-- getrennte Render- und Desktopfreigaben mit Hashbindung und Never-overwrite.
+- a profiled briefing task with explicit `as_of` and time zone,
+- integer weather values and precise observation/retrieval timestamps,
+- news articles with HTTPS sources, publication and retrieval times,
+- category selection and upper limits per category,
+- age limits and visible warnings for outdated snapshots,
+- deterministic, fully escaped UTF‑8 HTML,
+- separate render and desktop approvals with hash binding and never‑overwrite.
 
-Die lokalen Eingabeschemas sind Providerseams. Ein späterer Wetter- oder
-RSS-Connector muss genau solche Snapshots schreiben und erhält ein eigenes
-Netzwerkgate. Phase 30 erfindet keinen stillen Live-Provider.
+The local input schemas are provider seams. A later weather or RSS connector must write exactly such snapshots and receives its own network gate. Phase 30 does not invent a silent live provider.
 
-## Ablauf und Datenstand
+## Process and Data State
 
 ```text
 Briefinganfrage + bekanntes Profil + Sensitivitätsfreigabe
@@ -58,36 +48,19 @@ Briefinganfrage + bekanntes Profil + Sensitivitätsfreigabe
   → Desktop-Approval + Desktop-Gate kopiert exakt diesen Hash
 ```
 
-Ein veralteter Snapshot blockiert die Lesbarkeit nicht, wird aber mit
-`review_required` und einer konkreten Alterswarnung ausgegeben. Daten aus der
-Zukunft, Nicht-HTTPS-Quellen, unbekannte Profile, geänderte Eingabedateien und
-vorhandene Ziele blockieren.
 
-Zwischenausgabe und Desktopziel müssen in getrennten Ordnern liegen. Dadurch
-kann das Render-Gate nicht still die Desktopzustellung ersetzen. Die
-Desktopkopie verwendet exakt den zuvor freigegebenen Ausgabehash.
+An outdated snapshot does not block readability, but is emitted with `review_required` and a concrete age warning. Data from the future, non‑HTTPS sources, unknown profiles, modified input files, and existing targets block.
 
-## Bewusst offene Connector- und Automationsgrenze
+Intermediate output and the desktop target must reside in separate folders. Consequently, the render gate cannot silently replace the desktop delivery. The desktop copy uses exactly the previously approved output hash.
 
-`briefing providers` weist Live-Wetter- und Live-News-Connectoren als
-`blocked_not_implemented` aus. Der aktuelle Lauf ruft kein Netzwerk auf. Er
-registriert auch keinen Betriebssystem-Scheduler. Eine tägliche autonome
-Ausführung würde eine dauerhafte Netz-, Ausgabe- und Desktopberechtigung
-benötigen; eine solche wiederkehrende Vollmacht wird nicht aus einer
-Einzelfreigabe abgeleitet.
+## Deliberately Open Connector and Automation Boundary
 
-Der vorhandene FolderHome-Scheduler bleibt unverändert auf Dokumentroutinen
-begrenzt. Ein späterer Briefing-Scheduler muss zuerst Snapshot-Erzeugung,
-Fehlerverhalten, Wiederholungen und die wiederkehrende Nutzerfreigabe als
-eigenen Vertrag festlegen.
+`briefing providers` exposes live weather and live news connectors as `blocked_not_implemented`. The current run does not invoke any network. It also does not register an operating‑system scheduler. A daily autonomous execution would require a permanent network, output, and desktop permission; such a recurring authority is not derived from a single approval.
 
-## Abnahme
+The existing FolderHome scheduler remains unchanged, limited to document routines. A later briefing scheduler must first define snapshot generation, error handling, repetitions, and the recurring user approval as a separate contract.
 
-Die synthetische Abnahme prüft frische und veraltete Snapshots,
-Kategoriefilter, Zukunfts- und URL-Grenzen, HTML- und Quellhashbindung,
-Never-overwrite sowie separate Render- und Desktop-Gates. Der CLI-Test führt
-Plan, Render und Desktopkopie Ende zu Ende aus; Netzwerk und Scheduler bleiben
-aus.
+## Acceptance
+
+The synthetic acceptance checks fresh and outdated snapshots, category filters, future and URL limits, HTML and source hash binding, never‑overwrite, as well as separate render and desktop gates. The CLI test runs plan, render, and desktop copy end‑to‑end; network and scheduler remain omitted.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

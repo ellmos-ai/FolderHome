@@ -1,81 +1,74 @@
-# Workflow: Lokale FolderHome-App starten
+# Workflow: Start Local FolderHome App
 
-> **Last verified:** 2026-08-22
-> **Frequency:** pro lokaler Arbeitssitzung
-> **Duration:** wenige Sekunden zuzüglich der interaktiven Nutzung
+**English** | [Deutsch](./local-app.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** per local work session  
+> **Duration:** a few seconds plus interactive usage
 
 ## Purpose
 
-Die gemeinsame FolderHome-Oberfläche auf genau dem aktuellen
-Betriebssystemkonto starten und vorhandene Dokumentensuche sowie
-Themendossiers read-only bedienen. Der Ablauf erzeugt weder eine zweite
-Profil-Zugriffskontrolle noch einen allgemeinen Datei- oder Befehlszugang.
+Start the shared FolderHome interface on the exact current operating system account and operate the existing document search and topic dossiers in read‑only mode. The process does not create a second profile access control nor a general file or command access.
 
 ## Preconditions
 
-- Profil- und Index-State-Verzeichnis gehören dem aktuellen OS-Konto.
-- Der KnowledgeDigest-Checkout stimmt mit dem gepinnten Manifest überein.
-- Der gewünschte Port ist auf `127.0.0.1` frei oder `0` wird für einen
-  dynamischen Port verwendet.
-- Es wird verstanden, dass Familienprofile nur organisatorisch trennen.
+- Profile and index state directory belong to the current OS account.
+- The KnowledgeDigest checkout matches the pinned manifest.
+- The desired port is free on `127.0.0.1` or `0` will be used for a dynamic port.
+- It is understood that family profiles only separate organizationally.
 
 ## Steps
 
-1. **Preflight read-only ausführen.**
+1. **Run preflight read‑only.**
 
    ```powershell
    folderhome app plan --profiles-dir <profiles-dir> --state-dir <state-dir> --json
    ```
 
-2. **Grenzen im Plan prüfen.** `security_boundary` muss
-   `operating_system_account` sein; Serverstart, Shell, CORS, freie Pfade und
-   externe Ressourcen müssen `false` bleiben.
-3. **Loopback-Server bewusst freigeben.**
+
+2. **Check limits in the plan.** `security_boundary` must be `operating_system_account`; server start, shell, CORS, free paths and external resources must remain `false`.
+
+3. **Deliberately expose the loopback server.**
 
    ```powershell
    folderhome app serve --profiles-dir <profiles-dir> --state-dir <state-dir> --port 8765 --approve-loopback-server --json
    ```
 
-4. **Nur die ausgegebene Sitzungs-URL öffnen.** Das Token ist kurzlebig und
-   gehört weder in Logs noch in Nachrichten oder dauerhafte Browser-Lesezeichen.
-5. **Profil organisatorisch wählen.** Die Auswahl steuert den Arbeitskontext,
-   aber erteilt innerhalb des OS-Kontos keine neuen Leserechte.
-6. **Suche oder Themendossier verwenden.** Beide Funktionen lesen nur den
-   vorhandenen lokalen Index und geben keine Quellpfade aus.
-7. **Server nach der Sitzung beenden.** Im startenden Terminal `Strg+C`
-   drücken und prüfen, dass der Listener nicht weiterläuft.
+
+4. **Open only the provided session URL.** The token is short‑lived and must not appear in logs, messages, or permanent browser bookmarks.
+
+5. **Select the profile organizationally.** The selection controls the work context but does not grant new read rights within the OS account.
+
+6. **Use search or topic dossier.** Both functions only read the existing local index and do not expose source paths.
+
+7. **Terminate the server after the session.** In the launching terminal press `Strg+C` and verify that the listener is no longer running.
 
 ## Exit-Criteria
 
-- [ ] Der Preflight meldet Loopback und die OS-Kontogrenze.
-- [ ] Der Server wurde nur mit explizitem Gate gestartet.
-- [ ] HTML, Assets und API waren ohne gültiges Sitzungstoken blockiert.
-- [ ] Die Oberfläche verwendete keine externen Ressourcen.
-- [ ] Es wurden keine Dokumente, Profile oder Indexdaten verändert.
-- [ ] Das Sitzungstoken wurde nicht dauerhaft gespeichert oder geteilt.
-- [ ] Der lokale Listener ist nach der Nutzung beendet.
+- [ ] The preflight reports loopback and the OS account boundary.
+- [ ] The server was started only with an explicit gate.
+- [ ] HTML, assets and API were blocked without a valid session token.
+- [ ] The interface used no external resources.
+- [ ] No documents, profiles, or index data were modified.
+- [ ] The session token was not stored permanently or shared.
+- [ ] The local listener is terminated after use.
 
-## Fallstricke
+## Pitfalls
 
-- Ein Profilwechsel ist **kein** Benutzerwechsel. Für echte Trennung ist ein
-  anderes Betriebssystemkonto mit eigenen Dateirechten erforderlich.
-- `localhost` ist absichtlich nicht gleichwertig zu `127.0.0.1`; der exakte
-  Host-Vertrag schützt gegen uneindeutige Browser- und Proxyauflösung.
-- Ein kopierter Link enthält das Sitzungstoken. Er darf den lokalen Rechner
-  und die aktive Sitzung nicht verlassen.
-- Schreibende oder fachlich sensible Funktionen bleiben in ihren jeweiligen
-  Approval- und Gate-Workflows; die GUI umgeht sie nicht.
+- Switching profiles is **not** a user switch. For true separation, a different operating system account with its own file permissions is required.
+- `localhost` is intentionally not equivalent to `127.0.0.1`; the exact host contract protects against ambiguous browser and proxy resolution.
+- A copied link contains the session token. It must not leave the local machine or the active session.
+- Write or domain‑sensitive functions remain in their respective Approval and Gate workflows; the GUI does not bypass them.
 
-## Verwandte
+## Related
 
 - [`../docs/phase35-local-app-plan.md`](../docs/phase35-local-app-plan.md)
 - [`../skills/folderhome-local-app/SKILL.md`](../skills/folderhome-local-app/SKILL.md)
 - [`./document-library.md`](./document-library.md)
 - [`./document-action-execution.md`](./document-action-execution.md)
 
-## Historie
+## History
 
-- **2026-08-22** — lokale API, GUI, OS-Kontogrenze und Laufzeitvertrag abgenommen
+- **2026-08-22** — local API, GUI, OS account boundary and runtime contract approved
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

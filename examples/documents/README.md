@@ -1,15 +1,14 @@
-# Synthetische Dokumentendemo
+# Synthetic Document Demo
 
-Dieser Ordner enthält ausschließlich erfundene Beispieldaten für den lokalen
-FolderHome-Ingest. Namen, Beträge und Vertragsangaben sind keine realen Daten.
+**English** | [Deutsch](./README.de.md)
 
-Die Demo darf in einen ausdrücklich angegebenen temporären Zustandsordner
-indexiert werden. FolderHome verschiebt oder archiviert die Quelldateien nicht.
+This folder contains only invented example data for the local FolderHome-Ingest. Names, amounts, and contract details are not real data.
 
-Unter `contacts/` liegt eine gelabelte, vollständig synthetische
-Versicherungszuständigkeit für die `contacts plan`-/`apply`-Demo. Die dortigen
-Adressen und Telefonnummern gehören zu keiner realen Person oder Organisation.
+The demo may be indexed into an explicitly specified temporary state folder. FolderHome does not move or archive the source files.
 
-Unter `calendar/` liegt ein vollständig synthetischer, gelabelter Termin für
-den read-only `calendar plan`-Ablauf. Terminerkennung ist best effort und
-garantiert keine vollständige Erfassung beliebiger Dokumente.
+Under `contacts/` there is a labeled, fully synthetic  
+insurance responsibility for the `contacts plan`-/`apply` demo. The addresses and phone numbers there do not belong to any real person or organization.
+
+Under `calendar/` there is a fully synthetic, labeled appointment for  
+the read-only `calendar plan` process. Appointment detection is best effort and  
+does not guarantee complete capture of arbitrary documents.

@@ -1,70 +1,49 @@
-# Phase 29: Steueragent wiederverwenden und sicher begrenzen
+# Phase 29: Reusing the tax agent and safely limiting it
 
-**Stand:** 2026-08-22  
-**Zweck:** Vorhandene Beleg- und Arbeitsunterlagenfunktionen des extrahierten
-Steueragenten wiederverwenden, ohne Steuerberatung oder Behördenübermittlung
-zu behaupten.
+**English** | [Deutsch](./phase29-tax-agent-reuse-and-plan.de.md)
 
-## Verifizierter Bestand
+**Status:** 2026-08-22  
+**Purpose:** Reuse existing receipt and work‑document functions of the extracted tax agent without asserting tax advice or transmission to authorities.
 
-Der lokale Checkout `C:\_Local_DEV\repos\steuer-assistent` wurde read-only
-geprüft:
+## Verified state
 
-| Merkmal | Befund |
+The local checkout `C:\_Local_DEV\repos\steuer-assistent` was checked read‑only:
+
+| Feature | Finding |
 |---|---|
 | Repository | `https://github.com/ellmos-ai/steuer-assistent.git` |
 | Revision | `5d39aeec98bf0a5734bf07dc35a58aa9e1331309` |
-| Paketversion | `0.2.3` |
-| Lizenz | MIT |
-| Checkout | sauber und exakt auf der gepinnten Revision |
-| Providertests | 35/35 grün |
-| Laufzeit | lokale SQLite-Ablage und ZIP-Ausgabe, kein Netzwerk |
+| Package version | `0.2.3` |
+| License | MIT |
+| Checkout | clean and exactly at the pinned revision |
+| Provider tests | 35/35 green |
+| Runtime | local SQLite storage and ZIP output, no network |
 
-Der Provider erfasst nutzerseitig eingeordnete Belege aus dem Bereich
-Werbungskosten und erzeugt eine private Arbeitsunterlage. Er prüft weder die
-steuerliche Abziehbarkeit noch einen Steuerfall und übermittelt nichts an
-ELSTER, ERiC, Finanzamt oder ein anderes Portal.
+The provider records user‑side categorized receipts from the advertising expenses area and creates a private work document. It does not check tax deductibility nor a tax case and does not transmit anything to ELSTER, ERiC, the tax office, or any other portal.
 
-## Wiederverwendung und neuer Verbindungscode
+## Reuse and new integration code
 
-Unverändert wiederverwendet werden:
+Reused unchanged:
 
-- `SteuerAssistent.add_beleg()` für einen ausdrücklich bestätigten Beleg,
-- `SteuerAssistent.export_arbeitsunterlage()` für eine private ZIP-Datei,
-- die vom Provider unterstützten Eingabegruppen Arbeitsmittel, Fahrtkosten,
-  Fortbildung, Homeoffice, Kommunikation und Sonstiges.
+- `SteuerAssistent.add_beleg()` for an explicitly confirmed receipt,
+- `SteuerAssistent.export_arbeitsunterlage()` for a private ZIP file,
+- the input groups supported by the provider: work equipment, travel costs, training, home office, communication, and miscellaneous.
 
-Neu und gekapselt sind die FolderHome-Verträge, die Orchestrierung und die
-Bridge unter `contracts.tax`, `application.tax_workpaper` und
-`bridges.tax_assistant`. Es wird kein Providerquellcode kopiert oder
-verändert.
+New and encapsulated are the FolderHome contracts, the orchestration, and the bridge under `contracts.tax`, `application.tax_workpaper` and `bridges.tax_assistant`. No provider source code is copied or modified.
 
-## Beleg- und Profilbindung
+## Receipt and profile binding
 
-Ein Belegplan benötigt eine katalogisierte Dokument-ID, den aktuellen
-Dokumenthash, ein bekanntes Familienprofil und optional eine vorhandene
-FolderHome-Finanzbuchung desselben Profils. Wenn eine Buchung angegeben wird,
-muss ihr absoluter Centbetrag mit dem Beleg übereinstimmen. Ein Dateiname oder
-ein freier Suchtreffer genügt nicht als Belegbindung.
+A receipt plan requires a catalogued document ID, the current document hash, a known family profile, and optionally an existing FolderHome financial entry of the same profile. If an entry is specified, its absolute cent amount must match the receipt. A filename or a free search hit is not sufficient as a receipt binding.
 
-Providerstores werden pro Profil in
-`tax-workpaper/<profile_id>/steuer.db` getrennt. Das verhindert vermischte
-Arbeitsunterlagen innerhalb einer Haushaltsansicht. Es ist keine
-Zugriffskontrolle: Alle Profile bleiben innerhalb desselben
-Betriebssystemkontos lesbar.
+Provider stores are separated per profile in `tax-workpaper/<profile_id>/steuer.db`. This prevents mixed work documents within a household view. There is no access control: All profiles remain readable within the same operating system account.
 
-## Vorschlag ist keine steuerliche Einordnung
+## Proposal is not a tax classification
 
-`category_candidate` ist nur ein prüfpflichtiger Vorschlag. Solange
-`confirmed_category` fehlt, besitzt der Plan den Status `review_required`
-und `provider_write_allowed=false`. FolderHome überführt den Vorschlag nicht
-selbstständig in eine bestätigte Kategorie.
+`category_candidate` is only a proposal that must be reviewed. As long as `confirmed_category` is missing, the plan has the status `review_required` and `provider_write_allowed=false`. FolderHome does not automatically move the proposal into a confirmed category.
 
-Auch eine bestätigte Eingabegruppe bedeutet nicht, dass die Ausgabe
-steuerlich abziehbar ist. Alle Pläne und Berichte weisen daher
-`deductibility_assessed=false` und `tax_advice=false` aus.
+Even a confirmed input group does not mean that the output is tax‑deductible. Therefore all plans and reports display `deductibility_assessed=false` and `tax_advice=false`.
 
-## Getrennte Gates
+## Separate gates
 
 ```text
 katalogisierter Beleg + optional passende Finanzbuchung
@@ -78,17 +57,11 @@ katalogisierter Beleg + optional passende Finanzbuchung
   → neue private ZIP-Arbeitsunterlage
 ```
 
-Belegerfassung und Export sind getrennte Entscheidungen. Der Export
-überschreibt keine vorhandene Datei. Portalzugriff, Netzwerk, Versand,
-amtliches Format und Einreichung sind in Phase 29 nicht implementiert und
-können durch keinen allgemeinen CLI-Schalter aktiviert werden.
 
-## Abnahme
+Receipt capture and export are separate decisions. The export does not overwrite an existing file. Portal access, network, dispatch, official format, and submission are not implemented in Phase 29 and cannot be enabled by any generic CLI switch.
 
-Die Tests verwenden ausschließlich einen synthetischen Beleg. Sie prüfen den
-read-only Plan, die Hash- und Statebindung, Idempotenz, blockierte geänderte
-Dokumente, getrennte Exportfreigaben und den echten gepinnten Provider. Seine
-eigene Testsuite wurde zusätzlich unverändert ausgeführt.
+## Acceptance
+
+The tests use only a synthetic receipt. They verify the read‑only plan, the hash and state binding, idempotence, blocked modified documents, separate export approvals, and the real pinned provider. Its own test suite was also run unchanged.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

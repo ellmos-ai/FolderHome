@@ -1,26 +1,26 @@
-# Workflow: Leistungsvorcheck lokal ausführen
+# Workflow: Run benefit and funding pre-screen locally
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei geänderter Lebenssituation oder frischem Katalog
-> **Duration:** wenige Sekunden zuzüglich amtlichem Vorcheck
+**English** | [Deutsch](./benefit-screening.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** when life situation changes or a fresh catalog  
+> **Duration:** a few seconds plus official pre-check  
 
 ## Purpose
 
-Ein lokales Leistungsprofil mit groben, datierten Routingkriterien abgleichen
-und passende amtliche Vorchecks anzeigen. Das Ergebnis ist eine Orientierung,
-kein Anspruchs- oder Ablehnungsbescheid.
+Match a local benefit profile against coarse, dated routing criteria and display appropriate official pre-checks. The result is guidance, not a claim or rejection notice.
 
 ## Preconditions
 
-- Das organisatorische Profil existiert.
-- Leistungsprofilfakten wurden vom Menschen bereitgestellt und lokal geprüft.
-- Der Katalog nennt ausschließlich amtliche HTTPS-Quellen mit Prüfzeitpunkt.
-- `complete=false` und nicht modellierte Anforderungen sind sichtbar.
-- Der gewünschte Analysezeitpunkt und das maximale Quellenalter sind gesetzt.
+- The organizational profile exists.  
+- Benefit profile facts have been provided by a person and verified locally.  
+- The catalog lists only official HTTPS sources with a verification timestamp.  
+- `complete=false` and unmodeled requirements are visible.  
+- The desired analysis timestamp and the maximum source age are set.
 
 ## Steps
 
-1. **Vorcheck read-only ausführen.**
+1. **Run the pre-check read‑only.**
 
    ```powershell
    $env:PYTHONPATH = "src"
@@ -33,13 +33,12 @@ kein Anspruchs- oder Ablehnungsbescheid.
      --approve-sensitive-local-read --json
    ```
 
-2. **Quellenstand prüfen.** Herausgeber, URL, `checked_at`, Quellenalter,
-   Evidenzzusammenfassung und Katalogabdeckung kontrollieren.
-3. **Ergebnisse einordnen.** `official_handoff_recommended` ist nur eine
-   Route. `needs_information` fordert fehlende Fakten an.
-   `routing_mismatch` ist keine Ablehnung. `blocked_source_stale` verlangt
-   zuerst einen neuen fachlich geprüften Snapshot.
-4. **Optional lokalen Bericht schreiben.**
+
+2. **Check source status.** Verify publisher, URL, `checked_at`, source age, evidence summary, and catalog coverage.
+
+3. **Classify the results.** `official_handoff_recommended` is only a route. `needs_information` requests missing facts. `routing_mismatch` is not a rejection. `blocked_source_stale` first requires a new professionally verified snapshot.
+
+4. **Optionally write a local report.**
 
    ```powershell
    python -m folderhome benefits render <Argumente aus Schritt 1> `
@@ -48,40 +47,38 @@ kein Anspruchs- oder Ablehnungsbescheid.
      --approve-output-write --json
    ```
 
-5. **Amtlichen Vorcheck bewusst öffnen.** Persönliche Daten erst nach eigener
-   Entscheidung direkt auf der amtlichen Seite eingeben. FolderHome öffnet
-   die URL nicht automatisch.
-6. **Verbindliche Entscheidung abwarten.** Nur die zuständige Stelle
-   entscheidet über Anspruch, Höhe und erforderliche Nachweise.
+
+5. **Open the official pre-check deliberately.** Enter personal data on the official site only after your own decision. FolderHome does not open the URL automatically.
+
+6. **Wait for a binding decision.** Only the responsible authority decides on entitlement, amount, and required evidence.
 
 ## Exit-Criteria
 
-- [ ] Profil- und Kataloghash sowie explizites `as_of` sind sichtbar.
-- [ ] Keine Quelle ist neuer als `as_of` oder älter als die Altersgrenze.
-- [ ] Fehlende Fakten und nicht modellierte Anforderungen sind sichtbar.
-- [ ] Der Katalog weist `complete=false` aus.
-- [ ] Keine Leistungsberechtigung oder Höhe wurde behauptet.
-- [ ] Kein Antrag, Webaufruf oder sonstiger externer Schritt erfolgte.
-- [ ] Vorhandene Ausgabedateien wurden nicht überschrieben.
+- [ ] Profile and catalog hash as well as explicit `as_of` are visible.  
+- [ ] No source is newer than `as_of` or older than the age limit.  
+- [ ] Missing facts and unmodeled requirements are visible.  
+- [ ] The catalog exhibits `complete=false`.  
+- [ ] No benefit entitlement or amount was claimed.  
+- [ ] No application, web request, or other external step occurred.  
+- [ ] Existing output files were not overwritten.
 
-## Fallstricke
+## Pitfalls
 
-- Ein passendes Routingmerkmal ist keine Anspruchsvoraussetzung.
-- Ein Mismatch beweist weder Ausschluss noch fehlenden Anspruch.
-- Ein amtlicher Rechner ist weiterhin nur so aktuell wie die konkrete Seite.
-- Ein lokaler Katalog wird nicht durch sein Dateidatum automatisch aktuell.
-- Leistungsprofile enthalten sensible Angaben und bleiben lokal.
+- A matching routing attribute is not a prerequisite for entitlement.  
+- A mismatch proves neither exclusion nor missing entitlement.  
+- An official calculator is only as up‑to‑date as the specific page.  
+- A local catalog does not become current automatically based on its file date.  
+- Benefit profiles contain sensitive information and remain local.
 
-## Verwandte
+## Related
 
-- [`../docs/phase33-benefit-screening-plan.md`](../docs/phase33-benefit-screening-plan.md)
-- [`../skills/folderhome-benefit-screening/SKILL.md`](../skills/folderhome-benefit-screening/SKILL.md)
-- [`../reused/benefit-routing/README.md`](../reused/benefit-routing/README.md)
+- [`../docs/phase33-benefit-screening-plan.md`](../docs/phase33-benefit-screening-plan.md)  
+- [`../skills/folderhome-benefit-screening/SKILL.md`](../skills/folderhome-benefit-screening/SKILL.md)  
+- [`../reused/benefit-routing/README.md`](../reused/benefit-routing/README.md)  
 - [`./administrative-drafts.md`](./administrative-drafts.md)
 
-## Historie
+## History
 
-- **2026-08-22** — quellengebundener Vorcheck mit amtlichen Handoffs abgenommen
+- **2026-08-22** — source‑bound pre-check with official handoffs accepted
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

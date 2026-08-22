@@ -1,13 +1,7 @@
-# Manifeste
+# Manifests
 
-`components/` ist die aktuelle Laufzeitautorität für wiederverwendete
-Plugins. Jedes Manifest muss `folderhome.component-manifest.v1` erfüllen,
-seine Herkunft auf eine exakte Git-Revision pinnen und derzeit
-`default_mode = "dry-run"` sowie `live_enabled = false` setzen.
+**English** | [Deutsch](./README.de.md)
 
-FCSA und die weiteren Runtime-Bridges prüfen den lokalen Provider-Checkout
-zusätzlich zur Laufzeit gegen diesen Pin. Das Phase-34-Manifest bindet
-`law-checker` nur für read-only Registry- und Quellenmetadaten; es deklariert
-keine automatische Rechtsprüf-API. Spätere Stack-Manifeste werden ergänzt,
-sobald weitere Bridge-Verträge real implementiert und separat freigegeben
-sind.
+`components/` is the current runtime authority for reusable plugins. Every manifest must satisfy `folderhome.component-manifest.v1`, pin its origin to an exact Git revision, and currently set `default_mode = "dry-run"` as well as `live_enabled = false`.
+
+FCSA and the other runtime bridges verify the local provider checkout against this pin in addition to runtime checks. The Phase-34 manifest binds `law-checker` only for read‑only registry and source metadata; it does not declare an automatic legal‑review API. Later stack manifests will be added once additional bridge contracts are actually implemented and released separately.

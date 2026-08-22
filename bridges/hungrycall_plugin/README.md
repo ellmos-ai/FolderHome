@@ -1,7 +1,9 @@
 # HungryCall Bridge
 
-`folderhome.bridges.call_plugins` prüft Revision, sauberen Checkout, Version
-und den lokalen `DryRunCallClient`, ohne eine Anfrage auszuführen. FindCall
-übernimmt das generalisierte serielle Early-Stop-Muster in eigene generische
-Verträge; HungryCalls Gastronomie-Runtime bleibt unverändert. Netzwerk- und
-Telefonaktionen sind deaktiviert.
+**English** | [Deutsch](./README.de.md)
+
+`folderhome.bridges.call_plugins` checks revision, clean checkout, version  
+and the local `DryRunCallClient`, without executing a request. FindCall  
+adopts the generalized serial early-stop pattern into its own generic  
+contracts; HungryCalls Gastronomie-Runtime remains unchanged. Network and  
+phone actions are disabled.

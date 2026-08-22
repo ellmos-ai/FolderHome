@@ -1,61 +1,46 @@
-# Phase 28: llm-note-Wiederverwendung und persönlicher Notizdienst
+# Phase 28: llm-note Reuse and Personal Note Service
 
-**Stand:** 2026-08-22  
-**Zweck:** Den vorhandenen Notizspeicher wiederverwenden und die fehlende
-menschlich kontrollierte Führung gekapselt ergänzen.
+**English** | [Deutsch](./phase28-llm-note-reuse-and-plan.de.md)
 
-## Verifizierter Bestand
+**Status:** 2026-08-22  
+**Purpose:** Reuse the existing note storage and encapsulatedly supplement the missing human‑controlled management.
 
-Der lokale Checkout `C:\_Local_DEV\repos\llm-note` wurde read-only geprüft:
+## Verified Inventory
 
-| Merkmal | Befund |
+The local checkout `C:\_Local_DEV\repos\llm-note` was verified read‑only:
+
+| Feature | Finding |
 |---|---|
 | Repository | `https://github.com/doc-bricks/llm-note.git` |
 | Revision | `b5fe59fc155ded9603566aa0fb920a53181a2426` |
-| Paketversion | `1.0.3` |
-| Lizenz | MIT |
-| Checkout | sauber, exakt auf der gepinnten Revision |
-| Providertests | 19/19 grün |
-| Laufzeit | Python-Standardbibliothek, lokale SQLite-/Textablage, kein Netzwerk |
+| Package version | `1.0.3` |
+| License | MIT |
+| Checkout | clean, exactly on the pinned revision |
+| Provider tests | 19/19 green |
+| Runtime | Python standard library, local SQLite/text storage, no network |
 
-Die frühere FolderHome-Tabelle nannte noch `ellmos-ai/llm-note`. Der reale
-Checkout, sein Manifest und seine README weisen inzwischen `doc-bricks` als
-Repository aus. Phase 28 korrigiert deshalb die Provenienz, ohne den
-Providerstand zu verändern.
+The earlier FolderHome table still referenced `ellmos-ai/llm-note`. The actual checkout, its manifest, and its README now indicate `doc-bricks` as the repository. Phase 28 therefore corrects the provenance without changing the provider state.
 
-## Was wiederverwendet wird
+## What Is Reused
 
-FolderHome nutzt `llm_note.NoteStore.write()` als einzige schreibende
-Notizablage. Jede bestätigte FolderHome-Fassung wird als neuer
-`folderhome_note_version`-Eintrag gespeichert. Der Providerquellcode wird
-weder kopiert noch verändert.
+FolderHome uses `llm_note.NoteStore.write()` as the sole writable note store. Every approved FolderHome version is stored as a new `folderhome_note_version` entry. The provider source code is neither copied nor modified.
 
-Der öffentliche Provider-Readpfad initialisiert bei einem fehlenden Store eine
-Datenbank und führt Schema-DDL aus. Ein FolderHome-Plan muss jedoch read-only
-bleiben. Die Bridge liest bestehende FolderHome-Versionen deshalb über einen
-eng begrenzten SQLite-Adapter mit `mode=ro&immutable=1`, prüft das erwartete
-`note_entries`-Schema und verwendet die öffentliche Provider-API nur beim
-freigegebenen Anhängen. Das entspricht dem bereits bewährten
-KnowledgeDigest-Seam: Write-on-read wird vermieden, ohne einen zweiten
-Notizspeicher zu bauen.
+The public provider read path initializes a database and runs schema DDL when a store is missing. However, a FolderHome plan must remain read‑only. Therefore the bridge reads existing FolderHome versions via a tightly scoped SQLite adapter with `mode=ro&immutable=1`, validates the expected `note_entries` schema, and uses the public provider API only for approved attachments. This matches the already proven KnowledgeDigest seam: write‑on‑read is avoided without building a second note store.
 
-## Fehlende Funktionen des Bestands
+## Missing Features of the Inventory
 
-`llm-note` ist ein kleiner Agenten- und Menschennotizspeicher. Es modelliert
-noch nicht:
+`llm-note` is a small agent and human note store. It does not yet model:
 
-- Profil, Bereich und logisches Notizbuch als FolderHome-Kontext,
-- Fragen und Vorschläge getrennt vom bestätigten Inhalt,
-- Plan-, Inhalts-, State- und Approval-Bindung,
-- eine explizite Dokument- oder Kalenderreferenz,
-- Bearbeitung und Rückkehr als nachvollziehbare Versionsfolge,
-- die Betriebssystemkonto-Grenze des Familienprofils.
+- Profile, area and logical notebook as FolderHome context,
+- Questions and suggestions separated from the approved content,
+- Plan, content, state, and approval binding,
+- an explicit document or calendar reference,
+- Editing and return as a traceable version sequence,
+- the operating‑system‑account boundary of the family profile.
 
-Diese Lücke schließt neuer, wiederverwendbarer Code in
-`contracts.personal_notes`, `application.personal_notes`,
-`bridges.llm_note` und `capabilities.personal_note_guide`.
+This gap is closed by new, reusable code in `contracts.personal_notes`, `application.personal_notes`, `bridges.llm_note` and `capabilities.personal_note_guide`.
 
-## Verbindlicher Ablauf
+## Binding Procedure
 
 ```text
 menschliche Anfrage
@@ -68,39 +53,21 @@ menschliche Anfrage
   → read-only Readback und Ausführungsbericht
 ```
 
-`create` beginnt bei Revision 1. `edit` hängt eine neue Revision an. `revert`
-kopiert den Inhalt einer früheren Revision in eine neue Revision; es löscht
-oder überschreibt keine Fassung. Ein wiederholter Plan, ein veralteter
-Storehash oder ein abweichender Inhaltshash blockiert vor dem Write.
 
-## Autorschaft und LLM-Grenze
+`create` starts at revision 1. `edit` appends a new revision. `revert` copies the content of an earlier revision into a new revision; it does not delete or overwrite any version. A repeated plan, an outdated store hash, or a mismatching content hash blocks the write.
 
-Der Plan speichert `author_kind=human`. Der Guide liefert ausschließlich
-`questions` und `suggestions`; `confirmed_content_changed` muss `false` sein.
-Die Phase-28-Abnahme verwendet einen deterministischen No-Network-Guide. Ein
-späterer echter LLM-Provider benötigt eine eigene Offenlegung der zu
-übertragenden Daten, eine gesonderte Nutzerfreigabe und einen nachgewiesenen
-Providervertrag. Remote-Aufrufe sind in Phase 28 auch mit einem allgemeinen
-Schalter nicht ausführbar.
+## Authorship and LLM Boundary
 
-## Referenzen und Sicherheitsgrenze
+The plan stores `author_kind=human`. The guide provides exclusively `questions` and `suggestions`; `confirmed_content_changed` must be `false`. The Phase‑28 acceptance uses a deterministic no‑network guide. A later real LLM provider requires its own disclosure of the data to be transferred, a separate user approval, and a proven provider contract. Remote calls are not executable in Phase 28 even with a global switch.
 
-Dokumente und Termine werden niemals automatisch gesucht oder verknüpft. Eine
-Referenz muss in der Anfrage mit Art, Ziel-ID, Bezeichnung und bei Dokumenten
-optionalem SHA-256 stehen. FolderHome prüft nur die Form; die Referenz ist
-keine Behauptung, dass das Ziel noch existiert oder fachlich vollständig ist.
+## References and Security Boundary
 
-Profile wie Lukas, Hanna oder Simon sind Ansichts- und Organisationsmerkmale
-innerhalb desselben Betriebssystemkontos. Sie sind keine Zugriffsbarriere.
-Phase 28 führt weder Netzwerksynchronisierung noch Kontenfreigabe ein.
+Documents and appointments are never searched for or linked automatically. A reference must be included in the request with type, target ID, label, and for documents an optional SHA‑256. FolderHome only validates the format; the reference is not a claim that the target still exists or is technically complete.
 
-## Abnahme
+Profiles such as Lukas, Hanna, or Simon are view and organization attributes within the same operating‑system account. They are not access barriers. Phase 28 introduces neither network synchronization nor account sharing.
 
-Der synthetische Ende-zu-Ende-Fall führt Providerinventur, Guide-Plan,
-inhaltshashgebundene Freigabe, lokale Ablage und Historien-Readback aus. Vor
-der Freigabe existiert kein State-Ordner. Nach der Freigabe existiert genau
-eine neue Providerrevision; `network_invoked` und `external_sync_invoked`
-bleiben `false`.
+## Acceptance
+
+The synthetic end‑to‑end case executes provider inventory, guide plan, content‑hash‑bound approval, local storage, and history read‑back. Before the approval there is no state folder. After the approval exactly one new provider revision exists; `network_invoked` and `external_sync_invoked` remain `false`.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

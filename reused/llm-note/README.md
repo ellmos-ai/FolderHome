@@ -1,20 +1,12 @@
-# llm-note — unverändert wiederverwendeter Notizspeicher
+# llm-note — unchanged reusable note storage
 
-FolderHome lädt den eigenständigen Provider nur aus einem sauberen Checkout
-auf Commit `b5fe59fc155ded9603566aa0fb920a53181a2426` und Paketversion `1.0.3`.
-Kanonisches Repository ist `https://github.com/doc-bricks/llm-note.git`, die
-Lizenz ist MIT.
+**English** | [Deutsch](./README.de.md)
 
-Wiederverwendet werden die lokale SQLite-Ablage und die öffentliche
-`NoteStore.write()`-API. FolderHome kopiert oder verändert keinen
-Providerquellcode. Geführte Fragen, menschliche Freigabe, Profilkontext,
-explizite Referenzen und append-only Revisionen sind neuer FolderHome-Code.
+FolderHome loads the standalone provider only from a clean checkout at commit `b5fe59fc155ded9603566aa0fb920a53181a2426` and package version `1.0.3`.  
+The canonical repository is `https://github.com/doc-bricks/llm-note.git`, the license is MIT.
 
-Lesen erfolgt über einen schema- und revisionsgebundenen read-only Adapter,
-weil die öffentliche Providerklasse beim Erzeugen auch in einem fehlenden
-Store das Schema initialisiert. Schreiben ist nur mit exakter Plan-, Inhalts-
-und Statefreigabe erlaubt. Weder Provider noch Phase-28-Bridge verwenden das
-Netzwerk oder eine externe Synchronisierung.
+The local SQLite storage and the public `NoteStore.write()` API are reused. FolderHome does not copy or modify any provider source code. Guided questions, human approval, profile context, explicit references, and append‑only revisions are new FolderHome code.
+
+Reading is performed via a schema‑ and revision‑bound read‑only adapter, because the public provider class also initializes the schema in a missing store when instantiated. Writing is allowed only with exact plan, content, and state approval. Neither the provider nor the Phase‑28 bridge use the network or any external synchronization.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

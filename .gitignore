@@ -28,3 +28,19 @@ Desktop.ini
 
 # Project-local archives
 _archive/
+
+# Local project coordination and agent state
+AGENTS.md
+CLAUDE.md
+AUFGABEN.txt
+CUT-AND-CLUE.md
+DONE.md
+HEADER-RULES.md
+PATTERNS.md
+START.md
+STATE.md
+TODO.md
+TOOLS.md
+.github/CONFIGURATION.md
+_tools/README.md
+docs/superpowers/

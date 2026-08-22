@@ -1,37 +1,35 @@
-# Workflow: Kalenderconnector sicher planen und simulieren
+# Workflow: Safely plan and simulate calendar connector
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei ausdrücklich gewünschter Kalenderübergabe
-> **Duration:** Planung wenige Sekunden; ein realer Connectorlauf ist nicht Teil der Abnahme
+**English** | [Deutsch](./calendar-connectors.de.md)
+
+> **Last verified:** 2026-08-22  
+> **Frequency:** upon explicitly requested calendar handoff  
+> **Duration:** planning takes a few seconds; a real connector run is not part of the acceptance
 
 ## Purpose
 
-Aus belegten Phase-17-Terminkandidaten einen providerneutralen Connectorplan
-für UpToday, Routinika oder Google erzeugen und den Ablauf optional ohne
-Netzwerk gegen den synthetischen Provider prüfen.
+Generate a provider‑neutral connector plan for UpToday, Routinika, or Google from documented Phase‑17 appointment candidates and optionally test the flow without network against the synthetic provider.
 
 ## Preconditions
 
-- Dokumentordner, Profil, Bereich und State-Ordner sind ausdrücklich gewählt.
-- Das Konto gehört zum Profil und nennt eine konkrete Kalender-ID.
-- Die Konfiguration enthält nur eine Connector-Referenz, keine Zugangsdaten.
-- Reale Kalenderaktionen besitzen eine separate Nutzerfreigabe außerhalb
-  dieses lokalen Workflows.
+- Document folder, profile, area, and state folder are explicitly selected.  
+- The account belongs to the profile and specifies a concrete calendar ID.  
+- The configuration contains only a connector reference, no credentials.  
+- Real calendar actions have a separate user approval outside this local workflow.
 
 ## Steps
 
-1. **Provider inventarisieren** — Revision, Rolle und Live-Grenze prüfen.
+1. **Inventory providers** — check revision, role, and live boundary.  
 
    ```powershell
    $env:PYTHONPATH = "src"
    python -m folderhome calendar connectors --json
    ```
 
-2. **Phase-17-Handoff erstellen** — Dokumente extrahieren, Profilfallback,
-   Zeitzone und Evidenz prüfen. Dieser Schritt bleibt read-only.
 
-3. **Connectorplan erzeugen** — Konto und Anfrage laden; Google bleibt
-   `review_required`, Routinika bleibt blockiert und UpToday delegiert an ICS.
+2. **Create Phase‑17 handoff** — extract documents, profile fallback, verify timezone and evidence. This step remains read‑only.
+
+3. **Generate connector plan** — load account and request; Google remains `review_required`, Routinika remains blocked and UpToday delegates to ICS.  
 
    ```powershell
    python -m folderhome calendar connector-plan `
@@ -46,11 +44,10 @@ Netzwerk gegen den synthetischen Provider prüfen.
      --approve-sensitive-local-read --json
    ```
 
-4. **Payload prüfen** — Kalender-ID, Solo-Teilnehmerliste, Zeitoffset,
-   Endzeit, Transparenz, Reminder und Quellaktionsreferenz kontrollieren.
 
-5. **Nur lokal simulieren** — der zusätzliche Provider- und Ausführungsschalter
-   macht die Absicht sichtbar. Es wird kein Google-Skill aufgerufen.
+4. **Validate payload** — check calendar ID, solo participant list, time offset, end time, transparency, reminder, and source action reference.
+
+5. **Simulate locally only** — the additional provider and execution switch makes the intent visible. No Google skill is invoked.  
 
    ```powershell
    python -m folderhome calendar connector-simulate `
@@ -68,39 +65,35 @@ Netzwerk gegen den synthetischen Provider prüfen.
      --approve-synthetic-calendar --json
    ```
 
-6. **Report prüfen** — nur `status=simulated`, `network_invoked=false` und
-   `live_calendar_written=false` gelten als lokale Abnahme.
+
+6. **Validate report** — only `status=simulated`, `network_invoked=false` and `live_calendar_written=false` count as local acceptance.
 
 ## Exit-Criteria
 
-- [ ] Konto, Profil, Backend und Phase-17-Handoff stimmen überein.
-- [ ] Providerrevision und Profilregelquelle sind sichtbar.
-- [ ] Erstellen, Aktualisieren, Löschen und Erinnern sind getrennt modelliert.
-- [ ] Google-Handoff enthält explizite Kalender-ID und Offsetzeiten.
-- [ ] Ohne bestehende Providerreferenz bleiben Update und Löschen blockiert.
-- [ ] Ohne reale Nutzerfreigabe wurden weder Netzwerk noch Kalender verändert.
+- [ ] Account, profile, backend, and Phase‑17 handoff match.  
+- [ ] Provider revision and profile rule source are visible.  
+- [ ] Create, update, delete, and remind are modeled separately.  
+- [ ] Google handoff contains explicit calendar ID and offset times.  
+- [ ] Without an existing provider reference, update and delete remain blocked.  
+- [ ] Without real user approval, neither network nor calendar were altered.
 
-## Fallstricke
+## Pitfalls
 
-- Eine vorhandene UpToday-Installation ist kein Live-Sync; FolderHome nutzt
-  nur den nachgewiesenen ICS-Dateihandoff.
-- Ein Routinika-Bundle ist kein Connectorvertrag.
-- `primary` ist eine explizite Google-Kalender-ID, kein impliziter Ersatz für
-  ein unbekanntes Ziel.
-- Ein Reminder im Ereignispayload ist noch keine nachgewiesene Zustellung.
-- Update oder Löschen ohne bestehende Provider-Ereignis-ID ist fail-closed.
-- Serienereignisse benötigen später eine ausdrückliche Scope-Entscheidung.
+- An existing UpToday installation is not a live sync; FolderHome uses only the proven ICS file handoff.  
+- A Routinika bundle is not a connector contract.  
+- `primary` is an explicit Google calendar ID, not an implicit substitute for an unknown target.  
+- A reminder in the event payload is not yet a proven delivery.  
+- Update or delete without an existing provider event ID fails closed.  
+- Recurring events later require an explicit scope decision.
 
-## Verwandte
+## Related
 
-- [`../docs/phase27-calendar-connector-plan.md`](../docs/phase27-calendar-connector-plan.md)
-- [`../skills/folderhome-calendar-connectors/SKILL.md`](../skills/folderhome-calendar-connectors/SKILL.md)
+- [`../docs/phase27-calendar-connector-plan.md`](../docs/phase27-calendar-connector-plan.md)  
+- [`../skills/folderhome-calendar-connectors/SKILL.md`](../skills/folderhome-calendar-connectors/SKILL.md)  
 - [`calendar-handoff.md`](calendar-handoff.md)
 
-## Historie
+## History
 
-- **2026-08-22** — UpToday-, Routinika- und Google-Routen inventarisiert und
-  synthetischen No-Network-Ablauf lokal abgenommen
+- **2026-08-22** — UpToday, Routinika, and Google routes inventoried and synthetic no‑network flow locally accepted
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

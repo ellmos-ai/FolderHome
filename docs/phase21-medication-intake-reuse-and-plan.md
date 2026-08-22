@@ -1,46 +1,37 @@
-# Phase 21 — Medikamentenplan und bestätigte Einnahme
+# Phase 21 — Medication Plan and Confirmed Intake
 
-**Status:** lokal abgeschlossen, 198 Tests grün  
-**Stand:** 2026-08-22  
-**Produktname im Wettbewerb:** FolderHome
+**English** | [Deutsch](./phase21-medication-intake-reuse-and-plan.de.md)
 
-## Ziel
+**Status:** locally completed, 198 tests green  
+**Date:** 2026-08-22  
+**Product name in competition:** FolderHome
 
-FolderHome übernimmt ausdrücklich bereitgestellte Medikamentenpläne als
-organisatorische, evidenzgebundene Daten. Für einen gewählten Tag zeigt es
-geplante Einnahmen und getrennt davon ausdrücklich bestätigte Einnahmen. Es
-entscheidet weder Präparat noch Dosis und verändert keinen Medikamentenbestand
-automatisch.
+## Goal
 
-## Wiederverwendung
+FolderHome explicitly accepts provided medication plans as organizational, evidence‑based data. For a selected day it displays scheduled intakes and, separately, explicitly confirmed intakes. It does not decide on the medication or dose and does not automatically modify medication inventory.
+
+## Reuse
 
 ### UpToday Health Engine
 
-- lokaler sauberer Checkout: `C:\_Local_DEV\repos\UpToday`
-- geprüfte Revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
-- Lizenz: MIT
-- fokussierte Medikamenten-/Einnahmeabnahme: 6 Tests grün
-- wiederverwendete Trennung: Medikament, Zeitplan, Tagesdosis und bestätigte
-  Einnahme; doppelte Bestätigung darf nicht doppelt wirken
+- local clean checkout: `C:\_Local_DEV\repos\UpToday`
+- verified revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
+- license: MIT
+- focused medication/intake acquisition: 6 tests green
+- reused separation: medication, schedule, daily dose and confirmed intake; duplicate confirmation must not have duplicate effect
 
-Nicht geladen werden der globale DB-Singleton, direkte `UPDATE`-/`DELETE`-
-Operationen, der beim Lesen schreibende Tagesplan, Fließkomma-Bestände,
-implizites `datetime.now()` und automatische Bestandsreduktion.
+Not loaded are the global DB singleton, direct `UPDATE`/`DELETE` operations, the write‑on‑read daily plan, floating‑point inventories, implicit `datetime.now()` and automatic inventory reduction.
 
-### Gesundheit-Skill und Health-Assist-Bundle
+### Gesundheit‑Skill and Health‑Assist‑Bundle
 
-- `gesundheit` 2.0.0, Repository `ellmos-ai/skills`, Revision
-  `0317f32310eed11d21f603cb6f22a689485af226`, MIT
-- Health-Assist-Bundle 1.0.0: registrierter deklarativer Entwurf ohne
-  Runtime-Autorität
+- `gesundheit` 2.0.0, repository `ellmos-ai/skills`, revision `0317f32310eed11d21f603cb6f22a689485af226`, MIT
+- Health‑Assist‑Bundle 1.0.0: registered declarative draft without runtime authority
 
-Wiederverwendet werden nur ausdrücklich bereitgestellte Informationen,
-sachliche Organisation und die Grenze „Organisation only“. Diagnose,
-Therapie, Verordnung und Dosisentscheidung bleiben ausgeschlossen.
+Only explicitly provided information, factual organization and the “organization only” boundary are reused. Diagnosis, therapy, prescription and dose decision remain excluded.
 
-## Deklaratives V1-Eingabeformat
+## Declarative V1 Input Format
 
-Eine Textdatei beschreibt genau einen Einnahmezeitpunkt:
+A text file describes exactly one intake time point:
 
 ```text
 Präparat: DemoMed
@@ -56,13 +47,10 @@ Bestandsgegenstand: DemoMed
 Bestandseinheit: Tablette
 ```
 
-`Gültig-bis` ist optional. Dosiswerte werden ohne Rundung als ganzzahlige
-Tausendstel der dokumentierten Einheit gespeichert. `Wochentage` akzeptiert
-`täglich` oder eine kommagetrennte Auswahl deutscher Wochentage. Pläne „bei
-Bedarf“ werden in V1 nicht automatisch terminiert und bleiben
-`review_required`.
 
-## Neuer gekapselter Bauplan
+`Gültig-bis` is optional. Dose values are stored without rounding as integer thousandths of the documented unit. `Wochentage` accepts `täglich` or a comma‑separated selection of German weekdays. “As‑needed” plans are not automatically scheduled in V1 and remain `review_required`.
+
+## New Encapsulated Blueprint
 
 ```text
 expliziter Planordner + Profil + lokale Sensitivitätsfreigabe
@@ -87,35 +75,33 @@ explizite Bestätigungsdatei + State-Gate
   → keine Bestandsänderung, Erinnerung oder externe Aktion auslösen
 ```
 
-Neue Pakete:
+
+New packages:
 
 - `folderhome.contracts.medication`
 - `folderhome.application.medication_intake`
 - `folderhome.capabilities.medication_store`
 
-## Sicherheits- und Produktgrenzen
+## Security and Product Boundaries
 
-- Keine Diagnose, Verordnung, Dosisberechnung oder Wechselwirkungsprüfung.
-- Keine Aussage, dass ein Plan medizinisch richtig oder aktuell ist.
-- Keine automatische Erinnerung, Nachricht, Kalenderaktion oder Bestellung.
-- Eine Bestätigung dokumentiert nur eine ausdrückliche Nutzereingabe; sie ist
-  kein medizinischer Wirksamkeitsnachweis.
-- Bestände werden nicht automatisch reduziert. Ein Abgleich ist nur ein
-  Hinweis auf vorhandene oder fehlende lokale Evidenz.
-- Kein stilles Überschreiben und kein SQL-`DELETE`.
-- Familienprofile sind keine Zugriffsgrenze innerhalb desselben OS-Kontos.
+- No diagnosis, prescription, dose calculation or interaction checking.
+- No claim that a plan is medically correct or up‑to‑date.
+- No automatic reminder, message, calendar action or order.
+- A confirmation documents only an explicit user input; it is not a medical efficacy evidence.
+- Inventories are not automatically reduced. A reconciliation is only an indication of existing or missing local evidence.
+- No silent overwriting and no SQL‑`DELETE`.
+- Family profiles are not an access boundary within the same OS account.
 
-## Abnahme
+## Acceptance
 
-- Parser, Wochentage, Zeitzone und Dezimalexaktheit
-- Datenschutzstatus und Zeilenevidenz
-- konfliktfreie read-only Planung
-- Approval-, Revisions-, Quellhash- und State-Gates
-- append-only Zeitpläne, Einnahmen und Audit
-- Tagesansicht ohne Write-on-read
-- idempotente Einnahmebestätigung
-- optionaler Bestandsabgleich ohne Bestandsänderung
-- synthetischer CLI-End-to-End-Lauf
+- Parser, weekdays, timezone and decimal precision
+- Privacy status and line evidence
+- Conflict‑free read‑only planning
+- approval, revision, source‑hash and state gates
+- append‑only schedules, intakes and audit
+- daily view without write‑on‑read
+- idempotent intake confirmation
+- optional inventory reconciliation without inventory change
+- synthetic CLI end‑to‑end run
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

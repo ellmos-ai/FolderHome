@@ -1,33 +1,24 @@
-# Phase 16: Kontakt-Wiederverwendung und Bauplan
+# Phase 16: Contact Reuse and Blueprint
 
-**Stand:** 2026-08-22  
-**Status:** implementiert und mit 146 FolderHome-Tests abgenommen
+**English** | [Deutsch](./phase16-contact-reuse-and-plan.de.md)
 
-## Wiederverwendungsprüfung
+**As of:** 2026-08-22  
+**Status:** implemented and approved with 146 FolderHome tests
 
-- Unter den bereits extrahierten lokalen Modulen existiert kein passendes
-  Kontaktregister. `crm-cosmology` ist trotz seines Namens ein
-  Kosmologieprojekt und fachlich unverbunden.
-- Der Altbestand `BACH/system/hub/contact.py` verwaltet allgemeine Kontakte
-  in der BACH-Datenbank. Er wird gemäß Projektentscheidung nicht erneut aus
-  BACH extrahiert und nicht direkt gekoppelt.
-- Der BACH-Handler besitzt keine Dokumenthash-Evidenz, keine Kandidatenphase,
-  keine plan-/aktionsgebundene Freigabe und keinen atomaren Kontaktwechsel.
-- Wiederverwendet werden deshalb die bereits extrahierten FolderHome-Bridges
-  für `doc-services`, Profile, Dokumentidentität, Hashprüfung, Gates und Audit.
-  Neu entsteht ausschließlich der gekapselte Kontaktkern.
+## Reuse Check
 
-## Nutzerziel
+- Among the already extracted local modules there is no suitable contact register. `crm-cosmology` is, despite its name, a cosmology project and professionally unrelated.
+- The legacy inventory `BACH/system/hub/contact.py` manages general contacts in the BACH database. According to the project decision it will not be re‑extracted from BACH and will not be directly linked.
+- The BACH handler has no document‑hash evidence, no candidate phase, no plan/action‑bound approval, and no atomic contact switch.
+- Therefore the already extracted FolderHome bridges for `doc-services`, profile, document identity, hash verification, gates and audit are reused. Only the encapsulated contact core is created anew.
 
-FolderHome soll aus einem Dokument erkennen können, wer für einen konkreten
-Bereich und Gegenstand zuständig ist, etwa die Versicherung eines Hyundai i10.
-Neue Kontaktdaten dürfen erst nach Prüfung übernommen werden. Wird später für
-denselben Zweck ein anderer Kontakt belegt, wird der neue Kontakt angelegt und
-der alte lediglich als Löschkandidat markiert.
+## User Goal
 
-## Deklaratives Dokumentformat V1
+FolderHome shall be able to determine from a document who is responsible for a specific area and object, e.g., the insurance of a Hyundai i10. New contact data may only be adopted after verification. If later a different contact is assigned for the same purpose, the new contact is created and the old one is merely marked as a deletion candidate.
 
-V1 wertet nur eindeutig beschriftete Einzelzeilen aus:
+## Declarative Document Format V1
+
+V1 evaluates only uniquely labeled single lines:
 
 ```text
 Organisation: Beispiel Versicherung AG
@@ -40,72 +31,47 @@ Telefon: +49 30 123456
 Gültig ab: 2026-08-01
 ```
 
-Mindestens Organisation, Zuständigkeit sowie E-Mail oder Telefon sind
-erforderlich. Mehrdeutige Mehrfachwerte und ungültige Kanäle erzeugen keinen
-freigabefähigen Kandidaten. `blocked` und `not_checked` sperren die lokale
-Übernahme. `review_required` benötigt zusätzlich die ausdrückliche Freigabe
-`--approve-sensitive-local-read`; sie erlaubt keine Weitergabe nach außen.
 
-## Daten- und Freigabevertrag
+At minimum, organization, responsibility, and either email or phone are required. Ambiguous multi‑values and invalid channels do not produce an approval‑capable candidate. `blocked` and `not_checked` block the local adoption. `review_required` additionally requires the explicit approval `--approve-sensitive-local-read`; it does not permit external distribution.
 
-1. Jeder Kandidat bindet Profil, Bereich, Zweck, optionalen Objektbezug,
-   normalisierte Kanäle sowie Dokument-ID, Quellhash, Pfad und Zeilenevidenz.
-2. Ein read-only Registerplan vergleicht Kandidaten gegen denselben Schlüssel
-   aus Profil, Bereich, Zweck und Objektbezug.
-3. Ohne Treffer wird `create`, bei identischem Kontakt `noop` geplant.
-4. Ein abweichender neuer Kontakt erzeugt eine atomare `replace`-Aktion:
-   neuen Kontakt aktiv anlegen und vorherigen Kontakt als
-   `deletion_candidate` markieren.
-5. Kein Workflow löscht einen Kontakt automatisch.
-6. Eine Approval-Datei bindet Plan-ID, Registerrevision und konkrete
-   Aktions-IDs.
-7. Vor dem Schreiben werden Registerrevision und sämtliche Quelldokumenthashes
-   erneut geprüft.
-8. Registeränderung und append-only Ereignisse erfolgen in einer
-   SQLite-Transaktion unter explizitem State-Gate.
-9. Mehrere Dokumente mit demselben Zuständigkeitsschlüssel werden vor dem
-   Registervergleich gemeinsam geprüft. Nur der eindeutig neueste Kontakt
-   kann geplant werden; abweichende Kontakte mit demselben neuesten Datum
-   blockieren fail-closed.
-10. Dokumentordner und State dürfen sich nicht überlappen, damit das Register
-    nicht als eigene Dokumentquelle eingelesen wird.
+## Data and Approval Contract
+
+1. Each candidate binds profile, area, purpose, optional object reference, normalized channels as well as document ID, source hash, path, and line evidence.
+2. A read‑only register plan compares candidates against the same key composed of profile, area, purpose, and object reference.
+3. If no match is found, `create` is planned; for an identical contact, `noop` is planned.
+4. A differing new contact generates an atomic `replace` action: actively create the new contact and mark the previous contact as `deletion_candidate`.
+5. No workflow automatically deletes a contact.
+6. An approval file binds the plan ID, register revision, and concrete action IDs.
+7. Before writing, the register revision and all source document hashes are re‑checked.
+8. Register changes and append‑only events occur within a SQLite transaction under an explicit state gate.
+9. Multiple documents with the same responsibility key are evaluated together before the register comparison. Only the unequivocally newest contact can be planned; differing contacts with the same newest date cause a fail‑closed block.
+10. Document folders and state must not overlap, so that the register is not read as a separate document source.
 
 ## Usecases
 
-### USECASE 016-1: Ersten zuständigen Kontakt planen
+### USECASE 016-1: Plan the first responsible contact
 
-- **Eingabe:** Synthetische Police mit beschriftetem Ansprechpartner.
-- **Erwartung:** Ein evidenzgebundener Kandidat und eine ungefreigte
-  `create`-Aktion; kein Register wird angelegt.
+- **Input:** Synthetic policy with a labeled point of contact.
+- **Expectation:** An evidence‑bound candidate and an unapproved `create` action; no register is created.
 
-### USECASE 016-2: Kontakt freigeben und finden
+### USECASE 016-2: Approve and find contact
 
-- **Eingabe:** Exakte Approval-Datei für die `create`-Aktion.
-- **Erwartung:** Aktiver Kontakt ist nach Profil, Bereich, Zweck und
-  „Hyundai i10“ auffindbar; Dokument bleibt bytegleich.
+- **Input:** Exact approval file for the `create` action.
+- **Expectation:** Active contact is searchable by profile, area, purpose and “Hyundai i10”; document remains byte‑identical.
 
-### USECASE 016-3: Zuständigkeitswechsel
+### USECASE 016-3: Responsibility change
 
-- **Eingabe:** Neueres Dokument mit anderem Ansprechpartner für denselben
-  Schlüssel.
-- **Erwartung:** `replace`-Vorschlag; nach Freigabe neuer Kontakt aktiv,
-  vorheriger Kontakt `deletion_candidate`, keine Zeile gelöscht.
+- **Input:** Newer document with a different point of contact for the same key.
+- **Expectation:** `replace` suggestion; after approval the new contact is active, previous contact `deletion_candidate`, no line deleted.
 
-### USECASE 016-4: Widersprüchliche Ordnerkontakte blockieren
+### USECASE 016-4: Block contradictory folder contacts
 
-- **Eingabe:** Zwei Dokumente mit demselben Zuständigkeitsschlüssel und Datum,
-  aber verschiedenen Kontakten.
-- **Erwartung:** Beide Kandidaten bleiben sichtbar und `blocked`; es entsteht
-  keine ausführbare Registeraktion.
+- **Input:** Two documents with the same responsibility key and date, but different contacts.
+- **Expectation:** Both candidates remain visible and `blocked`; no executable register action is generated.
 
-## Implementierte Oberfläche
+## Implemented Interface
 
-- `contacts plan` extrahiert gelabelte Kontaktkandidaten und vergleicht sie
-  read-only mit der aktuellen Registerrevision.
-- `contacts apply` baut den Plan erneut und verlangt Approval-Datei,
-  Quellhash-Readback sowie `--approve-state-write`.
-- `contacts list` sucht aktive oder optional auch als Löschkandidat markierte
-  Kontakte nach Profil, Bereich und Objektbezug.
-- Der wiederverwendbare Kern liegt getrennt unter
-  `capabilities/contact_registry`; Application Service und Verträge bleiben
-  providerneutral.
+- `contacts plan` extracts labeled contact candidates and compares them read‑only with the current register revision.
+- `contacts apply` rebuilds the plan and requires an approval file, source‑hash readback, and `--approve-state-write`.
+- `contacts list` searches for active or optionally also deletion‑candidate contacts by profile, area, and object reference.
+- The reusable core resides separately under `capabilities/contact_registry`; application service and contracts remain provider‑neutral.

@@ -1,13 +1,15 @@
 ---
 name: folderhome-artifact-studio
-description: Plane und erstelle FolderHome-Artefakte wie Präsentationen, Tabellen, Dokumente, Designsets, Visitenkarten oder Medien über vorhandene spezialisierte Skills und explizite Qualitätsgates.
+description: Plan and create FolderHome artifacts such as presentations, tables, documents, design sets, business cards, or media using existing specialized skills and explicit quality gates.
 ---
 
 # FolderHome Artifact Studio
 
-Verwende zuerst den FolderHome-Plan. Er entscheidet nicht kreativ über den
-Inhalt, sondern prüft, welcher bestehende Spezialist zuständig und in der
-aktuellen Laufzeit nachweisbar verwendbar ist.
+**English** | [Deutsch](./SKILL.de.md)
+
+Use the FolderHome plan first. It does not make creative decisions about the
+content, but checks which existing specialist is responsible and is demonstrably
+usable in the current runtime.
 
 ```powershell
 python -m folderhome artifacts plan `
@@ -17,33 +19,31 @@ python -m folderhome artifacts plan `
   --json
 ```
 
+
 ## Routing
 
-- `presentation`: Nutze den `pptx`-Skill; bei wissenschaftlichem Inhalt
-  zusätzlich `academic-pptx`. Erzeuge keine PPTX, wenn die im Plan genannten
-  Inhalts-, Render- oder Sichtprüfungen nicht erfüllbar sind.
-- `spreadsheet`: Nutze den `Spreadsheets`-Skill ausschließlich mit dessen
-  bereitgestelltem Workspace-Dependency-Loader. Prüfe Formeln und jede
-  sichtbare Tabelle vor der Ausgabe.
-- `document`: Nutze den `documents`-Skill und dessen strukturelle sowie
-  visuelle DOCX-Abnahme. report-forge darf erst nach einheitlicher
-  Distribution-/Runtime-Identität als Provider dienen.
-- `odt`: Stoppe, solange der Plan keinen revisionsgebundenen ODT-Renderer mit
-  visueller Abnahme ausweist.
-- `design_set` und `business_card`: Nutze `artifacts design-preview`, prüfe
-  Inhalt und Kontrast, dann `artifacts design-render` mit getrenntem
-  Output-Gate. Betrachte jede SVG-Karte vor einer Druckfreigabe erneut.
-- `media`: Nutze ai-media-editor nur an der im Plan genannten sauberen
-  Revision. Reale Medien brauchen Lesefreigabe; eine Schnittstrategie muss
-  vor dem Rendern bestätigt werden.
+- `presentation`: Use the `pptx` skill; for scientific content
+  also `academic-pptx`. Do not generate PPTX if the content, rendering, or visual
+  checks specified in the plan are not fulfillable.
+- `spreadsheet`: Use the `Spreadsheets` skill exclusively with its
+  provided workspace dependency loader. Check formulas and every visible table before output.
+- `document`: Use the `documents` skill and its structural as well as
+  visual DOCX acceptance. report-forge may serve as a provider only after a uniform
+  distribution/runtime identity.
+- `odt`: Stop as long as the plan does not specify a revision-bound ODT renderer with
+  visual acceptance.
+- `design_set` and `business_card`: Use `artifacts design-preview`, check
+  content and contrast, then `artifacts design-render` with a separate
+  output gate. Review each SVG map again before a print approval.
+- `media`: Use ai-media-editor only on the clean revision specified in the plan.
+  Real media require read approval; a cut strategy must be confirmed before rendering.
 
-Ein Status `blocked` darf nicht durch eine ähnliche Bibliothek, einen
-System-Python oder eine ungeprüfte Konvertierung umgangen werden. Ein Status
-`review_required` erlaubt Vorbereitung, aber keine Fertigbehauptung ohne die
-genannten Prüfungen.
+A status `blocked` may not be bypassed by a similar library, a
+system Python, or an unchecked conversion. A status
+`review_required` permits preparation, but no claim of completion without the
+specified checks.
 
-Versand, Upload, Druck, Veröffentlichung und Remote-Verarbeitung sind eigene
-Aktionen und werden aus einem Artefaktplan niemals automatisch abgeleitet.
+Shipping, upload, printing, publication, and remote processing are separate
+actions and are never automatically derived from an artifact plan.
 
 ---
-<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->
