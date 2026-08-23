@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ellmos-ai/FolderHome/config/resources.schema.json",
+  "title": "FolderHome private logical resource registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "os_account", "resources", "profile_defaults"],
+  "properties": {
+    "schema": {"const": "folderhome.resource-registry.v1"},
+    "os_account": {"type": "string", "minLength": 1},
+    "resources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/resource"}
+    },
+    "profile_defaults": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "resource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "resource_id",
+        "kind",
+        "locator",
+        "operations",
+        "purposes",
+        "profile_ids",
+        "cloud_context"
+      ],
+      "properties": {
+        "resource_id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+        },
+        "kind": {
+          "enum": ["directory", "file", "sqlite_store", "local_calendar"]
+        },
+        "locator": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "path"],
+          "properties": {
+            "type": {"const": "local_path"},
+            "path": {"type": "string", "minLength": 3}
+          }
+        },
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "read",
+              "sensitive_read",
+              "list",
+              "create",
+              "append",
+              "update",
+              "move",
+              "recycle",
+              "state_write"
+            ]
+          }
+        },
+        "purposes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.-]{2,127}$"
+          }
+        },
+        "profile_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_-]{1,63}$"
+          }
+        },
+        "cloud_context": {
+          "enum": ["deny", "synthetic_only", "minimized_with_approval"]
+        }
+      }
+    }
+  }
+}

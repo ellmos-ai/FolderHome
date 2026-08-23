@@ -10,8 +10,20 @@ from pathlib import Path
 
 import pytest
 
+from folderhome.application.medication_intake import (
+    apply_medication_import_plan,
+    build_medication_import_plan,
+)
 from folderhome.capabilities.calendar_store import CalendarStore
-from folderhome.contracts import AdministrativeDraftApproval
+from folderhome.capabilities.medication_store import MedicationStore
+from folderhome.contracts import (
+    AdministrativeDraftApproval,
+    FolderMedicationPlanAnalysis,
+    MedicationEvidence,
+    MedicationImportApproval,
+    MedicationPlanAnalysisItem,
+    MedicationScheduleCandidate,
+)
 
 REPO_ROOT = Path(__file__).parents[1]
 FCSA_ROOT = REPO_ROOT.parent / "file-collect-sort-action"
@@ -22,18 +34,70 @@ TAX_ASSISTANT_ROOT = REPO_ROOT.parent / "steuer-assistent"
 LAW_CHECKER_ROOT = REPO_ROOT.parent / "law-checker"
 
 
-def run_cli(*args: str) -> subprocess.CompletedProcess[str]:
+def run_cli(
+    *args: str,
+    input_text: str | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(REPO_ROOT / "src")
     return subprocess.run(
         [sys.executable, "-m", "folderhome", *args],
         cwd=REPO_ROOT,
         env=env,
+        input=input_text,
         capture_output=True,
         text=True,
         encoding="utf-8",
         check=False,
     )
+
+
+def _seed_cli_medication_schedule(tmp_path: Path, state_dir: Path) -> str:
+    source_root = tmp_path / "medication-source"
+    source_root.mkdir()
+    source = source_root / "DemoMed.txt"
+    source.write_text("Synthetischer Medikamentenplan.\n", encoding="utf-8")
+    candidate = MedicationScheduleCandidate(
+        schedule_id=f"medication_schedule_{sha256(b'cli-schedule').hexdigest()}",
+        schedule_key=f"medication_schedule_key_{sha256(b'cli-key').hexdigest()}",
+        profile_id="lukas",
+        medication_name="DemoMed",
+        dose_quantity_milli=1000,
+        dose_unit="Tablette",
+        scheduled_time="08:00",
+        timezone="Europe/Berlin",
+        weekdays=(5,),
+        valid_from="2026-08-22",
+        valid_to="2026-12-31",
+        inventory_item_id=f"inventory_item_{sha256(b'cli-inventory').hexdigest()}",
+        source_document_id=f"doc_{sha256(b'cli-document').hexdigest()}",
+        source_sha256=sha256(source.read_bytes()).hexdigest(),
+        source_path=source,
+        evidence=(MedicationEvidence("medication_name", 1, "Präparat"),),
+    )
+    analysis = FolderMedicationPlanAnalysis(
+        source_root=source_root,
+        profile_id="lukas",
+        items=(
+            MedicationPlanAnalysisItem(
+                relative_path=source.name,
+                status="ready",
+                schedule=candidate,
+                message="Synthetischer Testzeitplan.",
+            ),
+        ),
+    )
+    store = MedicationStore(state_dir)
+    plan = build_medication_import_plan(analysis, store=store)
+    approval = MedicationImportApproval(
+        approval_id="seed_cli_medication",
+        plan_id=plan.plan_id,
+        medication_revision=plan.medication_revision,
+        action_ids=(plan.actions[0].action_id,),
+        approved_at="2026-08-22T07:00:00+02:00",
+    )
+    apply_medication_import_plan(plan, approval, store=store, allow_state_write=True)
+    return candidate.schedule_id
 
 
 def test_plugins_validate_reports_all_pinned_manifests_as_json() -> None:
@@ -579,6 +643,32 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
 ) -> None:
     state_dir = tmp_path / "state"
     state_dir.mkdir()
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    resources_file = tmp_path / "resources.json"
+    resources_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.resource-registry.v1",
+                "os_account": "synthetic-family-account",
+                "resources": [
+                    {
+                        "resource_id": "documents_source",
+                        "kind": "directory",
+                        "locator": {"type": "local_path", "path": str(documents)},
+                        "operations": ["list", "read"],
+                        "purposes": ["documents.source"],
+                        "profile_ids": ["lukas"],
+                        "cloud_context": "minimized_with_approval",
+                    }
+                ],
+                "profile_defaults": {
+                    "lukas": {"documents.source": "documents_source"}
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
     planned = run_cli(
         "app",
         "plan",
@@ -588,6 +678,8 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
         str(state_dir),
         "--knowledge-digest-root",
         str(KNOWLEDGE_DIGEST_ROOT),
+        "--resources-file",
+        str(resources_file),
         "--host",
         "127.0.0.1",
         "--port",
@@ -604,6 +696,10 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
     assert payload["session_token_disclosed_in_plan"] is False
     assert payload["server_started"] is False
     assert payload["shell_execution_available"] is False
+    assert payload["logical_resources_configured"] is True
+    assert payload["agent"]["executor_coverage"]["connected"] == 26
+    assert payload["agent"]["executor_coverage"]["not_connected"] == 3
+    assert str(documents) not in planned.stdout
 
     blocked = run_cli(
         "app",
@@ -614,6 +710,8 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
         str(state_dir),
         "--knowledge-digest-root",
         str(KNOWLEDGE_DIGEST_ROOT),
+        "--resources-file",
+        str(resources_file),
         "--host",
         "0.0.0.0",
         "--json",
@@ -652,11 +750,65 @@ def test_strands_agent_cli_plans_bounded_fixture_without_model_call(
     assert payload["framework_version"] == "1.53.0"
     assert payload["model_call_performed"] is False
     assert payload["settings"]["max_turns"] == 4
+    assert payload["settings"]["max_conversation_messages"] == 24
     assert payload["tools"] == [
         "build_home_theme_dossier",
+        "consult_home_specialist",
+        "list_home_capabilities",
+        "list_home_resources",
         "search_home_documents",
     ]
+    assert payload["agent_role"] == "folderhome_master"
+    assert payload["routing_policy"] == "semantic_model_selection"
+    assert payload["executor_coverage"] == {
+        "connected": 3,
+        "direct_read_only": 1,
+        "planning_only": 3,
+        "not_connected": 26,
+        "total": 33,
+    }
     assert payload["external_network_used"] is False
+
+    missing_note_provider = run_cli(
+        "agent",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--llm-note-root",
+        str(tmp_path / "missing-llm-note"),
+        "--model-provider",
+        "fixture",
+        "--json",
+    )
+    assert missing_note_provider.returncode == 2
+    assert "llm-note" in json.loads(missing_note_provider.stdout)["error"]
+
+    chatted = run_cli(
+        "agent",
+        "chat",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--prompt",
+        "What can you do?",
+        "--json",
+    )
+    assert chatted.returncode == 0, chatted.stderr
+    chat_payload = json.loads(chatted.stdout)
+    assert chat_payload["organizational_profile_id"] == "lukas"
+    assert chat_payload["tool_events"][0]["tool_name"] == "list_home_capabilities"
+    assert chat_payload["side_effects"] == []
 
     bedrock_common = (
         "agent",
@@ -688,6 +840,423 @@ def test_strands_agent_cli_plans_bounded_fixture_without_model_call(
     approved_payload = json.loads(approved.stdout)
     assert approved_payload["model_call_performed"] is False
     assert approved_payload["settings"]["allow_sensitive_cloud_data"] is True
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_agent_session_exposes_executor_catalog_as_read_only_ndjson(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+
+    result = run_cli(
+        "agent",
+        "session",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--json",
+        input_text="/catalog\n/reset\n/quit\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    events = [json.loads(line) for line in result.stdout.splitlines()]
+    assert [item["event"] for item in events] == [
+        "ready",
+        "catalog",
+        "conversation_reset",
+        "closed",
+    ]
+    assert all(item["schema"] == "folderhome.agent-session-event.v1" for item in events)
+    assert events[0]["profile_id"] == "lukas"
+    assert events[0]["chat_is_approval"] is False
+    assert events[0]["confirmation_command"] == "/confirm <plan_id>"
+    assert events[1]["catalog"]["coverage"] == {
+        "connected": 3,
+        "direct_read_only": 1,
+        "planning_only": 3,
+        "not_connected": 26,
+        "total": 33,
+    }
+    assert events[2]["conversation"]["turn"] == 0
+    assert events[2]["side_effects"] == ["memory.agent_conversation.clear"]
+    assert events[3]["side_effects"] == []
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_agent_session_retains_conversation_between_cli_turns(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    remember = json.dumps(
+        {
+            "schema": "folderhome.fixture-conversation-turn.v1",
+            "remember": "Hyundai i10",
+            "recall": False,
+        }
+    )
+    recall = json.dumps(
+        {
+            "schema": "folderhome.fixture-conversation-turn.v1",
+            "remember": None,
+            "recall": True,
+        }
+    )
+
+    result = run_cli(
+        "agent",
+        "session",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--json",
+        input_text=f"{remember}\n{recall}\n/quit\n",
+    )
+
+    assert result.returncode == 0, result.stderr
+    chats = [
+        json.loads(line)
+        for line in result.stdout.splitlines()
+        if json.loads(line)["event"] == "chat"
+    ]
+    assert [item["conversation"]["turn"] for item in chats] == [1, 2]
+    assert "Hyundai i10" in chats[1]["agent"]["response_text"]
+    assert all(item["side_effects"] == [] for item in chats)
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir() or not LLM_NOTE_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest or llm-note checkout unavailable",
+)
+def test_agent_session_requires_explicit_plan_id_then_executes_note_once(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    specialist_request = {
+        "schema": "folderhome.fixture-specialist-request.v1",
+        "expert_id": "creative_knowledge_expert",
+        "workflow_id": "personal-notes",
+        "persona_id": "creative_guide",
+        "language": "de",
+        "request": {
+            "action": "create",
+            "notebook_id": "gesundheit",
+            "area": "gesundheit",
+            "title": "Fragen für den Hausarzt",
+            "human_content": "Ich möchte drei Fragen für den Termin festhalten.",
+            "note_id": None,
+            "expected_revision": None,
+            "revert_to_revision": None,
+            "references": [],
+        },
+    }
+    prompt = json.dumps(specialist_request, ensure_ascii=False)
+    session_args = (
+        "agent",
+        "session",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--llm-note-root",
+        str(LLM_NOTE_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--json",
+    )
+    database = state_dir / "personal-notes" / "llm-note.db"
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    process = subprocess.Popen(
+        [sys.executable, "-m", "folderhome", *session_args],
+        cwd=REPO_ROOT,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    assert process.stderr is not None
+    try:
+        ready = json.loads(process.stdout.readline())
+        process.stdin.write(prompt + "\n")
+        process.stdin.flush()
+        chat = json.loads(process.stdout.readline())
+        plan = chat["agent"]["proposed_plans"][0]
+        assert not database.exists()
+
+        process.stdin.write(f"/confirm {plan['plan_id']}\n")
+        process.stdin.flush()
+        confirmation = json.loads(process.stdout.readline())
+        process.stdin.write("/quit\n")
+        process.stdin.flush()
+        closed = json.loads(process.stdout.readline())
+        process.stdin.close()
+        returncode = process.wait(timeout=30)
+        stderr = process.stderr.read()
+    finally:
+        if process.poll() is None:
+            process.kill()
+
+    assert returncode == 0, stderr
+    assert ready["event"] == "ready"
+    assert chat["event"] == "chat"
+    assert chat["side_effects"] == []
+    assert confirmation["event"] == "confirmation"
+    assert confirmation["plan_id"] == plan["plan_id"]
+    assert confirmation["plan_sha256"] == plan["plan_sha256"]
+    assert confirmation["result"]["execution_performed"] is True
+    assert confirmation["result"]["side_effects"] == ["state.personal_notes.append"]
+    assert closed["event"] == "closed"
+    assert database.is_file()
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir() or not LLM_NOTE_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest or llm-note checkout unavailable",
+)
+def test_agent_session_confirms_findcall_fixture_without_live_call(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    raw_phone = "+4915111111111"
+    prompt = json.dumps(
+        {
+            "schema": "folderhome.fixture-specialist-request.v1",
+            "expert_id": "communication_expert",
+            "workflow_id": "findcall",
+            "persona_id": "methodical_operator",
+            "language": "de",
+            "request": {
+                "action": "simulate",
+                "planned_at": "2026-08-23T00:20:00+02:00",
+                "area": "mobilität",
+                "kind": "quote",
+                "service": "Bremsenprüfung Hyundai i10",
+                "location": "Beispielstadt",
+                "windows": [
+                    {
+                        "start_at": "2026-09-16T09:00:00+02:00",
+                        "end_at": "2026-09-16T12:00:00+02:00",
+                    }
+                ],
+                "max_distance_km": 20.0,
+                "max_price_eur": 180.0,
+                "candidates": [
+                    {
+                        "name": "Synthetische Werkstatt",
+                        "phone_e164": raw_phone,
+                        "services": ["Bremsenprüfung Hyundai i10"],
+                        "distance_km": 4.0,
+                        "priority": 1,
+                        "fixture": {
+                            "status": "COMPLETED",
+                            "service_confirmed": True,
+                            "available": True,
+                            "offered_window": {
+                                "start_at": "2026-09-16T10:00:00+02:00",
+                                "end_at": "2026-09-16T11:00:00+02:00",
+                            },
+                            "price_known": True,
+                            "price_eur": 175.0,
+                            "commitment_made": False,
+                            "summary": "Synthetisches Angebot innerhalb der Grenze.",
+                        },
+                    }
+                ],
+            },
+        },
+        ensure_ascii=False,
+    )
+    session_args = (
+        "agent",
+        "session",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--llm-note-root",
+        str(LLM_NOTE_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--json",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    process = subprocess.Popen(
+        [sys.executable, "-m", "folderhome", *session_args],
+        cwd=REPO_ROOT,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    assert process.stderr is not None
+    try:
+        ready = json.loads(process.stdout.readline())
+        process.stdin.write(prompt + "\n")
+        process.stdin.flush()
+        chat = json.loads(process.stdout.readline())
+        plan = chat["agent"]["proposed_plans"][0]
+        process.stdin.write(f"/confirm {plan['plan_id']}\n")
+        process.stdin.flush()
+        confirmation = json.loads(process.stdout.readline())
+        process.stdin.write("/quit\n")
+        process.stdin.flush()
+        closed = json.loads(process.stdout.readline())
+        process.stdin.close()
+        returncode = process.wait(timeout=30)
+        stderr = process.stderr.read()
+    finally:
+        if process.poll() is None:
+            process.kill()
+
+    assert returncode == 0, stderr
+    assert ready["event"] == "ready"
+    assert chat["event"] == "chat"
+    assert raw_phone not in json.dumps(chat, ensure_ascii=False)
+    assert confirmation["event"] == "confirmation"
+    assert confirmation["result"]["execution_performed"] is True
+    assert confirmation["result"]["side_effects"] == [
+        "simulation.findcall.fixture"
+    ]
+    report = confirmation["result"]["execution_reports"][0]["domain_report"]
+    assert report["simulated"] is True
+    assert report["network_used"] is False
+    assert report["phone_calls_placed"] is False
+    assert report["commitment_made"] is False
+    assert closed["event"] == "closed"
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir() or not LLM_NOTE_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest or llm-note checkout unavailable",
+)
+def test_agent_session_confirms_existing_medication_intake_once(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    schedule_id = _seed_cli_medication_schedule(tmp_path, state_dir)
+    prompt = json.dumps(
+        {
+            "schema": "folderhome.fixture-specialist-request.v1",
+            "expert_id": "health_expert",
+            "workflow_id": "medication-intake",
+            "persona_id": "careful_reviewer",
+            "language": "de",
+            "request": {
+                "action": "confirm_taken",
+                "schedule_id": schedule_id,
+                "scheduled_date": "2026-08-22",
+                "confirmed_at": "2026-08-22T08:05:00+02:00",
+            },
+        },
+        ensure_ascii=False,
+    )
+    session_args = (
+        "agent",
+        "session",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--llm-note-root",
+        str(LLM_NOTE_ROOT),
+        "--model-provider",
+        "fixture",
+        "--profile-id",
+        "lukas",
+        "--json",
+    )
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    process = subprocess.Popen(
+        [sys.executable, "-m", "folderhome", *session_args],
+        cwd=REPO_ROOT,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert process.stdin is not None
+    assert process.stdout is not None
+    assert process.stderr is not None
+    try:
+        ready = json.loads(process.stdout.readline())
+        process.stdin.write(prompt + "\n")
+        process.stdin.flush()
+        chat = json.loads(process.stdout.readline())
+        plan = chat["agent"]["proposed_plans"][0]
+        assert MedicationStore(state_dir).list_intake_events(profile_id="lukas") == ()
+
+        process.stdin.write(f"/confirm {plan['plan_id']}\n")
+        process.stdin.flush()
+        confirmation = json.loads(process.stdout.readline())
+        process.stdin.write("/quit\n")
+        process.stdin.flush()
+        closed = json.loads(process.stdout.readline())
+        process.stdin.close()
+        returncode = process.wait(timeout=30)
+        stderr = process.stderr.read()
+    finally:
+        if process.poll() is None:
+            process.kill()
+
+    assert returncode == 0, stderr
+    assert ready["event"] == "ready"
+    assert chat["event"] == "chat"
+    assert chat["side_effects"] == []
+    assert confirmation["event"] == "confirmation"
+    assert confirmation["result"]["execution_performed"] is True
+    assert confirmation["result"]["side_effects"] == [
+        "state.medication_intake.append"
+    ]
+    report = confirmation["result"]["execution_reports"][0]["domain_report"]
+    assert report["medical_advice"] is False
+    assert "state_path" not in report
+    assert len(MedicationStore(state_dir).list_intake_events(profile_id="lukas")) == 1
+    assert closed["event"] == "closed"
 
 
 def test_competition_demo_cli_publishes_only_after_explicit_gate(tmp_path: Path) -> None:
@@ -1198,6 +1767,67 @@ def test_profiles_cli_validates_and_resolves_inheritance(tmp_path: Path) -> None
     assert rules["archive.after_days"]["value"] == 1825
     assert rules["archive.after_days"]["scope"] == "profile_area"
     assert rules["delete.mode"]["value"] == "review_only"
+
+
+def test_resources_cli_validates_and_lists_only_logical_profile_catalog(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "private-source"
+    source.mkdir()
+    registry_file = tmp_path / "resources.json"
+    registry_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.resource-registry.v1",
+                "os_account": "synthetic-family-account",
+                "resources": [
+                    {
+                        "resource_id": "insurance_documents",
+                        "kind": "directory",
+                        "locator": {"type": "local_path", "path": str(source)},
+                        "operations": ["list", "read"],
+                        "purposes": ["insurance.source"],
+                        "profile_ids": ["lukas"],
+                        "cloud_context": "minimized_with_approval",
+                    }
+                ],
+                "profile_defaults": {
+                    "lukas": {"insurance.source": "insurance_documents"}
+                },
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    validated = run_cli(
+        "resources",
+        "validate",
+        "--resources-file",
+        str(registry_file),
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--json",
+    )
+    catalog = run_cli(
+        "resources",
+        "catalog",
+        "--resources-file",
+        str(registry_file),
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--profile",
+        "lukas",
+        "--json",
+    )
+
+    assert validated.returncode == 0, validated.stderr
+    assert json.loads(validated.stdout)["resource_count"] == 1
+    assert catalog.returncode == 0, catalog.stderr
+    payload = json.loads(catalog.stdout)
+    assert payload["paths_disclosed"] is False
+    assert payload["resources"][0]["resource_id"] == "insurance_documents"
+    assert str(source) not in catalog.stdout
 
 
 @pytest.mark.skipif(

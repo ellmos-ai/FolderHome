@@ -3,16 +3,23 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+import strands.models
 
+import folderhome.application.strands_agent as strands_module
 from folderhome.application.local_app import LocalApplication
 from folderhome.application.profile_rules import load_profile_configuration
 from folderhome.application.strands_agent import (
     FolderHomeAgentError,
     StrandsAgentSettings,
+    consult_folderhome_specialist,
     run_folderhome_agent,
 )
 from folderhome.bridges.knowledge_digest import KnowledgeDigestSearchHit
-from folderhome.contracts import LocalAppSettings
+from folderhome.contracts import (
+    LocalAppSettings,
+    LogicalResource,
+    ResourceRegistry,
+)
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
 
@@ -53,6 +60,29 @@ def _app(tmp_path: Path) -> LocalApplication:
     )
 
 
+def _resource_app(tmp_path: Path) -> LocalApplication:
+    application = _app(tmp_path)
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    application.resource_registry = ResourceRegistry(
+        os_account="synthetic-family-account",
+        resources=(
+            LogicalResource(
+                resource_id="insurance_documents",
+                kind="directory",
+                local_path=documents,
+                operations=frozenset({"list", "read"}),
+                purposes=frozenset({"insurance.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="minimized_with_approval",
+            ),
+        ),
+        profile_defaults={"lukas": {"insurance.source": "insurance_documents"}},
+        known_profile_ids=frozenset({"hanna", "lukas", "simon"}),
+    )
+    return application
+
+
 def test_fixture_agent_uses_real_strands_loop_and_dossier_tool(tmp_path: Path) -> None:
     report = run_folderhome_agent(
         application=_app(tmp_path),
@@ -75,6 +105,50 @@ def test_fixture_agent_uses_real_strands_loop_and_dossier_tool(tmp_path: Path) -
     assert report.profiles_are_authorization_boundaries is False
 
 
+def test_fixture_master_capability_answer_uses_runtime_executor_catalog(
+    tmp_path: Path,
+) -> None:
+    application = _app(tmp_path)
+    report = run_folderhome_agent(
+        application=application,
+        prompt="What can you do?",
+        profile_id="lukas",
+        settings=StrandsAgentSettings(model_provider="fixture"),
+    )
+
+    assert [item.tool_name for item in report.tool_events] == ["list_home_capabilities"]
+    assert "8 bounded expert roles" in report.response_text
+    assert "29 runtime adapter gaps" in report.response_text
+
+    german = run_folderhome_agent(
+        application=application,
+        prompt="Was kannst du?",
+        profile_id="lukas",
+        settings=StrandsAgentSettings(model_provider="fixture"),
+    )
+    assert "8 begrenzte Fachrollen" in german.response_text
+    assert "29 sichtbare Adapterlücken" in german.response_text
+
+
+def test_fixture_agent_can_list_profile_resources_without_receiving_paths(
+    tmp_path: Path,
+) -> None:
+    application = _resource_app(tmp_path)
+    report = run_folderhome_agent(
+        application=application,
+        prompt="Which logical resources are configured for me?",
+        profile_id="lukas",
+        settings=StrandsAgentSettings(model_provider="fixture"),
+    )
+
+    assert [item.tool_name for item in report.tool_events] == ["list_home_resources"]
+    assert "insurance_documents" in report.response_text
+    assert str(tmp_path) not in report.response_text
+    assert "documents" not in report.response_text.replace(
+        "insurance_documents", ""
+    )
+
+
 def test_fixture_agent_selects_natural_document_search_without_path_access(
     tmp_path: Path,
 ) -> None:
@@ -93,6 +167,41 @@ def test_fixture_agent_selects_natural_document_search_without_path_access(
     assert report.tool_events[0].side_effects == ()
     assert report.organizational_profile_id == "hanna"
     assert "source_path" not in report.response_text
+
+
+def test_scoped_specialist_can_only_propose_its_verified_workflow(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    payload, plan, delegation = consult_folderhome_specialist(
+        application=app,
+        request="Prepare a safe cleanup plan for my inbox.",
+        profile_id="lukas",
+        expert_id="document_expert",
+        workflow_id="folder-cleanup",
+        persona_id="methodical_operator",
+        language="en",
+        settings=StrandsAgentSettings(model_provider="fixture"),
+    )
+
+    assert payload["status"] == "planned"
+    assert payload["execution_performed"] is False
+    assert payload["side_effects"] == []
+    assert [item.workflow_id for item in plan.steps] == ["folder-cleanup"]
+    assert plan.confirmation_required is True
+    assert delegation.expert_id == "document_expert"
+    assert delegation.workflow_id == "folder-cleanup"
+    assert delegation.side_effects == ()
+
+    with pytest.raises(FolderHomeAgentError, match="gehört nicht"):
+        consult_folderhome_specialist(
+            application=app,
+            request="Clean up my inbox.",
+            profile_id="lukas",
+            expert_id="health_expert",
+            workflow_id="folder-cleanup",
+            persona_id="careful_reviewer",
+            language="en",
+            settings=StrandsAgentSettings(model_provider="fixture"),
+        )
 
 
 def test_agent_gates_unknown_profiles_prompt_budget_and_bedrock_network(
@@ -120,6 +229,8 @@ def test_agent_gates_unknown_profiles_prompt_budget_and_bedrock_network(
             aws_region="eu-central-1",
             allow_network=False,
         )
+    with pytest.raises(ValueError, match="max_conversation_messages"):
+        StrandsAgentSettings(max_conversation_messages=3)
 
 
 def test_bedrock_requires_separate_sensitive_cloud_data_approval() -> None:
@@ -153,3 +264,32 @@ def test_agent_settings_keep_turns_tools_and_output_finite() -> None:
         StrandsAgentSettings(model_provider="fixture", max_tool_calls=9)
     with pytest.raises(ValueError, match="max_response_chars"):
         StrandsAgentSettings(model_provider="fixture", max_response_chars=0)
+
+
+def test_bedrock_model_uses_explicit_timeouts_and_one_sdk_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeBedrockModel:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(strands.models, "BedrockModel", FakeBedrockModel)
+    settings = StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id="eu.amazon.nova-micro-v1:0",
+        aws_region="eu-central-1",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+        bedrock_connect_timeout_seconds=4,
+        bedrock_read_timeout_seconds=20,
+    )
+
+    strands_module._build_model(settings)
+
+    config = captured["boto_client_config"]
+    assert config.connect_timeout == 4
+    assert config.read_timeout == 20
+    assert config.retries["total_max_attempts"] == 1
+    assert captured["max_tokens"] == settings.max_output_tokens

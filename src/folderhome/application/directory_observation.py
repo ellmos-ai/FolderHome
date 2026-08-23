@@ -72,6 +72,7 @@ def run_directory_scan(
     receipts: tuple[PlacementReceipt, ...] = (),
     allow_state_write: bool,
     expected_previous_snapshot_id: str | None | object = _UNSPECIFIED_PREVIOUS,
+    expected_current_snapshot_id: str | object = _UNSPECIFIED_PREVIOUS,
 ) -> DirectoryScanReport:
     """Compare a configured folder to its latest immutable checkpoint."""
 
@@ -95,6 +96,13 @@ def run_directory_scan(
         )
     except DirectorySnapshotError as exc:
         raise DirectoryObservationError(str(exc)) from exc
+    if (
+        expected_current_snapshot_id is not _UNSPECIFIED_PREVIOUS
+        and current.snapshot_id != expected_current_snapshot_id
+    ):
+        raise DirectoryObservationError(
+            "Beobachteter Ordner stimmt nicht mehr mit dem geplanten Snapshot überein."
+        )
     diff = None
     learning_examples = ()
     elapsed_minutes = None

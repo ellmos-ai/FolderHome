@@ -20,6 +20,11 @@ from folderhome.contracts.profiles import (
     RuleScope,
     UserProfile,
 )
+from folderhome.contracts.resources import (
+    LogicalResource,
+    ResourceRegistry,
+    ResourceRegistryError,
+)
 from folderhome.contracts.versions import (
     ArchiveProposal,
     DocumentFamily,
@@ -96,6 +101,7 @@ __all__ = [
     "ContactRegisterApproval",
     "ContactRegisterPlan",
     "ContactRegisterReport",
+    "CoordinatorRole",
     "ContractCockpitIssue",
     "ContractCockpitReport",
     "ContractCockpitRequest",
@@ -136,6 +142,7 @@ __all__ = [
     "DocumentVersion",
     "DocumentVersionComparison",
     "EvidenceRef",
+    "ExpertRole",
     "ExecutedActionStep",
     "FolderCleanupApproval",
     "FolderCleanupExecutionReport",
@@ -236,6 +243,11 @@ __all__ = [
     "MailOutboundConfiguration",
     "MailSendApproval",
     "MailSendReport",
+    "MasterAgentPlan",
+    "MasterCapability",
+    "MasterConfirmationReceipt",
+    "MasterPlanApproval",
+    "MasterPlanStep",
     "NewsArticle",
     "NewsSnapshot",
     "NoticeConflict",
@@ -262,6 +274,7 @@ __all__ = [
     "TaxReceiptRequest",
     "GateDecision",
     "IndexStatus",
+    "LogicalResource",
     "PluginDescriptor",
     "PlacementReceipt",
     "PolicyActionKind",
@@ -270,12 +283,16 @@ __all__ = [
     "PrivacyStatus",
     "ProfileRule",
     "ProviderProvenance",
+    "RoutingPersona",
+    "SemanticRouteReceipt",
     "RunReport",
     "RunStatus",
     "SchedulerHandoffPlan",
     "SchedulerRunReport",
     "ResolvedProfilePolicy",
     "ResolvedProfileRule",
+    "ResourceRegistry",
+    "ResourceRegistryError",
     "RuleKey",
     "RuleScope",
     "SideEffect",
@@ -286,6 +303,9 @@ __all__ = [
     "WeatherSnapshot",
     "VersionDateBasis",
     "VersionDateConfidence",
+    "WorkflowAdapterDescriptor",
+    "WorkflowExecutionEnvelope",
+    "WorkflowExecutionReport",
     "UserProfile",
     "build_document_id",
     "build_inventory_item_id",
@@ -721,6 +741,17 @@ from folderhome.contracts.mail import (  # noqa: E402
     MailSendApproval,
     MailSendReport,
 )
+from folderhome.contracts.master_agent import (  # noqa: E402
+    CoordinatorRole,
+    ExpertRole,
+    MasterAgentPlan,
+    MasterCapability,
+    MasterConfirmationReceipt,
+    MasterPlanApproval,
+    MasterPlanStep,
+    RoutingPersona,
+    SemanticRouteReceipt,
+)
 from folderhome.contracts.medication import (  # noqa: E402
     FolderMedicationPlanAnalysis,
     MedicationConfirmationReport,
@@ -802,4 +833,9 @@ from folderhome.contracts.transforms import (  # noqa: E402
     DocumentBundlePlan,
     DocumentBundleResult,
     TransformTreatment,
+)
+from folderhome.contracts.workflow_execution import (  # noqa: E402
+    WorkflowAdapterDescriptor,
+    WorkflowExecutionEnvelope,
+    WorkflowExecutionReport,
 )

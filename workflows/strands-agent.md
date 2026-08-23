@@ -19,7 +19,7 @@ Plan a limited execution of the real Strands‑Agents loop from FolderHome, run 
 
 ## Steps
 
-1. **Plan the agent interface as read‑only.**
+1. **Plan the bounded master-agent interface.**
 
    ```powershell
    folderhome agent plan --profiles-dir <profiles-dir> --state-dir <state-dir> --model-provider fixture --json
@@ -28,12 +28,19 @@ Plan a limited execution of the real Strands‑Agents loop from FolderHome, run 
 
 2. **Check the plan.** The framework must be `strands-agents`, tool execution `sequential`, the tools must be exactly allow‑listed and all limits must be finite. A plan does not trigger any model call.
 
-3. **Execute a local request via the fixture agent.**
+3. **Start an in-process conversation with the master through the CLI.** The
+   session keeps bounded model-visible history and displayed plans available
+   for follow-ups and a separate `/confirm <plan_id>` command. The default
+   history window is 24 messages and can be reduced with
+   `--max-conversation-messages`. Add `--json` for NDJSON events.
 
    ```powershell
-   folderhome agent run --profiles-dir <profiles-dir> --state-dir <state-dir> --profile-id lukas --prompt "Gib mir alles zum Thema Krankenversicherung." --model-provider fixture --json
+   folderhome agent session --profiles-dir <profiles-dir> --state-dir <state-dir> --profile-id lukas --model-provider fixture
    ```
 
+   Use `/reset` to clear the selected profile's retained conversation and
+   unconfirmed plans without deleting domain data. Use `/help`, `/catalog` and
+   `/quit` for the other session controls.
 
 4. **Read the agent report.** Verify `stop_reason=end_turn`, at least one executed tool event, correct input/output hashes, `network_used=false`, and an empty side‑effect list.
 
@@ -52,6 +59,10 @@ Plan a limited execution of the real Strands‑Agents loop from FolderHome, run 
 
 - [ ] The real Strands SDK loop has executed at least one FolderHome tool.  
 - [ ] Tool order, turn count, and result size were limited.  
+- [ ] Follow-up context remained within the configured message window and
+  `/reset` cleared it explicitly.
+- [ ] Ordinary chat did not count as approval; `/confirm` used the displayed
+  plan ID inside the same process.  
 - [ ] The reproducible run required neither network nor credentials.  
 - [ ] Demo artifacts contain exclusively synthetic data.  
 - [ ] `EVIDENCE.json` and the SHA‑256 values mentioned therein are correct.  
@@ -61,9 +72,12 @@ Plan a limited execution of the real Strands‑Agents loop from FolderHome, run 
 ## Pitfalls
 
 - The fixture provider occupies the Strands orchestration, but not model quality or AWS availability.  
+- The application contains no keyword workflow router. Fixture branching exists only to make the offline read-only acceptance reproducible; live semantic selection belongs to the configured model.
 - `--allow-network` is only the technical run gate. Sharing local search results additionally requires `--approve-sensitive-cloud-data`; both gates authorize neither costs, uploads nor publication.  
 - Family profiles share the same file permissions within the same OS account.  
-- The agent allowlist intentionally contains no write‑capable domain workflows.
+- Conversation history exists only in the current process. It is not restored
+  after exit and must not be treated as a user profile database or audit log.
+- The master allowlist contains two read-only document tools, capability discovery and a specialist consultation tool. Specialists receive one plan-only endpoint and no executor.
 
 ## Related
 
@@ -75,5 +89,6 @@ Plan a limited execution of the real Strands‑Agents loop from FolderHome, run 
 ## History
 
 - **2026-08-22** — Strands Agent, fixture model, separate Bedrock gates and demo acceptance added
+- **2026-08-22** — bounded conversational continuity and explicit `/reset` added
 
 ---

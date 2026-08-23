@@ -193,6 +193,11 @@ from folderhome.application.profile_rules import (
     load_profile_configuration,
     resolve_profile_policy,
 )
+from folderhome.application.resource_registry import (
+    ResourceRegistryError,
+    default_resource_registry_path,
+    load_resource_registry,
+)
 from folderhome.application.routine_queue import (
     RoutineQueueError,
     build_folder_routine_queue,
@@ -207,7 +212,6 @@ from folderhome.application.strands_agent import (
     FolderHomeAgentError,
     StrandsAgentSettings,
     plan_folderhome_agent,
-    run_folderhome_agent,
 )
 from folderhome.application.tax_workpaper import (
     TaxWorkflowError,
@@ -220,6 +224,36 @@ from folderhome.application.tax_workpaper import (
 from folderhome.application.version_analysis import (
     DocumentVersionAnalysisError,
     analyze_document_versions,
+)
+from folderhome.application.workflow_execution import (
+    AdministrativeDraftWorkflowAdapter,
+    ArtifactStudioWorkflowAdapter,
+    BenefitScreeningWorkflowAdapter,
+    ContactRegisterWorkflowAdapter,
+    ContractCockpitWorkflowAdapter,
+    CorrespondenceWorkflowAdapter,
+    DailyBriefingWorkflowAdapter,
+    DirectoryObservationWorkflowAdapter,
+    DocumentActionExecutionWorkflowAdapter,
+    DocumentActionPlanWorkflowAdapter,
+    DocumentBundleWorkflowAdapter,
+    DocumentPackageWorkflowAdapter,
+    FcsaDryRunWorkflowAdapter,
+    FinanceImportWorkflowAdapter,
+    FindCallWorkflowAdapter,
+    FolderCleanupWorkflowAdapter,
+    FolderRoutineWorkflowAdapter,
+    HealthDossierWorkflowAdapter,
+    InventoryImportWorkflowAdapter,
+    LegalChangeMonitorWorkflowAdapter,
+    LocalCalendarWorkflowAdapter,
+    MedicationIntakeWorkflowAdapter,
+    OfficialNoticeWorkflowAdapter,
+    PersonalNotesWorkflowAdapter,
+    RoutineQueueWorkflowAdapter,
+    TaxWorkpaperWorkflowAdapter,
+    WorkflowExecutionError,
+    WorkflowExecutionGateway,
 )
 from folderhome.bridges._provider import (
     ProviderCheckoutError,
@@ -390,6 +424,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_profiles_validate(args)
     if args.command == "profiles" and args.profiles_command == "resolve":
         return _run_profiles_resolve(args)
+    if args.command == "resources" and args.resources_command == "validate":
+        return _run_resources_validate(args)
+    if args.command == "resources" and args.resources_command == "catalog":
+        return _run_resources_catalog(args)
     if args.command == "contacts" and args.contacts_command == "plan":
         return _run_contacts_plan(args)
     if args.command == "contacts" and args.contacts_command == "apply":
@@ -514,8 +552,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_legal_render(args)
     if args.command == "agent" and args.agent_command == "plan":
         return _run_strands_agent_plan(args)
-    if args.command == "agent" and args.agent_command == "run":
+    if args.command == "agent" and args.agent_command in {"run", "chat"}:
         return _run_strands_agent(args)
+    if args.command == "agent" and args.agent_command == "session":
+        return _run_strands_agent_session(args)
     if args.command == "demo" and args.demo_command == "run":
         return _run_competition_demo(args)
     if args.command == "app" and args.app_command == "plan":
@@ -704,6 +744,17 @@ def _build_parser() -> argparse.ArgumentParser:
     profile_resolve.add_argument("--profile", required=True)
     profile_resolve.add_argument("--area", required=True)
     profile_resolve.add_argument("--json", action="store_true", dest="as_json")
+
+    resources = commands.add_parser("resources")
+    resource_commands = resources.add_subparsers(
+        dest="resources_command",
+        required=True,
+    )
+    resource_validate = resource_commands.add_parser("validate")
+    _add_resource_registry_arguments(resource_validate)
+    resource_catalog = resource_commands.add_parser("catalog")
+    _add_resource_registry_arguments(resource_catalog)
+    resource_catalog.add_argument("--profile", required=True)
 
     contacts = commands.add_parser("contacts")
     contact_commands = contacts.add_subparsers(dest="contacts_command", required=True)
@@ -1146,6 +1197,17 @@ def _build_parser() -> argparse.ArgumentParser:
     agent_run.add_argument("--profile-id", required=True)
     agent_run.add_argument("--prompt", required=True)
     agent_run.add_argument("--json", action="store_true", dest="as_json")
+    agent_chat = agent_commands.add_parser("chat")
+    _add_local_app_arguments(agent_chat)
+    _add_strands_agent_arguments(agent_chat)
+    agent_chat.add_argument("--profile-id", required=True)
+    agent_chat.add_argument("--prompt", required=True)
+    agent_chat.add_argument("--json", action="store_true", dest="as_json")
+    agent_session = agent_commands.add_parser("session")
+    _add_local_app_arguments(agent_session)
+    _add_strands_agent_arguments(agent_session)
+    agent_session.add_argument("--profile-id", required=True)
+    agent_session.add_argument("--json", action="store_true", dest="as_json")
 
     demo = commands.add_parser("demo")
     demo_commands = demo.add_subparsers(dest="demo_command", required=True)
@@ -1158,9 +1220,11 @@ def _build_parser() -> argparse.ArgumentParser:
     app_commands = app.add_subparsers(dest="app_command", required=True)
     app_plan = app_commands.add_parser("plan")
     _add_local_app_arguments(app_plan)
+    _add_strands_agent_arguments(app_plan)
     app_plan.add_argument("--json", action="store_true", dest="as_json")
     app_serve = app_commands.add_parser("serve")
     _add_local_app_arguments(app_serve)
+    _add_strands_agent_arguments(app_serve)
     app_serve.add_argument("--approve-loopback-server", action="store_true")
     app_serve.add_argument("--json", action="store_true", dest="as_json")
 
@@ -1336,6 +1400,11 @@ def _add_notice_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=DEFAULT_DOC_SERVICES_PROVIDER_ROOT,
     )
+    parser.add_argument(
+        "--law-checker-root",
+        type=Path,
+        default=DEFAULT_LAW_CHECKER_PROVIDER_ROOT,
+    )
     parser.add_argument("--approve-sensitive-local-read", action="store_true")
 
 
@@ -1384,11 +1453,32 @@ def _add_legal_change_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--profiles-dir", type=Path, required=True)
     parser.add_argument("--state-dir", type=Path, required=True)
+    parser.add_argument("--resources-file", type=Path)
     parser.add_argument("--manifest-root", type=Path, default=DEFAULT_MANIFEST_ROOT)
     parser.add_argument(
         "--knowledge-digest-root",
         type=Path,
         default=DEFAULT_KNOWLEDGE_DIGEST_PROVIDER_ROOT,
+    )
+    parser.add_argument(
+        "--doc-services-root",
+        type=Path,
+        default=DEFAULT_DOC_SERVICES_PROVIDER_ROOT,
+    )
+    parser.add_argument(
+        "--law-checker-root",
+        type=Path,
+        default=DEFAULT_LAW_CHECKER_PROVIDER_ROOT,
+    )
+    parser.add_argument(
+        "--tax-assistant-root",
+        type=Path,
+        default=DEFAULT_TAX_ASSISTANT_PROVIDER_ROOT,
+    )
+    parser.add_argument(
+        "--fcsa-root",
+        type=Path,
+        default=DEFAULT_FCSA_PROVIDER_ROOT,
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
@@ -1414,6 +1504,14 @@ def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-response-chars", type=int, default=20_000)
     parser.add_argument("--max-tool-result-bytes", type=int, default=1_048_576)
     parser.add_argument("--max-output-tokens", type=int, default=4_096)
+    parser.add_argument("--max-conversation-messages", type=int, default=24)
+    parser.add_argument("--bedrock-connect-timeout-seconds", type=int, default=5)
+    parser.add_argument("--bedrock-read-timeout-seconds", type=int, default=30)
+    parser.add_argument(
+        "--llm-note-root",
+        type=Path,
+        default=DEFAULT_LLM_NOTE_PROVIDER_ROOT,
+    )
 
 
 def _add_correspondence_arguments(parser: argparse.ArgumentParser) -> None:
@@ -1980,6 +2078,54 @@ def _run_profiles_resolve(args: argparse.Namespace) -> int:
     except ProfileConfigurationError as exc:
         return _print_error(str(exc))
     print(json.dumps(policy.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _add_resource_registry_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--resources-file",
+        type=Path,
+        default=default_resource_registry_path(),
+    )
+    parser.add_argument("--profiles-dir", type=Path, required=True)
+    parser.add_argument("--json", action="store_true", dest="as_json")
+
+
+def _load_configured_resources(args: argparse.Namespace):
+    configuration = load_profile_configuration(args.profiles_dir)
+    profile_ids = frozenset(profile.profile_id for profile in configuration.profiles)
+    registry = load_resource_registry(
+        args.resources_file,
+        expected_os_account=configuration.os_account,
+        known_profile_ids=profile_ids,
+    )
+    return configuration, registry
+
+
+def _run_resources_validate(args: argparse.Namespace) -> int:
+    try:
+        configuration, registry = _load_configured_resources(args)
+    except (OSError, ProfileConfigurationError, ResourceRegistryError) as exc:
+        return _print_error(str(exc))
+    payload = {
+        "schema": "folderhome.resource-registry-validation.v1",
+        "valid": True,
+        "os_account": configuration.os_account,
+        "profile_count": len(configuration.profiles),
+        "resource_count": len(registry.resources),
+        "paths_disclosed": False,
+    }
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_resources_catalog(args: argparse.Namespace) -> int:
+    try:
+        _, registry = _load_configured_resources(args)
+        payload = registry.to_public_dict(profile_id=args.profile)
+    except (OSError, ProfileConfigurationError, ResourceRegistryError, ValueError) as exc:
+        return _print_error(str(exc))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
     return 0
 
 
@@ -4378,16 +4524,261 @@ def _run_strands_agent_plan(args: argparse.Namespace) -> int:
 def _run_strands_agent(args: argparse.Namespace) -> int:
     try:
         application = _prepare_local_app(args)
-        report = run_folderhome_agent(
-            application=application,
-            prompt=args.prompt,
+        report = application.run_agent_chat(
             profile_id=args.profile_id,
-            settings=_strands_agent_settings(args),
+            message=args.prompt,
         )
     except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
         return _print_error(str(exc))
     print(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
     return 0
+
+
+def _run_strands_agent_session(args: argparse.Namespace) -> int:
+    try:
+        application = _prepare_local_app(args)
+    except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
+        return _print_error(str(exc))
+
+    ready = _agent_session_event(
+        "ready",
+        profile_id=args.profile_id,
+        model_provider=application.agent_settings.model_provider,
+        conversation=application.agent_conversation_payload(args.profile_id),
+        chat_is_approval=False,
+        confirmation_command="/confirm <plan_id>",
+        commands=[
+            "/help",
+            "/catalog",
+            "/reset",
+            "/confirm <plan_id>",
+            "/quit",
+        ],
+        side_effects=[],
+    )
+    _print_agent_session_event(ready, as_json=args.as_json)
+    encountered_error = False
+    interactive = sys.stdin.isatty()
+    while True:
+        try:
+            if interactive:
+                line = input("folderhome> ")
+            else:
+                raw_line = sys.stdin.readline()
+                if raw_line == "":
+                    break
+                line = raw_line.rstrip("\r\n")
+        except (EOFError, KeyboardInterrupt):
+            break
+        message = line.strip()
+        if not message:
+            continue
+        if message == "/quit":
+            break
+        if message == "/help":
+            _print_agent_session_event(
+                _agent_session_event(
+                    "help",
+                    commands={
+                        "/help": "Show these bounded session commands.",
+                        "/catalog": "Show exact workflow executor coverage without changes.",
+                        "/reset": "Clear this profile's process-local context and plans.",
+                        "/confirm <plan_id>": (
+                            "Confirm every approval-required step of one displayed plan."
+                        ),
+                        "/quit": "Close the in-process agent session.",
+                    },
+                    chat_is_approval=False,
+                    side_effects=[],
+                ),
+                as_json=args.as_json,
+            )
+            continue
+        if message == "/catalog":
+            _print_agent_session_event(
+                _agent_session_event(
+                    "catalog",
+                    catalog=application.executor_catalog_payload(),
+                    side_effects=[],
+                ),
+                as_json=args.as_json,
+            )
+            continue
+        if message == "/reset":
+            result = application.reset_agent_conversation(args.profile_id)
+            _print_agent_session_event(
+                _agent_session_event(
+                    "conversation_reset",
+                    conversation=result["conversation"],
+                    discarded_plan_ids=result["discarded_plan_ids"],
+                    side_effects=result["side_effects"],
+                ),
+                as_json=args.as_json,
+            )
+            continue
+        if message.startswith("/confirm"):
+            parts = message.split()
+            if len(parts) != 2 or parts[0] != "/confirm":
+                encountered_error = True
+                _print_agent_session_error(
+                    "Use exactly: /confirm <plan_id>",
+                    as_json=args.as_json,
+                )
+                continue
+            plan = application.proposed_agent_plan(parts[1])
+            if plan is None:
+                encountered_error = True
+                _print_agent_session_error(
+                    "The plan is not known in this local process session.",
+                    as_json=args.as_json,
+                )
+                continue
+            step_ids = tuple(
+                step.step_id for step in plan.steps if step.confirmation_required
+            )
+            if not step_ids:
+                encountered_error = True
+                _print_agent_session_error(
+                    "This plan has no approval-required steps.",
+                    as_json=args.as_json,
+                )
+                continue
+            try:
+                result = application.confirm_agent_plan(
+                    plan_id=plan.plan_id,
+                    plan_sha256=plan.plan_sha256,
+                    step_ids=step_ids,
+                )
+            except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
+                encountered_error = True
+                _print_agent_session_error(str(exc), as_json=args.as_json)
+                continue
+            _print_agent_session_event(
+                _agent_session_event(
+                    "confirmation",
+                    plan_id=plan.plan_id,
+                    plan_sha256=plan.plan_sha256,
+                    confirmed_step_ids=list(step_ids),
+                    result=result,
+                    side_effects=result["side_effects"],
+                ),
+                as_json=args.as_json,
+            )
+            continue
+        if message.startswith("/"):
+            encountered_error = True
+            _print_agent_session_error(
+                "Unknown session command. Use /help.",
+                as_json=args.as_json,
+            )
+            continue
+        try:
+            report = application.run_agent_chat(
+                profile_id=args.profile_id,
+                message=message,
+            )
+        except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
+            encountered_error = True
+            _print_agent_session_error(str(exc), as_json=args.as_json)
+            continue
+        _print_agent_session_event(
+            _agent_session_event(
+                "chat",
+                agent=report.to_dict(),
+                conversation=application.agent_conversation_payload(args.profile_id),
+                side_effects=list(report.side_effects),
+            ),
+            as_json=args.as_json,
+        )
+
+    _print_agent_session_event(
+        _agent_session_event("closed", side_effects=[]),
+        as_json=args.as_json,
+    )
+    return 2 if encountered_error else 0
+
+
+def _agent_session_event(event: str, **payload: object) -> dict[str, object]:
+    return {
+        "schema": "folderhome.agent-session-event.v1",
+        "event": event,
+        **payload,
+    }
+
+
+def _print_agent_session_error(message: str, *, as_json: bool) -> None:
+    _print_agent_session_event(
+        _agent_session_event("error", message=message, side_effects=[]),
+        as_json=as_json,
+    )
+
+
+def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> None:
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True), flush=True)
+        return
+    event = payload["event"]
+    if event == "ready":
+        print(
+            "FolderHome master agent ready for profile "
+            f"{payload['profile_id']}. Chat never counts as approval."
+        )
+        print(
+            "Commands: /help, /catalog, /reset, /confirm <plan_id>, /quit",
+            flush=True,
+        )
+        return
+    if event == "help":
+        for command, description in payload["commands"].items():
+            print(f"{command}: {description}")
+        sys.stdout.flush()
+        return
+    if event == "catalog":
+        catalog = payload["catalog"]
+        coverage = catalog["coverage"]
+        print(
+            "Executor coverage: "
+            f"{coverage['connected']} connected, "
+            f"{coverage['direct_read_only']} read-only, "
+            f"{coverage['planning_only']} planning-only, "
+            f"{coverage['not_connected']} not connected."
+        )
+        for workflow in catalog["workflows"]:
+            print(f"- {workflow['workflow_id']}: {workflow['status']}")
+        sys.stdout.flush()
+        return
+    if event == "chat":
+        report = payload["agent"]
+        conversation = payload["conversation"]
+        print(f"Conversation turn {conversation['turn']}:")
+        print(report["response_text"])
+        for plan in report["proposed_plans"]:
+            print(f"Plan {plan['plan_id']}  SHA-256 {plan['plan_sha256']}")
+            for step in plan["steps"]:
+                approval = "approval required" if step["confirmation_required"] else "read-only"
+                print(f"  {step['step_id']}: {step['goal']} ({approval})")
+            if plan["confirmation_required"]:
+                print(f"Confirm the complete displayed plan with: /confirm {plan['plan_id']}")
+        sys.stdout.flush()
+        return
+    if event == "conversation_reset":
+        print("Process-local conversation and unconfirmed plans cleared.", flush=True)
+        return
+    if event == "confirmation":
+        result = payload["result"]
+        print(
+            f"Confirmed plan {payload['plan_id']}; "
+            f"execution_performed={str(result['execution_performed']).lower()}."
+        )
+        if result["side_effects"]:
+            print("Side effects: " + ", ".join(result["side_effects"]))
+        sys.stdout.flush()
+        return
+    if event == "error":
+        print(f"Error: {payload['message']}", flush=True)
+        return
+    if event == "closed":
+        print("FolderHome agent session closed.", flush=True)
 
 
 def _run_competition_demo(args: argparse.Namespace) -> int:
@@ -4415,6 +4806,9 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         max_response_chars=args.max_response_chars,
         max_tool_result_bytes=args.max_tool_result_bytes,
         max_output_tokens=args.max_output_tokens,
+        max_conversation_messages=args.max_conversation_messages,
+        bedrock_connect_timeout_seconds=args.bedrock_connect_timeout_seconds,
+        bedrock_read_timeout_seconds=args.bedrock_read_timeout_seconds,
     )
 
 
@@ -4456,6 +4850,7 @@ _LOCAL_APP_ERRORS = (
     ManifestValidationError,
     ProfileConfigurationError,
     ProviderCheckoutError,
+    WorkflowExecutionError,
     OSError,
     ValueError,
 )
@@ -4475,17 +4870,184 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
     if not settings.state_dir.is_dir():
         raise LocalAppError(f"App-State-Verzeichnis fehlt: {settings.state_dir}")
     profiles = load_profile_configuration(settings.profiles_dir)
-    plugin = _document_plugins(args.manifest_root)["KnowledgeDigest"]
+    configured_resources_file = (
+        args.resources_file
+        if args.resources_file is not None
+        else default_resource_registry_path()
+    )
+    resource_registry = None
+    if args.resources_file is not None or configured_resources_file.is_file():
+        resource_registry = load_resource_registry(
+            configured_resources_file,
+            expected_os_account=profiles.os_account,
+            known_profile_ids=frozenset(
+                profile.profile_id for profile in profiles.profiles
+            ),
+        )
+    document_plugins = _document_plugins(args.manifest_root)
+    plugin = document_plugins["KnowledgeDigest"]
     verify_checkout_revision(args.knowledge_digest_root, plugin.source_revision)
     searcher = KnowledgeDigestBridge(
         plugin=plugin,
         provider_root=args.knowledge_digest_root,
         state_dir=settings.state_dir,
     )
+    profile_ids = frozenset(profile.profile_id for profile in profiles.profiles)
+    workflow_adapters = [
+        FindCallWorkflowAdapter(
+            profile_ids=profile_ids,
+        ),
+        PersonalNotesWorkflowAdapter(
+            plugin=_plugin_by_id(args.manifest_root, "llm-note"),
+            provider_root=args.llm_note_root,
+            state_dir=settings.state_dir,
+            profile_ids=profile_ids,
+        ),
+        MedicationIntakeWorkflowAdapter(
+            state_dir=settings.state_dir,
+            profile_ids=profile_ids,
+        ),
+    ]
+    if resource_registry is not None:
+        resource_extractor = DocServicesBridge(
+            plugin=document_plugins["doc-services"],
+            provider_root=args.doc_services_root,
+        )
+        workflow_adapters.extend(
+            (
+                DocumentBundleWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                ContactRegisterWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                CorrespondenceWorkflowAdapter(
+                    registry=resource_registry,
+                    report_forge_revision=REPORT_FORGE_REVISION,
+                    report_forge_distribution_version=(
+                        REPORT_FORGE_DISTRIBUTION_VERSION
+                    ),
+                    report_forge_runtime_version=REPORT_FORGE_RUNTIME_VERSION,
+                ),
+                LocalCalendarWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+                HealthDossierWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                FinanceImportWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                OfficialNoticeWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                AdministrativeDraftWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                    report_forge_revision=REPORT_FORGE_REVISION,
+                    report_forge_distribution_version=(
+                        REPORT_FORGE_DISTRIBUTION_VERSION
+                    ),
+                    report_forge_runtime_version=REPORT_FORGE_RUNTIME_VERSION,
+                ),
+                BenefitScreeningWorkflowAdapter(
+                    registry=resource_registry,
+                ),
+                LegalChangeMonitorWorkflowAdapter(
+                    registry=resource_registry,
+                    law_checker_plugin=_plugin_by_id(
+                        args.manifest_root,
+                        "law-checker",
+                    ),
+                    law_checker_root=args.law_checker_root,
+                ),
+                InventoryImportWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                DailyBriefingWorkflowAdapter(
+                    registry=resource_registry,
+                ),
+                TaxWorkpaperWorkflowAdapter(
+                    registry=resource_registry,
+                    plugin=_plugin_by_id(
+                        args.manifest_root,
+                        "steuer-assistent",
+                    ),
+                    provider_root=args.tax_assistant_root,
+                ),
+                FolderCleanupWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+                FolderRoutineWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+                DirectoryObservationWorkflowAdapter(
+                    registry=resource_registry,
+                ),
+                DocumentActionPlanWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+                DocumentActionExecutionWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+                DocumentPackageWorkflowAdapter(
+                    registry=resource_registry,
+                    extractor=resource_extractor,
+                ),
+                ArtifactStudioWorkflowAdapter(
+                    registry=resource_registry,
+                ),
+                ContractCockpitWorkflowAdapter(
+                    registry=resource_registry,
+                    searcher=searcher,
+                    extractor=resource_extractor,
+                    expected_state_root=settings.state_dir,
+                ),
+                FcsaDryRunWorkflowAdapter(
+                    registry=resource_registry,
+                    plugin=_plugin_by_id(
+                        args.manifest_root,
+                        "file-collect-sort-action",
+                    ),
+                    bridge=FcsaDryRunBridge(
+                        plugin=_plugin_by_id(
+                            args.manifest_root,
+                            "file-collect-sort-action",
+                        ),
+                        provider_root=args.fcsa_root,
+                    ),
+                ),
+                RoutineQueueWorkflowAdapter(
+                    registry=resource_registry,
+                    profiles=profiles,
+                    extractor=resource_extractor,
+                ),
+            )
+        )
+    workflow_executor = WorkflowExecutionGateway(tuple(workflow_adapters))
     return LocalApplication(
         settings=settings,
         profiles=profiles,
         searcher=searcher,
+        agent_settings=_strands_agent_settings(args),
+        workflow_executor=workflow_executor,
+        resource_registry=resource_registry,
     )
 
 

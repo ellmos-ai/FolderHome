@@ -8,18 +8,30 @@ import json
 import os
 import platform
 import secrets
+import threading
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 from urllib.parse import parse_qs, quote, urlsplit
 
 from folderhome.application.document_search import build_theme_dossier, search_documents
+from folderhome.application.master_agent import MasterAgentError, confirm_master_agent_plan
 from folderhome.application.profile_rules import ProfileConfiguration
+from folderhome.application.workflow_execution import (
+    WorkflowExecutionError,
+    WorkflowExecutionGateway,
+)
 from folderhome.contracts.local_app import (
     LocalApiResponse,
     LocalAppSettings,
     OperatingSystemIdentity,
 )
+from folderhome.contracts.master_agent import MasterAgentPlan, MasterPlanApproval
+from folderhome.contracts.resources import ResourceRegistry
+from folderhome.contracts.strands_agent import FolderHomeAgentReport, StrandsAgentSettings
+
+_MAX_PROPOSED_AGENT_PLANS = 128
 
 
 class LocalDocumentSearcher(Protocol):
@@ -40,6 +52,9 @@ class LocalApplication:
         profiles: ProfileConfiguration,
         searcher: LocalDocumentSearcher,
         session_token: str | None = None,
+        agent_settings: StrandsAgentSettings | None = None,
+        workflow_executor: WorkflowExecutionGateway | None = None,
+        resource_registry: ResourceRegistry | None = None,
     ) -> None:
         if profiles.os_account.strip() == "":
             raise LocalAppError("Profilkonfiguration besitzt kein OS-Konto-Label.")
@@ -52,10 +67,33 @@ class LocalApplication:
         self.settings = settings
         self.profiles = profiles
         self.searcher = searcher
+        self.agent_settings = agent_settings or StrandsAgentSettings(model_provider="fixture")
+        self.workflow_executor = workflow_executor or WorkflowExecutionGateway()
+        if resource_registry is not None:
+            if resource_registry.os_account != profiles.os_account:
+                raise LocalAppError(
+                    "Ressourcenregister und Profilkonfiguration gehören nicht zum selben OS-Konto."
+                )
+            if resource_registry.known_profile_ids != frozenset(profile_ids):
+                raise LocalAppError(
+                    "Ressourcenregister und Profilkonfiguration besitzen andere Profile."
+                )
+        self.resource_registry = resource_registry
         self.session_token = token
         self._token_sha256 = sha256(token.encode("utf-8")).hexdigest()
         self._identity = capture_os_identity()
         self._profile_ids = frozenset(profile_ids)
+        self._proposed_agent_plans: dict[str, MasterAgentPlan] = {}
+        self._agent_plan_lock = threading.RLock()
+        self._agent_conversation_messages: dict[
+            str, tuple[dict[str, Any], ...]
+        ] = {profile_id: () for profile_id in profile_ids}
+        self._agent_conversation_turns = {profile_id: 0 for profile_id in profile_ids}
+        self._agent_conversation_locks = {
+            profile_id: threading.RLock() for profile_id in profile_ids
+        }
+        self._successful_live_model_turns = 0
+        self._model_status_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
 
     def plan(self) -> dict[str, object]:
@@ -73,7 +111,199 @@ class LocalApplication:
             "request_paths_allowed": False,
             "cors_enabled": False,
             "external_resources": False,
+            "logical_resources_configured": self.resource_registry is not None,
+            "agent": {
+                "role": "folderhome_master",
+                "model_provider": self.agent_settings.model_provider,
+                "routing_policy": "semantic_model_selection",
+                "executor_coverage": _executor_coverage(self.workflow_executor),
+                "model_connection": self._model_connection_payload(),
+            },
             "server_started": False,
+        }
+
+    def executor_catalog_payload(self) -> dict[str, object]:
+        """Return the same exact runtime coverage used by HTTP and CLI clients."""
+
+        return {
+            "schema": "folderhome.local-agent-executor-catalog.v1",
+            "coverage": _executor_coverage(self.workflow_executor),
+            "workflows": [
+                item.to_dict() for item in self.workflow_executor.catalog()
+            ],
+        }
+
+    def resource_catalog_payload(self, profile_id: str) -> dict[str, object]:
+        """Return model-safe logical resource metadata for one profile."""
+
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Unbekanntes organisatorisches Profil.")
+        if self.resource_registry is None:
+            return {
+                "schema": "folderhome.logical-resource-catalog.v1",
+                "profile_id": profile_id,
+                "security_boundary": "operating_system_account",
+                "profiles_are_authorization_boundaries": False,
+                "paths_disclosed": False,
+                "resources": [],
+                "defaults": {},
+                "configured": False,
+            }
+        payload = self.resource_registry.to_public_dict(profile_id=profile_id)
+        payload["configured"] = True
+        return payload
+
+    def run_agent_chat(
+        self,
+        *,
+        profile_id: str,
+        message: str,
+    ) -> FolderHomeAgentReport:
+        """Run one bounded master-agent turn without treating chat as approval."""
+
+        request = self._validated_agent_chat(profile_id=profile_id, message=message)
+        from folderhome.application.strands_agent import run_folderhome_agent_turn
+
+        with self._agent_conversation_locks[request["profile_id"]]:
+            report, retained_messages = run_folderhome_agent_turn(
+                application=self,
+                prompt=request["message"],
+                profile_id=request["profile_id"],
+                settings=self.agent_settings,
+                prior_messages=self._agent_conversation_messages[request["profile_id"]],
+            )
+            if self.agent_settings.model_provider == "bedrock":
+                with self._model_status_lock:
+                    self._successful_live_model_turns += 1
+            self._agent_conversation_messages[request["profile_id"]] = retained_messages
+            self._agent_conversation_turns[request["profile_id"]] += 1
+            with self._agent_plan_lock:
+                for plan in report.proposed_plans:
+                    if (
+                        plan.plan_id not in self._proposed_agent_plans
+                        and len(self._proposed_agent_plans) >= _MAX_PROPOSED_AGENT_PLANS
+                    ):
+                        oldest_plan_id = next(iter(self._proposed_agent_plans))
+                        oldest_plan = self._proposed_agent_plans.pop(oldest_plan_id)
+                        self.workflow_executor.discard_unexecuted(
+                            _plan_envelope_ids((oldest_plan,))
+                        )
+                    self._proposed_agent_plans[plan.plan_id] = plan
+        return report
+
+    def agent_conversation_payload(self, profile_id: str) -> dict[str, object]:
+        """Describe bounded process-local context without exposing message content."""
+
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Unbekanntes organisatorisches Profil.")
+        with self._agent_conversation_locks[profile_id]:
+            conversation_digest = sha256(
+                f"{self._token_sha256}:{profile_id}".encode()
+            ).hexdigest()[:24]
+            return {
+                "schema": "folderhome.agent-conversation-state.v1",
+                "conversation_id": f"conversation_{conversation_digest}",
+                "profile_id": profile_id,
+                "turn": self._agent_conversation_turns[profile_id],
+                "retained_messages": len(self._agent_conversation_messages[profile_id]),
+                "max_messages": self.agent_settings.max_conversation_messages,
+                "persistence": "process_memory_only",
+                "profiles_are_authorization_boundaries": False,
+            }
+
+    def reset_agent_conversation(self, profile_id: str) -> dict[str, object]:
+        """Clear one profile's process-local messages and unconfirmed plans."""
+
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Unbekanntes organisatorisches Profil.")
+        with self._agent_conversation_locks[profile_id]:
+            self._agent_conversation_messages[profile_id] = ()
+            self._agent_conversation_turns[profile_id] = 0
+            with self._agent_plan_lock:
+                discarded = tuple(
+                    plan_id
+                    for plan_id, plan in self._proposed_agent_plans.items()
+                    if plan.profile_id == profile_id
+                )
+                discarded_plans = tuple(
+                    self._proposed_agent_plans[plan_id] for plan_id in discarded
+                )
+                for plan_id in discarded:
+                    del self._proposed_agent_plans[plan_id]
+                self.workflow_executor.discard_unexecuted(
+                    _plan_envelope_ids(discarded_plans)
+                )
+            return {
+                "schema": "folderhome.local-agent-conversation-reset-response.v1",
+                "conversation": self.agent_conversation_payload(profile_id),
+                "discarded_plan_ids": list(discarded),
+                "side_effects": ["memory.agent_conversation.clear"],
+            }
+
+    def proposed_agent_plan(self, plan_id: str) -> MasterAgentPlan | None:
+        """Return one immutable plan retained in this local process session."""
+
+        with self._agent_plan_lock:
+            return self._proposed_agent_plans.get(plan_id)
+
+    def confirm_agent_plan(
+        self,
+        *,
+        plan_id: str,
+        plan_sha256: str,
+        step_ids: tuple[str, ...],
+    ) -> dict[str, object]:
+        """Confirm and, where connected, execute one exact retained plan."""
+
+        request = self._agent_confirmation_request(
+            {
+                "schema": "folderhome.local-agent-confirmation-request.v1",
+                "plan_id": plan_id,
+                "plan_sha256": plan_sha256,
+                "step_ids": list(step_ids),
+            }
+        )
+        with self._agent_plan_lock:
+            plan = self._proposed_agent_plans.get(request["plan_id"])
+        if plan is None:
+            raise LocalAppError("Plan ist in dieser lokalen Sitzung nicht bekannt.")
+        approved_at = datetime.now(UTC).isoformat()
+        try:
+            receipt = confirm_master_agent_plan(
+                plan,
+                MasterPlanApproval(
+                    approval_id=f"approval_{secrets.token_hex(10)}",
+                    plan_id=request["plan_id"],
+                    plan_sha256=request["plan_sha256"],
+                    step_ids=request["step_ids"],
+                    approved_at=approved_at,
+                ),
+            )
+        except (MasterAgentError, ValueError) as exc:
+            raise LocalAppError(str(exc)) from exc
+        approved_step_ids = set(receipt.approved_step_ids)
+        execution_reports = []
+        for step in plan.steps:
+            if step.step_id not in approved_step_ids or step.execution_envelope is None:
+                continue
+            execution_reports.append(
+                self.workflow_executor.execute(
+                    envelope_id=step.execution_envelope.envelope_id,
+                    approved_at=approved_at,
+                )
+            )
+        return {
+            "schema": "folderhome.local-agent-confirmation-response.v1",
+            "receipt": receipt.to_dict(),
+            "execution_reports": [item.to_dict() for item in execution_reports],
+            "execution_performed": bool(execution_reports),
+            "side_effects": list(
+                dict.fromkeys(
+                    effect
+                    for report in execution_reports
+                    for effect in report.side_effects
+                )
+            ),
         }
 
     def handle(
@@ -97,6 +327,8 @@ class LocalApplication:
             return self._error(exc.status_code, str(exc))
         except LocalAppError as exc:
             return self._error(400, str(exc))
+        except WorkflowExecutionError as exc:
+            return self._error(409, str(exc))
         except ValueError as exc:
             return self._error(422, f"Lokaler Dienst konnte die Anfrage nicht ausführen: {exc}")
         except OSError:
@@ -156,10 +388,19 @@ class LocalApplication:
             return self._json_response(self._profiles_payload())
         if method == "GET" and parsed.path == "/api/v1/capabilities":
             return self._json_response(self._capabilities_payload())
+        if method == "GET" and parsed.path == "/api/v1/agent/executors":
+            return self._json_response(self.executor_catalog_payload())
+        if method == "GET" and parsed.path == "/api/v1/resources":
+            profile_ids = parse_qs(parsed.query).get("profile_id", [])
+            if len(profile_ids) != 1 or not profile_ids[0].strip():
+                raise LocalAppError("Ressourcenkatalog benötigt genau eine profile_id.")
+            return self._json_response(self.resource_catalog_payload(profile_ids[0]))
         if parsed.path in {
             "/api/v1/status",
             "/api/v1/profiles",
             "/api/v1/capabilities",
+            "/api/v1/agent/executors",
+            "/api/v1/resources",
         }:
             return self._error(405, "API-Endpunkt ist ausschließlich read-only per GET verfügbar.")
         if method == "POST" and parsed.path == "/api/v1/documents/search":
@@ -196,11 +437,46 @@ class LocalApplication:
                     "side_effects": [],
                 }
             )
+        if method == "POST" and parsed.path == "/api/v1/agent/chat":
+            payload = self._json_request(headers, body)
+            request = self._agent_chat_request(payload)
+            report = self.run_agent_chat(
+                profile_id=request["profile_id"],
+                message=request["message"],
+            )
+            return self._json_response(
+                {
+                    "schema": "folderhome.local-agent-chat-response.v1",
+                    "profile_id": request["profile_id"],
+                    "organizational_context_only": True,
+                    "profiles_are_authorization_boundaries": False,
+                    "agent": report.to_dict(),
+                    "conversation": self.agent_conversation_payload(request["profile_id"]),
+                    "side_effects": [],
+                }
+            )
+        if method == "POST" and parsed.path == "/api/v1/agent/conversation/reset":
+            payload = self._json_request(headers, body)
+            profile_id = self._agent_conversation_reset_request(payload)
+            return self._json_response(self.reset_agent_conversation(profile_id))
+        if method == "POST" and parsed.path == "/api/v1/agent/confirm":
+            payload = self._json_request(headers, body)
+            request = self._agent_confirmation_request(payload)
+            return self._json_response(
+                self.confirm_agent_plan(
+                    plan_id=request["plan_id"],
+                    plan_sha256=request["plan_sha256"],
+                    step_ids=request["step_ids"],
+                )
+            )
         if parsed.path in {
             "/api/v1/documents/search",
             "/api/v1/documents/dossier",
+            "/api/v1/agent/chat",
+            "/api/v1/agent/confirm",
+            "/api/v1/agent/conversation/reset",
         }:
-            return self._error(405, "Dokumentenpunkt benötigt eine POST-JSON-Anfrage.")
+            return self._error(405, "Lokaler Dienst benötigt eine POST-JSON-Anfrage.")
         return self._error(404, "Unbekannter lokaler Endpunkt.")
 
     def _status_payload(self, server_port: int) -> dict[str, object]:
@@ -215,10 +491,52 @@ class LocalApplication:
             "process_identity": self._identity.to_public_dict(),
             "session_token_sha256": self._token_sha256,
             "session_token_disclosed": False,
-            "read_only_api": True,
+            "read_only_api": False,
+            "chat_is_approval": False,
+            "approval_bound_execution": True,
+            "conversation_memory": "process_only",
+            "model_connection": self._model_connection_payload(),
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,
+        }
+
+    def _model_connection_payload(self) -> dict[str, object]:
+        with self._model_status_lock:
+            successful_turns = self._successful_live_model_turns
+        is_live_provider = self.agent_settings.model_provider == "bedrock"
+        return {
+            "schema": "folderhome.model-connection-status.v1",
+            "provider": self.agent_settings.model_provider,
+            "mode": "network_model" if is_live_provider else "deterministic_fixture",
+            "runtime_topology": (
+                "local_first_hybrid" if is_live_provider else "local_only_fixture"
+            ),
+            "application_runtime": "local_loopback",
+            "document_runtime": "local_state",
+            "model_inference_location": (
+                "aws_cloud" if is_live_provider else "local_fixture"
+            ),
+            "connection_status": (
+                "verified_in_process"
+                if successful_turns > 0
+                else "configured_not_verified"
+                if is_live_provider
+                else "fixture_only"
+            ),
+            "live_model_configured": is_live_provider,
+            "live_model_verified_in_process": successful_turns > 0,
+            "successful_live_model_turns": successful_turns,
+            "semantic_routing_mode": (
+                "live_model" if is_live_provider else "deterministic_fixture"
+            ),
+            "model_id": self.agent_settings.bedrock_model_id,
+            "aws_region": self.agent_settings.aws_region,
+            "network_authorized": self.agent_settings.allow_network,
+            "sensitive_cloud_data_authorized": (
+                self.agent_settings.allow_sensitive_cloud_data
+            ),
+            "status_probe_performed": False,
         }
 
     def _profiles_payload(self) -> dict[str, object]:
@@ -258,7 +576,9 @@ class LocalApplication:
                     "capability_id": capability_id,
                     "title": title,
                     "surface_status": (
-                        "interactive_read_only" if capability_id in interactive else "cli_only"
+                        "interactive_read_only"
+                        if capability_id in interactive
+                        else "agent_guided"
                     ),
                     "side_effects": [],
                 }
@@ -295,6 +615,74 @@ class LocalApplication:
         ):
             raise LocalAppError("Dossieranfrage besitzt unbekannte oder fehlende Felder.")
         return self._validated_request(payload, text_key="topic")
+
+    def _agent_chat_request(self, payload: dict[str, object]) -> dict[str, str]:
+        expected = {"schema", "profile_id", "message"}
+        if set(payload) != expected or payload.get("schema") != (
+            "folderhome.local-agent-chat-request.v1"
+        ):
+            raise LocalAppError("Agentenanfrage besitzt unbekannte oder fehlende Felder.")
+        return self._validated_agent_chat(
+            profile_id=payload.get("profile_id"),
+            message=payload.get("message"),
+        )
+
+    def _validated_agent_chat(
+        self,
+        *,
+        profile_id: object,
+        message: object,
+    ) -> dict[str, str]:
+        if not isinstance(profile_id, str) or profile_id not in self._profile_ids:
+            raise LocalAppError("Anfrage nennt kein bekanntes organisatorisches Profil.")
+        if (
+            not isinstance(message, str)
+            or not message.strip()
+            or len(message) > self.agent_settings.max_prompt_chars
+        ):
+            raise LocalAppError(
+                f"message benötigt 1 bis {self.agent_settings.max_prompt_chars} Zeichen."
+            )
+        return {"profile_id": profile_id, "message": message.strip()}
+
+    @staticmethod
+    def _agent_confirmation_request(payload: dict[str, object]) -> dict[str, object]:
+        expected = {"schema", "plan_id", "plan_sha256", "step_ids"}
+        if set(payload) != expected or payload.get("schema") != (
+            "folderhome.local-agent-confirmation-request.v1"
+        ):
+            raise LocalAppError("Planfreigabe besitzt unbekannte oder fehlende Felder.")
+        plan_id = payload.get("plan_id")
+        plan_sha256 = payload.get("plan_sha256")
+        step_ids = payload.get("step_ids")
+        if not isinstance(plan_id, str) or not plan_id.strip():
+            raise LocalAppError("Planfreigabe benötigt eine plan_id.")
+        if not isinstance(plan_sha256, str) or len(plan_sha256) != 64:
+            raise LocalAppError("Planfreigabe benötigt einen Plan-Hash.")
+        if (
+            not isinstance(step_ids, list)
+            or not step_ids
+            or not all(isinstance(item, str) for item in step_ids)
+        ):
+            raise LocalAppError("Planfreigabe benötigt ausgewählte step_ids.")
+        return {
+            "plan_id": plan_id,
+            "plan_sha256": plan_sha256,
+            "step_ids": tuple(step_ids),
+        }
+
+    def _agent_conversation_reset_request(self, payload: dict[str, object]) -> str:
+        expected = {"schema", "profile_id"}
+        if set(payload) != expected or payload.get("schema") != (
+            "folderhome.local-agent-conversation-reset-request.v1"
+        ):
+            raise LocalAppError(
+                "Gesprächsreset besitzt unbekannte oder fehlende Felder."
+            )
+        profile_id = payload.get("profile_id")
+        if not isinstance(profile_id, str) or profile_id not in self._profile_ids:
+            raise LocalAppError("Gesprächsreset nennt kein bekanntes Profil.")
+        return profile_id
 
     def _validated_request(
         self,
@@ -383,6 +771,19 @@ class _HttpError(LocalAppError):
     def __init__(self, status_code: int, message: str) -> None:
         super().__init__(message)
         self.status_code = status_code
+
+
+def _executor_coverage(gateway: WorkflowExecutionGateway) -> dict[str, int]:
+    return gateway.coverage()
+
+
+def _plan_envelope_ids(plans: tuple[MasterAgentPlan, ...]) -> tuple[str, ...]:
+    return tuple(
+        step.execution_envelope.envelope_id
+        for plan in plans
+        for step in plan.steps
+        if step.execution_envelope is not None
+    )
 
 
 def capture_os_identity() -> OperatingSystemIdentity:

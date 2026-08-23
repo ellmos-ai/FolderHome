@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from folderhome.contracts.master_agent import MasterAgentPlan
+
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{2,254}")
 _AWS_REGION = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
 
@@ -24,6 +26,9 @@ class StrandsAgentSettings:
     max_response_chars: int = 20_000
     max_tool_result_bytes: int = 1_048_576
     max_output_tokens: int = 4_096
+    max_conversation_messages: int = 24
+    bedrock_connect_timeout_seconds: int = 5
+    bedrock_read_timeout_seconds: int = 30
 
     SCHEMA = "folderhome.strands-agent-settings.v1"
 
@@ -37,6 +42,21 @@ class StrandsAgentSettings:
             "max_response_chars": (self.max_response_chars, 1, 100_000),
             "max_tool_result_bytes": (self.max_tool_result_bytes, 1, 2_097_152),
             "max_output_tokens": (self.max_output_tokens, 1, 8_192),
+            "max_conversation_messages": (
+                self.max_conversation_messages,
+                4,
+                64,
+            ),
+            "bedrock_connect_timeout_seconds": (
+                self.bedrock_connect_timeout_seconds,
+                1,
+                30,
+            ),
+            "bedrock_read_timeout_seconds": (
+                self.bedrock_read_timeout_seconds,
+                1,
+                120,
+            ),
         }
         for name, (value, minimum, maximum) in limits.items():
             if (
@@ -79,6 +99,9 @@ class StrandsAgentSettings:
             "max_response_chars": self.max_response_chars,
             "max_tool_result_bytes": self.max_tool_result_bytes,
             "max_output_tokens": self.max_output_tokens,
+            "max_conversation_messages": self.max_conversation_messages,
+            "bedrock_connect_timeout_seconds": self.bedrock_connect_timeout_seconds,
+            "bedrock_read_timeout_seconds": self.bedrock_read_timeout_seconds,
         }
 
 
@@ -108,6 +131,37 @@ class AgentToolEvent:
 
 
 @dataclass(frozen=True, slots=True)
+class AgentDelegationEvent:
+    """One bounded specialist agent created by the master agent."""
+
+    sequence: int
+    expert_id: str
+    workflow_id: str
+    persona_id: str | None
+    request_sha256: str
+    result_sha256: str
+    subagent_id: str
+    status: str = "planned"
+    side_effects: tuple[str, ...] = ()
+
+    SCHEMA = "folderhome.agent-delegation-event.v1"
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "schema": self.SCHEMA,
+            "sequence": self.sequence,
+            "expert_id": self.expert_id,
+            "workflow_id": self.workflow_id,
+            "persona_id": self.persona_id,
+            "request_sha256": self.request_sha256,
+            "result_sha256": self.result_sha256,
+            "subagent_id": self.subagent_id,
+            "status": self.status,
+            "side_effects": list(self.side_effects),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FolderHomeAgentReport:
     """Auditable result of one Strands-driven FolderHome request."""
 
@@ -122,6 +176,8 @@ class FolderHomeAgentReport:
     tool_events: tuple[AgentToolEvent, ...]
     network_used: bool
     sensitive_cloud_data_authorized: bool
+    delegation_events: tuple[AgentDelegationEvent, ...] = ()
+    proposed_plans: tuple[MasterAgentPlan, ...] = ()
     side_effects: tuple[str, ...] = ()
     security_boundary: str = "operating_system_account"
     profiles_are_authorization_boundaries: bool = False
@@ -142,6 +198,8 @@ class FolderHomeAgentReport:
             "tool_events": [item.to_dict() for item in self.tool_events],
             "network_used": self.network_used,
             "sensitive_cloud_data_authorized": self.sensitive_cloud_data_authorized,
+            "delegation_events": [item.to_dict() for item in self.delegation_events],
+            "proposed_plans": [item.to_dict() for item in self.proposed_plans],
             "side_effects": list(self.side_effects),
             "security_boundary": self.security_boundary,
             "profiles_are_authorization_boundaries": (

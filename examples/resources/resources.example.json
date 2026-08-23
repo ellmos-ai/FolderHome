@@ -1,0 +1,38 @@
+{
+  "schema": "folderhome.resource-registry.v1",
+  "os_account": "synthetic-family-account",
+  "resources": [
+    {
+      "resource_id": "family_documents_inbox",
+      "kind": "directory",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\Documents\\FolderHome\\Inbox"
+      },
+      "operations": ["list", "read"],
+      "purposes": ["documents.source", "insurance.source"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "minimized_with_approval"
+    },
+    {
+      "resource_id": "family_documents_output",
+      "kind": "directory",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\Documents\\FolderHome\\Output"
+      },
+      "operations": ["create"],
+      "purposes": ["documents.output", "correspondence.output"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    }
+  ],
+  "profile_defaults": {
+    "lukas": {
+      "documents.source": "family_documents_inbox",
+      "documents.output": "family_documents_output",
+      "insurance.source": "family_documents_inbox",
+      "correspondence.output": "family_documents_output"
+    }
+  }
+}

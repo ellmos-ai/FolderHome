@@ -1,71 +1,112 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
   <title>FolderHome – Assistantify your home</title>
   <link rel="icon" href="/assets/favicon.svg?token=__FOLDERHOME_TOKEN__" type="image/svg+xml">
   <link rel="stylesheet" href="/assets/app.css?token=__FOLDERHOME_TOKEN__">
 </head>
 <body>
-  <a class="skip-link" href="#main">Zum Inhalt springen</a>
+  <a class="skip-link" href="#main" data-i18n="skipLink">Skip to content</a>
   <div class="page-shell">
     <header class="topbar">
-      <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome Startseite">
+      <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome home"
+        data-i18n-aria-label="brandHome">
         <span class="brand-mark" aria-hidden="true">FH</span>
         <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
       </a>
-      <div class="local-badge"><span aria-hidden="true"></span>Lokal auf diesem Betriebssystemkonto</div>
+      <div class="topbar-tools">
+        <div id="theme-switch" class="theme-switch" role="group" aria-label="FolderHome theme">
+          <button type="button" data-theme-mode="light" aria-label="Light theme" aria-pressed="true">
+            <span aria-hidden="true">☀</span><span data-i18n="lightTheme">Light</span>
+          </button>
+          <button type="button" data-theme-mode="dark" aria-label="Dark theme" aria-pressed="false">
+            <span aria-hidden="true">◐</span><span data-i18n="darkTheme">Dark</span>
+          </button>
+        </div>
+        <div id="language-switch" class="language-switch" role="group" aria-label="FolderHome language">
+          <button type="button" data-language="en" aria-label="Use English" aria-pressed="true">EN</button>
+          <button type="button" data-language="de" aria-label="Use German" aria-pressed="false">DE</button>
+        </div>
+        <div class="local-badge">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span data-i18n="localBadge">Local to this operating-system account</span>
+        </div>
+      </div>
     </header>
 
     <main id="main">
       <section class="hero" aria-labelledby="hero-title">
         <div>
-          <p class="eyebrow">Dokument- und Assistenzservice</p>
-          <h1 id="hero-title">Deine Dokumente.<br><em>Dein Alltag.</em> Ein Ort.</h1>
-          <p class="hero-copy">Finde verstreute Informationen, fasse Themen zusammen und behalte deine privaten Unterlagen lokal im Blick.</p>
+          <p class="eyebrow" data-i18n="serviceEyebrow">Document and assistance service</p>
+          <h1 id="hero-title"><span data-i18n="heroDocuments">Your documents.</span><br><em data-i18n="heroDaily">Your everyday life.</em> <span data-i18n="heroPlace">One place.</span></h1>
+          <p class="hero-copy" data-i18n="heroCopy">Find scattered information, build topic summaries, and keep track of private documents locally.</p>
         </div>
         <aside class="boundary-card" aria-labelledby="boundary-title">
           <div class="boundary-icon" aria-hidden="true">⌂</div>
           <div>
-            <p id="boundary-title">Sicherheitsgrenze</p>
-            <strong>Betriebssystemkonto</strong>
-            <small>Familienprofile organisieren – sie erteilen keine Zugriffsrechte.</small>
+            <p id="boundary-title" data-i18n="securityBoundary">Security boundary</p>
+            <strong data-i18n="operatingSystemAccount">Operating-system account</strong>
+            <small data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
           </div>
         </aside>
       </section>
 
-      <section class="workspace" aria-labelledby="search-title">
-        <p class="folder-tab">Aktiver Arbeitsordner</p>
+      <section class="workspace" aria-labelledby="chat-title">
+        <p class="folder-tab" data-i18n="activeFolder">Active workspace</p>
         <div class="workspace-head">
           <div>
-            <p class="eyebrow">Dokumentensuche</p>
-            <h2 id="search-title">Was möchtest du finden?</h2>
+            <p class="eyebrow" data-i18n="agentChat">FolderHome agent</p>
+            <h2 id="chat-title" data-i18n="whatHelp">What can I help you with?</h2>
           </div>
-          <label class="profile-control">Profil
-            <select id="profile-select" aria-label="Organisatorisches Profil"></select>
-          </label>
+          <div class="workspace-controls">
+            <div id="model-status" class="model-status" data-state="checking" role="status"
+              aria-live="polite">
+              <span class="model-status-dot" aria-hidden="true"></span>
+              <span>
+                <strong id="model-status-title" data-i18n="modelChecking">Checking model …</strong>
+                <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
+              </span>
+            </div>
+            <label class="profile-control"><span data-i18n="profile">Profile</span>
+              <select id="profile-select" aria-label="Organizational profile"
+                data-i18n-aria-label="profileLabel"></select>
+            </label>
+          </div>
         </div>
-        <form id="search-form">
-          <label class="search-field" for="query">
-            <span class="search-icon" aria-hidden="true">⌕</span>
-            <input id="query" name="query" autocomplete="off" maxlength="500" required
-              placeholder="Ich suche ein Dokument über meine Krankenversicherung …">
+        <div id="chat-transcript" class="chat-transcript" aria-live="polite">
+          <article class="chat-message assistant">
+            <span class="chat-speaker">FH</span>
+            <p data-i18n="welcomeMessage">Tell me what you want to find, understand, organize, or prepare. I will use a safe tool directly or propose a bounded workflow.</p>
+          </article>
+        </div>
+        <form id="agent-form">
+          <label class="search-field" for="message">
+            <span class="search-icon" aria-hidden="true">›</span>
+            <input id="message" name="message" autocomplete="off" maxlength="1000" required
+              placeholder="Find my latest Hyundai i10 insurance and show me what changed …"
+              data-i18n-placeholder="chatPlaceholder">
           </label>
           <div class="actions" aria-live="polite">
-            <button class="button primary" type="submit" data-mode="search">Dokument suchen</button>
-            <button class="button secondary" type="button" id="dossier-button">Themendossier erstellen</button>
+            <button class="button primary" type="submit" data-i18n="sendButton">Send</button>
+            <button id="new-conversation" class="button secondary" type="button"
+              data-i18n="newConversation">New conversation</button>
+            <button class="button secondary prompt-example" type="button"
+              data-prompt-en="Give me everything in my documents about health insurance."
+              data-prompt-de="Gib mir alles, was in meinen Dokumenten zur Krankenversicherung steht."
+              data-i18n="exampleDossier">Try a topic dossier</button>
           </div>
         </form>
-        <p class="hint" id="search-hint">Die Suche liest nur den vorhandenen lokalen Index. Sie verändert keine Datei.</p>
+        <p class="hint" id="chat-hint" data-i18n="chatHint">Conversation is never an approval. FolderHome shows a separate plan before any workflow with side effects.</p>
       </section>
 
       <section id="result-section" class="results" aria-labelledby="result-title" hidden>
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Ergebnis</p>
-            <h2 id="result-title">Lokale Fundstellen</h2>
+            <p class="eyebrow" data-i18n="planEyebrow">Agent details</p>
+            <h2 id="result-title" data-i18n="planTitle">Tools and proposed plans</h2>
           </div>
           <span id="result-count" class="count-pill"></span>
         </div>
@@ -75,17 +116,17 @@
       <section class="capability-section" aria-labelledby="capability-title">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">Ein Zuhause, viele Abläufe</p>
-            <h2 id="capability-title">Was FolderHome zusammenführt</h2>
+            <p class="eyebrow" data-i18n="capabilityEyebrow">One home, many workflows</p>
+            <h2 id="capability-title" data-i18n="capabilityTitle">What FolderHome brings together</h2>
           </div>
-          <span id="connection-state" class="connection-state" role="status" aria-live="polite">Verbindung wird geprüft …</span>
+          <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
         </div>
         <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
       </section>
     </main>
 
     <footer>
-      <p>FolderHome arbeitet lokal, transparent und mit bewussten Freigaben.</p>
+      <p data-i18n="footer">FolderHome works locally, transparently, and with deliberate approvals.</p>
       <p id="runtime-account"></p>
     </footer>
   </div>
