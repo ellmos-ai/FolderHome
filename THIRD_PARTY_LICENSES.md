@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./THIRD_PARTY_LICENSES.de.md)
 
-**Version:** 0.15  
-**Updated:** 2026-08-22  
-**Reason:** Dependency boundary of the local app and its acceptance documented  
+**Version:** 0.16  
+**Updated:** 2026-08-23  
+**Reason:** Public showcase and optional AgentCore build dependencies recorded  
 **Purpose:** Documents external or pre‑existing components with exact revision.
 
 | Component | Repository | Revision | License | Integration |
@@ -34,9 +34,14 @@
 | Google Calendar Skill 1.2.5 | Local plugin package | `google-calendar-skill@1.2.5` | package‑bound asset | Agentic handoff; no copied code and no live call in phase 27 |
 | gesundheit-Skill 2.0.0 | `https://github.com/ellmos-ai/skills.git` | `0317f32310eed11d21f603cb6f22a689485af226` | MIT | Design reference for provided health information and organizational boundaries |
 | docs-analysis 1.0.0 | Local skill extracted from BACH | Status 2026-03-15 | MIT / project‑internal asset | Requirement and code‑difference method for phase 22; no runtime import |
-| project-docs | Local template `OneDrive/.TOPICS/.AI/_templates/project-docs` | Status 2026-08-21 | Project‑internal asset | Documentation base skeleton |
+| project-docs | Local internal project-docs template | Status 2026-08-21 | Project‑internal asset | Documentation base skeleton |
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Mandatory agent loop; fixture by default without network, Bedrock only after gate |
 | tzdata | PyPI package `tzdata` | `==2026.3` on Windows | Apache-2.0 | IANA time‑zone data for reproducible calendar, medication, and scheduler contracts on Windows |
+| actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-pinned Pages build action |
+| actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-pinned Pages configuration action |
+| actions/upload-pages-artifact | `https://github.com/actions/upload-pages-artifact` | `56afc609e74202658d3ffba0e8f6dda462b719fa` (`v3`) | MIT | SHA-pinned bounded artifact upload action |
+| actions/deploy-pages | `https://github.com/actions/deploy-pages` | `d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e` (`v4`) | MIT | SHA-pinned Pages deployment action |
+| Python Docker Official Image | `https://hub.docker.com/_/python` | `python:3.12.11-slim-bookworm@sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7` | Python PSF and included Debian package licenses | Digest-pinned ARM64 build and runtime base; not vendored |
 
 The table is a registry, not a substitute for the full license texts of the respective components. If sources are later vendored or included as submodules, their original license files must be carried along.
 

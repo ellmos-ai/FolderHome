@@ -35,7 +35,7 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| Operation | `cli.py`, `local_server.py`, `web_ui/` | Validate input, offer narrow handlers, no second business logic |
+| Operation | `cli.py`, `local_server.py`, `web_ui/`, `demo_site/`, `agentcore_server.py` | Validate input, offer narrow handlers, no second business logic |
 | Agent | `application/strands_agent.py`, `application/master_agent.py` | Finite master loop, semantic expert selection, explicit endpoints and scoped planning specialists |
 | Execution gateway | `application/workflow_execution.py` | Typed, one-time handoff from an exact approved master step to an existing domain executor |
 | Application | `application/` | Compose workflows, check states, enforce approvals, generate reports |
@@ -56,6 +56,25 @@ the current process only. A finite sliding window preserves valid tool-use pairs
 and defaults to 24 messages. `/api/v1/agent/conversation/reset` clears one
 profile's retained messages and its unconfirmed plans. This separation organizes
 context; it is not a second authorization boundary.
+
+## Competition demo surfaces
+
+`demo accident-serve` creates a bounded synthetic workspace and serves the
+real local Strands journey on loopback behind a random session token. The
+browser prepares one path-free plan and requires the exact plan ID before four
+existing adapters update the synthetic contact register, local calendar,
+contract cockpit and correspondence output. Reset deletes only the demo-owned
+fixture outputs.
+
+`site/` is a separate static, bilingual walkthrough for GitHub Pages. It has no
+backend, calls no API and is visibly labelled as scripted evidence; it does not
+replace the executable local demo.
+
+`application/agentcore_runtime.py` maps the same synthetic journey to the
+current Amazon Bedrock AgentCore HTTP contract (`/ping`, `/invocations`). State
+is separated by a SHA-256 fingerprint of the runtime session header. The ARM64,
+non-root container in `deploy/agentcore/` accepts no uploads, model credentials,
+arbitrary resource identifiers or external effects.
 
 ## Strands Agent
 

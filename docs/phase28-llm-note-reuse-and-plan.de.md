@@ -8,7 +8,7 @@ menschlich kontrollierte Führung gekapselt ergänzen.
 
 ## Verifizierter Bestand
 
-Der lokale Checkout `C:\_Local_DEV\repos\llm-note` wurde read-only geprüft:
+Der separate saubere `llm-note`-Checkout wurde read-only geprüft:
 
 | Merkmal | Befund |
 |---|---|

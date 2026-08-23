@@ -21,10 +21,15 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 - 36 of 36 local competition phases implemented
 - one real `strands.Agent` master with four bounded tools and on-demand planning specialists
-- 394 of 397 automated tests passed; three live-checkout pin tests fail closed on local HungryCall/Ringedingeding revision drift
+- 415 of 418 automated tests passed; three live-checkout pin tests fail closed on local HungryCall/Ringedingeding revision drift
 - synthetic no-network demo with reproducible hashes
+- end-to-end synthetic accident journey over four real, confirmation-gated
+  FolderHome workflow adapters
+- bilingual light/dark public showcase in [`site/`](./site/) and a tested,
+  deployment-ready AgentCore HTTP/ARM64 adapter in
+  [`deploy/agentcore/`](./deploy/agentcore/)
 - complete baseline scan over 12/12 surfaces plus current 66-file delta audit; four findings resolved
-- public MIT repository; no video upload and no Devpost submission performed
+- public MIT repository and [three-minute public demo video](https://youtu.be/2LeWU_WJZKM); no Devpost submission performed
 
 The canonical evidence is in
 [`Phase-36-Completion-Audit`](./docs/phase36-completion-audit.md). During the competition the
@@ -57,12 +62,39 @@ folder blocks instead of overwriting.
 The detailed English guide is in
 [`docs/submission/TESTING_INSTRUCTIONS_EN.md`](./docs/submission/TESTING_INSTRUCTIONS_EN.md).
 
+## Interactive accident journey
+
+Start the real local demo with one command:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome demo accident-serve `
+  --workspace-dir .local-demo\accident `
+  --port 8767 --approve-loopback-server --json
+```
+
+Open the emitted token-bearing `access_url`. The English-default interface has
+an English/German switch and light/dark themes. It searches synthetic current
+and older Hyundai i10 policies, proposes contact, claim-letter, contract and
+local-calendar steps, and executes the actual typed adapters only after the
+exact displayed `/confirm <plan_id>` command. It never sends mail, calls a
+cloud model or archives the older policy automatically. Use **Reset case** to
+restore the deterministic fixture.
+
+The public browser walkthrough is in [`site/`](./site/). It is deliberately
+labelled as a scripted synthetic showcase with no backend. The repository
+command above is the executable evidence.
+
+The accepted competition video is public on YouTube:
+<https://youtu.be/2LeWU_WJZKM>.
+
 ## Agent architecture
 
 ```mermaid
 flowchart LR
   H[Human / local OS account] --> UI[CLI or local GUI]
   UI --> A[FolderHome Master / Strands Agent 1.53.0]
+  PUB[Public scripted showcase] -. no backend .-> UI
+  AC[Optional AgentCore HTTP runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
   A --> S[search_home_documents]
@@ -112,6 +144,13 @@ The GUI exposes the runtime model state directly: deterministic fixture,
 configured but not yet verified Bedrock, or Bedrock verified by at least one
 successful live model turn in the current process. Configuration alone never
 claims a working model connection.
+
+The optional AgentCore surface implements the current AWS HTTP contract on
+ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
+fixture prompts, isolates state by AgentCore runtime session, and cannot ingest
+household uploads or perform external actions. The contract is locally tested;
+an AWS deployment is not claimed until an image, runtime endpoint and health
+check are independently verified.
 
 More: [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -264,7 +303,8 @@ steuer-assistent, law-checker and other existing components remain disclosed and
 English description, diagram, tests, video script and checklist are prepared under
 [`docs/submission/`](./docs/submission/). The public
 repository is at <https://github.com/ellmos-ai/FolderHome>. AWS Builder
-ID, video capture/upload, live demo and Devpost submission each require an
+ID remains private to the Devpost form. The approved demo video is public at
+<https://youtu.be/2LeWU_WJZKM>; final Devpost submission still requires an
 explicit human approval.
 
 ## License

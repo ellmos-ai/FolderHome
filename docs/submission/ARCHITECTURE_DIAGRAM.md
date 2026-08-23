@@ -1,8 +1,18 @@
 # FolderHome Architecture Diagram
 
+[Open the publication-ready SVG](./ARCHITECTURE_DIAGRAM.svg) ·
+[Open the rendered PNG](./ARCHITECTURE_DIAGRAM.png)
+
+![FolderHome competition architecture](./ARCHITECTURE_DIAGRAM.svg)
+
+The diagram above is the canonical submission visual. The Mermaid source below
+remains the detailed text-friendly map.
+
 ```mermaid
 flowchart TB
   Human[Person at home] --> UI[Local GUI / CLI]
+  Public[Public scripted showcase\nNo backend] -. orientation only .-> Human
+  AgentCore[Optional AgentCore HTTP Runtime\nSynthetic sessions only] --> Agent
   UI --> Agent[FolderHome Master / Strands Agent 1.53.0]
   UI --> Memory[Bounded per-profile conversation\nProcess memory only]
   Memory --> Agent
@@ -41,6 +51,12 @@ flowchart TB
 
 - The required Strands Agents loop is the agentic decision layer, not a second
   implementation of document search.
+- The public site is a transparent scripted walkthrough. The token-gated local
+  accident demo and the optional AgentCore adapter invoke the real synthetic
+  Strands journey; neither enables external effects.
+- The AgentCore adapter implements the HTTP `/ping` and `/invocations`
+  contract in an ARM64 non-root container and isolates state by runtime session.
+  Local contract tests do not constitute a deployed AWS endpoint claim.
 - GUI and CLI call the same master service. Its direct document tools reuse the
   same `LocalApplication` services.
 - Interactive GUI and CLI sessions keep bounded model-visible history per

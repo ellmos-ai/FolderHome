@@ -12,6 +12,15 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- one-command, token-gated synthetic Hyundai i10 accident demo over the real
+  Strands search path and four existing typed workflow adapters
+- English-default bilingual accident-demo UI with persistent light/dark theme,
+  exact plan confirmation, deterministic reset and downloadable local results
+- standalone bilingual GitHub Pages showcase in `site/`, explicitly marked as
+  a scripted synthetic browser walkthrough without backend execution
+- optional Amazon Bedrock AgentCore HTTP adapter with `/ping`, `/invocations`,
+  runtime-session isolation, bounded JSON input and path-free synthetic output
+- ARM64 multi-stage AgentCore container candidate running as a non-root user
 - English-default dashboard localization with a persistent English/German switch
 - persistent light and dark dashboard themes with accessible keyboard controls
 - bilingual runtime model-status card distinguishing deterministic fixture,
@@ -74,9 +83,19 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - English is now the default for 122 documentation pages; the preserved German versions use the `.de.md` suffix and include reciprocal language links
 - Workflow router generation now synchronizes 33 English and 33 German playbooks without counting localized mirrors twice
 - Local agent instructions, task lists, state files and implementation plans are retained locally but excluded from Git
+- Submission materials aligned with the authenticated 2026-08-23 Devpost
+  readback, including the current bonus-post title rule, credit deadline and
+  the single end-to-end Hyundai i10 accident narrative
 
 ### Security
 
+- public showcase has no backend or network requests; the executable accident
+  demo remains loopback-only behind a random session token
+- AgentCore adapter accepts no household upload, arbitrary path, secret or
+  external effect and separates session workspaces by one-way fingerprints
+- GitHub Pages actions and the AgentCore Python base image are pinned to
+  immutable revisions; the SHA-pinned CI dependencies are disclosed in the
+  third-party registry
 - Security scan of 357 files and 12/12 surfaces completed
 - three findings fixed: unrestricted document processing, arbitrary official hosts and unrestricted loopback threads
 - additional adversarial URL cases for trailing dot, percent‑encoding and explicit port added
@@ -86,9 +105,17 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Verified
 
-- 394 automated tests passed; three external live-checkout pin tests were
+- synthetic accident demo, local HTTP site, CLI start gate and AgentCore
+  contract covered by focused automated tests
+- AgentCore `/ping` and one prepare invocation passed as a real loopback HTTP
+  process; no AWS resource was created
+- public showcase inspected in Edge at 1440 × 1100; HTML/CSS/JavaScript and
+  bounded Pages artifact tests passed
+- 414 automated tests passed; three external live-checkout pin tests were
   deliberately deselected because the current local HungryCall and
   Ringedingeding revisions differ from their pinned manifests
+- the final unfiltered run recorded `414 passed, 3 failed`; the final bounded
+  product run recorded `414 passed, 3 deselected`
 - English/light and German/dark dashboard states visually inspected at 1440 × 1100; focused GUI tests and JavaScript syntax check passed
 - Ruff and Compileall with no findings
 - 8/8 plugin manifests valid; the master-agent skill is covered by the current repository skill checks
@@ -98,6 +125,10 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   60 seconds; it was terminated without retry and is not claimed verified
 - synthetic Strands run: two scenarios, no network, no side‑effects; repeat blocked at the Never‑overwrite gate
 - Wheel contains agent, demo, resource budget, host verification and GUI
+- a clean virtual environment installed the built wheel and executed the
+  four-result accident journey plus AgentCore `/ping` without network use
+- final wheel SHA-256:
+  `8b5929c855226a4c2c78223b65e85adc12dcd4b5aa61445d010e7fdf8d0eb24a`
 
 ## Historical Milestones
 

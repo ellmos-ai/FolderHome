@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="FolderHome synthetic accident demo">
+  <title>FolderHome — Synthetic accident demo</title>
+  <link rel="icon" href="/demo/assets/favicon.svg?token=__FOLDERHOME_TOKEN__" type="image/svg+xml">
+  <link rel="stylesheet" href="/demo/assets/app.css?token=__FOLDERHOME_TOKEN__">
+</head>
+<body>
+  <a class="skip-link" href="#demo" data-i18n="skip">Skip to the demo</a>
+  <header class="topbar">
+    <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome home">
+      <span class="brand-mark" aria-hidden="true">FH</span>
+      <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
+    </a>
+    <div class="switches">
+      <div class="segmented" aria-label="Theme">
+        <button type="button" data-theme-mode="light" aria-pressed="true">Light</button>
+        <button type="button" data-theme-mode="dark" aria-pressed="false">Dark</button>
+      </div>
+      <div class="segmented" aria-label="Language">
+        <button type="button" data-language="en" aria-pressed="true">EN</button>
+        <button type="button" data-language="de" aria-pressed="false">DE</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow" data-i18n="eyebrow">Local-first household document agent</p>
+        <h1 data-i18n="headline">From accident paperwork to a safe next step.</h1>
+        <p class="lede" data-i18n="lede">FolderHome finds the current policy, preserves older evidence, identifies the responsible contact, drafts a letter, and records a local follow-up — with one explicit confirmation.</p>
+        <div class="hero-badges">
+          <span class="badge synthetic" data-i18n="synthetic">Synthetic demo data</span>
+          <span class="badge">Strands Agents SDK 1.53.0</span>
+          <span class="badge" data-i18n="noExternal">No mail, call, or external calendar</span>
+        </div>
+      </div>
+      <aside class="impact-card">
+        <p data-i18n="forWhom">For people managing scattered household documents</p>
+        <strong data-i18n="impact">Less searching. Clearer decisions. Deliberate actions.</strong>
+      </aside>
+    </section>
+
+    <section id="demo" class="demo-grid" aria-labelledby="demo-title">
+      <article class="chat-panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow" data-i18n="liveJourney">Reproducible product journey</p>
+            <h2 id="demo-title" data-i18n="chatTitle">Talk to the FolderHome master agent</h2>
+          </div>
+          <span id="runtime-status" class="runtime" data-state="checking">Checking …</span>
+        </div>
+        <div id="transcript" class="transcript" aria-live="polite">
+          <article class="message assistant">
+            <span>FH</span>
+            <p data-i18n="welcome">This fixture runs the real local agent and real FolderHome tools. It never uses personal data.</p>
+          </article>
+        </div>
+        <form id="prompt-form">
+          <label for="prompt" data-i18n="promptLabel">Your request</label>
+          <textarea id="prompt" rows="4" maxlength="1000" required></textarea>
+          <div class="actions">
+            <button class="primary" type="submit" data-i18n="prepare">Find and prepare</button>
+            <button id="reset" class="secondary" type="button" data-i18n="reset">Reset demo</button>
+          </div>
+        </form>
+      </article>
+
+      <aside class="state-panel" aria-labelledby="state-title">
+        <p class="eyebrow" data-i18n="evidence">Evidence, plan, and results</p>
+        <h2 id="state-title" data-i18n="stateTitle">Nothing runs silently</h2>
+        <ol id="status-list" class="status-list">
+          <li data-state="idle"><span>1</span><strong data-i18n="found">Found</strong><small data-i18n="waiting">Waiting</small></li>
+          <li data-state="idle"><span>2</span><strong data-i18n="planned">Planned</strong><small data-i18n="waiting">Waiting</small></li>
+          <li data-state="idle"><span>3</span><strong data-i18n="approval">Confirmation required</strong><small data-i18n="waiting">Waiting</small></li>
+          <li data-state="idle"><span>4</span><strong data-i18n="executed">Executed</strong><small data-i18n="waiting">Waiting</small></li>
+          <li data-state="simulated"><span>5</span><strong data-i18n="externalActions">External actions</strong><small data-i18n="simulatedOnly">Simulation only</small></li>
+        </ol>
+        <div class="folder-state" aria-label="Synthetic folder state">
+          <section>
+            <h3 data-i18n="beforeState">Before · source documents</h3>
+            <ul id="before-files"><li data-i18n="noSourceFiles">Waiting for document search</li></ul>
+          </section>
+          <section>
+            <h3 data-i18n="afterState">After · generated results</h3>
+            <ul id="after-files"><li data-i18n="noGeneratedFiles">No generated results yet</li></ul>
+          </section>
+        </div>
+        <div id="plan-view" class="plan-view" hidden></div>
+        <form id="confirm-form" hidden>
+          <label for="confirm-command" data-i18n="confirmLabel">Exact confirmation command</label>
+          <input id="confirm-command" autocomplete="off" spellcheck="false">
+          <button class="primary" type="submit" data-i18n="confirm">Confirm and run locally</button>
+        </form>
+        <div id="results" class="results" hidden></div>
+      </aside>
+    </section>
+
+    <section class="trust-grid">
+      <article>
+        <p class="eyebrow" data-i18n="architecture">Architecture</p>
+        <h2 data-i18n="oneLoop">One agent loop, bounded tools</h2>
+        <div class="flow" aria-label="Architecture flow">
+          <span data-i18n="person">Person</span><b>→</b><span>Strands master</span><b>→</b><span data-i18n="tools">Local tools</span><b>→</b><span>/confirm</span><b>→</b><span data-i18n="outputs">Local outputs</span>
+        </div>
+      </article>
+      <article>
+        <p class="eyebrow" data-i18n="boundaries">Security boundaries</p>
+        <h2 data-i18n="safeByDesign">Safe by construction</h2>
+        <ul>
+          <li data-i18n="boundaryOne">Synthetic fixtures only; no uploads or personal paths.</li>
+          <li data-i18n="boundaryTwo">Conversation never counts as approval.</li>
+          <li data-i18n="boundaryThree">Older policies are proposed for archiving, not moved.</li>
+          <li data-i18n="boundaryFour">The follow-up stays in FolderHome's local calendar.</li>
+        </ul>
+      </article>
+    </section>
+
+    <section class="links" aria-label="Project links">
+      <a href="https://github.com/ellmos-ai/FolderHome" rel="noreferrer">GitHub repository</a>
+      <a href="https://github.com/ellmos-ai/FolderHome/blob/main/docs/submission/TESTING_INSTRUCTIONS_EN.md" rel="noreferrer">Testing instructions</a>
+      <span data-i18n="videoPending">Verified demo video pending</span>
+    </section>
+  </main>
+
+  <footer>
+    <p data-i18n="footer">Fixture runtime: local, reversible where supported, and explicit about what did not happen.</p>
+  </footer>
+  <script src="/demo/assets/app.js?token=__FOLDERHOME_TOKEN__" defer></script>
+</body>
+</html>

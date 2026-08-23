@@ -7,6 +7,8 @@ import zipfile
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
+from urllib.request import urlopen
 
 import pytest
 
@@ -1281,6 +1283,63 @@ def test_competition_demo_cli_publishes_only_after_explicit_gate(tmp_path: Path)
     assert payload["framework"] == "strands-agents"
     assert payload["network_used"] is False
     assert (output_dir / "EVIDENCE.json").is_file()
+
+
+def test_accident_demo_site_cli_starts_only_after_explicit_gate(tmp_path: Path) -> None:
+    workspace_dir = tmp_path / "accident-demo"
+    blocked = run_cli(
+        "demo",
+        "accident-serve",
+        "--workspace-dir",
+        str(workspace_dir),
+        "--port",
+        "0",
+        "--json",
+    )
+    assert blocked.returncode == 2
+    assert "Serverfreigabe" in json.loads(blocked.stdout)["error"]
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(REPO_ROOT / "src")
+    process = subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "folderhome",
+            "demo",
+            "accident-serve",
+            "--workspace-dir",
+            str(workspace_dir),
+            "--port",
+            "0",
+            "--approve-loopback-server",
+            "--json",
+        ],
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+    )
+    assert process.stdout is not None
+    assert process.stderr is not None
+    try:
+        ready = json.loads(process.stdout.readline())
+        access_url = str(ready["access_url"])
+        split = urlsplit(access_url)
+        token = parse_qs(split.query)["token"][0]
+        status_url = f"{ready['base_url']}/demo/api/status?token={token}"
+        with urlopen(status_url, timeout=5) as response:  # noqa: S310 - loopback only
+            status = json.loads(response.read().decode("utf-8"))
+    finally:
+        process.terminate()
+        process.wait(timeout=10)
+
+    assert ready["status"] == "ready"
+    assert ready["demo"] == "synthetic_accident"
+    assert ready["external_network_used"] is False
+    assert status["synthetic_data_only"] is True
 
 
 @pytest.mark.skipif(not LLM_NOTE_ROOT.is_dir(), reason="pinned llm-note checkout unavailable")

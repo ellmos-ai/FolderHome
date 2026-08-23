@@ -14,7 +14,7 @@ FolderHome explicitly takes over provided inventory records into a local, append
 
 ### UpToday
 
-- local clean checkout: `C:\_Local_DEV\repos\UpToday`
+- source: separate clean UpToday checkout
 - verified revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
 - License: MIT
 - focused contract acceptance: 4 tests green

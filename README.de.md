@@ -22,11 +22,16 @@ Cloudberechtigungen zu geben.
 
 - 36 von 36 lokalen Wettbewerbsphasen umgesetzt
 - ein echter `strands.Agent`-Master mit vier begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- 394 von 397 automatisierten Tests bestanden; drei Live-Checkout-Pinprüfungen blockieren wegen lokaler HungryCall-/Ringedingeding-Revisionsabweichungen
+- 415 von 418 automatisierten Tests bestanden; drei Live-Checkout-Pinprüfungen blockieren wegen lokaler HungryCall-/Ringedingeding-Revisionsabweichungen
 - synthetische No-network-Demo mit reproduzierbaren Hashes
+- durchgehende synthetische Unfallgeschichte über vier echte,
+  bestätigungspflichtige FolderHome-Workflowadapter
+- zweisprachiger öffentlicher Showcase mit Hell-/Dunkelmodus in
+  [`site/`](./site/) und ein getesteter, deploymentbereiter
+  AgentCore-HTTP-/ARM64-Adapter in [`deploy/agentcore/`](./deploy/agentcore/)
 - vollständiger Baseline-Scan über 12/12 Oberflächen plus aktueller
   66-Dateien-Delta-Audit; vier Befunde behoben
-- öffentliches MIT-Repository; kein Video-Upload und kein Devpost-Submit erfolgt
+- öffentliches MIT-Repository und [dreiminütiges öffentliches Demovideo](https://youtu.be/2LeWU_WJZKM); kein Devpost-Submit erfolgt
 
 Der kanonische Nachweis steht im
 [`Phase-36-Completion-Audit`](docs/phase36-completion-audit.de.md). Während des
@@ -58,12 +63,40 @@ Ordner blockiert statt zu überschreiben.
 Die ausführliche englische Anleitung steht in
 [`docs/submission/TESTING_INSTRUCTIONS_EN.md`](./docs/submission/TESTING_INSTRUCTIONS_EN.md).
 
+## Interaktive Unfallgeschichte
+
+Die echte lokale Demo startet mit einem Befehl:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome demo accident-serve `
+  --workspace-dir .local-demo\accident `
+  --port 8767 --approve-loopback-server --json
+```
+
+Öffne die ausgegebene, tokenhaltige `access_url`. Die standardmäßig englische
+Oberfläche bietet eine Deutsch-/Englisch-Umschaltung und Hell-/Dunkelmodus. Sie
+durchsucht synthetische aktuelle und ältere Hyundai-i10-Policen, schlägt
+Kontakt-, Schadensbrief-, Vertrags- und lokale Kalenderschritte vor und führt
+die echten typisierten Adapter erst nach dem exakt angezeigten Befehl
+`/confirm <plan_id>` aus. Sie sendet niemals E-Mails, ruft kein Cloudmodell auf
+und archiviert die ältere Police nicht automatisch. **Fall zurücksetzen**
+stellt das deterministische Fixture wieder her.
+
+Der öffentliche Browser-Rundgang liegt in [`site/`](./site/). Er ist
+ausdrücklich als skriptbasierter synthetischer Showcase ohne Backend
+gekennzeichnet. Der Repository-Befehl oben ist der ausführbare Nachweis.
+
+Das abgenommene Wettbewerbsvideo ist öffentlich auf YouTube:
+<https://youtu.be/2LeWU_WJZKM>.
+
 ## Agentenarchitektur
 
 ```mermaid
 flowchart LR
   H[Human / local OS account] --> UI[CLI or local GUI]
   UI --> A[FolderHome Master / Strands Agent 1.53.0]
+  PUB[Öffentlicher skriptbasierter Showcase] -. kein Backend .-> UI
+  AC[Optionaler AgentCore-HTTP-Runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
   A --> S[search_home_documents]
@@ -115,6 +148,13 @@ Die GUI zeigt den Modellzustand direkt: deterministisches Fixture, konfigurierte
 aber noch nicht verifiziertes Bedrock oder Bedrock nach mindestens einem
 erfolgreichen Live-Modellturn im aktuellen Prozess. Eine Konfiguration allein
 gilt niemals als Beleg einer funktionierenden Modellverbindung.
+
+Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
+auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
+synthetische Fixture-Prompts, trennt den Zustand nach AgentCore-Runtime-Sitzung
+und kann weder Haushaltsdateien einlesen noch externe Aktionen ausführen. Der
+Vertrag ist lokal getestet; ein AWS-Deployment wird erst nach unabhängig
+verifiziertem Image, Runtime-Endpoint und Healthcheck behauptet.
 
 Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -274,8 +314,9 @@ offengelegt und revisionsgebunden. FolderHome kopiert ihren Quellcode nicht.
 Englische Beschreibung, Diagramm, Tests, Videoskript und Checkliste sind unter
 [`docs/submission/`](./docs/submission/) vorbereitet. Das öffentliche
 Repository liegt unter <https://github.com/ellmos-ai/FolderHome>. AWS Builder
-ID, Videoaufnahme/-upload, Live-Demo und Devpost-Submit benötigen jeweils eine
-ausdrückliche menschliche Freigabe.
+ID bleibt ausschließlich im privaten Devpost-Formular. Das freigegebene
+Demovideo ist unter <https://youtu.be/2LeWU_WJZKM> öffentlich; der abschließende
+Devpost-Submit benötigt weiterhin eine ausdrückliche menschliche Freigabe.
 
 ## Lizenz
 

@@ -13,6 +13,19 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- mit einem Befehl startbare, token-geschützte synthetische Hyundai-i10-
+  Unfalldemo über den echten Strands-Suchpfad und vier vorhandene typisierte
+  Workflowadapter
+- standardmäßig englische, zweisprachige Unfalldemo-Oberfläche mit dauerhaftem
+  Hell-/Dunkelmodus, exakter Planbestätigung, deterministischem Reset und lokal
+  abrufbaren Ergebnissen
+- eigenständiger zweisprachiger GitHub-Pages-Showcase unter `site/`, der
+  ausdrücklich als skriptbasierter synthetischer Browser-Rundgang ohne
+  Backend-Ausführung gekennzeichnet ist
+- optionaler Amazon-Bedrock-AgentCore-HTTP-Adapter mit `/ping`,
+  `/invocations`, Runtime-Sitzungstrennung, begrenzter JSON-Eingabe und
+  pfadfreier synthetischer Ausgabe
+- mehrstufiger ARM64-AgentCore-Containerkandidat ohne Rootrechte
 - englisch voreingestellte Dashboard-Lokalisierung mit dauerhaft gespeichertem
   Englisch-/Deutsch-Umschalter
 - dauerhaft gespeicherter heller und dunkler Dashboard-Modus mit
@@ -94,9 +107,21 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   Playbooks, ohne lokalisierte Spiegel doppelt zu zählen
 - lokale Agentenanweisungen, Aufgabenlisten, Statusdateien und Ausführungspläne
   bleiben lokal erhalten, werden aber aus Git ausgeschlossen
+- Einreichungsunterlagen mit dem authentifizierten Devpost-Stand vom
+  23. August 2026 abgeglichen, einschließlich aktueller Titelregel für
+  Bonusartikel, Credit-Frist und der durchgehenden Hyundai-i10-Unfallgeschichte
 
 ### Sicherheit
 
+- der öffentliche Showcase hat kein Backend und keine Netzwerkanfragen; die
+  ausführbare Unfalldemo bleibt hinter einem zufälligen Sitzungstoken auf
+  Loopback begrenzt
+- der AgentCore-Adapter akzeptiert weder Haushaltsuploads noch beliebige Pfade,
+  Secrets oder externe Effekte und trennt Sitzungsarbeitsbereiche durch
+  Einweg-Fingerabdrücke
+- GitHub-Pages-Actions und das Python-Basisimage des AgentCore-Containers sind
+  auf unveränderliche Revisionen gepinnt; die SHA-gepinnten CI-Abhängigkeiten
+  stehen im Drittanbieterregister
 - Security-Scan über 357 Dateien und 12/12 Oberflächen abgeschlossen
 - drei Befunde behoben: unbeschränkte Dokumentarbeit, beliebige amtliche Hosts
   und unbeschränkte Loopback-Threads
@@ -111,9 +136,18 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Verifiziert
 
-- 394 automatisierte Tests bestanden; drei externe Live-Checkout-Pinprüfungen
+- synthetische Unfalldemo, lokale HTTP-Seite, CLI-Startgate und
+  AgentCore-Vertrag durch fokussierte automatisierte Tests abgedeckt
+- AgentCore-`/ping` und ein Prepare-Aufruf als echter Loopback-HTTP-Prozess
+  bestanden; keine AWS-Ressource wurde erstellt
+- öffentlichen Showcase in Edge bei 1440 × 1100 geprüft; HTML-/CSS-/JavaScript-
+  und begrenzte Pages-Artefakttests bestanden
+- 414 automatisierte Tests bestanden; drei externe Live-Checkout-Pinprüfungen
   wurden bewusst abgewählt, weil die aktuellen lokalen HungryCall- und
   Ringedingeding-Revisionen von ihren Manifest-Pins abweichen
+- der abschließende ungefilterte Lauf meldete `414 bestanden, 3
+  fehlgeschlagen`; der abschließende begrenzte Produktlauf meldete `414
+  bestanden, 3 abgewählt`
 - Englisch/Hell und Deutsch/Dunkel bei 1440 × 1100 visuell geprüft;
   fokussierte GUI-Tests und JavaScript-Syntaxprüfung bestanden
 - Ruff und Compileall ohne Befund
@@ -127,6 +161,11 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - synthetischer Strands-Lauf: zwei Szenarien, kein Netzwerk, keine
   Side-Effects; Wiederholung blockiert am Never-overwrite-Gate
 - Wheel enthält Agent, Demo, Ressourcenbudget, Hostprüfung und GUI
+- eine frische virtuelle Umgebung installierte das gebaute Wheel und führte
+  die Unfallgeschichte mit vier Ergebnissen sowie AgentCore-`/ping` ohne
+  Netzwerknutzung aus
+- finaler Wheel-SHA-256:
+  `8b5929c855226a4c2c78223b65e85adc12dcd4b5aa61445d010e7fdf8d0eb24a`
 
 ## Historische Meilensteine
 

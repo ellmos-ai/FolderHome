@@ -14,6 +14,9 @@ Security fixes are maintained on the current competition state on branch
 - The operating system account together with file permissions is the security boundary. Family profiles organize rules and views, but they are not ACLs.
 - The local HTTP adapter binds exclusively to `127.0.0.1`, requires a short‑lived session token, checks host and origin exactly, and does not allow CORS.
 - Concurrent HTTP requests and incomplete connections have hard limits and timeouts.
+- The synthetic accident runtime creates and resets only its marked workspace.
+  It rejects filesystem roots, symbolic links, and pre-existing non-empty
+  directories that do not carry the exact FolderHome ownership marker.
 - File, parser, and renderer work is limited by non‑disableable budgets for entries, files, bytes, PDF pages, image frames, pixels, text, and outputs.
 - The Strands master has five bounded tools: two profile-bound read-only
   document tools, capability discovery, logical-resource discovery, and
@@ -36,6 +39,14 @@ Security fixes are maintained on the current competition state on branch
   model ID, region, separate explicit approvals for network access and sharing
   potentially sensitive local search results, bounded connect/read timeouts,
   and exactly one total SDK attempt per model call.
+- The optional AgentCore adapter accepts JSON prompts only, rejects uploads,
+  arbitrary local paths, duplicate JSON keys and non-synthetic requests, and
+  returns no host paths or secrets. Runtime sessions, concurrent invocations,
+  request bodies and socket time are bounded; capacity exhaustion fails with
+  an explicit service-unavailable response.
+- The public static showcase has no backend, performs no network request and
+  changes no files. It is visibly labelled as a scripted synthetic walkthrough
+  and is not evidence of a deployed AgentCore endpoint.
 - Official benefit links are verified via HTTPS, exact host, and publisher binding. IP addresses, credentials, ports, and domain look‑alikes are blocked.
 - Write actions require domain-separate approvals and gates, re-verify source
   hashes, and do not overwrite existing targets. Connected chat writes include
@@ -48,7 +59,7 @@ Security fixes are maintained on the current competition state on branch
 
 The repository, tests, and competition demo use exclusively synthetic data. Real documents, credentials, session tokens, email addresses, account identifiers, or health information must not be committed, uploaded, or incorporated into public demo artifacts.
 
-The demo output explicitly states that it is synthetic. A fixture run exercises the Strands agent loop, but neither model quality nor AWS availability.
+The demo output explicitly states that it is synthetic. A fixture run exercises the Strands agent loop, but neither model quality nor AWS availability. No demo action sends email, places a call, creates an external calendar event, uploads a document, or archives an older policy automatically.
 
 ## Security Review
 

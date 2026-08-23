@@ -48,6 +48,41 @@ Open `DEMO.md` and inspect `EVIDENCE.json`. The evidence file records SHA-256
 values for the generated artifacts. Re-running against the same directory must
 fail instead of overwriting the first result.
 
+## Interactive synthetic accident journey
+
+Start the token-gated loopback UI:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome demo accident-serve `
+  --workspace-dir .local-demo\accident `
+  --port 8767 --approve-loopback-server --json
+```
+
+Open the emitted `access_url`, submit the prefilled Hyundai i10 accident
+request, review the four-step plan and use the exact displayed
+`/confirm <plan_id>` command. Expected local results are a current purpose-bound
+claims contact, a claim-letter draft, a contract overview and a local follow-up
+appointment. The page must continue to show synthetic fixture mode, no external
+network and no automatic send or archive action. **Reset case** returns the
+owned fixture workspace to its initial state.
+
+The public page in `site/` is a scripted browser walkthrough and says so on the
+page. It is useful for product orientation, but the command above is the real
+adapter execution proof.
+
+## AgentCore HTTP contract
+
+`deploy/agentcore/` contains an ARM64, non-root container candidate. Without an
+AWS deployment, its exact application contract is still tested locally:
+
+```powershell
+.venv\Scripts\python.exe -m pytest tests\test_agentcore_runtime.py -q
+```
+
+It verifies `GET /ping`, `POST /invocations`, body limits, session isolation,
+exact confirmation, synthetic-only data and path-free responses. Passing this
+test is not a claim that an ECR image or AgentCore endpoint exists.
+
 ## Full verification
 
 ```powershell
@@ -59,8 +94,23 @@ fail instead of overwriting the first result.
 .venv\Scripts\python.exe _tools\workflows-sync --check
 ```
 
-The final verified counts and hashes are recorded in
-`docs/phase36-completion-audit.md`.
+The complete fail-closed run is `414 passed, 3 failed`; all three failures are
+the documented local HungryCall/Ringedingeding checkout revision mismatches.
+The bounded acceptance run with exactly those three external pin probes
+deselected is `414 passed, 3 deselected`.
+
+The final wheel was then installed into a new virtual environment outside the
+repository. Its smoke test verified the packaged bilingual GUI assets, the
+confirmed four-result accident journey, AgentCore `/ping` with HTTP 200, zero
+network use and zero external actions. The tested wheel SHA-256 is
+`8b5929c855226a4c2c78223b65e85adc12dcd4b5aa61445d010e7fdf8d0eb24a`.
+
+This fail-closed result is intentional: the local HungryCall checkout was
+`fe63cdc24b4a7e599d264dcda41e1b9771079950` instead of the disclosed manifest
+revision `d2138476d23234cf1d23ec9609f124c58455b8e7`; Ringedingeding was
+`1abcab8a602c995a4374e76ccc80887062034275` instead of
+`01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf`. FolderHome does not silently load
+either changed provider.
 
 ## What the fixture proves
 

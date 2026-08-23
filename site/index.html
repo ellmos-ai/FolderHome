@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FolderHome is a local-first Strands agent for household documents and safely confirmed everyday workflows.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="theme-color" content="#07111f">
+  <title>FolderHome — Assistantify your home</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#demo">Skip to demo</a>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="FolderHome home">
+      <img src="assets/logo.svg" alt="FolderHome">
+    </a>
+    <nav class="header-actions" aria-label="Display settings">
+      <div class="segmented" aria-label="Language">
+        <button type="button" data-language="en" aria-pressed="true">EN</button>
+        <button type="button" data-language="de" aria-pressed="false">DE</button>
+      </div>
+      <div class="segmented" aria-label="Color theme">
+        <button type="button" data-theme="dark" aria-pressed="true">Dark</button>
+        <button type="button" data-theme="light" aria-pressed="false">Light</button>
+      </div>
+      <a class="repo-link" href="https://github.com/ellmos-ai/FolderHome">GitHub ↗</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow" data-en="A local-first Strands agent for everyday documents" data-de="Ein Local-First-Strands-Agent für Alltagsdokumente">A local-first Strands agent for everyday documents</p>
+        <h1 id="hero-title"><span data-en="Your home has a paper trail." data-de="Dein Zuhause hat eine Dokumentenspur.">Your home has a paper trail.</span> <em data-en="Make it useful." data-de="Mach sie nutzbar.">Make it useful.</em></h1>
+        <p class="hero-lead" data-en="FolderHome finds the current document, connects the right contact, drafts the next step and waits for your exact confirmation before anything changes." data-de="FolderHome findet das aktuelle Dokument, verbindet den richtigen Kontakt, entwirft den nächsten Schritt und wartet auf deine exakte Bestätigung, bevor sich etwas ändert.">FolderHome finds the current document, connects the right contact, drafts the next step and waits for your exact confirmation before anything changes.</p>
+        <div class="proof-row" aria-label="Product boundaries">
+          <span><i class="dot emerald"></i><b>Local-first</b></span>
+          <span><i class="dot cyan"></i><b>Exact confirmation</b></span>
+          <span><i class="dot amber"></i><b>Reversible file actions</b></span>
+        </div>
+        <div class="hero-cta">
+          <a class="button primary" href="#demo" data-en="Walk through the accident case" data-de="Unfallbeispiel durchspielen">Walk through the accident case</a>
+          <a class="button secondary" href="https://youtu.be/2LeWU_WJZKM" target="_blank" rel="noopener noreferrer" data-en="Watch the 3-minute demo" data-de="3-Minuten-Demo ansehen">Watch the 3-minute demo</a>
+          <a class="button secondary" href="https://github.com/ellmos-ai/FolderHome#quick-test-for-jurors" data-en="Run the real local demo" data-de="Echte lokale Demo starten">Run the real local demo</a>
+        </div>
+      </div>
+
+      <div class="case-file" aria-label="Synthetic case file preview">
+        <div class="folder-tab">CASE / 08·22</div>
+        <div class="paper-stack" aria-hidden="true"></div>
+        <article class="case-paper">
+          <div class="case-head">
+            <span class="case-mark">FH</span>
+            <div><small>SYNTHETIC DOSSIER</small><strong>Hyundai i10</strong></div>
+            <span class="stamp">LOCAL</span>
+          </div>
+          <dl>
+            <div><dt>Current policy</dt><dd>SYN-I10-2026</dd></div>
+            <div><dt>Claims contact</dt><dd>Jordan Current</dd></div>
+            <div><dt>Older version</dt><dd>Keep as evidence</dd></div>
+            <div><dt>Next review</dt><dd>26 Aug · 10:00</dd></div>
+          </dl>
+          <div class="route-line"><span>documents</span><b>→</b><span>plan</span><b>→</b><span>confirm</span></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="demo-section" id="demo" aria-labelledby="demo-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow" data-en="Interactive case file" data-de="Interaktive Fallakte">Interactive case file</p>
+          <h2 id="demo-title" data-en="One request. Four bounded workflows." data-de="Eine Anfrage. Vier begrenzte Workflows.">One request. Four bounded workflows.</h2>
+        </div>
+        <p class="disclosure"><strong data-en="Scripted synthetic walkthrough" data-de="Skriptbasierter synthetischer Rundgang">Scripted synthetic walkthrough</strong><span data-en="This public page runs no backend and changes no files. The repository command runs the real local adapters." data-de="Diese öffentliche Seite nutzt kein Backend und ändert keine Dateien. Der Repository-Befehl führt die echten lokalen Adapter aus.">This public page runs no backend and changes no files. The repository command runs the real local adapters.</span></p>
+      </div>
+
+      <div class="demo-shell">
+        <aside class="case-index" aria-label="Case workflow">
+          <div class="index-title"><span>CASE 01</span><b>Accident → claim</b></div>
+          <ol id="workflow-steps">
+            <li data-state="idle"><span>01</span><div><b data-en="Find policies" data-de="Policen finden">Find policies</b><small data-en="Current vs. historical" data-de="Aktuell und historisch">Current vs. historical</small></div></li>
+            <li data-state="idle"><span>02</span><div><b data-en="Resolve contact" data-de="Kontakt ermitteln">Resolve contact</b><small data-en="Purpose-bound register" data-de="Zweckgebundenes Register">Purpose-bound register</small></div></li>
+            <li data-state="idle"><span>03</span><div><b data-en="Prepare claim" data-de="Meldung vorbereiten">Prepare claim</b><small data-en="Draft, never auto-send" data-de="Entwurf, nie automatisch senden">Draft, never auto-send</small></div></li>
+            <li data-state="idle"><span>04</span><div><b data-en="Save follow-up" data-de="Wiedervorlage speichern">Save follow-up</b><small data-en="FolderHome local calendar" data-de="Lokaler FolderHome-Kalender">FolderHome local calendar</small></div></li>
+          </ol>
+          <div class="boundary-note"><span class="shield">◇</span><p><b data-en="Boundary" data-de="Grenze">Boundary</b><small data-en="No email sent. No cloud upload. No policy archived automatically." data-de="Keine E-Mail gesendet. Kein Cloud-Upload. Keine Police automatisch archiviert.">No email sent. No cloud upload. No policy archived automatically.</small></p></div>
+        </aside>
+
+        <div class="chat-panel">
+          <div class="chat-topbar"><div><i class="status-light"></i><span data-en="FolderHome master · fixture ready" data-de="FolderHome-Master · Fixture bereit">FolderHome master · fixture ready</span></div><button type="button" id="reset-demo" class="text-button" data-en="Reset case" data-de="Fall zurücksetzen">Reset case</button></div>
+          <div class="transcript" id="transcript" aria-live="polite">
+            <article class="message assistant"><span class="speaker">FH</span><div><small>FOLDERHOME</small><p data-en="Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet." data-de="Erzähl mir, was passiert ist. Ich suche zuerst und schlage einen begrenzten Plan vor; noch wird nichts ausgeführt.">Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet.</p></div></article>
+          </div>
+          <form id="prompt-form" class="composer">
+            <label for="prompt" class="sr-only">Prompt</label>
+            <textarea id="prompt" rows="3">I had an accident with my Hyundai i10. Find my current car insurance, compare it with older policies, identify the right contact, prepare a claim letter, and save the next follow-up locally.</textarea>
+            <button type="submit" class="send-button" data-en="Build safe plan" data-de="Sicheren Plan erstellen">Build safe plan</button>
+          </form>
+
+          <section class="plan-card" id="plan-card" hidden aria-labelledby="plan-title">
+            <div class="plan-card-head"><div><small>PLAN · SHA256 BOUND</small><h3 id="plan-title" data-en="Review before execution" data-de="Vor Ausführung prüfen">Review before execution</h3></div><span class="pending-badge" data-en="Confirmation required" data-de="Bestätigung erforderlich">Confirmation required</span></div>
+            <ul>
+              <li><span>1</span><p><b data-en="Search local documents" data-de="Lokale Dokumente durchsuchen">Search local documents</b><small data-en="Current SYN-I10-2026 and older SYN-I10-2025" data-de="Aktuell SYN-I10-2026 und älter SYN-I10-2025">Current SYN-I10-2026 and older SYN-I10-2025</small></p></li>
+              <li><span>2</span><p><b data-en="Update purpose-bound contact" data-de="Zweckgebundenen Kontakt aktualisieren">Update purpose-bound contact</b><small>Jordan Current · claims-2026@example.invalid</small></p></li>
+              <li><span>3</span><p><b data-en="Create claim draft" data-de="Schadensentwurf erstellen">Create claim draft</b><small data-en="Local Markdown and text; no sending" data-de="Lokales Markdown und Text; kein Versand">Local Markdown and text; no sending</small></p></li>
+              <li><span>4</span><p><b data-en="Add local follow-up" data-de="Lokale Wiedervorlage hinzufügen">Add local follow-up</b><small>26 Aug 2026 · 10:00 Europe/Berlin</small></p></li>
+            </ul>
+            <form id="confirm-form" class="confirm-row">
+              <label for="confirmation" data-en="Exact confirmation command" data-de="Exakter Bestätigungsbefehl">Exact confirmation command</label>
+              <div><input id="confirmation" autocomplete="off" spellcheck="false"><button type="submit" data-en="Confirm this plan" data-de="Diesen Plan bestätigen">Confirm this plan</button></div>
+              <small id="confirm-help" data-en="Conversation text is never approval." data-de="Gesprächstext gilt niemals als Freigabe.">Conversation text is never approval.</small>
+            </form>
+          </section>
+
+          <section class="result-grid" id="result-grid" hidden aria-label="Synthetic results">
+            <article><span class="result-icon">@</span><div><small>CONTACT</small><b>Jordan Current</b><p>claims-2026@example.invalid</p></div><em>saved locally</em></article>
+            <article><span class="result-icon">¶</span><div><small>CLAIM DRAFT</small><b>Accident report</b><p>SYN-I10-2026 · not sent</p></div><em>created</em></article>
+            <article><span class="result-icon">□</span><div><small>FOLLOW-UP</small><b>Review claim</b><p>26 Aug · 10:00</p></div><em>scheduled locally</em></article>
+            <article><span class="result-icon">↺</span><div><small>AUDIT</small><b>4 bounded effects</b><p>network_used = false</p></div><em>verified</em></article>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="architecture" aria-labelledby="architecture-title">
+      <div class="section-heading"><div><p class="eyebrow">PROOF, NOT PROMISES</p><h2 id="architecture-title" data-en="The safety boundary is part of the product." data-de="Die Sicherheitsgrenze ist Teil des Produkts.">The safety boundary is part of the product.</h2></div></div>
+      <figure class="architecture-diagram">
+        <img src="architecture.svg" alt="FolderHome architecture: one local Strands master, exact confirmation, typed local adapters, synthetic-only optional cloud surfaces">
+        <figcaption data-en="Delivered architecture: real local execution stays behind the exact confirmation boundary; the public showcase is scripted and the AgentCore cloud deployment is not claimed." data-de="Ausgelieferte Architektur: Die echte lokale Ausführung bleibt hinter der exakten Bestätigungsgrenze; der öffentliche Showcase ist skriptbasiert und ein AgentCore-Cloud-Deployment wird nicht behauptet.">Delivered architecture: real local execution stays behind the exact confirmation boundary; the public showcase is scripted and the AgentCore cloud deployment is not claimed.</figcaption>
+      </figure>
+      <div class="architecture-grid">
+        <article><span>STRANDS</span><h3 data-en="One master agent" data-de="Ein Master-Agent">One master agent</h3><p data-en="Natural conversation routes into typed, bounded tools and specialists." data-de="Natürliche Gespräche werden in typisierte, begrenzte Tools und Spezialisten geroutet.">Natural conversation routes into typed, bounded tools and specialists.</p></article>
+        <article><span>LOCAL</span><h3 data-en="Paths stay out of plans" data-de="Pfade bleiben aus Plänen">Paths stay out of plans</h3><p data-en="Logical resource IDs keep household locations outside model-visible payloads." data-de="Logische Ressourcen-IDs halten Haushaltsorte aus modellsichtbaren Nutzdaten heraus.">Logical resource IDs keep household locations outside model-visible payloads.</p></article>
+        <article><span>GATED</span><h3 data-en="Hash-bound confirmation" data-de="Hashgebundene Bestätigung">Hash-bound confirmation</h3><p data-en="Search is not permission. Execution needs the exact displayed plan ID." data-de="Suche ist keine Erlaubnis. Die Ausführung benötigt die exakt angezeigte Plan-ID.">Search is not permission. Execution needs the exact displayed plan ID.</p></article>
+        <article><span>AWS READY</span><h3>AgentCore HTTP adapter</h3><p data-en="A tested ARM64 container contract is included; cloud deployment remains an explicit infrastructure decision." data-de="Ein getesteter ARM64-Containervertrag ist enthalten; das Cloud-Deployment bleibt eine explizite Infrastrukturentscheidung.">A tested ARM64 container contract is included; cloud deployment remains an explicit infrastructure decision.</p></article>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <img src="assets/icon.svg" alt="" aria-hidden="true">
+    <div><b>FolderHome</b><span>Assistantify your home.</span></div>
+    <p>MIT · Strands Agents SDK 1.53.0 · <a href="https://agentsforhumans.devpost.com/">Agents for Humans</a></p>
+  </footer>
+</body>
+</html>

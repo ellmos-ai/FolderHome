@@ -19,6 +19,10 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   kurzlebiges Sitzungstoken, prüft Host und Origin exakt und erlaubt kein CORS.
 - Gleichzeitige HTTP-Anfragen und unvollständige Verbindungen besitzen harte
   Obergrenzen und Timeouts.
+- Die synthetische Unfalllaufzeit erstellt und leert ausschließlich ihren
+  markierten Arbeitsbereich. Sie verweigert Dateisystemwurzeln, symbolische
+  Links und bereits vorhandene, nicht leere Verzeichnisse ohne den exakten
+  FolderHome-Eigentumsmarker.
 - Datei-, Parser- und Rendererarbeit ist durch nicht abschaltbare Budgets für
   Einträge, Dateien, Bytes, PDF-Seiten, Bildframes, Pixel, Text und Ausgaben
   begrenzt.
@@ -46,6 +50,16 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
   Suchergebnisse. Jeder Modellaufruf verwendet begrenzte Verbindungs- und
   Lese-Timeouts sowie insgesamt genau einen SDK-Versuch.
+- Der optionale AgentCore-Adapter akzeptiert ausschließlich JSON-Prompts,
+  verweigert Uploads, beliebige lokale Pfade, doppelte JSON-Schlüssel und
+  nichtsynthetische Anfragen und gibt weder Hostpfade noch Secrets zurück.
+  Laufzeitsitzungen, parallele Aufrufe, Anfragegrößen und Socket-Zeit sind
+  begrenzt; ausgeschöpfte Kapazität blockiert mit einer ausdrücklichen
+  Service-unavailable-Antwort.
+- Der öffentliche statische Showcase besitzt kein Backend, führt keine
+  Netzwerkanfrage aus und ändert keine Dateien. Er ist sichtbar als
+  skriptbasierter synthetischer Rundgang gekennzeichnet und kein Nachweis eines
+  bereitgestellten AgentCore-Endpunkts.
 - Amtliche Leistungslinks werden per HTTPS, exaktem Host und Publisherbindung
   geprüft. IP-Adressen, Zugangsdaten, Ports und Domain-Lookalikes werden
   blockiert.
@@ -67,7 +81,9 @@ hochgeladen oder in öffentliche Demoartefakte übernommen werden.
 
 Die Demoausgabe nennt ausdrücklich, dass sie synthetisch ist. Ein Fixture-Lauf
 belegt den Strands-Agentenloop, aber weder Modellqualität noch AWS-
-Verfügbarkeit.
+Verfügbarkeit. Keine Demoaktion sendet eine E-Mail, führt einen Anruf aus,
+erstellt einen externen Kalendereintrag, lädt ein Dokument hoch oder archiviert
+eine ältere Police automatisch.
 
 ## Sicherheitsprüfung
 

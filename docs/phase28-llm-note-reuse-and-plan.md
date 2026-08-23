@@ -7,7 +7,7 @@
 
 ## Verified Inventory
 
-The local checkout `C:\_Local_DEV\repos\llm-note` was verified read‑only:
+The separate clean `llm-note` checkout was verified read‑only:
 
 | Feature | Finding |
 |---|---|

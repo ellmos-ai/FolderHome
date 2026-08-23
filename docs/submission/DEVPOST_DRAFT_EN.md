@@ -1,11 +1,13 @@
 # FolderHome
 
-**Tagline:** A local-first Strands agent that turns scattered household
-documents into searchable, explainable and safely actionable workflows.
+**Tagline:** A local-first desktop Strands agent that gives household documents
+a home, with optional AWS capabilities when they add value.
 
 **Track:** Everyday Agents
 
 **Source repository:** <https://github.com/ellmos-ai/FolderHome>
+
+**Demo video:** <https://youtu.be/2LeWU_WJZKM>
 
 ## Inspiration
 
@@ -25,6 +27,11 @@ FolderHome is a local document and assistance service agent. Its Strands
 Agents loop can search the local document index and assemble an evidence-linked
 topic dossier from a natural request. Around that core, reusable modules cover:
 
+The complete competition workflow runs locally. Optional Bedrock, AgentCore
+and service connectors can be added when they provide a concrete benefit;
+privacy and approval gates remain background safeguards rather than the
+product's main job.
+
 - document collection, sorting plans, folder cleanup, versions and reversible
   actions;
 - family-specific organizational profiles under the operating-system account;
@@ -40,6 +47,19 @@ topic dossier from a natural request. Around that core, reusable modules cover:
 Consequential actions remain separate from understanding. FolderHome plans
 first, records provenance and hashes, asks for a narrow approval, checks the
 inputs again and never silently upgrades a suggestion into a real-world act.
+
+## One end-to-end demo journey
+
+The competition demo follows one synthetic household problem instead of a
+feature montage. After a Hyundai i10 accident, the user asks FolderHome to find
+the current insurance policy, identify the right contact and prepare the next
+steps. The master agent searches both current and older documents, keeps the
+older policy as evidence, and returns a hash-bound plan. Only the exact
+`/confirm <plan_id>` command may execute it. Four existing typed adapters then
+write a contact record, a contract cockpit, a claim-letter draft and a local
+calendar reminder. The result view exposes the individual receipts and hashes.
+No email is sent, no call is placed, no external calendar is changed and no
+old policy is silently archived.
 
 ## How we built it
 
@@ -81,6 +101,12 @@ approval.
 Both surfaces retain a finite Strands message window per organizational profile
 for natural follow-up questions. The history never leaves process memory and a
 new-conversation action clears it together with unconfirmed plans.
+
+An isolated HTTP adapter maps the same application contract to an
+AgentCore-compatible runtime boundary and includes an ARM64 container
+candidate. Its session isolation and local `/ping` behavior are tested. The
+submission does not claim an AgentCore cloud deployment unless a later live
+deployment is separately completed and verified.
 
 ## Safety and privacy by construction
 

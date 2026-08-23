@@ -7,7 +7,7 @@
 
 ## Verified state
 
-The local checkout `C:\_Local_DEV\repos\steuer-assistent` was checked read‑only:
+The separate clean `steuer-assistent` checkout was checked read‑only:
 
 | Feature | Finding |
 |---|---|

@@ -9,8 +9,7 @@ zu behaupten.
 
 ## Verifizierter Bestand
 
-Der lokale Checkout `C:\_Local_DEV\repos\steuer-assistent` wurde read-only
-geprüft:
+Der separate saubere `steuer-assistent`-Checkout wurde read-only geprüft:
 
 | Merkmal | Befund |
 |---|---|

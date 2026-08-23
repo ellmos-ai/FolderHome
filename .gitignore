@@ -29,7 +29,16 @@ Desktop.ini
 # Project-local archives
 _archive/
 
+# Rejected local demo-render artifacts (never submission evidence)
+/FolderHome_Demo_Werbevideo.mp4
+/soundtrack.wav
+/soundtrack.mp3
+/soundtrack.mid
+/storyline.json
+/frame_view.md
+
 # Local project coordination and agent state
+.devpost-hackathon-state.json
 AGENTS.md
 CLAUDE.md
 AUFGABEN.txt
@@ -44,3 +53,10 @@ TOOLS.md
 .github/CONFIGURATION.md
 _tools/README.md
 docs/superpowers/
+/docs/submission/BUILDER_ARTICLE_DRAFT_EN.md
+/devpost-submission.md
+/_reports/pages_browser_smoke.mjs
+/_reports/pages_browser_smoke.ps1
+/_reports/credit_form_inspect.mjs
+/_reports/credit_form_submit.mjs
+/_reports/credit_form_handoff.mjs

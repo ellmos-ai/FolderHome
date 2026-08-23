@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.36  
-**Updated:** 2026-08-22  
-**Reason:** Strands agent, competition demo, and Phase‑36 hardening classified  
+**Version:** 0.37  
+**Updated:** 2026-08-23  
+**Reason:** Accident journey, public showcase, and optional AgentCore adapter classified  
 **Purpose:** Assigns each relevant repository area to an origin class.
 
 > If you discover outdated passages or references, correct this file and the associated manifests. The Git history remains the technical evidence.
@@ -18,6 +18,9 @@
 | `manifests/` | `NEW_CORE` | New machine‑readable component and stack contracts |
 | `reused/` | `REUSED_UNCHANGED` / `REUSED_DESIGN_REFERENCE` | Pinned runtime references or clearly marked local design sources, no copied source code |
 | `tests/` | `NEW_CORE` | New contract, security, and integration tests |
+| `site/`, `.github/workflows/pages.yml` | `NEW_CORE` | New transparent static showcase and its bounded publication workflow |
+| `deploy/agentcore/` | `NEW_CORE` | New optional synthetic-only AgentCore HTTP container contract |
+| `docs/submission/ARCHITECTURE_DIAGRAM.*` | `NEW_CORE` | New architecture evidence for the delivered competition state |
 | `examples/synthetic/`, `examples/fcsa/`, `examples/documents/`, `examples/profiles/`, `examples/inventory/`, `examples/medication/`, `examples/health/`, `examples/contracts/`, `examples/correspondence/`, `examples/artifacts/`, `examples/mail/`, `examples/calendar/`, `examples/notes/`, `examples/tax/`, `examples/briefing/`, `examples/notices/`, `examples/benefits/`, `examples/legal/`, `examples/competition/` | `GENERATED_OR_TEST_DATA` | Synthetic demo/test data, reproducible agent evidence, and marked official handoff metadata without copied portal code |
 | `_tools/`, Root-Projektdokumente | `REUSED_UNCHANGED` | Instantiated from the local `project-docs` template and adapted per project |
 
@@ -44,6 +47,8 @@
 - Local app contracts, handler allowlist, and HTTP adapters under `contracts.local_app`, `application.local_app`, and `local_server` and the assets under `web_ui/` are `NEW_CORE`. They use only the Python standard library and existing FolderHome services; no web framework, frontend package, or external source code is embedded.  
 - Strands contracts, agent adapters, and competition demo under `contracts.strands_agent`, `application.strands_agent`, and `application.competition_demo` and the exclusively synthetic package fixtures under `demo_data/` are `NEW_CORE` and `GENERATED_OR_TEST_DATA` respectively. The adapter instantiates the real `strands.Agent`, limits turns and tool calls, and provides exactly two profile‑specific read‑only FolderHome tools. The deterministic fixture implements only the public Strands model interface and is also new FolderHome code; it is not emitted as a model‑quality proof or Bedrock execution.  
 - `strands-agents==1.53.0` is a required Apache‑2.0 runtime dependency. `tzdata==2026.3` is needed on Windows because a system‑wide IANA time‑zone database cannot be assumed there. Both packages are installed, not copied into the repository.  
+- The synthetic accident journey under `application.accident_demo`, its local token-gated UI under `demo_site`, the backend-free `site/` walkthrough and the optional AgentCore HTTP adapter are `NEW_CORE`. The public walkthrough is explicitly not presented as runtime or cloud evidence.  
+- The Pages workflow and ARM64 Dockerfile use immutable action and base-image digests. They package new FolderHome code; they do not change the origin classification of disclosed reused modules.  
 - `examples/competition/evidence/` is generated solely from synthetic internal fixtures. The four artifacts demonstrate tool selection, output hash, no‑network, and lack of side‑effects; they contain no personal data.  
 - Later submodules, live connectors, public releases, and paid actions require their own decisions and gates.
 

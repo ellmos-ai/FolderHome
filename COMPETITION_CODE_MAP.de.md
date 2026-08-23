@@ -2,9 +2,9 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.36
-**Aktualisiert:** 2026-08-22
-**Grund:** Strands-Agent, Wettbewerbsdemo und Phase-36-Härtung eingeordnet
+**Version:** 0.37
+**Aktualisiert:** 2026-08-23
+**Grund:** Unfallgeschichte, öffentlicher Showcase und optionaler AgentCore-Adapter eingeordnet
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
 
 > Wenn du veraltete Passagen oder Verweise entdeckst, korrigiere diese Datei
@@ -19,6 +19,9 @@
 | `manifests/` | `NEW_CORE` | Neue maschinenlesbare Komponenten- und Stackverträge |
 | `reused/` | `REUSED_UNCHANGED` / `REUSED_DESIGN_REFERENCE` | Gepinnte Runtime-Referenzen oder klar markierte lokale Designquellen, kein kopierter Quellcode |
 | `tests/` | `NEW_CORE` | Neue Vertrags-, Sicherheits- und Integrationstests |
+| `site/`, `.github/workflows/pages.yml` | `NEW_CORE` | Neuer transparenter statischer Showcase und sein begrenzter Veröffentlichungsworkflow |
+| `deploy/agentcore/` | `NEW_CORE` | Neuer optionaler, ausschließlich synthetischer AgentCore-HTTP-Containervertrag |
+| `docs/submission/ARCHITECTURE_DIAGRAM.*` | `NEW_CORE` | Neue Architekturevidenz für den ausgelieferten Wettbewerbsstand |
 | `examples/synthetic/`, `examples/fcsa/`, `examples/documents/`, `examples/profiles/`, `examples/inventory/`, `examples/medication/`, `examples/health/`, `examples/contracts/`, `examples/correspondence/`, `examples/artifacts/`, `examples/mail/`, `examples/calendar/`, `examples/notes/`, `examples/tax/`, `examples/briefing/`, `examples/notices/`, `examples/benefits/`, `examples/legal/`, `examples/competition/` | `GENERATED_OR_TEST_DATA` | Synthetische Demo-/Testdaten, reproduzierbare Agentenevidenz sowie gekennzeichnete amtliche Handoff-Metadaten ohne kopierten Portalcode |
 | `_tools/`, Root-Projektdokumente | `REUSED_UNCHANGED` | Aus dem lokalen `project-docs`-Template instanziiert und projektspezifisch angepasst |
 
@@ -125,6 +128,15 @@
   Laufzeitabhängigkeit. `tzdata==2026.3` wird auf Windows benötigt, weil dort
   keine systemweite IANA-Zeitzonendatenbank vorausgesetzt werden kann. Beide
   Pakete werden installiert, nicht in das Repository kopiert.
+- Die synthetische Unfallgeschichte unter `application.accident_demo`, ihre
+  lokale token-geschützte Oberfläche unter `demo_site`, der backendfreie
+  Rundgang unter `site/` und der optionale AgentCore-HTTP-Adapter sind
+  `NEW_CORE`. Der öffentliche Rundgang wird ausdrücklich nicht als Runtime-
+  oder Cloudnachweis dargestellt.
+- Der Pages-Workflow und das ARM64-Dockerfile verwenden unveränderliche
+  Action- beziehungsweise Basisimage-Digests. Sie paketieren neuen
+  FolderHome-Code und ändern nicht die Herkunftsklasse der offengelegten
+  wiederverwendeten Module.
 - `examples/competition/evidence/` wird ausschließlich aus synthetischen
   internen Fixtures erzeugt. Die vier Artefakte belegen Toolwahl, Ausgabehash,
   No-network und fehlende Side-Effects; sie enthalten keine Personendaten.

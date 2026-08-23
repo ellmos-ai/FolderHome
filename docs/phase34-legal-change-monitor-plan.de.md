@@ -9,10 +9,10 @@ als begründete, aber unverbindliche Profil-/Vertragsprüfkandidaten ausgeben.
 
 ## Bestandsabgleich
 
-Der frühere OneDrive-Checkout war zurückliegend und durch fremde Änderungen
-nicht als Runtime qualifizierbar. Für Phase 34 wurde deshalb ein separater,
-sauberer Checkout unter `C:\_Local_DEV\repos\law-checker` angelegt und auf
-Revision `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b` geprüft. Seine vier Tests
+Der frühere synchronisierte Checkout war zurückliegend und durch fremde
+Änderungen nicht als Runtime qualifizierbar. Für Phase 34 wurde deshalb ein
+separater sauberer `law-checker`-Checkout auf Revision
+`06fb8d57ff90638cc50f5e33c50dbba455ac6f1b` geprüft. Seine vier Tests
 bestanden am 2026-08-22.
 
 `law-checker` Version 0.2.2 stellt einen Skill, eine versionierte

@@ -38,7 +38,7 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 
 | Schicht | Ort | Verantwortung |
 |---|---|---|
-| Bedienung | `cli.py`, `local_server.py`, `web_ui/` | Eingabe validieren, schmale Handler anbieten, keine zweite Fachlogik |
+| Bedienung | `cli.py`, `local_server.py`, `web_ui/`, `demo_site/`, `agentcore_server.py` | Eingabe validieren, schmale Handler anbieten, keine zweite Fachlogik |
 | Agent | `application/strands_agent.py`, `application/master_agent.py` | Endliche Master-Schleife, semantische Fachwahl, explizite Endpunkte und begrenzte Planungs-Fachagenten |
 | Executor-Gateway | `application/workflow_execution.py` | Typisierte einmalige Übergabe eines exakt bestätigten Masterschritts an einen vorhandenen Fach-Executor |
 | Anwendung | `application/` | Workflows komponieren, Zustände prüfen, Freigaben erzwingen, Reports erzeugen |
@@ -63,6 +63,27 @@ Tool-use-Paare und ist standardmäßig auf 24 Nachrichten begrenzt.
 `/api/v1/agent/conversation/reset` löscht den Verlauf und die unbestätigten Pläne
 eines Profils. Diese Trennung organisiert Kontext; sie ist keine zweite
 Autorisierungsgrenze.
+
+## Wettbewerbs-Demooberflächen
+
+`demo accident-serve` erzeugt einen begrenzten synthetischen Arbeitsbereich und
+stellt die echte lokale Strands-Geschichte auf Loopback hinter einem zufälligen
+Sitzungstoken bereit. Der Browser bereitet einen pfadfreien Plan vor und
+verlangt die exakte Plan-ID, bevor vier vorhandene Adapter das synthetische
+Kontaktregister, den lokalen Kalender, das Vertragscockpit und die
+Korrespondenzausgabe aktualisieren. Der Reset löscht ausschließlich
+demoeigene Fixture-Ausgaben.
+
+`site/` ist ein getrennter statischer, zweisprachiger Rundgang für GitHub Pages.
+Er hat kein Backend, ruft keine API auf und ist sichtbar als skriptbasierter
+Nachweis gekennzeichnet; er ersetzt die ausführbare lokale Demo nicht.
+
+`application/agentcore_runtime.py` bildet dieselbe synthetische Geschichte auf
+den aktuellen HTTP-Vertrag von Amazon Bedrock AgentCore (`/ping`,
+`/invocations`) ab. Der Zustand wird durch einen SHA-256-Fingerabdruck des
+Runtime-Sitzungsheaders getrennt. Der ARM64-Container ohne Rootrechte unter
+`deploy/agentcore/` akzeptiert weder Uploads noch Modellzugangsdaten, beliebige
+Ressourcen-IDs oder externe Effekte.
 
 ## Strands-Agent
 

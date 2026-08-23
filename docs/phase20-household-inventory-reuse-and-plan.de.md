@@ -17,7 +17,7 @@ Ort und Quelldokument belegbar.
 
 ### UpToday
 
-- lokaler sauberer Checkout: `C:\_Local_DEV\repos\UpToday`
+- Quelle: separater sauberer UpToday-Checkout
 - geprüfte Revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
 - Lizenz: MIT
 - fokussierte Vertragsabnahme: 4 Tests grün

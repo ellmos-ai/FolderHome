@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" role="img" aria-labelledby="title desc">
+  <title id="title">FolderHome competition architecture</title>
+  <desc id="desc">One local Strands agent loop with an exact confirmation boundary, four typed local adapters, optional Bedrock inference, a scripted public showcase, and a synthetic-only AgentCore adapter.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050811"/>
+      <stop offset="1" stop-color="#0d1627"/>
+    </linearGradient>
+    <linearGradient id="agent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a5f"/>
+      <stop offset="1" stop-color="#111c35"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#38bdf8" stroke-opacity="0.07" stroke-width="1"/>
+    </pattern>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <marker id="arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10Z" fill="#f59e0b"/>
+    </marker>
+    <style>
+      .title{font:700 38px Inter,Segoe UI,sans-serif;fill:#f8fafc}.subtitle{font:400 20px Inter,Segoe UI,sans-serif;fill:#94a3b8}.section{font:700 16px Inter,Segoe UI,sans-serif;letter-spacing:2px;fill:#38bdf8}.node-title{font:700 20px Inter,Segoe UI,sans-serif;fill:#f8fafc}.node-copy{font:400 15px Inter,Segoe UI,sans-serif;fill:#cbd5e1}.small-title{font:700 16px Inter,Segoe UI,sans-serif;fill:#f8fafc}.small-copy{font:400 13px Inter,Segoe UI,sans-serif;fill:#cbd5e1}.code{font:500 15px Consolas,monospace;fill:#6ee7b7}.muted{font:400 14px Inter,Segoe UI,sans-serif;fill:#94a3b8}.warning{font:700 16px Inter,Segoe UI,sans-serif;fill:#fecaca}.flow{fill:none;stroke:#38bdf8;stroke-width:3;marker-end:url(#arrow-cyan)}.gate-flow{fill:none;stroke:#f59e0b;stroke-width:3;marker-end:url(#arrow-amber)}.optional{fill:none;stroke:#38bdf8;stroke-width:2;stroke-dasharray:9 8;marker-end:url(#arrow-cyan)}
+    </style>
+  </defs>
+  <rect width="1600" height="1050" fill="url(#bg)"/>
+  <rect width="1600" height="1050" fill="url(#grid)"/>
+
+  <text x="64" y="64" class="title">FolderHome — one local agent loop, explicit approval boundary</text>
+  <text x="66" y="102" class="subtitle">Synthetic accident journey · Strands Agents 1.53.0 · local-first · reversible file actions</text>
+
+  <rect x="40" y="145" width="1520" height="650" rx="26" fill="#07101f" stroke="#38bdf8" stroke-opacity="0.5" stroke-width="2" stroke-dasharray="10 9"/>
+  <text x="68" y="178" class="section">LOCAL HOUSEHOLD SECURITY BOUNDARY</text>
+
+  <ellipse cx="145" cy="333" rx="78" ry="58" fill="#3a2208" stroke="#f59e0b" stroke-width="3"/>
+  <text x="145" y="327" text-anchor="middle" class="node-title">Person</text>
+  <text x="145" y="350" text-anchor="middle" class="node-copy">at home</text>
+
+  <rect x="260" y="274" width="190" height="118" rx="18" fill="#0c2940" stroke="#38bdf8" stroke-width="2"/>
+  <text x="355" y="323" text-anchor="middle" class="node-title">Local GUI</text>
+  <text x="355" y="349" text-anchor="middle" class="node-copy">or CLI</text>
+
+  <rect x="505" y="250" width="260" height="166" rx="22" fill="url(#agent)" stroke="#38bdf8" stroke-width="3" filter="url(#glow)"/>
+  <text x="635" y="299" text-anchor="middle" class="node-title">FolderHome Master</text>
+  <text x="635" y="329" text-anchor="middle" class="node-copy">Strands Agents 1.53.0</text>
+  <text x="635" y="354" text-anchor="middle" class="node-copy">finite sequential tool loop</text>
+  <text x="635" y="382" text-anchor="middle" class="muted">search · compare · plan</text>
+
+  <polygon points="895,267 980,333 895,399 810,333" fill="#392606" stroke="#f59e0b" stroke-width="3" filter="url(#glow)"/>
+  <text x="895" y="313" text-anchor="middle" class="small-title">EXACT</text>
+  <text x="895" y="338" text-anchor="middle" class="small-title">/confirm</text>
+  <text x="895" y="361" text-anchor="middle" class="small-copy">plan ID + hash</text>
+
+  <rect x="1040" y="274" width="225" height="118" rx="18" fill="#0c2940" stroke="#38bdf8" stroke-width="2"/>
+  <text x="1152" y="323" text-anchor="middle" class="node-title">LocalApplication</text>
+  <text x="1152" y="349" text-anchor="middle" class="node-copy">typed executors only</text>
+
+  <ellipse cx="1430" cy="333" rx="84" ry="62" fill="#07382d" stroke="#10b981" stroke-width="3" filter="url(#glow)"/>
+  <text x="1430" y="326" text-anchor="middle" class="node-title">Local</text>
+  <text x="1430" y="352" text-anchor="middle" class="node-title">results</text>
+
+  <path d="M224 333H250" class="gate-flow"/>
+  <path d="M450 333H495" class="flow"/>
+  <path d="M765 333H800" class="flow"/>
+  <path d="M990 333H1030" class="gate-flow"/>
+  <path d="M1265 333H1336" class="flow"/>
+
+  <text x="635" y="458" text-anchor="middle" class="section">MODEL ADAPTER — SAME BOUNDED TOOL CONTRACT</text>
+  <rect x="500" y="482" width="220" height="88" rx="16" fill="#07382d" stroke="#10b981" stroke-width="2"/>
+  <text x="610" y="517" text-anchor="middle" class="small-title">Deterministic fixture</text>
+  <text x="610" y="543" text-anchor="middle" class="small-copy">no credentials · no network</text>
+  <rect x="742" y="482" width="220" height="88" rx="16" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="852" y="517" text-anchor="middle" class="small-title">Amazon Bedrock</text>
+  <text x="852" y="543" text-anchor="middle" class="small-copy">network + disclosure gates</text>
+  <path d="M600 416V466L610 482" class="flow"/>
+  <path d="M676 416V450L852 482" class="optional"/>
+
+  <text x="1190" y="458" text-anchor="middle" class="section">FOUR REAL TYPED ADAPTERS</text>
+  <path d="M1152 392V492M1014 492H1420" fill="none" stroke="#38bdf8" stroke-width="2"/>
+  <path d="M1014 492V510M1150 492V510M1284 492V510M1420 492V510" fill="none" stroke="#38bdf8" stroke-width="2"/>
+  <g>
+    <rect x="946" y="510" width="136" height="74" rx="14" fill="#0c2940" stroke="#38bdf8"/>
+    <text x="1014" y="540" text-anchor="middle" class="small-title">Contact</text><text x="1014" y="561" text-anchor="middle" class="small-copy">register</text>
+    <rect x="1082" y="510" width="136" height="74" rx="14" fill="#0c2940" stroke="#38bdf8"/>
+    <text x="1150" y="540" text-anchor="middle" class="small-title">Local</text><text x="1150" y="561" text-anchor="middle" class="small-copy">calendar</text>
+    <rect x="1216" y="510" width="136" height="74" rx="14" fill="#0c2940" stroke="#38bdf8"/>
+    <text x="1284" y="540" text-anchor="middle" class="small-title">Contract</text><text x="1284" y="561" text-anchor="middle" class="small-copy">cockpit</text>
+    <rect x="1352" y="510" width="136" height="74" rx="14" fill="#0c2940" stroke="#38bdf8"/>
+    <text x="1420" y="540" text-anchor="middle" class="small-title">Claim-letter</text><text x="1420" y="561" text-anchor="middle" class="small-copy">output</text>
+  </g>
+
+  <rect x="72" y="628" width="706" height="128" rx="18" fill="#0b1322" stroke="#10b981" stroke-width="2"/>
+  <text x="96" y="659" class="section" fill="#10b981">EVIDENCE ARTIFACTS</text>
+  <text x="96" y="690" class="code">POST /invocations → /confirm &lt;plan_id&gt;</text>
+  <text x="96" y="716" class="code">folderhome.synthetic-accident-demo-result.v1</text>
+  <text x="96" y="742" class="code">claim-letter.md · insurance-overview.json · SHA-256 receipts</text>
+
+  <rect x="818" y="628" width="670" height="128" rx="18" fill="#321318" stroke="#ef4444" stroke-width="2"/>
+  <text x="844" y="659" class="warning">FAIL-CLOSED EXTERNAL ACTIONS</text>
+  <text x="844" y="691" class="node-copy">No email · no call · no external calendar · no upload</text>
+  <text x="844" y="719" class="node-copy">No automatic archive; the older policy remains visible</text>
+  <text x="844" y="744" class="muted">Conversation alone never grants approval.</text>
+
+  <text x="66" y="846" class="section">OPTIONAL EXTERNAL SURFACES — NEVER IMPLICIT</text>
+  <rect x="72" y="875" width="438" height="130" rx="20" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="96" y="910" class="node-title">Public static showcase</text>
+  <text x="96" y="940" class="node-copy">Scripted synthetic walkthrough · no backend</text>
+  <text x="96" y="968" class="node-copy">Orientation only — changes no files</text>
+  <text x="96" y="992" class="muted">Not presented as live agent execution</text>
+
+  <rect x="586" y="875" width="650" height="130" rx="20" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 7"/>
+  <text x="610" y="910" class="node-title">Optional Amazon Bedrock AgentCore Runtime adapter</text>
+  <text x="610" y="940" class="node-copy">GET /ping · POST /invocations · ARM64 · non-root</text>
+  <text x="610" y="968" class="node-copy">Synthetic sessions only; uploads, paths and external actions rejected</text>
+  <text x="610" y="992" class="muted">Local contract tested; cloud deployment requires separate approval</text>
+
+  <rect x="1272" y="875" width="216" height="130" rx="20" fill="#0b1322" stroke="#10b981" stroke-width="2"/>
+  <text x="1296" y="914" class="small-title">Current claim</text>
+  <text x="1296" y="944" class="small-copy">Local runtime: verified</text>
+  <text x="1296" y="969" class="small-copy">AgentCore cloud: not claimed</text>
+  <text x="1296" y="993" class="small-copy">All demo data: synthetic</text>
+
+  <path d="M72 940H28V333H58" class="optional"/>
+  <path d="M1236 895V825H1540V215H635V240" class="optional"/>
+</svg>

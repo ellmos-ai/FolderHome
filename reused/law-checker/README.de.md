@@ -2,10 +2,9 @@
 
 [English](./README.md) | **Deutsch**
 
-Der frühere OneDrive-Checkout bleibt wegen Rückstand und fremden Änderungen
-read-only. Phase 34 verwendet stattdessen einen getrennten sauberen Checkout
-von `https://github.com/ellmos-ai/law-checker.git` unter
-`C:\_Local_DEV\repos\law-checker`, gepinnt auf Revision
+Der frühere synchronisierte Checkout bleibt wegen Rückstand und fremden
+Änderungen read-only. Phase 34 verwendet stattdessen einen getrennten sauberen
+Checkout von `https://github.com/ellmos-ai/law-checker.git`, gepinnt auf Revision
 `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b`. Die vier Provider-Tests
 bestanden am 2026-08-22.
 

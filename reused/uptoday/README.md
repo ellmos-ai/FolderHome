@@ -5,7 +5,7 @@
 FolderHome does not copy any UpToday source code and does not load the existing
 `InventoryEngine` as a runtime provider.
 
-- local checkout: `C:\_Local_DEV\repos\UpToday`
+- source: separate clean UpToday checkout
 - verified revision: `7582ca87e17e458bb99a7379d2c54003c15415a4`
 - commit time: `2026-08-18T23:44:13+02:00`
 - License: MIT

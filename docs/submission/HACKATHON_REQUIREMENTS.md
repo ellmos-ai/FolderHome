@@ -1,6 +1,6 @@
 # Agents for Humans — Requirements Snapshot
 
-**Checked:** 2026-08-22  
+**Checked:** 2026-08-23 via the authenticated Devpost event data  
 **Official rules:** <https://agentsforhumans.devpost.com/rules>  
 **FAQ:** <https://agentsforhumans.devpost.com/details/faqs>  
 **Submission deadline:** 2026-09-14, 17:00 PDT
@@ -40,7 +40,10 @@ FolderHome response:
 - Public YouTube or Vimeo video, no longer than five minutes, with a working
   demo and a pitch covering problem, audience and importance.
 - AWS Builder ID.
-- Free access for judging through a functioning demo or test build.
+- A project that installs and runs consistently as described, with the public
+  repository containing the source, assets and setup instructions required to
+  test it. A public live-demo URL is optional and can strengthen the
+  Technological Implementation score.
 
 Prepared locally:
 
@@ -55,11 +58,14 @@ Published repository:
 
 - <https://github.com/ellmos-ai/FolderHome>
 
+Published video:
+
+- <https://youtu.be/2LeWU_WJZKM> (2:59, accepted final v2)
+
 Still requiring the human's external gate:
 
-- Public video URL.
 - AWS Builder ID entry.
-- Optional live demo decision.
+- GitHub Pages deployment and live-demo readback.
 - Final Devpost review and submit.
 
 ## Recommended track
@@ -70,7 +76,7 @@ The track is selected by primary audience rather than implementation details.
 
 ## Judging alignment
 
-- **Technical Implementation:** real Strands loop, finite sequential tools,
+- **Technological Implementation:** real Strands loop, finite sequential tools,
   testable contracts, separately gated Bedrock path, deterministic
   no-credential demo.
 - **Design:** coherent local CLI, API and responsive GUI on one application
@@ -84,7 +90,12 @@ The track is selected by primary audience rather than implementation details.
 
 ## Optional items
 
-- Bedrock AgentCore or a public live demo can strengthen Technical
+- Bedrock AgentCore or a public live demo can strengthen Technological
   Implementation, but neither is required by the rules.
-- Public builder.aws posts using `#AgentsforHumans` can add bonus points.
+- Registered individuals may request USD 50 in AWS promotional credits while
+  supplies last. The official request deadline is 2026-09-11, 12:00 PDT
+  (21:00 CEST); the credits expire on 2026-10-31.
+- Public builder.aws posts can add bonus points. Following the official
+  2026-08-12 rules update, the title must contain `Agents for Humans`; the
+  former `#AgentsforHumans` requirement no longer applies.
 - No optional publication is authorized by this prepared package.

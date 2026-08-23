@@ -10,6 +10,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from folderhome.application import run_synthetic
+from folderhome.application.accident_demo import SyntheticAccidentDemoError
 from folderhome.application.administrative_drafts import (
     AdministrativeDraftError,
     build_administrative_draft_plan,
@@ -322,6 +323,7 @@ from folderhome.contracts import (
     TaxExportApproval,
     TaxReceiptApproval,
 )
+from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
 
@@ -558,6 +560,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_strands_agent_session(args)
     if args.command == "demo" and args.demo_command == "run":
         return _run_competition_demo(args)
+    if args.command == "demo" and args.demo_command == "accident-serve":
+        return _run_accident_demo_site(args)
     if args.command == "app" and args.app_command == "plan":
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
@@ -1215,6 +1219,11 @@ def _build_parser() -> argparse.ArgumentParser:
     demo_run.add_argument("--output-dir", type=Path, required=True)
     demo_run.add_argument("--approve-output-write", action="store_true")
     demo_run.add_argument("--json", action="store_true", dest="as_json")
+    accident_demo = demo_commands.add_parser("accident-serve")
+    accident_demo.add_argument("--workspace-dir", type=Path, required=True)
+    accident_demo.add_argument("--port", type=int, default=8767)
+    accident_demo.add_argument("--approve-loopback-server", action="store_true")
+    accident_demo.add_argument("--json", action="store_true", dest="as_json")
 
     app = commands.add_parser("app")
     app_commands = app.add_subparsers(dest="app_command", required=True)
@@ -4790,6 +4799,31 @@ def _run_competition_demo(args: argparse.Namespace) -> int:
     except (CompetitionDemoError, FolderHomeAgentError, OSError, ValueError) as exc:
         return _print_error(str(exc))
     print(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_accident_demo_site(args: argparse.Namespace) -> int:
+    server = None
+    try:
+        if not args.approve_loopback_server:
+            raise LocalServerError("Explizite lokale Serverfreigabe fehlt.")
+        application = DemoSiteApplication(
+            args.workspace_dir,
+            port=args.port,
+        )
+        server = create_local_server(application, allow_loopback_server=True)
+        payload = server.to_public_dict()
+        payload["demo"] = "synthetic_accident"
+        print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+        sys.stdout.flush()
+        server.serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    except (SyntheticAccidentDemoError, LocalServerError, OSError, ValueError) as exc:
+        return _print_error(str(exc))
+    finally:
+        if server is not None:
+            server.server_close()
     return 0
 
 
