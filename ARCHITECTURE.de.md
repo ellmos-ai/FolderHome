@@ -2,8 +2,8 @@
 
 [English](./ARCHITECTURE.md) | **Deutsch**
 
-**Version:** 0.36  
-**Stand:** 2026-08-22  
+**Version:** 0.39  
+**Stand:** 2026-08-23  
 **Direkter Vorläufer:**
 [`docs/archive/ARCHITECTURE-v0.34.md`](docs/archive/ARCHITECTURE-v0.34.de.md)
 
@@ -39,7 +39,8 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 | Schicht | Ort | Verantwortung |
 |---|---|---|
 | Bedienung | `cli.py`, `local_server.py`, `web_ui/` | Eingabe validieren, schmale Handler anbieten, keine zweite Fachlogik |
-| Agent | `application/strands_agent.py` | Endliche Strands-Schleife und Auswahl profilspezifischer read-only Tools |
+| Agent | `application/strands_agent.py`, `application/master_agent.py` | Endliche Master-Schleife, semantische Fachwahl, explizite Endpunkte und begrenzte Planungs-Fachagenten |
+| Executor-Gateway | `application/workflow_execution.py` | Typisierte einmalige Übergabe eines exakt bestätigten Masterschritts an einen vorhandenen Fach-Executor |
 | Anwendung | `application/` | Workflows komponieren, Zustände prüfen, Freigaben erzwingen, Reports erzeugen |
 | Verträge | `contracts/` | Unveränderliche, validierende Datenobjekte und Statusbegriffe |
 | Fähigkeiten | `capabilities/` | Kleine wiederverwendbare Stores, Transaktionen, Provider-Gateways und Ressourcenbudgets |
@@ -49,6 +50,19 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 Direkte Zugriffe von UI oder Agent auf Provider sind unzulässig. Beide gehen
 durch `LocalApplication`, damit CLI, API, GUI und Agent dieselben Regeln
 verwenden.
+
+Die interaktive `agent session` ruft denselben Dienst
+`LocalApplication.run_agent_chat` wie die GUI auf und bewahrt vorgeschlagene
+Pläne nur im aktuellen Prozess. Das Gespräch kann nichts freigeben;
+`/confirm <plan_id>` verwendet denselben exakten, hashgebundenen
+Bestätigungsdienst wie der HTTP-Endpunkt.
+
+`LocalApplication` bewahrt die SDK-Nachrichtenliste je organisatorischem Profil
+ausschließlich im aktuellen Prozess. Ein endliches Sliding Window erhält gültige
+Tool-use-Paare und ist standardmäßig auf 24 Nachrichten begrenzt.
+`/api/v1/agent/conversation/reset` löscht den Verlauf und die unbestätigten Pläne
+eines Profils. Diese Trennung organisiert Kontext; sie ist keine zweite
+Autorisierungsgrenze.
 
 ## Strands-Agent
 
@@ -60,21 +74,47 @@ flowchart LR
   A -. Netzwerk- und Datenweitergabegate .-> B[Amazon Bedrock]
   A --> T1[search_home_documents]
   A --> T2[build_home_theme_dossier]
+  A --> T3[list_home_capabilities]
+  A --> T4[consult_home_specialist]
+  T4 --> S[Begrenzter Fachagent: ein Planungswerkzeug]
+  S --> P[Hashgebundener Masterplan]
+  P --> C[Getrennte exakte Bestätigung]
+  C --> E[Typisierter Executor-Katalog]
+  E --> N[Vorhandener llm-note-Workflow]
+  E --> M[Vorhandener Medikamenteneinnahme-Workflow]
   T1 --> L[LocalApplication]
   T2 --> L
   L --> K[KnowledgeDigest read-only]
   A --> R[Report: Toolereignisse, Hashes, keine Side-Effects]
 ```
 
-Der Wettbewerbsagent besitzt absichtlich nur zwei Tools. Beide sind
-profilspezifisch, read-only und verwenden die vorhandene lokale
-Anwendungsgrenze. Turnzahl, Toolaufrufe, Prompt, Antwort, Toolresultat und
+Der Master-Agent besitzt absichtlich vier begrenzte Werkzeuge. Zwei sind
+profilspezifisch und nur lesend, eines zeigt den geprüften Rollen- und
+Endpoint-Katalog und eines erzeugt einen kurzlebigen Fachagenten mit genau
+einem Planungswerkzeug. Der Fachagent kann weder freigeben noch ausführen. Nach
+einer getrennten exakten Bestätigung darf der typisierte Executor-Katalog nur
+eine vorbereitete Ausführungshülle aufrufen und liefert den vorhandenen
+Fachbericht zurück. Derzeit sind 26 Workflows verbunden, ein Workflow direkt
+nur lesend, drei Systemendpunkte nur planend und drei externe Connectorlücken
+sichtbar. Verbundene Fachagenten erhalten das exakte geschlossene
+JSON-Anfrageschema ihres einzelnen Endpunkts; unbekannte Felder und beliebige
+Pfade werden blockiert. Alle 22 ressourcenabhängigen Endpunkte und die lokale
+Kalenderalternative sind umgesetzt. Mail, externe Kalender und
+Scheduler-Registrierung warten weiterhin auf ausdrücklich konfigurierte externe
+Connectoren samt Live-Effekt-Freigaben. Turnzahl,
+Toolaufrufe, Prompt, Antwort, Toolresultat und
 Ausgabetokens sind endlich begrenzt. Der deterministische Fixture-Adapter
 durchläuft den echten Strands-Agenten und den echten Tool-Executor ohne
 Zugangsdaten oder Netzwerk. Bedrock verlangt Modell-ID, AWS-Region, ein
 ausdrückliches Netzwerkgate und eine davon getrennte Freigabe für die
 Weitergabe lokaler Suchergebnisse; ein Live-Lauf ist nicht Teil der lokalen
 Abnahme.
+Status-API und GUI unterscheiden die Modellzustände `fixture_only`,
+`configured_not_verified` und `verified_in_process`. Erst ein erfolgreicher
+Bedrock-Agententurn setzt die Laufzeit auf den verifizierten Zustand. Sie weisen
+außerdem die Laufzeittopologie aus: FolderHome, Dokumentzustand, Freigaben und
+Workflow-Ausführung bleiben lokal; nur die Modellinferenz nutzt bei aktiviertem
+Bedrock die AWS-Cloud.
 
 ## Dokumentenfluss
 

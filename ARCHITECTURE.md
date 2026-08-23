@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./ARCHITECTURE.de.md)
 
-**Version:** 0.36  
-**Date:** 2026-08-22  
+**Version:** 0.39  
+**Date:** 2026-08-23  
 **Direct predecessor:**  
 [`docs/archive/ARCHITECTURE-v0.34.md`](./docs/archive/ARCHITECTURE-v0.34.md)
 
@@ -36,7 +36,8 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 | Layer | Location | Responsibility |
 |---|---|---|
 | Operation | `cli.py`, `local_server.py`, `web_ui/` | Validate input, offer narrow handlers, no second business logic |
-| Agent | `application/strands_agent.py` | Finite Strands loop and selection of profile‑specific read‑only tools |
+| Agent | `application/strands_agent.py`, `application/master_agent.py` | Finite master loop, semantic expert selection, explicit endpoints and scoped planning specialists |
+| Execution gateway | `application/workflow_execution.py` | Typed, one-time handoff from an exact approved master step to an existing domain executor |
 | Application | `application/` | Compose workflows, check states, enforce approvals, generate reports |
 | Contracts | `contracts/` | Immutable, validating data objects and status terms |
 | Capabilities | `capabilities/` | Small reusable stores, transactions, provider gateways and resource budgets |
@@ -44,6 +45,17 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 | Declaration | `manifests/`, `reused/` | Origin, revision, capability, side‑effects and runtime limits |
 
 Direct accesses from UI or Agent to Provider are prohibited. Both go through `LocalApplication` so that CLI, API, GUI, and Agent use the same rules.
+
+The interactive `agent session` calls the same `LocalApplication.run_agent_chat`
+service as the GUI and retains proposed plans only in its current process.
+Conversation cannot approve; `/confirm <plan_id>` invokes the same exact,
+hash-bound confirmation service used by the HTTP endpoint.
+
+`LocalApplication` retains the SDK message list per organizational profile for
+the current process only. A finite sliding window preserves valid tool-use pairs
+and defaults to 24 messages. `/api/v1/agent/conversation/reset` clears one
+profile's retained messages and its unconfirmed plans. This separation organizes
+context; it is not a second authorization boundary.
 
 ## Strands Agent
 
@@ -55,6 +67,14 @@ flowchart LR
   A -. Netzwerk- und Datenweitergabegate .-> B[Amazon Bedrock]
   A --> T1[search_home_documents]
   A --> T2[build_home_theme_dossier]
+  A --> T3[list_home_capabilities]
+  A --> T4[consult_home_specialist]
+  T4 --> S[Scoped specialist: one planning tool]
+  S --> P[Hash-bound master plan]
+  P --> C[Separate exact confirmation]
+  C --> E[Typed executor registry]
+  E --> N[Existing llm-note workflow]
+  E --> M[Existing medication-intake workflow]
   T1 --> L[LocalApplication]
   T2 --> L
   L --> K[KnowledgeDigest read-only]
@@ -62,7 +82,29 @@ flowchart LR
 ```
 
 
-The competition agent intentionally has only two tools. Both are profile‑specific, read‑only and use the existing local application boundary. Turn count, tool invocations, prompt, response, tool result, and output tokens are finitely limited. The deterministic fixture adapter runs the real Strands agent and the real tool executor without credentials or network access. Bedrock requires a model ID, AWS region, an explicit network gate, and a separate approval for forwarding local search results; a live run is not part of the local acceptance.
+The master agent intentionally has four bounded tools. Two are profile-specific
+and read-only, one lists the verified role and endpoint catalog, and one creates
+a short-lived specialist with exactly one planning tool. The specialist cannot
+approve or execute. After a separate exact confirmation, the typed executor
+registry can invoke only a prepared envelope and returns the existing domain
+report. Current coverage is 26 connected workflows, one direct read-only
+workflow, three planning-only system endpoints and three visible external
+connector gaps.
+Connected specialists receive the exact closed JSON request schema for their
+single endpoint; unknown fields and arbitrary paths fail closed.
+All 22 resource-ID-dependent endpoints and the local-calendar alternative are
+implemented. Mail, external calendars and scheduler registration still await
+explicitly configured external connectors plus their live-effect approvals.
+Turn count, tool invocations, prompt, response, tool result, and output tokens
+are finitely limited. The deterministic fixture adapter runs the real Strands
+agent and tool executor without credentials or network access. Bedrock requires
+a model ID, AWS region, an explicit network gate, and a separate approval for
+forwarding local search results; a live run is not part of the local acceptance.
+The status API and GUI distinguish fixture-only, configured-not-verified, and
+verified-in-process model states. Only a successful Bedrock agent turn advances
+the runtime to the verified state. They also expose the runtime topology:
+FolderHome, its document state, approvals, and workflow execution stay local;
+only model inference uses the AWS cloud when Bedrock is enabled.
 
 ## Document Flow
 

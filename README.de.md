@@ -1,10 +1,12 @@
+<img src="assets/banner.png" width="100%" alt="FolderHome Banner">
+
 # FolderHome
 
 [English](./README.md) | **Deutsch**
 
 > Assistantify your home.
 
-**Current concise README:** Phase 36 / 2026-08-22  
+**Current concise README:** Phase 36 / 2026-08-23  
 **Direct predecessor:**
 [`docs/archive/README-phase36-draft.md`](docs/archive/README-phase36-draft.de.md)
 
@@ -19,8 +21,8 @@ Cloudberechtigungen zu geben.
 ## Status
 
 - 36 von 36 lokalen Wettbewerbsphasen umgesetzt
-- echter `strands.Agent` mit zwei profilspezifischen read-only Tools
-- 333 automatisierte Tests bestanden
+- ein echter `strands.Agent`-Master mit vier begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
+- 394 von 397 automatisierten Tests bestanden; drei Live-Checkout-Pinprüfungen blockieren wegen lokaler HungryCall-/Ringedingeding-Revisionsabweichungen
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - vollständiger Baseline-Scan über 12/12 Oberflächen plus aktueller
   66-Dateien-Delta-Audit; vier Befunde behoben
@@ -61,15 +63,22 @@ Die ausführliche englische Anleitung steht in
 ```mermaid
 flowchart LR
   H[Human / local OS account] --> UI[CLI or local GUI]
-  UI --> A[Strands Agent 1.53.0]
+  UI --> A[FolderHome Master / Strands Agent 1.53.0]
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
   A --> S[search_home_documents]
   A --> D[build_home_theme_dossier]
+  A --> C[list_home_capabilities]
+  A --> X[consult_home_specialist]
+  X --> P[Begrenzter Fachagent / ein Planungswerkzeug]
+  P --> E[Typisiertes Executor-Gateway]
+  E --> N[Vorhandener llm-note-Workflow]
+  E --> M[Vorhandener Medikamenteneinnahme-Workflow]
   S --> L[FolderHome LocalApplication]
   D --> L
   L --> K[KnowledgeDigest read-only index]
   UI --> W[Other gated domain workflows]
+  P --> W
 ```
 
 Der Fixture-Adapter durchläuft den echten Strands-Agenten und dessen
@@ -77,6 +86,35 @@ sequentiellen Tool-Executor ohne Zugangsdaten. Bedrock verwendet denselben
 Agenten, verlangt aber Modell-ID, AWS-Region, `--allow-network` und die
 getrennte Freigabe `--approve-sensitive-cloud-data`; ein Bedrock-Live-Lauf
 wurde nicht behauptet.
+Die semantische Fachwahl gehört zum Modell. Endpoint-Auflösung, Plan-Hashes und
+Bestätigung bleiben deterministisch und blockieren im Zweifel; Personas ändern
+nur den Stil und erteilen niemals Kompetenzen. Ohne privates Ressourcenregister
+zeigt der Live-Executor-Katalog drei verbundene Executoren: persönliche Notizen,
+die Bestätigung einer bereits geplanten Medikamenteneinnahme und die strikt
+lokale FindCall-Fixture-Kaskade. Mit konfiguriertem Register kommen 23
+typisierte Ressourcenadapter für den vollständigen lokalen Dokument-,
+Organisations-, Gesundheits-, Finanz-, Sozialrechts-, Bestands-, Steuer-,
+Briefing-, Design-, FCSA- und Routinenstack hinzu. Damit sind 26 Endpunkte
+verbunden; hinzu kommen ein direkter Nur-Lese-Pfad, drei absichtlich nur
+planende Systemendpunkte und lediglich drei sichtbare, fail-closed externe
+Connectorlücken: Mail, externe Kalender und Scheduler-Registrierung. Jeder
+verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema. Eine
+Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
+verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten
+ihre eigene Konfiguration und getrennten Live-Effekt-Freigaben.
+
+Der empfohlene CLI-Einstieg ist eine Sitzung im selben Prozess. Sie bewahrt
+vorbereitete Pläne zwischen den Gesprächsschritten und akzeptiert eine Freigabe
+ausschließlich über `/confirm <plan_id>`; mit `--json` wird pro Zeile ein
+NDJSON-Ereignis für kontrollierte Automatisierung ausgegeben.
+Der gleiche begrenzte Strands-Nachrichtenverlauf löst nun Folgebezüge in GUI und
+CLI auf. Er ist nach organisatorischem Profil getrennt, standardmäßig auf 24
+Nachrichten begrenzt, wird nicht dauerhaft gespeichert und lässt sich zusammen
+mit unbestätigten Plänen über **Neue Unterhaltung** oder `/reset` löschen.
+Die GUI zeigt den Modellzustand direkt: deterministisches Fixture, konfiguriertes
+aber noch nicht verifiziertes Bedrock oder Bedrock nach mindestens einem
+erfolgreichen Live-Modellturn im aktuellen Prozess. Eine Konfiguration allein
+gilt niemals als Beleg einer funktionierenden Modellverbindung.
 
 Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -127,18 +165,56 @@ Vollständigkeit noch die Erkennung jedes Termins.
 
 Details und Meldungsweg: [`SECURITY.md`](SECURITY.de.md).
 
+## Private logische Ressourcen
+
+FolderHome hält physische Pfade aus modell-sichtbaren Plänen heraus. Kopiere
+das anonyme Beispiel nach `%LOCALAPPDATA%\FolderHome\resources.json`, ersetze
+nur die lokalen Locator und deklariere für jede stabile Ressourcen-ID die
+minimal erforderlichen Operationen. Das Register ist an ein
+Betriebssystemkonto, organisatorische Profile und ausdrückliche Zwecke
+gebunden. Sein öffentlicher Katalog enthält keine Pfade.
+
+- Schema: [`config/resources.schema.json`](./config/resources.schema.json)
+- Anonymes Beispiel:
+  [`examples/resources/resources.example.json`](./examples/resources/resources.example.json)
+
+Mit konfiguriertem Register kann der Masteragent vorhandene FolderHome-Dienste
+für Dokumentbündel, Kontakte, lokale Korrespondenz, den eigenen
+FolderHome-Kalender, Gesundheitsdossiers, Finanzimport, Bescheidberichte,
+ungeprüfte Verwaltungsentwürfe und Leistungsvorchecks ausführen. Jeder
+Schreibvorgang benötigt weiterhin die getrennte exakte Planbestätigung. Externe
+Kalender- und Mailconnectoren bleiben separat gegatet.
+
 ## Wichtige Befehle
 
 ```powershell
+# Validate the private resource registry without disclosing physical paths
+.venv\Scripts\python.exe -m folderhome resources validate `
+  --profiles-dir examples\profiles --json
+
+# List the model-safe logical catalog for one organizational profile
+.venv\Scripts\python.exe -m folderhome resources catalog `
+  --profiles-dir examples\profiles --profile lukas --json
+
 # Validate the agent configuration without invoking a model
 .venv\Scripts\python.exe -m folderhome agent plan `
   --profiles-dir examples\profiles --state-dir .local-state --json
+
+# Start an interactive session with the same master service used by the GUI
+.venv\Scripts\python.exe -m folderhome agent session `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --profile-id lukas
+
+# Run one non-interactive chat turn
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --profile-id lukas --prompt "Was kannst du?" --json
 
 # Run the reproducible agent demo
 .venv\Scripts\python.exe -m folderhome demo run `
   --output-dir .local-demo\competition --approve-output-write --json
 
-# Plan the local read-only interface
+# Plan the local loopback chat interface
 .venv\Scripts\python.exe -m folderhome app plan `
   --profiles-dir examples\profiles --state-dir .local-state `
   --port 8765 --json
@@ -173,6 +249,7 @@ Die mitgelieferte Referenzevidenz liegt unter
 
 ```text
 src/folderhome/       neuer Wettbewerbs- und Bridgecode
+config/               versionierte Schemas für ausschließlich lokale Konfiguration
 skills/               neue agentisch nutzbare FolderHome-Skills
 workflows/            ausführbare Arbeitsverträge
 manifests/            Komponenten- und spätere Stackverträge

@@ -1,0 +1,306 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="100%" height="100%">
+  <defs>
+    <style type="text/css">
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap');
+
+      .font-sans {
+        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      @keyframes float-y {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-5px); }
+      }
+      @keyframes float-slow {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-7px) rotate(1deg); }
+      }
+      @keyframes pulse-glow {
+        0%, 100% { filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.4)); }
+        50% { filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.75)); }
+      }
+
+      .floating-card-1 {
+        animation: float-y 5s infinite ease-in-out;
+      }
+      .floating-card-2 {
+        animation: float-slow 6s infinite ease-in-out;
+        animation-delay: 1.2s;
+      }
+      .floating-card-3 {
+        animation: float-y 5.5s infinite ease-in-out;
+        animation-delay: 2.4s;
+      }
+      .glowing-folder {
+        animation: pulse-glow 4s infinite ease-in-out;
+      }
+    </style>
+
+    <!-- Filters for Glow & Shadows -->
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="gold-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Gradients -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#060911" />
+      <stop offset="45%" stop-color="#0D1424" />
+      <stop offset="85%" stop-color="#090E1A" />
+      <stop offset="100%" stop-color="#04060B" />
+    </linearGradient>
+
+    <linearGradient id="border-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.8" />
+      <stop offset="25%" stop-color="#38BDF8" stop-opacity="0.3" />
+      <stop offset="75%" stop-color="#1E293B" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.6" />
+    </linearGradient>
+
+    <!-- Folder Gradients -->
+    <linearGradient id="folder-back-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+    <linearGradient id="folder-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="40%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="folder-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF3C7" stop-opacity="0.6" />
+      <stop offset="30%" stop-color="#FDE68A" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Home Silhouette Gradient -->
+    <linearGradient id="house-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E2E8F0" />
+    </linearGradient>
+
+    <!-- Shield & Accent Gradients -->
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="gold-text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Radial Glows -->
+    <radialGradient id="amber-radial" cx="240" cy="170" r="180">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.22" />
+      <stop offset="50%" stop-color="#D97706" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="cyan-radial" cx="360" cy="130" r="150">
+      <stop offset="0%" stop-color="#0284C7" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="right-glow" cx="880" cy="150" r="220">
+      <stop offset="0%" stop-color="#0369A1" stop-opacity="0.12" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Background Blueprint Grid -->
+    <pattern id="grid-pattern" width="36" height="36" patternUnits="userSpaceOnUse">
+      <path d="M 36 0 L 0 0 0 36" fill="none" stroke="#1E293B" stroke-width="0.75" stroke-opacity="0.45"/>
+      <circle cx="0" cy="0" r="1" fill="#334155" opacity="0.6"/>
+    </pattern>
+  </defs>
+
+  <!-- Banner Outer Frame -->
+  <rect width="1200" height="340" rx="18" fill="url(#bg-grad)"/>
+  <rect width="1200" height="340" rx="18" fill="url(#grid-pattern)"/>
+  <rect width="1198" height="338" x="1" y="1" rx="17" fill="none" stroke="url(#border-grad)" stroke-width="1.5"/>
+
+  <!-- Ambient Backdrop Glows -->
+  <circle cx="240" cy="170" r="200" fill="url(#amber-radial)"/>
+  <circle cx="360" cy="130" r="160" fill="url(#cyan-radial)"/>
+  <circle cx="880" cy="150" r="240" fill="url(#right-glow)"/>
+
+  <!-- Circuit & Blueprint Architectural Accent Lines -->
+  <g stroke="#334155" stroke-width="1.2" fill="none" opacity="0.5" stroke-linecap="round">
+    <path d="M 50 80 H 120 L 145 105 H 170" />
+    <path d="M 70 260 H 130 L 155 235 H 180" />
+    <path d="M 1150 70 H 1080 L 1055 95 H 1010" />
+    <path d="M 1130 270 H 1060 L 1035 245 H 990" />
+    <circle cx="170" cy="105" r="3" fill="#F59E0B" stroke="#B45309" stroke-width="1"/>
+    <circle cx="180" cy="235" r="3" fill="#38BDF8" stroke="#0284C7" stroke-width="1"/>
+    <circle cx="1010" cy="95" r="3" fill="#38BDF8" stroke="#0284C7" stroke-width="1"/>
+    <circle cx="990" cy="245" r="3" fill="#F59E0B" stroke="#B45309" stroke-width="1"/>
+  </g>
+
+  <!-- ==================== LEFT ILLUSTRATION: FOLDERHOME EMBLEM & DOC MATRIX ==================== -->
+  <g transform="translate(40, 0)">
+
+    <!-- Floating Document 1: Contract / Legal (Top Left) -->
+    <g class="floating-card-1" transform="translate(90, 75)">
+      <rect width="84" height="106" rx="6" fill="#0F172A" stroke="#38BDF8" stroke-width="1.2" filter="url(#soft-shadow)" fill-opacity="0.9"/>
+      <rect x="8" y="10" width="30" height="4" rx="2" fill="#38BDF8"/>
+      <line x1="8" y1="22" x2="76" y2="22" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="8" y1="32" x2="68" y2="32" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="42" x2="56" y2="42" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="52" x2="72" y2="52" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="62" x2="48" y2="62" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <rect x="8" y="78" width="46" height="16" rx="4" fill="#0284C7" fill-opacity="0.3"/>
+      <text x="31" y="90" font-family="'JetBrains Mono', monospace" font-size="8" fill="#7DD3FC" font-weight="600" text-anchor="middle">CONTRACT</text>
+    </g>
+
+    <!-- Floating Document 2: Health / Meds (Top Right) -->
+    <g class="floating-card-2" transform="translate(300, 65)">
+      <rect width="88" height="112" rx="6" fill="#0F172A" stroke="#10B981" stroke-width="1.2" filter="url(#soft-shadow)" fill-opacity="0.9"/>
+      <rect x="8" y="10" width="32" height="4" rx="2" fill="#10B981"/>
+      <line x1="8" y1="22" x2="80" y2="22" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+      <g transform="translate(14, 38)">
+        <rect x="0" y="3" width="10" height="4" rx="1" fill="#34D399"/>
+        <rect x="3" y="0" width="4" height="10" rx="1" fill="#34D399"/>
+      </g>
+      <line x1="30" y1="41" x2="76" y2="41" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="30" y1="48" x2="64" y2="48" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="62" x2="78" y2="62" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="8" y1="72" x2="52" y2="72" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <rect x="8" y="84" width="44" height="16" rx="4" fill="#059669" fill-opacity="0.3"/>
+      <text x="30" y="96" font-family="'JetBrains Mono', monospace" font-size="8" fill="#6EE7B7" font-weight="600" text-anchor="middle">DOSSIER</text>
+    </g>
+
+    <!-- Floating Document 3: Finance / Tax / Receipts (Bottom Right) -->
+    <g class="floating-card-3" transform="translate(290, 195)">
+      <rect width="86" height="96" rx="6" fill="#0F172A" stroke="#F59E0B" stroke-width="1.2" filter="url(#soft-shadow)" fill-opacity="0.9"/>
+      <rect x="8" y="10" width="28" height="4" rx="2" fill="#F59E0B"/>
+      <line x1="8" y1="22" x2="78" y2="22" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+      <polyline points="10,54 28,44 46,48 64,36 76,30" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="8" y1="66" x2="76" y2="66" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <rect x="8" y="74" width="42" height="14" rx="3" fill="#D97706" fill-opacity="0.3"/>
+      <text x="29" y="84" font-family="'JetBrains Mono', monospace" font-size="8" fill="#FDE68A" font-weight="600" text-anchor="middle">FINANCE</text>
+    </g>
+
+    <!-- ================= MAIN EMBLEM: FOLDER + HOUSE + SHIELD VAULT ================= -->
+    <g transform="translate(130, 85)" class="glowing-folder" filter="url(#soft-shadow)">
+      <!-- Back of Folder -->
+      <path d="M 0 30 L 0 160 C 0 168 6 174 14 174 L 186 174 C 194 174 200 168 200 160 L 200 45 C 200 37 194 31 186 31 L 96 31 L 76 10 C 72 6 67 4 62 4 L 14 4 C 6 4 0 10 0 18 Z"
+            fill="url(#folder-back-grad)" stroke="#92400E" stroke-width="1.5"/>
+
+      <!-- Interior Papers Stacking inside Folder -->
+      <rect x="18" y="18" width="164" height="130" rx="6" fill="#F8FAFC" opacity="0.95"/>
+      <line x1="32" y1="36" x2="100" y2="36" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round"/>
+      <line x1="32" y1="48" x2="150" y2="48" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round"/>
+      <line x1="32" y1="60" x2="135" y2="60" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Front of Folder (Angled Pocket) -->
+      <path d="M 0 65 L 0 160 C 0 168 6 174 14 174 L 186 174 C 194 174 200 168 200 160 L 200 65 C 200 58 194 53 186 53 L 14 53 C 6 53 0 58 0 65 Z"
+            fill="url(#folder-front-grad)" stroke="#FDE68A" stroke-width="1.5"/>
+
+      <!-- Top shine overlay on folder front -->
+      <path d="M 2 65 C 2 59 7 55 14 55 L 186 55 C 193 55 198 59 198 65 L 198 80 L 2 80 Z" fill="url(#folder-shine)" />
+
+      <!-- Modern House Silhouette on Folder Front -->
+      <g transform="translate(42, 70)">
+        <rect x="74" y="8" width="10" height="20" rx="1" fill="#FFFFFF" opacity="0.95"/>
+        <path d="M 0 38 L 58 0 L 116 38 L 106 48 L 58 16 L 10 48 Z" fill="url(#house-grad)" filter="url(#gold-glow)"/>
+        <path d="M 16 42 L 16 88 C 16 90 18 92 20 92 L 96 92 C 98 92 100 90 100 88 L 100 42 Z" fill="#0F172A" opacity="0.88" stroke="#FDE68A" stroke-width="1.5"/>
+
+        <!-- Glowing Window Grid -->
+        <rect x="30" y="52" width="16" height="16" rx="2" fill="#FBBF24" filter="url(#gold-glow)"/>
+        <line x1="38" y1="52" x2="38" y2="68" stroke="#78350F" stroke-width="1.2"/>
+        <line x1="30" y1="60" x2="46" y2="60" stroke="#78350F" stroke-width="1.2"/>
+
+        <!-- Doorway -->
+        <rect x="62" y="58" width="18" height="34" rx="2" fill="#1E293B" stroke="#FDE68A" stroke-width="1"/>
+        <circle cx="75" cy="74" r="1.5" fill="#FBBF24"/>
+      </g>
+
+      <!-- Security Shield Vault Lock Badge (Bottom Right of Folder) -->
+      <g transform="translate(132, 98)" filter="url(#cyan-glow)">
+        <path d="M 28 0 C 44 0 56 6 56 6 C 56 24 50 48 28 60 C 6 48 0 24 0 6 C 0 6 12 0 28 0 Z"
+              fill="url(#shield-grad)" stroke="#E0F2FE" stroke-width="2"/>
+        <path d="M 28 5 C 40 5 49 10 49 10 C 49 24 44 42 28 52 C 12 42 7 24 7 10 C 7 10 16 5 28 5 Z"
+              fill="#0C4A6E" opacity="0.4"/>
+        <circle cx="28" cy="22" r="6" fill="#FFFFFF"/>
+        <polygon points="25,24 31,24 33,38 23,38" fill="#FFFFFF"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== RIGHT CONTENT: BRANDING, TYPOGRAPHY & CAPABILITIES ==================== -->
+  <g transform="translate(500, 0)" class="font-sans">
+
+    <!-- Top Badge Pill -->
+    <g transform="translate(0, 52)">
+      <rect width="295" height="28" rx="14" fill="#1E293B" fill-opacity="0.8" stroke="#0284C7" stroke-width="1.2"/>
+      <circle cx="14" cy="14" r="4" fill="#38BDF8" />
+      <text x="28" y="18" font-size="11" font-weight="700" fill="#38BDF8" letter-spacing="1.2px">LOCAL-FIRST STRANDS AGENT</text>
+      <rect x="220" y="6" width="65" height="16" rx="8" fill="#0369A1" fill-opacity="0.5"/>
+      <text x="252" y="17" font-size="9" font-weight="700" fill="#E0F2FE" text-anchor="middle">v1.53.0</text>
+    </g>
+
+    <!-- Main Title Wordmark -->
+    <text x="0" y="132" font-size="58" font-weight="800" letter-spacing="-1.2px">
+      <tspan fill="#FFFFFF">Folder</tspan><tspan fill="url(#gold-text-grad)">Home</tspan>
+    </text>
+
+    <!-- Slogan / Punchline -->
+    <text x="2" y="172" font-size="22" font-weight="600" fill="#F8FAFC" letter-spacing="-0.2px">
+      Assistantify your home.
+    </text>
+
+    <!-- Subtitle Description -->
+    <text x="2" y="202" font-size="13.5" font-weight="400" fill="#94A3B8" letter-spacing="0.1px">
+      Turns scattered household documents into searchable, explainable and safely actionable workflows.
+    </text>
+
+    <!-- 4 Feature Badges (Bottom Row) -->
+    <g transform="translate(0, 238)">
+      <!-- Badge 1: Gated Execution -->
+      <g transform="translate(0, 0)">
+        <rect width="138" height="34" rx="8" fill="#0C4A6E" fill-opacity="0.4" stroke="#0284C7" stroke-width="1.2"/>
+        <path d="M 13 12 L 18 8 L 23 12 V 18 C 23 22 18 25 18 25 C 18 25 13 22 13 18 Z" fill="none" stroke="#38BDF8" stroke-width="1.4"/>
+        <text x="30" y="21" font-size="11" font-weight="700" fill="#BAE6FD">Gated Execution</text>
+      </g>
+
+      <!-- Badge 2: Reversible File Actions -->
+      <g transform="translate(146, 0)">
+        <rect width="168" height="34" rx="8" fill="#78350F" fill-opacity="0.4" stroke="#D97706" stroke-width="1.2"/>
+        <path d="M 13 17 C 13 13 17 10 20 10 H 24 M 24 10 L 21 7 M 24 10 L 21 13" fill="none" stroke="#FBBF24" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 24 17 C 24 21 20 24 17 24 H 13 M 13 24 L 16 21 M 13 24 L 16 27" fill="none" stroke="#FBBF24" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="31" y="21" font-size="11" font-weight="700" fill="#FDE68A">Reversible File Actions</text>
+      </g>
+
+      <!-- Badge 3: Explicit Cloud Gates -->
+      <g transform="translate(322, 0)">
+        <rect width="160" height="34" rx="8" fill="#064E3B" fill-opacity="0.4" stroke="#059669" stroke-width="1.2"/>
+        <rect x="13" y="14" width="9" height="8" rx="2" fill="none" stroke="#34D399" stroke-width="1.4"/>
+        <path d="M 15 14 V 11.5 C 15 10 16.5 9 17.5 9 C 18.5 9 20 10 20 11.5 V 14" fill="none" stroke="#34D399" stroke-width="1.4"/>
+        <text x="29" y="21" font-size="11" font-weight="700" fill="#A7F3D0">Explicit Cloud Gates</text>
+      </g>
+
+      <!-- Badge 4: 26 Connected Workflows -->
+      <g transform="translate(490, 0)">
+        <rect width="170" height="34" rx="8" fill="#3B0764" fill-opacity="0.4" stroke="#7C3AED" stroke-width="1.2"/>
+        <circle cx="18" cy="17" r="4.5" fill="none" stroke="#C084FC" stroke-width="1.4"/>
+        <path d="M 13 24 C 13 21.5 15.5 20.5 18 20.5 C 20.5 20.5 23 21.5 23 24" fill="none" stroke="#C084FC" stroke-width="1.4"/>
+        <text x="28" y="21" font-size="11" font-weight="700" fill="#E9D5FF">26 Connected Workflows</text>
+      </g>
+    </g>
+
+  </g>
+</svg>

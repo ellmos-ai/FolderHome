@@ -1,0 +1,291 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="100%" height="100%">
+  <defs>
+    <style type="text/css">
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap');
+      .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="gold-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Gradients -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050811" />
+      <stop offset="40%" stop-color="#0D1627" />
+      <stop offset="80%" stop-color="#080E1B" />
+      <stop offset="100%" stop-color="#03050A" />
+    </linearGradient>
+
+    <linearGradient id="border-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.9" />
+      <stop offset="30%" stop-color="#38BDF8" stop-opacity="0.4" />
+      <stop offset="70%" stop-color="#1E293B" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.7" />
+    </linearGradient>
+
+    <!-- Folder Gradients -->
+    <linearGradient id="folder-back-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+    <linearGradient id="folder-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="40%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="folder-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF3C7" stop-opacity="0.6" />
+      <stop offset="30%" stop-color="#FDE68A" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Shield & Accent Gradients -->
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="gold-text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <!-- Radial backdrop glow -->
+    <radialGradient id="left-glow" cx="280" cy="420" r="300">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.22" />
+      <stop offset="60%" stop-color="#D97706" stop-opacity="0.05" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="right-glow" cx="950" cy="380" r="350">
+      <stop offset="0%" stop-color="#0284C7" stop-opacity="0.16" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1E293B" stroke-width="0.8" stroke-opacity="0.5"/>
+      <circle cx="0" cy="0" r="1" fill="#334155" opacity="0.6"/>
+    </pattern>
+  </defs>
+
+  <!-- Base Canvas -->
+  <rect width="1280" height="720" rx="24" fill="url(#bg-grad)"/>
+  <rect width="1280" height="720" rx="24" fill="url(#grid-pattern)"/>
+  <rect width="1276" height="716" x="2" y="2" rx="22" fill="none" stroke="url(#border-grad)" stroke-width="2"/>
+
+  <!-- Ambient Glows -->
+  <circle cx="280" cy="420" r="300" fill="url(#left-glow)"/>
+  <circle cx="950" cy="380" r="350" fill="url(#right-glow)"/>
+
+  <!-- Top Accent Circuit Traces -->
+  <g stroke="#334155" stroke-width="1.5" fill="none" opacity="0.5">
+    <path d="M 60 45 H 180 L 210 70 H 300" />
+    <path d="M 1220 45 H 1100 L 1070 70 H 980" />
+    <circle cx="300" cy="70" r="4" fill="#F59E0B"/>
+    <circle cx="980" cy="70" r="4" fill="#38BDF8"/>
+  </g>
+
+  <!-- ==================== HEADER (TOP) ==================== -->
+  <g transform="translate(60, 42)" class="font-sans">
+    <rect width="335" height="30" rx="15" fill="#1E293B" fill-opacity="0.85" stroke="#0284C7" stroke-width="1.2"/>
+    <circle cx="15" cy="15" r="4" fill="#38BDF8"/>
+    <text x="30" y="20" font-size="11.5" font-weight="700" fill="#38BDF8" letter-spacing="1.5px">SOVEREIGN AI · LOCAL-FIRST</text>
+    <rect x="262" y="6" width="60" height="18" rx="9" fill="#0369A1" fill-opacity="0.5"/>
+    <text x="292" y="18" font-size="9.5" font-weight="700" fill="#E0F2FE" text-anchor="middle">v1.53.0</text>
+  </g>
+
+  <!-- Main Headline -->
+  <g transform="translate(60, 94)" class="font-sans">
+    <text x="0" y="48" font-size="56" font-weight="800" letter-spacing="-1.2px">
+      <tspan fill="#FFFFFF">Folder</tspan><tspan fill="url(#gold-text-grad)">Home</tspan>
+    </text>
+    <text x="2" y="82" font-size="24" font-weight="700" fill="#F8FAFC" letter-spacing="-0.2px">
+      Assistantify your home.
+    </text>
+    <text x="2" y="110" font-size="14.5" font-weight="400" fill="#94A3B8">
+      Local-first Strands agent turns scattered household documents into searchable, explainable and safely actionable workflows.
+    </text>
+  </g>
+
+  <!-- ==================== LEFT: EMBLEM & FLOATING DOCS ==================== -->
+  <g transform="translate(60, 235)">
+    <!-- Floating Doc 1: Contract -->
+    <g transform="translate(10, 25)">
+      <rect width="96" height="124" rx="7" fill="#0F172A" stroke="#38BDF8" stroke-width="1.2" filter="url(#soft-shadow)"/>
+      <rect x="10" y="12" width="34" height="4" rx="2" fill="#38BDF8"/>
+      <line x1="10" y1="26" x2="86" y2="26" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="10" y1="36" x2="76" y2="36" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="10" y1="46" x2="64" y2="46" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="10" y1="56" x2="80" y2="56" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <rect x="10" y="90" width="52" height="18" rx="4" fill="#0284C7" fill-opacity="0.3"/>
+      <text x="36" y="102" font-family="'JetBrains Mono', monospace" font-size="8.5" fill="#7DD3FC" font-weight="700" text-anchor="middle">CONTRACT</text>
+    </g>
+
+    <!-- Floating Doc 2: Health Dossier -->
+    <g transform="translate(300, 15)">
+      <rect width="98" height="130" rx="7" fill="#0F172A" stroke="#10B981" stroke-width="1.2" filter="url(#soft-shadow)"/>
+      <rect x="10" y="12" width="36" height="4" rx="2" fill="#10B981"/>
+      <line x1="10" y1="26" x2="88" y2="26" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/>
+      <!-- Cross -->
+      <g transform="translate(14, 40)">
+        <rect x="0" y="3" width="12" height="5" rx="1" fill="#34D399"/>
+        <rect x="3.5" y="0" width="5" height="12" rx="1" fill="#34D399"/>
+      </g>
+      <line x1="34" y1="44" x2="84" y2="44" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="34" y1="52" x2="72" y2="52" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <line x1="10" y1="68" x2="88" y2="68" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
+      <rect x="10" y="96" width="52" height="18" rx="4" fill="#059669" fill-opacity="0.3"/>
+      <text x="36" y="108" font-family="'JetBrains Mono', monospace" font-size="8.5" fill="#6EE7B7" font-weight="700" text-anchor="middle">HEALTH</text>
+    </g>
+
+    <!-- Main FolderHome Motif -->
+    <g transform="translate(80, 40)" filter="url(#soft-shadow)">
+      <!-- Back of Folder -->
+      <path d="M 0 34 L 0 180 C 0 190 7 196 16 196 L 210 196 C 219 196 226 190 226 180 L 226 50 C 226 41 219 34 210 34 L 108 34 L 85 11 C 81 7 75 4 69 4 L 16 4 C 7 4 0 11 0 20 Z"
+            fill="url(#folder-back-grad)" stroke="#92400E" stroke-width="1.8"/>
+
+      <!-- Papers -->
+      <rect x="20" y="20" width="186" height="146" rx="7" fill="#F8FAFC" opacity="0.95"/>
+      <line x1="36" y1="40" x2="112" y2="40" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round"/>
+      <line x1="36" y1="54" x2="168" y2="54" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round"/>
+      <line x1="36" y1="68" x2="152" y2="68" stroke="#E2E8F0" stroke-width="3" stroke-linecap="round"/>
+
+      <!-- Front Folder Pocket -->
+      <path d="M 0 74 L 0 180 C 0 190 7 196 16 196 L 210 196 C 219 196 226 190 226 180 L 226 74 C 226 65 219 60 210 60 L 16 60 C 7 60 0 65 0 74 Z"
+            fill="url(#folder-front-grad)" stroke="#FDE68A" stroke-width="1.8"/>
+      <path d="M 2 74 C 2 67 8 62 16 62 L 210 62 C 218 62 224 67 224 74 L 224 90 L 2 90 Z" fill="url(#folder-shine)" />
+
+      <!-- Modern House -->
+      <g transform="translate(46, 78)">
+        <rect x="84" y="9" width="11" height="22" rx="2" fill="#FFFFFF" opacity="0.95"/>
+        <path d="M 0 43 L 65 0 L 130 43 L 119 54 L 65 18 L 11 54 Z" fill="#FFFFFF" filter="url(#gold-glow)"/>
+        <path d="M 18 47 L 18 99 C 18 101 20 103 22 103 L 108 103 C 110 103 112 101 112 99 L 112 47 Z" fill="#0F172A" opacity="0.9" stroke="#FDE68A" stroke-width="1.5"/>
+
+        <rect x="34" y="58" width="18" height="18" rx="3" fill="#FBBF24" filter="url(#gold-glow)"/>
+        <line x1="43" y1="58" x2="43" y2="76" stroke="#78350F" stroke-width="1.3"/>
+        <line x1="34" y1="67" x2="52" y2="67" stroke="#78350F" stroke-width="1.3"/>
+
+        <rect x="70" y="65" width="20" height="38" rx="2" fill="#1E293B" stroke="#FDE68A" stroke-width="1.1"/>
+        <circle cx="84" cy="83" r="1.5" fill="#FBBF24"/>
+      </g>
+
+      <!-- Security Shield Vault Lock -->
+      <g transform="translate(148, 110)" filter="url(#cyan-glow)">
+        <path d="M 31 0 C 49 0 63 6 63 6 C 63 27 56 54 31 68 C 7 54 0 27 0 6 C 0 6 13 0 31 0 Z"
+              fill="url(#shield-grad)" stroke="#E0F2FE" stroke-width="2"/>
+        <circle cx="31" cy="25" r="6.5" fill="#FFFFFF"/>
+        <polygon points="27,27 35,27 38,42 24,42" fill="#FFFFFF"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- ==================== RIGHT: 3 ARCHITECTURE CAPABILITY CARDS ==================== -->
+  <g transform="translate(530, 235)" class="font-sans">
+
+    <!-- Card 1: Ingestion & Local Index -->
+    <g transform="translate(0, 0)">
+      <rect width="690" height="116" rx="14" fill="#0E1726" stroke="#0284C7" stroke-width="1.5" filter="url(#soft-shadow)"/>
+      <circle cx="38" cy="36" r="18" fill="#0C4A6E" stroke="#38BDF8" stroke-width="1.4"/>
+      <path d="M 32 36 L 36 40 L 44 32" fill="none" stroke="#38BDF8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+
+      <!-- Card Title -->
+      <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">01 · Local FTS Document Index &amp; Natural Search</text>
+      <!-- Badge -->
+      <rect x="545" y="22" width="125" height="24" rx="12" fill="#0369A1" fill-opacity="0.4"/>
+      <text x="607.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#7DD3FC" text-anchor="middle">LOCAL-FIRST</text>
+
+      <!-- Descriptions -->
+      <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
+        Extractive indexing and natural-language search across PDF, TXT and household scans.
+      </text>
+      <text x="68" y="90" font-size="13" font-weight="500" fill="#94A3B8">
+        Builds structured topic dossiers via normalized SQLite FTS without unapproved cloud calls.
+      </text>
+    </g>
+
+    <!-- Card 2: Gated Planning & Specialists -->
+    <g transform="translate(0, 130)">
+      <rect width="690" height="116" rx="14" fill="#0E1726" stroke="#D97706" stroke-width="1.5" filter="url(#soft-shadow)"/>
+      <circle cx="38" cy="36" r="18" fill="#78350F" stroke="#F59E0B" stroke-width="1.4"/>
+      <circle cx="38" cy="36" r="7" fill="none" stroke="#FBBF24" stroke-width="1.8"/>
+      <circle cx="38" cy="36" r="2.5" fill="#FBBF24"/>
+
+      <!-- Card Title -->
+      <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">02 · Gated Planning &amp; Scoped Specialists</text>
+      <!-- Badge -->
+      <rect x="515" y="22" width="155" height="24" rx="12" fill="#92400E" fill-opacity="0.4"/>
+      <text x="592.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#FDE68A" text-anchor="middle">26 WORKFLOWS</text>
+
+      <!-- Descriptions -->
+      <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
+        Master agent consults on-demand planners for notes, health, meds, tax &amp; calendar.
+      </text>
+      <text x="68" y="90" font-size="13" font-weight="500" fill="#94A3B8">
+        Optional Amazon Bedrock connectivity protected by explicit cloud disclosure gates.
+      </text>
+    </g>
+
+    <!-- Card 3: Reversible File Actions -->
+    <g transform="translate(0, 260)">
+      <rect width="690" height="116" rx="14" fill="#0E1726" stroke="#10B981" stroke-width="1.5" filter="url(#soft-shadow)"/>
+      <circle cx="38" cy="36" r="18" fill="#064E3B" stroke="#34D399" stroke-width="1.4"/>
+      <path d="M 32 30 L 38 27 L 44 30 V 37 C 44 42 38 45 38 45 C 38 45 32 42 32 37 Z" fill="none" stroke="#34D399" stroke-width="1.6"/>
+      <path d="M 35 36 L 37 38 L 41 33" fill="none" stroke="#34D399" stroke-width="1.6" stroke-linecap="round"/>
+
+      <!-- Card Title -->
+      <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">03 · Fail-Closed &amp; Reversible File Actions</text>
+      <!-- Badge -->
+      <rect x="535" y="22" width="135" height="24" rx="12" fill="#065F46" fill-opacity="0.4"/>
+      <text x="602.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#A7F3D0" text-anchor="middle">FAIL-CLOSED</text>
+
+      <!-- Descriptions -->
+      <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
+        Strict default deny. Separate planning, exact /confirm ID verification &amp; full audit.
+      </text>
+      <text x="68" y="90" font-size="13" font-weight="500" fill="#94A3B8">
+        Reversible file actions ensure older drafts and changes can be safely undone.
+      </text>
+    </g>
+
+  </g>
+
+  <!-- ==================== BOTTOM STATUS BAR ==================== -->
+  <g transform="translate(60, 654)" class="font-mono" font-size="11.5" font-weight="600">
+    <rect width="1160" height="38" rx="9" fill="#0B111E" stroke="#1E293B" stroke-width="1"/>
+
+    <g transform="translate(24, 24)">
+      <circle cx="0" cy="-4" r="4" fill="#34D399"/>
+      <text x="12" y="0" fill="#A7F3D0">36 OF 36 PHASES IMPLEMENTED</text>
+    </g>
+
+    <g transform="translate(340, 24)">
+      <circle cx="0" cy="-4" r="4" fill="#F59E0B"/>
+      <text x="12" y="0" fill="#FDE68A">STRANDS-AGENTS 1.53.0</text>
+    </g>
+
+    <g transform="translate(620, 24)">
+      <circle cx="0" cy="-4" r="4" fill="#38BDF8"/>
+      <text x="12" y="0" fill="#BAE6FD">26 CONNECTED WORKFLOWS</text>
+    </g>
+
+    <g transform="translate(950, 24)">
+      <circle cx="0" cy="-4" r="4" fill="#C084FC"/>
+      <text x="12" y="0" fill="#E9D5FF">MIT OPEN SOURCE</text>
+    </g>
+  </g>
+</svg>

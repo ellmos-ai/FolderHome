@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./DECISIONS.de.md)
 
-**Version:** 0.36  
-**Date:** 2026-08-22  
+**Version:** 0.37  
+**Date:** 2026-08-23  
 **Direct predecessor:**  
 [`docs/archive/DECISIONS-through-phase35.md`](./docs/archive/DECISIONS-through-phase35.md)
 
@@ -81,5 +81,71 @@ The 36 phases conclude with a locally installable, tested, and demonstrable comp
 ### Consequence
 
 A locally built artifact may be considered locally completed, but must never be described as published or submitted.
+
+## 2026-08-23: Soft hackathon decisions use the authorized decision avatar
+
+### Decision
+
+During Hackathon Operator phases 0 through 6, reversible preference and
+implementation decisions follow this order: project decisions, the authorized
+decision avatar with stated confidence, then structured operator judgment. The
+operator records the rationale instead of repeatedly turning soft decisions into
+user blockers. Public actions, costs, messages to third parties, uploads and
+submission remain human gates.
+
+### Consequence
+
+The master-agent expansion continues autonomously inside the agreed architecture.
+The avatar predicts preferences; it neither turns its output into a statement by
+the user nor expands execution authority.
+
+## 2026-08-23: Logical resources are local, capability-bound app configuration
+
+### Decision
+
+The canonical private mapping is stored per operating-system account under
+`%LOCALAPPDATA%\FolderHome\resources.json`. The repository contains only the
+versioned schema and anonymous examples. Organizational profiles reference logical
+resource IDs and may select defaults, but contain neither physical paths nor
+secrets. Every resource declares its kind, role and permitted operations; free
+paths remain forbidden in chat requests.
+
+Adapters are connected in this order: document/file core; insurance, contacts,
+calendar and correspondence; health, finance and social-law assistance; inventory,
+medication, tax and briefing. A configured local calendar or local ICS target may
+be used as a local resource after the normal exact approval. Remote reads and all
+remote writes retain connector-specific gates.
+
+FindCall remains a separate project and a peripheral future integration, not a
+competition-critical FolderHome workstream. The existing strictly local fixture
+remains truthful; a later public-search handoff may be added separately.
+
+### Consequences
+
+- FolderHome configuration stays encapsulated instead of becoming a shared
+  cross-module configuration service.
+- Profiles remain organizational overlays and do not become a security boundary.
+- Resource IDs carry least privilege and can be reused by typed adapters without
+  exposing paths to the model.
+
+## 2026-08-23: Finish locally before Bedrock acceptance and media production
+
+### Decision
+
+Bedrock receives only the minimum approved and sanitized context needed for one
+purpose; whole folders or documents are never forwarded by default. Local build
+and full tests finish first. Then exactly one minimal synthetic Bedrock turn is
+attempted; the run stops on renewed throttling. Only after that acceptance does
+the new video production begin.
+
+The competition route is Everyday Agents. The video is English-first, publicly
+hosted on YouTube, and produced from a continuous synthetic household story using
+the Hackathon Operator, ai-media-editor and the storyline-driven music composer.
+An isolated synthetic AgentCore demo is in scope; personal data and real external
+side effects are not. The entrant is an eligible individual. FolderHome follows
+the established early-Devpost practice: submit once the project is sufficiently
+advanced, then keep improving the editable entry before the deadline. A Builder
+article and the available AWS credits are pursued as standard competition
+practice.
 
 ---

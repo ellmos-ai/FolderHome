@@ -9,8 +9,7 @@ fail-closed und trennt Planung, Freigabe und Ausführung.
 ## Unterstützter Stand
 
 Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
-`phase1-foundation` gepflegt. Es gibt noch keine veröffentlichte Release-Serie
-und keinen produktiven Cloudbetrieb.
+`main` gepflegt. Es gibt keinen produktiven Cloudbetrieb.
 
 ## Sicherheitsgrenzen
 
@@ -23,18 +22,39 @@ und keinen produktiven Cloudbetrieb.
 - Datei-, Parser- und Rendererarbeit ist durch nicht abschaltbare Budgets für
   Einträge, Dateien, Bytes, PDF-Seiten, Bildframes, Pixel, Text und Ausgaben
   begrenzt.
-- Der Strands-Agent besitzt ausschließlich zwei profilgebundene read-only
-  Tools. Turns, Toolaufrufe, Prompt, Toolergebnis und Antwort sind endlich
-  begrenzt; Toolausführung erfolgt sequenziell.
+- Der Strands-Master besitzt fünf begrenzte Werkzeuge: zwei profilgebundene
+  Nur-Lese-Dokumentwerkzeuge, die Fähigkeitssuche, die Suche nach logischen
+  Ressourcen und die Fachagentenberatung. Physische Ressourcen-Locator gelangen
+  weder in den öffentlichen Katalog noch in einen ressourcengebundenen Plan.
+  Ein Fachagent erhält genau einen Planungsendpunkt und keinen Executor. Turns,
+  Toolaufrufe, Prompt, Toolergebnis und Antwort sind endlich begrenzt;
+  Toolausführung erfolgt sequenziell.
+- Ein Gespräch erteilt niemals eine Freigabe. Der Browser muss Plan-ID,
+  SHA-256 und die exakte Schrittmenge über einen getrennten Endpunkt senden.
+  Nur ein Plan mit vorbereiteter typisierter Ausführungshülle kann höchstens
+  einmal laufen; die Ausführung weist ein eigener Fachbericht nach.
+- Die Laufzeitabdeckung ist explizit: verbunden, direkt nur lesend, nur planend
+  und nicht verbunden sind verschiedene Zustände. Fehlende Adapter blockieren
+  und fallen weder auf Shell noch auf beliebige Pfade, allgemeines HTTP oder
+  allgemeine CLI-Ausführung zurück.
+- Der Gesprächsverlauf lebt ausschließlich im Prozessspeicher, ist nach Profil
+  organisiert, aber keine Autorisierungsgrenze, und standardmäßig auf 24
+  Nachrichten begrenzt. Ein ausdrücklicher Reset verwirft zusätzlich die
+  unbestätigten Pläne dieses Profils.
 - Das deterministische Agenten-Fixture verwendet kein Netzwerk. Amazon
   Bedrock benötigt Modell-ID, Region sowie getrennte ausdrückliche Freigaben
   für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
-  Suchergebnisse.
+  Suchergebnisse. Jeder Modellaufruf verwendet begrenzte Verbindungs- und
+  Lese-Timeouts sowie insgesamt genau einen SDK-Versuch.
 - Amtliche Leistungslinks werden per HTTPS, exaktem Host und Publisherbindung
   geprüft. IP-Adressen, Zugangsdaten, Ports und Domain-Lookalikes werden
   blockiert.
 - Schreibende Aktionen benötigen fachlich getrennte Approvals und Gates,
-  prüfen Quellhashes erneut und überschreiben vorhandene Ziele nicht.
+  prüfen Quellhashes erneut und überschreiben vorhandene Ziele nicht. Verbundene
+  Chat-Schreibpfade umfassen append-only persönliche Notizen,
+  Medikamenteneinnahme-Evidenz, ressourcengebundene Dokumentbündel,
+  Kontakt-State, lokale Korrespondenzdateien und den eigenen
+  FolderHome-Kalender. Vollständige Korrespondenzinhalte bleiben lokal.
 - Live-Mail, Live-Kalender, Telefon, Banking, Upload und Veröffentlichung sind
   keine impliziten Agentenfähigkeiten.
 

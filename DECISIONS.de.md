@@ -2,8 +2,8 @@
 
 [English](./DECISIONS.md) | **Deutsch**
 
-**Version:** 0.36  
-**Stand:** 2026-08-22  
+**Version:** 0.37  
+**Stand:** 2026-08-23  
 **Direkter Vorläufer:**
 [`docs/archive/DECISIONS-through-phase35.md`](docs/archive/DECISIONS-through-phase35.de.md)
 
@@ -106,6 +106,78 @@ eigenständige menschliche Gates.
 
 Ein lokal fertiger Build darf als lokal abgeschlossen gelten, aber niemals als
 veröffentlicht oder eingereicht bezeichnet werden.
+
+## 2026-08-23: Weiche Hackathon-Entscheidungen verwenden den autorisierten Entscheidungsavatar
+
+### Entscheidung
+
+Während der Hackathon-Operator-Phasen 0 bis 6 gilt für reversible Präferenz- und
+Implementierungsentscheidungen diese Reihenfolge: Projektentscheidungen,
+autorisierter Entscheidungsavatar mit ausgewiesener Konfidenz, danach
+strukturiertes Operatorurteil. Der Operator dokumentiert die Begründung, statt
+weiche Entscheidungen wiederholt zu Nutzerblockern zu machen. Öffentliche
+Aktionen, Kosten, Nachrichten an Dritte, Uploads und Submission bleiben
+menschliche Gates.
+
+### Folge
+
+Der Masteragent-Ausbau läuft innerhalb der vereinbarten Architektur autonom
+weiter. Der Avatar prognostiziert Präferenzen; sein Ergebnis wird weder zu einer
+Aussage des Nutzers noch zu einer Erweiterung der Ausführungsberechtigung.
+
+## 2026-08-23: Logische Ressourcen sind lokale, fähigkeitsgebundene App-Konfiguration
+
+### Entscheidung
+
+Die kanonische private Zuordnung liegt je Betriebssystemkonto unter
+`%LOCALAPPDATA%\FolderHome\resources.json`. Das Repository enthält nur das
+versionierte Schema und anonyme Beispiele. Organisationsprofile referenzieren
+logische Ressourcen-IDs und dürfen Defaults wählen, enthalten aber weder
+physische Pfade noch Secrets. Jede Ressource deklariert Art, Rolle und erlaubte
+Operationen; freie Pfade bleiben in Chatanfragen verboten.
+
+Adapter werden in dieser Reihenfolge verbunden: Dokument-/Dateikern;
+Versicherung, Kontakte, Kalender und Korrespondenz; Gesundheit, Finanzen und
+Sozialrechtsassistenz; Bestand, Medikation, Steuer und Briefing. Ein
+konfigurierter lokaler Kalender oder ein lokales ICS-Ziel darf nach der normalen
+exakten Freigabe als lokale Ressource verwendet werden. Remote-Lesezugriffe und
+alle Remote-Schreibzugriffe behalten connectorspezifische Gates.
+
+FindCall bleibt ein eigenes Projekt und eine spätere Randintegration, nicht ein
+wettbewerbskritischer FolderHome-Arbeitsstrang. Die bestehende strikt lokale
+Fixture bleibt wahrheitsgemäß; ein späterer öffentlicher Such-Handoff kann
+getrennt ergänzt werden.
+
+### Folgen
+
+- FolderHome-Konfiguration bleibt gekapselt, statt zu einem gemeinsamen
+  modulübergreifenden Konfigurationsdienst zu werden.
+- Profile bleiben organisatorische Overlays und werden nicht zur
+  Sicherheitsgrenze.
+- Ressourcen-IDs tragen Least Privilege und können von typisierten Adaptern
+  wiederverwendet werden, ohne dem Modell Pfade offenzulegen.
+
+## 2026-08-23: Lokale Fertigstellung vor Bedrock-Abnahme und Medienproduktion
+
+### Entscheidung
+
+Bedrock erhält nur den minimalen freigegebenen und bereinigten Kontext, der für
+einen Zweck erforderlich ist; ganze Ordner oder Dokumente werden nie
+standardmäßig weitergegeben. Zuerst werden lokaler Bau und Volltests
+abgeschlossen. Danach erfolgt genau ein minimaler synthetischer Bedrock-Turn;
+bei erneuter Drosselung stoppt der Lauf. Erst nach dieser Abnahme beginnt die
+neue Videoproduktion.
+
+Der Wettbewerbsweg ist Everyday Agents. Das Video ist englischsprachig, wird
+öffentlich auf YouTube bereitgestellt und entsteht aus einer durchgehenden
+synthetischen Haushaltsgeschichte mit Hackathon Operator, ai-media-editor und
+dem storybasierten Music Composer. Eine isolierte synthetische AgentCore-Demo
+gehört zum Umfang; personenbezogene Daten und reale externe Side-Effects nicht.
+Der Teilnehmer reicht als berechtigte Einzelperson ein. FolderHome folgt dem
+bewährten frühen Devpost-Vorgehen: einreichen, sobald das Projekt ausreichend
+fortgeschritten ist, und den bis zur Frist bearbeitbaren Eintrag danach laufend
+verbessern. Ein Builder-Artikel und die verfügbaren AWS-Credits werden als
+übliche Wettbewerbspraxis verfolgt.
 
 ---
 <!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

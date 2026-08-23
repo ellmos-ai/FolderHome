@@ -13,11 +13,11 @@
 ## Available Workflows (auto-generated)
 
 <!-- @auto-generated:workflow-index -->
-<!-- last-updated: 2026-08-22 13:24 -->
+<!-- last-updated: 2026-08-23 00:03 -->
 <!-- tool: _tools/workflows-sync -->
-<!-- count: 31 workflows in 1 categories -->
+<!-- count: 33 workflows in 1 categories -->
 
-## General (31)
+## General (33)
 
 | Workflow | Purpose | Frequency | Duration |
 |---|---|---|---|
@@ -35,6 +35,7 @@
 | **Medication Plan and Confirmed Intake** [`medication-intake.md`](./workflows/medication-intake.md) | Adopt a provided medication plan locally and evidence‑based, read the organizational daily view, and confirm an explicit intake as a separate appen... | according to an explicitly provided plan or an intake confirmation | a few seconds |
 | **Personal Note Managed and Stored Revision‑Safely** [`personal-notes.md`](./workflows/personal-notes.md) | Review a human‑written note content with separate questions and suggestions, approve it precisely, and store it as a new version in the pinned loca... | when a personal note is explicitly requested | planning and local storage a few seconds |
 | **Planned cleanup of observed folder** [`folder-routine.md`](./workflows/folder-routine.md) | Check a declared observed folder against its last checkpoint, plan a due set of changes or the full inventory, and execute a deliberately approved ... | after an explicitly triggered scan point | depending on file count and extraction formats |
+| **Prepare a bounded provider inquiry with FindCall** [`findcall.md`](./workflows/findcall.md) | Prepare a serial inquiry for an appointment or quote from explicitly configured candidates. FindCall applies the user's time, location and price li... | ad hoc for appointment or quote searches | seconds for local planning and fixture simulation |
 | **Prepare a read‑only queue for a scheduler** [`scheduler-handoff.md`](./workflows/scheduler-handoff.md) | Create a portable invocation and a Windows‑task artifact and safely coordinate a headless queue run without registering an operating‑system task or... | once per schedule and when configuration changes | plan under one second; runtime depends on document count |
 | **Private tax worksheet from confirmed receipts** [`tax-workpaper.md`](./workflows/tax-workpaper.md) | Incorporate a cataloged receipt, after human category confirmation, locally into the pinned tax agents and optionally generate a private, non‑offic... | after explicitly provided and categorized receipts | a few seconds per receipt and export |
 | **Run Strands Agent and Competition Demo** [`strands-agent.md`](./workflows/strands-agent.md) | Plan a limited execution of the real Strands‑Agents loop from FolderHome, run it reproducibly with synthetic data, and generate a hash‑bound compet... | per demo or agent acceptance | a few seconds without Bedrock; provider‑dependent with Bedrock |
@@ -47,9 +48,10 @@
 | **Securely Create Correspondence** [`correspondence-studio.md`](./workflows/correspondence-studio.md) | View a letter generated from a controlled template and a custom, inheritable design entirely locally first, and then output it as new Markdown and ... | ad-hoc | a few seconds per letter |
 | **Securely create administrative draft** [`administrative-drafts.md`](./workflows/administrative-drafts.md) | Prepare a visibly unchecked and unsent administrative letter from a documented notice structure and provided information. The workflow generates on... | per objection, response, or application draft | a few seconds plus full human review |
 | **Securely read, assign, and approve Mail** [`mail-connector.md`](./workflows/mail-connector.md) | Plan a mailbox fetch without changing the mailbox, adopt incoming message references in a provider‑neutral way, and prepare a letter for idempotent... | when mail fetch or send is explicitly triggered | plan under one second; provider runtime depends on mailbox |
-| **Start Local FolderHome App** [`local-app.md`](./workflows/local-app.md) | Start the shared FolderHome interface on the exact current operating system account and operate the existing document search and topic dossiers in ... | per local work session | a few seconds plus interactive usage |
+| **Start Local FolderHome App** [`local-app.md`](./workflows/local-app.md) | Start the shared FolderHome chat interface on the current operating-system account. The GUI calls the same master-agent service as the CLI, shows r... | per local work session | a few seconds plus interactive usage |
 | **Supplement Local Household Inventory** [`inventory-import.md`](./workflows/inventory-import.md) | Validate provided inventory observations, ingest them in a revision‑bound manner into the local append‑only inventory store, and then display curre... | after an explicitly documented inventory | few seconds per inventory folder |
 | **Understanding a Social Law Official Notice** [`official-notice-understanding.md`](./workflows/official-notice-understanding.md) | Capture explicitly labeled information from a local official notice in a traceable way and output it as a verifiable Markdown/JSON report. This wor... | per provided official notice | a few seconds plus human review |
+| **Use the FolderHome Master Agent** [`master-agent.md`](./workflows/master-agent.md) | Use one model-driven agent from GUI or CLI for FolderHome discovery, local read-only tools, and bounded domain planning. Keep semantic selection, d... | per conversational request | model-dependent; domain execution remains a separate workflow |
 | **Workflow — Insurance and Contract Cockpit** [`contract-cockpit.md`](./workflows/contract-cockpit.md) | Answer a request such as “What is my latest car insurance for my Hyundai i10?” as a read‑only overview. The cockpit combines existing document vers... | — | — |
 | **Workflow — health dossier** [`health-dossier.md`](./workflows/health-dossier.md) | Create an evidence‑based health dossier as Markdown and JSON from an explicitly selected local folder. The workflow is extractive: it chronological... | — | — |
 

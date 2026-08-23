@@ -43,19 +43,44 @@ inputs again and never silently upgrades a suggestion into a real-world act.
 
 ## How we built it
 
-The required agent layer uses `strands-agents==1.53.0`. Strands runs a finite,
-sequential tool loop over two profile-bound, read-only FolderHome tools:
-`search_home_documents` and `build_home_theme_dossier`. The same runtime can
-use Amazon Bedrock after separate explicit network and local-data-disclosure
+The required agent layer uses `strands-agents==1.53.0`. One conversational
+master serves both GUI and CLI through four bounded tools: local document
+search, an evidence-linked topic dossier, capability discovery, and scoped
+specialist consultation. The model selects an expert semantically; FolderHome
+then resolves the selected workflow endpoint deterministically and fail-closed.
+A short-lived specialist sees one plan-only tool. Optional personas change
+communication style but never grant capability or permission. The same runtime
+can use Amazon Bedrock after separate explicit network and local-data-disclosure
 gates. For judges and automated tests, a deterministic Strands model adapter
-executes the identical agent and tool loop without credentials or network
-access.
+executes the real loop without credentials or network access.
+
+An explicit executor catalog keeps runtime coverage honest. A chat message can
+only produce a plan. After a separate confirmation bound to the exact plan hash
+and steps, a connected typed envelope may call its existing domain executor and
+return that executor's report. Without a private resource registry, the
+connected executors reuse personal notes, scheduled medication confirmation and
+the strictly local FindCall fixture. A configured registry adds 23 typed
+resource adapters for the complete local document and assistance stack,
+including organization, health, finance, social law, inventory, tax, briefing,
+design, FCSA and routines. Each publishes a closed request schema to its scoped
+specialist. This configuration reports 26 connected and three visibly
+unconnected endpoints instead of falling back to a generic command runner. Only
+mail, external calendars and scheduler registration still need explicit
+external connector configuration with live-effect gates.
 
 The application core is Python 3.11+, with stable data contracts, a CLI, a
 loopback-only API and a responsive local web interface. SQLite stores use
 append-only events or immutable read access where appropriate. Existing
 ellmos modules are connected through exact revisions and capability manifests;
 their source code is not copied into FolderHome.
+
+The GUI and the interactive `agent session` share one application service. The
+CLI retains prepared plans in-process and accepts approval only through an
+explicit `/confirm <plan_id>` command; ordinary conversation never counts as
+approval.
+Both surfaces retain a finite Strands message window per organizational profile
+for natural follow-up questions. The history never leaves process memory and a
+new-conversation action clears it together with unconfirmed plans.
 
 ## Safety and privacy by construction
 

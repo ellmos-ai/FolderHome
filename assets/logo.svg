@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="100%" height="100%">
+  <defs>
+    <style type="text/css">
+      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=JetBrains+Mono:wght@600&amp;display=swap');
+      .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
+
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="gold-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <linearGradient id="folder-back-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+    <linearGradient id="folder-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="40%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="folder-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF3C7" stop-opacity="0.6" />
+      <stop offset="30%" stop-color="#FDE68A" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+    <linearGradient id="gold-text-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background Base -->
+  <rect width="800" height="200" rx="16" fill="#0A0F1D" stroke="#1E293B" stroke-width="1.5"/>
+
+  <!-- Subtle grid accent -->
+  <g opacity="0.15" stroke="#38BDF8" stroke-width="0.75">
+    <line x1="0" y1="50" x2="800" y2="50"/>
+    <line x1="0" y1="100" x2="800" y2="100"/>
+    <line x1="0" y1="150" x2="800" y2="150"/>
+    <line x1="200" y1="0" x2="200" y2="200"/>
+    <line x1="400" y1="0" x2="400" y2="200"/>
+    <line x1="600" y1="0" x2="600" y2="200"/>
+  </g>
+
+  <!-- ================= EMBLEM (LEFT) ================= -->
+  <g transform="translate(45, 25)" filter="url(#soft-shadow)">
+    <!-- Back of Folder -->
+    <path d="M 0 24 L 0 135 C 0 142 5 148 12 148 L 148 148 C 155 148 160 142 160 135 L 160 36 C 160 29 155 24 148 24 L 76 24 L 60 8 C 57 5 53 3 49 3 L 12 3 C 5 3 0 8 0 15 Z"
+          fill="url(#folder-back-grad)" stroke="#92400E" stroke-width="1.2"/>
+
+    <!-- Paper sheets -->
+    <rect x="14" y="14" width="132" height="105" rx="5" fill="#F8FAFC" opacity="0.95"/>
+    <line x1="26" y1="28" x2="80" y2="28" stroke="#CBD5E1" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="26" y1="38" x2="120" y2="38" stroke="#E2E8F0" stroke-width="2.5" stroke-linecap="round"/>
+    <line x1="26" y1="48" x2="105" y2="48" stroke="#E2E8F0" stroke-width="2.5" stroke-linecap="round"/>
+
+    <!-- Front Folder Pocket -->
+    <path d="M 0 52 L 0 135 C 0 142 5 148 12 148 L 148 148 C 155 148 160 142 160 135 L 160 52 C 160 46 155 42 148 42 L 12 42 C 5 42 0 46 0 52 Z"
+          fill="url(#folder-front-grad)" stroke="#FDE68A" stroke-width="1.2"/>
+    <path d="M 2 52 C 2 47 6 44 12 44 L 148 44 C 154 44 158 47 158 52 L 158 64 L 2 64 Z" fill="url(#folder-shine)" />
+
+    <!-- Modern House Silhouette -->
+    <g transform="translate(34, 56)">
+      <rect x="58" y="6" width="8" height="16" rx="1" fill="#FFFFFF" opacity="0.95"/>
+      <path d="M 0 30 L 46 0 L 92 30 L 84 38 L 46 12 L 8 38 Z" fill="#FFFFFF" filter="url(#gold-glow)"/>
+      <path d="M 12 34 L 12 70 C 12 72 14 74 16 74 L 76 74 C 78 74 80 72 80 70 L 80 34 Z" fill="#0F172A" opacity="0.88" stroke="#FDE68A" stroke-width="1.2"/>
+
+      <!-- Glowing Window Grid -->
+      <rect x="23" y="42" width="13" height="13" rx="1.5" fill="#FBBF24"/>
+      <line x1="29.5" y1="42" x2="29.5" y2="55" stroke="#78350F" stroke-width="1"/>
+      <line x1="23" y1="48.5" x2="36" y2="48.5" stroke="#78350F" stroke-width="1"/>
+
+      <!-- Door -->
+      <rect x="49" y="47" width="14" height="27" rx="1.5" fill="#1E293B" stroke="#FDE68A" stroke-width="1"/>
+      <circle cx="59" cy="60" r="1.2" fill="#FBBF24"/>
+    </g>
+
+    <!-- Shield Vault Lock -->
+    <g transform="translate(105, 78)">
+      <path d="M 22 0 C 35 0 44 5 44 5 C 44 19 39 38 22 48 C 5 38 0 19 0 5 C 0 5 9 0 22 0 Z"
+            fill="url(#shield-grad)" stroke="#E0F2FE" stroke-width="1.5"/>
+      <circle cx="22" cy="18" r="4.5" fill="#FFFFFF"/>
+      <polygon points="20,19 24,19 26,30 18,30" fill="#FFFFFF"/>
+    </g>
+  </g>
+
+  <!-- ================= WORDMARK & TYPOGRAPHY (RIGHT) ================= -->
+  <g transform="translate(240, 0)" class="font-sans">
+    <!-- Brand Wordmark -->
+    <text x="0" y="96" font-size="56" font-weight="800" letter-spacing="-1px">
+      <tspan fill="#FFFFFF">Folder</tspan><tspan fill="url(#gold-text-grad)">Home</tspan>
+    </text>
+
+    <!-- Subtitle -->
+    <text x="2" y="128" font-size="14" font-weight="700" fill="#94A3B8" letter-spacing="2.5px" class="font-mono">
+      LOCAL DOCUMENT &amp; HOME ASSISTANCE AGENT
+    </text>
+
+    <!-- Pill Tagline / Version -->
+    <g transform="translate(2, 146)">
+      <rect width="200" height="26" rx="13" fill="#1E293B" stroke="#0284C7" stroke-width="1"/>
+      <circle cx="12" cy="13" r="3.5" fill="#38BDF8"/>
+      <text x="24" y="17" font-size="10.5" font-weight="700" fill="#BAE6FD">Strands Agent 1.53.0</text>
+
+      <rect x="210" y="0" width="195" height="26" rx="13" fill="#1E293B" stroke="#D97706" stroke-width="1"/>
+      <circle cx="222" cy="13" r="3.5" fill="#FBBF24"/>
+      <text x="234" y="17" font-size="10.5" font-weight="700" fill="#FDE68A">26 Connected Workflows</text>
+    </g>
+  </g>
+</svg>

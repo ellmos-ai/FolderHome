@@ -6,7 +6,8 @@ FolderHome processes potentially sensitive household, health, financial, and adm
 
 ## Supported State
 
-Security fixes are maintained on the current competition state on the branch `phase1-foundation`. There is no published release series yet and no production cloud operation.
+Security fixes are maintained on the current competition state on branch
+`main`. There is no production cloud operation.
 
 ## Security Boundaries
 
@@ -14,10 +15,33 @@ Security fixes are maintained on the current competition state on the branch `ph
 - The local HTTP adapter binds exclusively to `127.0.0.1`, requires a short‑lived session token, checks host and origin exactly, and does not allow CORS.
 - Concurrent HTTP requests and incomplete connections have hard limits and timeouts.
 - File, parser, and renderer work is limited by non‑disableable budgets for entries, files, bytes, PDF pages, image frames, pixels, text, and outputs.
-- The Strands agent has only two profile‑bound read‑only tools. Turns, tool calls, prompt, tool result, and response are finitely limited; tool execution occurs sequentially.
-- The deterministic agent fixture uses no network. Amazon Bedrock requires a model ID, region, as well as separate explicit approvals for network access and the sharing of potentially sensitive local search results.
+- The Strands master has five bounded tools: two profile-bound read-only
+  document tools, capability discovery, logical-resource discovery, and
+  specialist consultation. Physical resource locators never enter the public
+  catalog or a resource-bound plan. A
+  specialist receives exactly one planning endpoint and no executor. Turns,
+  tool calls, prompt, tool result, and response are finitely limited; tool
+  execution occurs sequentially.
+- Conversation never grants approval. The browser must submit an exact plan ID,
+  SHA-256 and step set through a separate endpoint. Only a plan carrying a
+  prepared typed executor envelope can run, only once, and execution is proven
+  by a separate domain report.
+- Runtime coverage is explicit: connected, direct-read-only, planning-only and
+  not-connected are different states. Missing adapters fail closed and cannot
+  fall back to shell, arbitrary paths, generic HTTP or generic CLI execution.
+- Conversation history is process-memory-only, profile-organized but not an
+  authorization boundary, and bounded to 24 messages by default. An explicit
+  reset also discards that profile's unconfirmed plans.
+- The deterministic agent fixture uses no network. Amazon Bedrock requires a
+  model ID, region, separate explicit approvals for network access and sharing
+  potentially sensitive local search results, bounded connect/read timeouts,
+  and exactly one total SDK attempt per model call.
 - Official benefit links are verified via HTTPS, exact host, and publisher binding. IP addresses, credentials, ports, and domain look‑alikes are blocked.
-- Write actions require domain‑separate approvals and gates, re‑verify source hashes, and do not overwrite existing targets.
+- Write actions require domain-separate approvals and gates, re-verify source
+  hashes, and do not overwrite existing targets. Connected chat writes include
+  append-only personal notes, medication intake evidence, resource-bound
+  document bundles, contact state, local correspondence files and the own
+  FolderHome calendar. Full correspondence content remains local.
 - Live mail, live calendar, phone, banking, upload, and publishing are not implicit agent capabilities.
 
 ## Confidentiality and Test Data
