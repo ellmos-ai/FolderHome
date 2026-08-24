@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  FolderHome quota-bounded public demo: private static site, CloudFront,
+  and an exact-origin Lambda proxy for one IAM-only AgentCore runtime.
+
+Parameters:
+  AgentRuntimeArn:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock-agentcore:[^:]+:[0-9]{12}:runtime/.+$"
+  ProxyCodeBucket:
+    Type: String
+  ProxyCodeKey:
+    Type: String
+  ProxyCodeVersion:
+    Type: String
+    Default: ""
+
+Conditions:
+  HasProxyCodeVersion: !Not [!Equals [!Ref ProxyCodeVersion, ""]]
+
+Resources:
+  SiteBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  SiteOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-site-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  SiteCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Comment: FolderHome demo publishes explicit immutable build updates
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        Name: !Sub "${AWS::StackName}-no-cache"
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: none
+          EnableAcceptEncodingBrotli: false
+          EnableAcceptEncodingGzip: false
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  SiteResponseHeadersPolicy:
+    Type: AWS::CloudFront::ResponseHeadersPolicy
+    Properties:
+      ResponseHeadersPolicyConfig:
+        Name: !Sub "${AWS::StackName}-security-headers"
+        SecurityHeadersConfig:
+          ContentSecurityPolicy:
+            ContentSecurityPolicy: >-
+              default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline';
+              script-src 'self'; connect-src 'self' https://*.execute-api.eu-central-1.amazonaws.com;
+              object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+            Override: true
+          ContentTypeOptions:
+            Override: true
+          FrameOptions:
+            FrameOption: DENY
+            Override: true
+          ReferrerPolicy:
+            Override: true
+            ReferrerPolicy: same-origin
+          StrictTransportSecurity:
+            AccessControlMaxAgeSec: 63072000
+            IncludeSubdomains: true
+            Override: true
+            Preload: true
+
+  SiteDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Comment: FolderHome synthetic AgentCore demo
+        DefaultCacheBehavior:
+          AllowedMethods: [GET, HEAD, OPTIONS]
+          CachedMethods: [GET, HEAD, OPTIONS]
+          CachePolicyId: !Ref SiteCachePolicy
+          Compress: true
+          ResponseHeadersPolicyId: !Ref SiteResponseHeadersPolicy
+          TargetOriginId: FolderHomeSite
+          ViewerProtocolPolicy: redirect-to-https
+        DefaultRootObject: index.html
+        Enabled: true
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        Origins:
+          - DomainName: !GetAtt SiteBucket.RegionalDomainName
+            Id: FolderHomeSite
+            OriginAccessControlId: !Ref SiteOriginAccessControl
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        PriceClass: PriceClass_100
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  SiteBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref SiteBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontReadOnly
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub >-
+                  arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${SiteDistribution}
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt SiteBucket.Arn
+              - !Sub "${SiteBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  ProxyLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-proxy"
+      RetentionInDays: 7
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  DailyQuotaTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - AttributeName: quota_day
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: quota_day
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  ProxyRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: FolderHomeProxy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: WriteExactLogGroup
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !GetAtt ProxyLogGroup.Arn
+              - Sid: PublishTracing
+                Effect: Allow
+                Action:
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                Resource: "*"
+              - Sid: InvokeExactRuntimeAndDefaultEndpoint
+                Effect: Allow
+                Action: bedrock-agentcore:InvokeAgentRuntime
+                Resource:
+                  - !Ref AgentRuntimeArn
+                  - !Sub "${AgentRuntimeArn}/runtime-endpoint/DEFAULT"
+              - Sid: ConsumeExactDailyQuota
+                Effect: Allow
+                Action: dynamodb:UpdateItem
+                Resource: !GetAtt DailyQuotaTable.Arn
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  ProxyFunction:
+    Type: AWS::Lambda::Function
+    DependsOn: ProxyLogGroup
+    Properties:
+      Architectures: [arm64]
+      Code:
+        S3Bucket: !Ref ProxyCodeBucket
+        S3Key: !Ref ProxyCodeKey
+        S3ObjectVersion: !If
+          - HasProxyCodeVersion
+          - !Ref ProxyCodeVersion
+          - !Ref AWS::NoValue
+      Environment:
+        Variables:
+          FOLDERHOME_AGENT_RUNTIME_ARN: !Ref AgentRuntimeArn
+          FOLDERHOME_DAILY_QUOTA_LIMIT: "20"
+          FOLDERHOME_DAILY_QUOTA_TABLE: !Ref DailyQuotaTable
+          FOLDERHOME_PUBLIC_ORIGIN: !Sub "https://${SiteDistribution.DomainName}"
+      FunctionName: !Sub "${AWS::StackName}-proxy"
+      Handler: folderhome.cloud_demo.proxy.lambda_handler
+      MemorySize: 256
+      Role: !GetAtt ProxyRole.Arn
+      Runtime: python3.12
+      Timeout: 28
+      TracingConfig:
+        Mode: Active
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  PublicApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Description: Quota-bounded FolderHome synthetic demo proxy
+      EndpointConfiguration:
+        Types: [REGIONAL]
+      Name: !Sub "${AWS::StackName}-api"
+
+  DemoResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      ParentId: !GetAtt PublicApi.RootResourceId
+      PathPart: demo
+      RestApiId: !Ref PublicApi
+
+  DemoPostMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: true
+      AuthorizationType: NONE
+      HttpMethod: POST
+      Integration:
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: !Sub >-
+          arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ProxyFunction.Arn}/invocations
+      ResourceId: !Ref DemoResource
+      RestApiId: !Ref PublicApi
+
+  DemoOptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      ApiKeyRequired: false
+      AuthorizationType: NONE
+      HttpMethod: OPTIONS
+      Integration:
+        RequestTemplates:
+          application/json: '{"statusCode": 204}'
+        IntegrationResponses:
+          - ResponseParameters:
+              method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Api-Key'"
+              method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+              method.response.header.Access-Control-Allow-Origin: !Sub >-
+                'https://${SiteDistribution.DomainName}'
+            StatusCode: "204"
+        Type: MOCK
+      MethodResponses:
+        - ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: true
+            method.response.header.Access-Control-Allow-Methods: true
+            method.response.header.Access-Control-Allow-Origin: true
+          StatusCode: "204"
+      ResourceId: !Ref DemoResource
+      RestApiId: !Ref PublicApi
+
+  PublicApiDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+      - DemoOptionsMethod
+      - DemoPostMethod
+    Properties:
+      Description: FolderHome synthetic demo API deployment
+      RestApiId: !Ref PublicApi
+
+  PublicApiStage:
+    Type: AWS::ApiGateway::Stage
+    Properties:
+      DeploymentId: !Ref PublicApiDeployment
+      MethodSettings:
+        - HttpMethod: "*"
+          MetricsEnabled: true
+          ResourcePath: "/*"
+          ThrottlingBurstLimit: 2
+          ThrottlingRateLimit: 0.2
+      RestApiId: !Ref PublicApi
+      StageName: live
+      TracingEnabled: true
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  PublicApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    Properties:
+      Description: Public quota key, not an authentication secret
+      Enabled: true
+      Name: !Sub "${AWS::StackName}-public-quota-key"
+
+  PublicUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    Properties:
+      ApiStages:
+        - ApiId: !Ref PublicApi
+          Stage: !Ref PublicApiStage
+      Description: Maximum ten complete two-request demos per UTC day
+      Quota:
+        Limit: 20
+        Period: DAY
+      Throttle:
+        BurstLimit: 2
+        RateLimit: 0.2
+      UsagePlanName: !Sub "${AWS::StackName}-daily-public-demo"
+
+  PublicUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    Properties:
+      KeyId: !Ref PublicApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref PublicUsagePlan
+
+  ProxyInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ProxyFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub >-
+        arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${PublicApi}/*/*/demo
+
+Outputs:
+  ApiBaseUrl:
+    Value: !Sub "https://${PublicApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/live/demo"
+  ApiKeyId:
+    Value: !Ref PublicApiKey
+  CloudFrontDistributionId:
+    Value: !Ref SiteDistribution
+  DailyQuotaTableName:
+    Value: !Ref DailyQuotaTable
+  ProxyRoleArn:
+    Value: !GetAtt ProxyRole.Arn
+  ProxyFunctionName:
+    Value: !Ref ProxyFunction
+  ProxyLogGroupName:
+    Value: !Ref ProxyLogGroup
+  SiteBucketName:
+    Value: !Ref SiteBucket
+  SiteUrl:
+    Value: !Sub "https://${SiteDistribution.DomainName}/"
+  UsagePlanId:
+    Value: !Ref PublicUsagePlan

@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="FolderHome is a local-first Strands agent for household documents and safely confirmed everyday workflows.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://*.execute-api.eu-central-1.amazonaws.com; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="theme-color" content="#07111f">
   <title>FolderHome — Assistantify your home</title>
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="app.css">
+  <script src="runtime-config.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>

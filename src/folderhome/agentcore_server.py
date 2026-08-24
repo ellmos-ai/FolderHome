@@ -7,10 +7,68 @@ import os
 import signal
 import tempfile
 import threading
+from collections.abc import Mapping
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from folderhome.application.agentcore_runtime import AgentCoreRuntimeApplication
+from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+
+def agent_settings_from_environment(
+    environment: Mapping[str, str],
+) -> StrandsAgentSettings:
+    """Build a fail-closed model policy from non-secret runtime configuration."""
+
+    provider = environment.get("FOLDERHOME_AGENTCORE_MODEL_PROVIDER", "fixture")
+    if provider == "fixture":
+        return StrandsAgentSettings(
+            model_provider="fixture",
+            max_conversation_messages=64,
+        )
+    if provider != "bedrock":
+        raise ValueError("AgentCore model provider must be fixture or bedrock.")
+    if environment.get("FOLDERHOME_AGENTCORE_ALLOW_BEDROCK") != "1":
+        raise ValueError("AgentCore Bedrock use requires an explicit network gate.")
+    if environment.get("FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA") != "1":
+        raise ValueError("AgentCore Bedrock use requires the synthetic-data cloud gate.")
+    return StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id=environment.get("FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID"),
+        aws_region=environment.get("AWS_REGION"),
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+        max_output_tokens=_bounded_integer(
+            environment,
+            "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS",
+            default=1_024,
+        ),
+        max_conversation_messages=64,
+        bedrock_connect_timeout_seconds=_bounded_integer(
+            environment,
+            "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS",
+            default=5,
+        ),
+        bedrock_read_timeout_seconds=_bounded_integer(
+            environment,
+            "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS",
+            default=30,
+        ),
+    )
+
+
+def _bounded_integer(
+    environment: Mapping[str, str],
+    name: str,
+    *,
+    default: int,
+) -> int:
+    raw = environment.get(name)
+    if raw is None:
+        return default
+    if not raw.isascii() or not raw.isdecimal():
+        raise ValueError(f"{name} must be a positive integer.")
+    return int(raw)
 
 
 class _AgentCoreHTTPServer(ThreadingHTTPServer):
@@ -114,7 +172,20 @@ def main() -> int:
     port = int(os.environ.get("PORT", "8080"))
     default_root = Path(tempfile.gettempdir()) / "folderhome-agentcore"
     workspace = Path(os.environ.get("FOLDERHOME_AGENTCORE_WORKSPACE", str(default_root)))
-    application = AgentCoreRuntimeApplication(workspace)
+    agent_settings = agent_settings_from_environment(os.environ)
+    specialist_agent_settings = (
+        StrandsAgentSettings(
+            model_provider="fixture",
+            max_conversation_messages=64,
+        )
+        if agent_settings.model_provider == "bedrock"
+        else agent_settings
+    )
+    application = AgentCoreRuntimeApplication(
+        workspace,
+        agent_settings=agent_settings,
+        specialist_agent_settings=specialist_agent_settings,
+    )
     server = _AgentCoreHTTPServer((host, port), application)
     stopping = threading.Event()
 
@@ -134,6 +205,10 @@ def main() -> int:
                 "runtime_id_present": bool(os.environ.get("RUNTIME_ID")),
                 "aws_region_present": bool(os.environ.get("AWS_REGION")),
                 "synthetic_data_only": True,
+                "model_provider": agent_settings.model_provider,
+                "specialist_model_provider": (
+                    specialist_agent_settings.model_provider
+                ),
             },
             sort_keys=True,
         ),

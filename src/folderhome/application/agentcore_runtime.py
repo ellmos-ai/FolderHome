@@ -12,6 +12,7 @@ from folderhome.application.accident_demo import (
     SyntheticAccidentDemoError,
 )
 from folderhome.contracts.local_app import LocalApiResponse
+from folderhome.contracts.strands_agent import StrandsAgentSettings
 
 _SESSION_HEADER = "x-amzn-bedrock-agentcore-runtime-session-id"
 _SECURITY_HEADERS = {
@@ -32,6 +33,8 @@ class AgentCoreRuntimeApplication:
         max_sessions: int = 32,
         max_concurrent_requests: int = 8,
         request_timeout_seconds: float = 30.0,
+        agent_settings: StrandsAgentSettings | None = None,
+        specialist_agent_settings: StrandsAgentSettings | None = None,
     ) -> None:
         root = workspace_root.resolve()
         if root == Path(root.anchor):
@@ -61,6 +64,15 @@ class AgentCoreRuntimeApplication:
         self.max_sessions = max_sessions
         self.max_concurrent_requests = max_concurrent_requests
         self.request_timeout_seconds = float(request_timeout_seconds)
+        self.agent_settings = agent_settings or StrandsAgentSettings(
+            model_provider="fixture",
+            max_conversation_messages=64,
+        )
+        self.model_provider = self.agent_settings.model_provider
+        self.specialist_agent_settings = (
+            specialist_agent_settings or self.agent_settings
+        )
+        self.specialist_model_provider = self.specialist_agent_settings.model_provider
         self._sessions: dict[str, SyntheticAccidentDemo] = {}
         self._lock = threading.RLock()
 
@@ -100,6 +112,8 @@ class AgentCoreRuntimeApplication:
                         "reset": reset,
                         "synthetic_data_only": True,
                         "external_network_used": False,
+                        "model_provider": self.model_provider,
+                        "specialist_model_provider": self.specialist_model_provider,
                     },
                 )
             if prompt.startswith("/confirm"):
@@ -114,7 +128,9 @@ class AgentCoreRuntimeApplication:
                         ),
                         "result": result,
                         "synthetic_data_only": True,
-                        "external_network_used": False,
+                        "external_network_used": result["network_used"],
+                        "model_provider": self.model_provider,
+                        "specialist_model_provider": self.specialist_model_provider,
                     },
                 )
             plan = demo.prepare(prompt)
@@ -128,7 +144,9 @@ class AgentCoreRuntimeApplication:
                     ),
                     "plan": plan,
                     "synthetic_data_only": True,
-                    "external_network_used": False,
+                    "external_network_used": plan["network_used"],
+                    "model_provider": self.model_provider,
+                    "specialist_model_provider": self.specialist_model_provider,
                 },
             )
         except AgentCoreRuntimeCapacityError as exc:
@@ -183,7 +201,11 @@ class AgentCoreRuntimeApplication:
                         "AgentCore process-local session capacity is exhausted; reset an "
                         "existing synthetic session or start a fresh runtime."
                     )
-                demo = SyntheticAccidentDemo(self.workspace_root / fingerprint)
+                demo = SyntheticAccidentDemo(
+                    self.workspace_root / fingerprint,
+                    agent_settings=self.agent_settings,
+                    specialist_agent_settings=self.specialist_agent_settings,
+                )
                 self._sessions[fingerprint] = demo
             return demo
 

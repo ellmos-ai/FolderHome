@@ -313,7 +313,13 @@ class _SyntheticInsuranceSearcher:
 class SyntheticAccidentDemo:
     """Own a bounded fixture workspace and one exact confirmation journey."""
 
-    def __init__(self, workspace_root: Path) -> None:
+    def __init__(
+        self,
+        workspace_root: Path,
+        *,
+        agent_settings: StrandsAgentSettings | None = None,
+        specialist_agent_settings: StrandsAgentSettings | None = None,
+    ) -> None:
         root = workspace_root.resolve()
         if root == Path(root.anchor):
             raise SyntheticAccidentDemoError("Demo workspace may not be a filesystem root.")
@@ -323,6 +329,14 @@ class SyntheticAccidentDemo:
         self._prepared: dict[str, object] | None = None
         self._executed_plan_ids: set[str] = set()
         self._application: LocalApplication | None = None
+        self._specialist_application: LocalApplication | None = None
+        self.agent_settings = agent_settings or StrandsAgentSettings(
+            model_provider="fixture",
+            max_conversation_messages=64,
+        )
+        self.specialist_agent_settings = (
+            specialist_agent_settings or self.agent_settings
+        )
         self._seed_workspace()
 
     def _claim_runtime_root(self) -> None:
@@ -352,7 +366,7 @@ class SyntheticAccidentDemo:
             return {
                 "schema": "folderhome.synthetic-accident-demo-status.v1",
                 "runtime_status": "ready",
-                "mode": "synthetic_fixture",
+                "mode": f"synthetic_{self.agent_settings.model_provider}",
                 "synthetic_demo_data": True,
                 "network_used": False,
                 "external_actions_enabled": False,
@@ -371,7 +385,7 @@ class SyntheticAccidentDemo:
                 raise SyntheticAccidentDemoError(
                     "Demo already has results; reset it before preparing another journey."
                 )
-            self._application = self._build_application()
+            self._application = self._build_application(self.agent_settings)
             search = self._application.run_agent_chat(
                 profile_id="lukas",
                 message=normalized,
@@ -412,7 +426,7 @@ class SyntheticAccidentDemo:
                     },
                 ],
                 "steps": steps,
-                "network_used": False,
+                "network_used": search.network_used,
                 "external_actions_performed": [],
             }
             plan_sha256 = sha256(_canonical_json(plan_material)).hexdigest()
@@ -444,6 +458,14 @@ class SyntheticAccidentDemo:
             application = self._application
             if application is None:
                 raise SyntheticAccidentDemoError("The prepared demo runtime is unavailable.")
+            if self.specialist_agent_settings is self.agent_settings:
+                specialist_application = application
+            else:
+                if self._specialist_application is None:
+                    self._specialist_application = self._build_application(
+                        self.specialist_agent_settings
+                    )
+                specialist_application = self._specialist_application
             executions = []
             local_actions = []
             for workflow_id, expert_id, persona_id, request in _REQUESTS:
@@ -455,7 +477,7 @@ class SyntheticAccidentDemo:
                     "language": "en",
                     "request": request,
                 }
-                report = application.run_agent_chat(
+                report = specialist_application.run_agent_chat(
                     profile_id="lukas",
                     message=json.dumps(
                         specialist_request,
@@ -469,7 +491,7 @@ class SyntheticAccidentDemo:
                         f"The specialist did not return one plan for {workflow_id}."
                     )
                 plan = report.proposed_plans[0]
-                confirmation = application.confirm_agent_plan(
+                confirmation = specialist_application.confirm_agent_plan(
                     plan_id=plan.plan_id,
                     plan_sha256=plan.plan_sha256,
                     step_ids=tuple(
@@ -498,7 +520,8 @@ class SyntheticAccidentDemo:
                 "plan_id": plan_id,
                 "plan_sha256": self._prepared["plan_sha256"],
                 "synthetic_demo_data": True,
-                "network_used": False,
+                "network_used": bool(self._prepared["network_used"])
+                or any(item["agent"]["network_used"] for item in executions),
                 "external_actions_performed": [],
                 "local_actions_performed": list(dict.fromkeys(local_actions)),
                 "archive_action_performed": False,
@@ -534,6 +557,7 @@ class SyntheticAccidentDemo:
             self._prepared = None
             self._executed_plan_ids.clear()
             self._application = None
+            self._specialist_application = None
             self._seed_workspace()
             return {
                 "schema": "folderhome.synthetic-accident-demo-reset.v1",
@@ -590,7 +614,10 @@ class SyntheticAccidentDemo:
             encoding="utf-8",
         )
 
-    def _build_application(self) -> LocalApplication:
+    def _build_application(
+        self,
+        agent_settings: StrandsAgentSettings,
+    ) -> LocalApplication:
         profiles = load_profile_configuration(_PROFILE_DIR)
         profile_ids = frozenset(item.profile_id for item in profiles.profiles)
         documents = self.runtime_root / "documents"
@@ -732,10 +759,7 @@ class SyntheticAccidentDemo:
             profiles=profiles,
             searcher=searcher,
             session_token="folderhome-synthetic-accident-demo-session-token",
-            agent_settings=StrandsAgentSettings(
-                model_provider="fixture",
-                max_conversation_messages=64,
-            ),
+            agent_settings=agent_settings,
             workflow_executor=gateway,
             resource_registry=registry,
         )

@@ -1,0 +1,224 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  FolderHome public demo bootstrap: private artifacts, least-privilege
+  AgentCore execution role, and cost alerts.
+
+Parameters:
+  AgentRuntimeName:
+    Type: String
+    Default: FolderHomeDemo
+    AllowedPattern: "[A-Za-z][A-Za-z0-9_]{0,47}"
+  BudgetLimitUsd:
+    Type: Number
+    Default: 5
+    MinValue: 1
+    MaxValue: 5
+  BudgetAlertEmail:
+    Type: String
+    NoEcho: true
+    AllowedPattern: "^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"
+  InferenceProfileArn:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock:[^:]+:[0-9]{12}:inference-profile/.+$"
+  FoundationModelArn1:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock:[^:]*::foundation-model/.+$"
+  FoundationModelArn2:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock:[^:]*::foundation-model/.+$"
+  FoundationModelArn3:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock:[^:]*::foundation-model/.+$"
+  FoundationModelArn4:
+    Type: String
+    AllowedPattern: "^arn:[^:]+:bedrock:[^:]*::foundation-model/.+$"
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireOldBuilds
+            Status: Enabled
+            ExpirationInDays: 60
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 14
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource:
+              - !GetAtt ArtifactBucket.Arn
+              - !Sub "${ArtifactBucket.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  AgentRuntimeRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnLike:
+                aws:SourceArn: !Sub >-
+                  arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:runtime/${AgentRuntimeName}*
+      Policies:
+        - PolicyName: FolderHomeAgentCoreRuntime
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ReadRuntimeArtifact
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                Resource: !Sub "${ArtifactBucket.Arn}/agentcore/*"
+              - Sid: ListRuntimeArtifactPrefix
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt ArtifactBucket.Arn
+                Condition:
+                  StringLike:
+                    s3:prefix: "agentcore/*"
+              - Sid: InvokeApprovedNovaMicroResources
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - !Ref InferenceProfileArn
+                  - !Ref FoundationModelArn1
+                  - !Ref FoundationModelArn2
+                  - !Ref FoundationModelArn3
+                  - !Ref FoundationModelArn4
+              - Sid: DiscoverAndCreateRuntimeLogs
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:DescribeLogStreams
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/*
+              - Sid: DiscoverRegionalLogGroups
+                Effect: Allow
+                Action: logs:DescribeLogGroups
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:*
+              - Sid: ConfigureFolderHomeRuntimeLogDelivery
+                Effect: Allow
+                Action: logs:PutResourcePolicy
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/${AgentRuntimeName}-*
+              - Sid: WriteRuntimeLogStreams
+                Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub >-
+                  arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*
+              - Sid: PublishRuntimeTelemetry
+                Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                  - xray:PutTraceSegments
+                  - xray:PutTelemetryRecords
+                  - xray:GetSamplingRules
+                  - xray:GetSamplingTargets
+                Resource: "*"
+                Condition:
+                  StringEqualsIfExists:
+                    cloudwatch:namespace: bedrock-agentcore
+      Tags:
+        - Key: Project
+          Value: FolderHome
+
+  MonthlyCostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetLimit:
+          Amount: !Ref BudgetLimitUsd
+          Unit: USD
+        BudgetName: !Sub "${AWS::StackName}-monthly-cap"
+        BudgetType: COST
+        CostTypes:
+          IncludeCredit: false
+          IncludeDiscount: true
+          IncludeOtherSubscription: true
+          IncludeRecurring: true
+          IncludeRefund: false
+          IncludeSubscription: true
+          IncludeSupport: true
+          IncludeTax: true
+          IncludeUpfront: true
+          UseAmortized: false
+          UseBlended: false
+        TimeUnit: MONTHLY
+      NotificationsWithSubscribers:
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 50
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetAlertEmail
+              SubscriptionType: EMAIL
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: ACTUAL
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetAlertEmail
+              SubscriptionType: EMAIL
+        - Notification:
+            ComparisonOperator: GREATER_THAN
+            NotificationType: FORECASTED
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - Address: !Ref BudgetAlertEmail
+              SubscriptionType: EMAIL
+
+Outputs:
+  ArtifactBucketName:
+    Value: !Ref ArtifactBucket
+  AgentRuntimeRoleArn:
+    Value: !GetAtt AgentRuntimeRole.Arn
+  BudgetName:
+    Value: !Sub "${AWS::StackName}-monthly-cap"

@@ -35,18 +35,18 @@
 
 ## Human-only external gates
 
-- [ ] Confirm participant eligibility and representative
+- [x] Confirm participant eligibility and representative as an individual
 - [x] Confirm AWS Builder ID to enter
 - [x] Authorize and create public repository
 - [x] Make MIT license available as root `LICENSE`
 - [x] Insert public repository URL into README and testing instructions
 - [x] Create the FolderHome Devpost project and associate it with Agents for Humans
 - [x] Verify the Devpost project live as an authored, in-progress draft
-- [ ] Confirm the required Devpost repository field contains the public URL
-- [ ] Replace the older two-tool Devpost description with the current
+- [x] Confirm the required Devpost repository field contains the public URL
+- [x] Replace the older two-tool Devpost description with the current
   four-tool master-agent, 26-connected-workflow and accident-demo narrative
 - [x] Prepare an English Builder article draft with the current honest AWS boundary
-- [ ] Enable GitHub Pages and verify the public showcase URL
+- [x] Enable GitHub Pages and verify the public showcase URL
 - [ ] Build and inspect the AgentCore ARM64 image
 - [ ] Decide whether to create paid ECR/AgentCore resources; if yes, verify the live `/ping` and one synthetic invocation
 - [x] Record final working demo from the verified build
@@ -57,22 +57,38 @@
 - [x] Authorize and complete public YouTube upload
 - [x] Insert public video URL: <https://youtu.be/2LeWU_WJZKM>
 - [x] Decide to provide the optional static GitHub Pages showcase
-- [ ] Recheck official rules and deadline immediately before submission
-- [ ] Review every Devpost field
-- [ ] Explicitly authorize final Devpost submit
+- [x] Upload the required architecture diagram
+- [x] Enter the private AWS Builder ID without storing it in the repository
+- [x] Add the live showcase and current testing instructions
+- [x] Recheck official rules and deadline immediately before submission
+- [x] Review every Devpost field
+- [x] Complete the final Devpost submit through the authenticated human session
+- [x] Read back a non-null submission timestamp after submission
 - [ ] Review and authorize Builder article publication
 
 ## Live Devpost readback — 2026-08-23
 
 - Project: `FolderHome` (`folderhome`, project ID `1395740`)
-- State: draft; no submission timestamp
+- State: submitted to Agents for Humans
 - Hackathon: Agents for Humans
 - Public project URL assigned by Devpost: <https://devpost.com/software/folderhome>
 - Video URL: <https://youtu.be/2LeWU_WJZKM>
+- Live showcase: <https://ellmos-ai.github.io/FolderHome/>
+- Submitted at: `2026-08-23T17:14:05.813-04:00`
 - Local plugin stage: Resources completed; rules acknowledged; next tracked
   stage is Prepare submission
 - AWS credit request: submitted and confirmed by Google Forms on 2026-08-23;
   approval is not guaranteed and may take up to three business days
+
+## Post-submit maintenance
+
+- [x] Detect that the branch-published showcase omitted three referenced brand assets
+- [x] Add the canonical logo, icon and favicon below `site/assets/`
+- [x] Replace the obsolete Actions-workflow test with a branch-publishing asset contract
+- [ ] Run the complete final verification suite after the public-site repair
+- [ ] Push the final source commit and updated `gh-pages` subtree
+- [ ] Verify the three public asset URLs and visually recheck the header
+- [ ] Create and read back a fixed submission tag or release
 
 ## Never infer these states
 

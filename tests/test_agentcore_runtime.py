@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from folderhome.application.agentcore_runtime import AgentCoreRuntimeApplication
+from folderhome.contracts.strands_agent import StrandsAgentSettings
 
 SESSION_A = "folderhome-agentcore-session-000000000001"
 SESSION_B = "folderhome-agentcore-session-000000000002"
@@ -120,6 +121,54 @@ def test_agentcore_runtime_bounds_process_local_session_workspaces(
     assert "session capacity" in overflow.payload["error"].casefold()
 
 
+def test_agentcore_runtime_passes_explicit_provider_settings_to_synthetic_session(
+    tmp_path: Path,
+) -> None:
+    settings = StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id="eu.amazon.nova-micro-v1:0",
+        aws_region="eu-central-1",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+        max_output_tokens=1_024,
+    )
+    app = AgentCoreRuntimeApplication(tmp_path, agent_settings=settings)
+
+    demo = app._demo_for_session(SESSION_A)
+
+    assert demo.agent_settings is settings
+    assert app.model_provider == "bedrock"
+
+
+def test_agentcore_runtime_can_keep_specialist_execution_deterministic(
+    tmp_path: Path,
+) -> None:
+    master_settings = StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id="eu.amazon.nova-micro-v1:0",
+        aws_region="eu-central-1",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+        max_output_tokens=512,
+    )
+    specialist_settings = StrandsAgentSettings(
+        model_provider="fixture",
+        max_conversation_messages=64,
+    )
+    app = AgentCoreRuntimeApplication(
+        tmp_path,
+        agent_settings=master_settings,
+        specialist_agent_settings=specialist_settings,
+    )
+
+    demo = app._demo_for_session(SESSION_A)
+
+    assert demo.agent_settings is master_settings
+    assert demo.specialist_agent_settings is specialist_settings
+    assert app.model_provider == "bedrock"
+    assert app.specialist_model_provider == "fixture"
+
+
 @pytest.mark.parametrize(
     ("option", "value"),
     [
@@ -156,3 +205,9 @@ def test_agentcore_deployment_files_pin_arm64_non_root_contract() -> None:
     assert "/invocations" in readme
     assert "synthetic" in readme.casefold()
     assert "do not expose" in readme.casefold()
+    assert "**English** | [Deutsch](./README.de.md)" in readme
+    german = (root / "deploy" / "agentcore" / "README.de.md").read_text(
+        encoding="utf-8"
+    )
+    assert "[English](./README.md) | **Deutsch**" in german
+    assert "ausdrücklich" in german

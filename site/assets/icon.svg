@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.6"/>
+    </filter>
+    <filter id="gold-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="cyan-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Background squircle gradient -->
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#0A0F1D" />
+      <stop offset="100%" stop-color="#050811" />
+    </linearGradient>
+
+    <!-- Outer Rim Glow Gradient -->
+    <linearGradient id="rim-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.8" />
+      <stop offset="30%" stop-color="#38BDF8" stop-opacity="0.3" />
+      <stop offset="70%" stop-color="#1E293B" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.6" />
+    </linearGradient>
+
+    <!-- Folder Gradients -->
+    <linearGradient id="folder-back-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#B45309" />
+      <stop offset="100%" stop-color="#78350F" />
+    </linearGradient>
+    <linearGradient id="folder-front-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FBBF24" />
+      <stop offset="40%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <linearGradient id="folder-shine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FEF3C7" stop-opacity="0.6" />
+      <stop offset="30%" stop-color="#FDE68A" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+    </linearGradient>
+
+    <linearGradient id="shield-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+
+    <!-- Radial backdrop glow -->
+    <radialGradient id="ambient-glow" cx="256" cy="256" r="220">
+      <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.25" />
+      <stop offset="60%" stop-color="#0284C7" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- App Icon Squircle Base (Apple/Android style radius 112px) -->
+  <rect width="512" height="512" rx="112" fill="url(#bg-grad)"/>
+  <circle cx="256" cy="256" r="220" fill="url(#ambient-glow)"/>
+  <rect width="510" height="510" x="1" y="1" rx="111" fill="none" stroke="url(#rim-grad)" stroke-width="2.5"/>
+
+  <!-- Subtle tech circuit line in background -->
+  <g stroke="#1E293B" stroke-width="1.5" fill="none" opacity="0.6">
+    <path d="M 60 140 H 120 L 150 170" />
+    <path d="M 452 372 H 392 L 362 342" />
+    <circle cx="150" cy="170" r="3.5" fill="#38BDF8"/>
+    <circle cx="362" cy="342" r="3.5" fill="#F59E0B"/>
+  </g>
+
+  <!-- ================= CENTERED 3D FOLDERHOME EMBLEM ================= -->
+  <g transform="translate(116, 126)" filter="url(#soft-shadow)">
+    <!-- Back of Folder -->
+    <path d="M 0 42 L 0 224 C 0 235 9 244 20 244 L 260 244 C 271 244 280 235 280 224 L 280 63 C 280 52 271 43 260 43 L 134 43 L 106 14 C 101 8 94 5 87 5 L 20 5 C 9 5 0 14 0 25 Z"
+          fill="url(#folder-back-grad)" stroke="#92400E" stroke-width="2"/>
+
+    <!-- Interior Paper Stacks -->
+    <rect x="25" y="25" width="230" height="182" rx="8" fill="#F8FAFC" opacity="0.95"/>
+    <line x1="45" y1="50" x2="140" y2="50" stroke="#CBD5E1" stroke-width="4" stroke-linecap="round"/>
+    <line x1="45" y1="67" x2="210" y2="67" stroke="#E2E8F0" stroke-width="4" stroke-linecap="round"/>
+    <line x1="45" y1="84" x2="190" y2="84" stroke="#E2E8F0" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Front Folder Pocket -->
+    <path d="M 0 91 L 0 224 C 0 235 9 244 20 244 L 260 244 C 271 244 280 235 280 224 L 280 91 C 280 81 271 74 260 74 L 20 74 C 9 74 0 81 0 91 Z"
+          fill="url(#folder-front-grad)" stroke="#FDE68A" stroke-width="2"/>
+    <path d="M 3 91 C 3 83 10 77 20 77 L 260 77 C 270 77 277 83 277 91 L 277 112 L 3 112 Z" fill="url(#folder-shine)" />
+
+    <!-- Modern House Silhouette -->
+    <g transform="translate(59, 98)">
+      <!-- Chimney -->
+      <rect x="104" y="11" width="14" height="28" rx="2" fill="#FFFFFF" opacity="0.95"/>
+      <!-- Roof -->
+      <path d="M 0 53 L 81 0 L 162 53 L 148 67 L 81 22 L 14 67 Z" fill="#FFFFFF" filter="url(#gold-glow)"/>
+      <!-- House Walls -->
+      <path d="M 22 59 L 22 123 C 22 126 25 129 28 129 L 134 129 C 137 129 140 126 140 123 L 140 59 Z" fill="#0F172A" opacity="0.9" stroke="#FDE68A" stroke-width="2"/>
+
+      <!-- Glowing Window Grid -->
+      <rect x="42" y="73" width="22" height="22" rx="3" fill="#FBBF24" filter="url(#gold-glow)"/>
+      <line x1="53" y1="73" x2="53" y2="95" stroke="#78350F" stroke-width="1.8"/>
+      <line x1="42" y1="84" x2="64" y2="84" stroke="#78350F" stroke-width="1.8"/>
+
+      <!-- Door -->
+      <rect x="87" y="81" width="25" height="48" rx="3" fill="#1E293B" stroke="#FDE68A" stroke-width="1.5"/>
+      <circle cx="105" cy="104" r="2" fill="#FBBF24"/>
+    </g>
+
+    <!-- Security Shield Vault Lock -->
+    <g transform="translate(185, 137)" filter="url(#cyan-glow)">
+      <path d="M 39 0 C 62 0 78 8 78 8 C 78 34 70 67 39 84 C 8 67 0 34 0 8 C 0 8 16 0 39 0 Z"
+            fill="url(#shield-grad)" stroke="#E0F2FE" stroke-width="2.5"/>
+      <!-- Keyhole -->
+      <circle cx="39" cy="31" r="8" fill="#FFFFFF"/>
+      <polygon points="35,34 43,34 46,53 32,53" fill="#FFFFFF"/>
+    </g>
+  </g>
+</svg>
