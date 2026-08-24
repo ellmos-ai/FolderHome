@@ -7,7 +7,7 @@
 
 ## Baseline Reconciliation
 
-The previous synchronized checkout was outdated and could not be qualified as a runtime due to external modifications. Therefore, Phase 34 used a separate clean `law-checker` checkout validated against revision `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b`. Its four tests passed on 2026-08-22.
+The previous synchronized checkout was outdated and could not be qualified as a runtime due to external modifications. Therefore, Phase 34 used a separate clean `law-checker` checkout validated against revision `a5b0cd51bc3666962f2fae8017c855dea0a712a2`. Its four tests passed on 2026-08-22.
 
 `law-checker` version 0.2.2 provides a skill, a versioned law registry, and a fetcher. It does not have a stable Python API for automatic case‑by‑case verification. Consequently, FolderHome does not import an agent run. The new read‑only bridge instead checks:
 

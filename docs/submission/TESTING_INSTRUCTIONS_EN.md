@@ -94,10 +94,10 @@ test is not a claim that an ECR image or AgentCore endpoint exists.
 .venv\Scripts\python.exe _tools\workflows-sync --check
 ```
 
-The complete fail-closed run is `414 passed, 3 failed`; all three failures are
+The complete fail-closed run is `415 passed, 3 failed`; all three failures are
 the documented local HungryCall/Ringedingeding checkout revision mismatches.
 The bounded acceptance run with exactly those three external pin probes
-deselected is `414 passed, 3 deselected`.
+deselected is `415 passed, 3 deselected`.
 
 The final wheel was then installed into a new virtual environment outside the
 repository. Its smoke test verified the packaged bilingual GUI assets, the
@@ -106,10 +106,10 @@ network use and zero external actions. The tested wheel SHA-256 is
 `8b5929c855226a4c2c78223b65e85adc12dcd4b5aa61445d010e7fdf8d0eb24a`.
 
 This fail-closed result is intentional: the local HungryCall checkout was
-`fe63cdc24b4a7e599d264dcda41e1b9771079950` instead of the disclosed manifest
-revision `d2138476d23234cf1d23ec9609f124c58455b8e7`; Ringedingeding was
-`1abcab8a602c995a4374e76ccc80887062034275` instead of
-`01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf`. FolderHome does not silently load
+`2c7db533f073d07eae6d758ceab91b9423ae1dc7` instead of the disclosed manifest
+revision `2c7db533f073d07eae6d758ceab91b9423ae1dc7`; Ringedingeding was
+`d80dd81a6d7bf64298d4ef290c3b54ab5f50e990` instead of
+`d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`. FolderHome does not silently load
 either changed provider.
 
 ## What the fixture proves

@@ -11,13 +11,13 @@ def test_repository_manifests_pin_the_reused_components() -> None:
     plugins = plugin_host.load_manifests(MANIFEST_ROOT)
 
     assert {plugin.plugin_id: plugin.source_revision for plugin in plugins} == {
-        "doc-services": "037a432bbec94ac6db5dfa53941745fda7c2f38a",
+        "doc-services": "e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2",
         "file-collect-sort-action": "8ebac2739c11c6a041abdd7b30131cef648b4753",
-        "hungrycall": "d2138476d23234cf1d23ec9609f124c58455b8e7",
+        "hungrycall": "2c7db533f073d07eae6d758ceab91b9423ae1dc7",
         "KnowledgeDigest": "7040c66aa9326975ad81c156acf0d49fd5dca60f",
-        "law-checker": "06fb8d57ff90638cc50f5e33c50dbba455ac6f1b",
+        "law-checker": "a5b0cd51bc3666962f2fae8017c855dea0a712a2",
         "llm-note": "b5fe59fc155ded9603566aa0fb920a53181a2426",
-        "ringedingeding": "01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf",
+        "ringedingeding": "d80dd81a6d7bf64298d4ef290c3b54ab5f50e990",
         "steuer-assistent": "5d39aeec98bf0a5734bf07dc35a58aa9e1331309",
     }
     assert all(plugin.license_id == "MIT" for plugin in plugins)

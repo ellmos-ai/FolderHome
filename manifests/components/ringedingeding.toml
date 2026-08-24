@@ -10,8 +10,8 @@ live_enabled = false
 
 [source]
 repository = "https://github.com/ellmos-ai/ringedingeding.git"
-revision = "01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf"
-committed_at = "2026-08-14T18:02:48+02:00"
+revision = "d80dd81a6d7bf64298d4ef290c3b54ab5f50e990"
+committed_at = "2026-08-24T16:56:24+02:00"
 
 [[capabilities]]
 id = "calls.ring_cascade"

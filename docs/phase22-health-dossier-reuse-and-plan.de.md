@@ -23,7 +23,7 @@ Interpretation und externe Weitergabe.
 
 | Komponente | Revision | Einordnung für Phase 22 |
 |---|---|---|
-| doc-services | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | Runtime-Bridge für read-only Extraktion, Datenschutzbefund und Extraktionsprovenienz |
+| doc-services | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | Runtime-Bridge für read-only Extraktion, Datenschutzbefund und Extraktionsprovenienz |
 | KnowledgeDigest | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | Bereits vorhandene Dokumentensuche; für den expliziten Dossierordner nicht erneut beschrieben oder benötigt |
 | gesundheit-Skill 2.0.0 | `0317f32310eed11d21f603cb6f22a689485af226` | Designreferenz für Organisation bereitgestellter Angaben ohne Diagnose oder Therapieentscheidung |
 | docs-analysis 1.0.0 | lokaler Skillstand 2026-03-15 | Anforderungs-/Code-Differenzmethode; kein Runtime-Import |

@@ -13,7 +13,7 @@ For Phase 31, the central skills inventory and the existing `law-checker` were e
 |---|---|---|---|
 | `ellmos-ai/skills` | `0317f32310eed11d21f603cb6f22a689485af226` | local checkout clean, but one commit behind upstream | method reference via the `law-checker` pointer |
 | `ellmos-ai/law-checker` | `330fe47b3621c69ec824cd05ca5b283e107f9eaf` | checkout one commit behind upstream and externally modified | no runtime binding |
-| `doc-services` | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | pinned, clean provider | local text extraction without OCR |
+| `doc-services` | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | pinned, clean provider | local text extraction without OCR |
 
 The existing `law-checker` is designed for an initial legal orientation and requires precise sources, deadline verification, and human escalation. However, its local law register does not cover a complete general procedural and social court law for arbitrary notice types. Additionally, the checkout is not clean and not up to date. Therefore, FolderHome does not load it as a runtime in Phase 31 and does not copy any code.
 

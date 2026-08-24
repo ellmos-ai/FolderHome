@@ -614,7 +614,7 @@ def test_legal_monitor_cli_qualifies_provider_compares_and_renders(tmp_path: Pat
     report = json.loads(compared.stdout)
     assert report["status"] == "review_required"
     assert report["law_checker"]["provider_revision"] == (
-        "06fb8d57ff90638cc50f5e33c50dbba455ac6f1b"
+        "a5b0cd51bc3666962f2fae8017c855dea0a712a2"
     )
     assert report["candidates"][0]["affected_determined"] is False
     assert report["network_used"] is False

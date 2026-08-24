@@ -62,6 +62,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - deterministic no‑network model adapter over the public Strands‑ `Model` interface
 - optional Amazon Bedrock path with separate network and data transfer gates
 - explicit Bedrock connect/read timeouts and one total SDK attempt per model call
+- the AgentCore HTTP adapter now honors the same fail-closed Bedrock opt-in
+  gate as the accident demo (`FOLDERHOME_AGENTCORE_MODEL_PROVIDER`,
+  `FOLDERHOME_AGENTCORE_ALLOW_BEDROCK`,
+  `FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA`), defaults to the local
+  fixture model, and reports the active model provider and real
+  `network_used` flag in every response instead of a hardcoded `false`
 - reproducible synthetic competition demo with four hashed artifacts
 - `agent plan`, `agent run`, `agent chat`, `agent session` and `demo run` in the CLI
 - reusable resource budget contract for file count, bytes and runtime
@@ -86,6 +92,25 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - Submission materials aligned with the authenticated 2026-08-23 Devpost
   readback, including the current bonus-post title rule, credit deadline and
   the single end-to-end Hyundai i10 accident narrative
+
+### Fixed
+
+- 2026-08-24: HungryCall, law-checker and Ringedingeding component-manifest
+  pins were stale against their current public repository HEADs, causing
+  fail-closed revision-mismatch failures in four automated tests; all three
+  pins were refreshed to the verified current public HEADs
+  (`2c7db533f073d07eae6d758ceab91b9423ae1dc7`,
+  `a5b0cd51bc3666962f2fae8017c855dea0a712a2`,
+  `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`) and the affected tests pass
+  again
+- 2026-08-24: the local doc-services checkout moved to
+  `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` during the same window; the
+  doc-services pin in the manifest, third-party tables, phase documents and
+  the manifest contract test was refreshed accordingly
+- 2026-08-24: the public `gh-pages` showcase was missing `assets/`
+  (logo, icon, favicon) and `runtime-config.js`, both referenced by the
+  current `site/index.html`; the header logo failed to load. `gh-pages` now
+  ships the complete current `site/` folder
 
 ### Security
 

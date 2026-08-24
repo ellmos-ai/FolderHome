@@ -10,9 +10,9 @@
 | Komponente | Repository | Revision | Lizenz | Einbindung |
 |---|---|---|---|---|
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Gepinntes Plugin-Manifest |
-| HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `d2138476d23234cf1d23ec9609f124c58455b8e7` | MIT | Gepinntes Plugin-Manifest |
-| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf` | MIT | Gepinntes Plugin-Manifest |
-| doc-services | Lokaler Checkout ohne Remote | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | MIT | Gepinntes Plugin-Manifest und Extraktions-Bridge |
+| HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `2c7db533f073d07eae6d758ceab91b9423ae1dc7` | MIT | Gepinntes Plugin-Manifest |
+| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990` | MIT | Gepinntes Plugin-Manifest |
+| doc-services | Lokaler Checkout ohne Remote | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | MIT | Gepinntes Plugin-Manifest und Extraktions-Bridge |
 | KnowledgeDigest | `https://github.com/file-bricks/knowledgedigest.git` | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | MIT | Gepinntes Plugin-Manifest sowie Index- und Such-Bridge |
 | report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Inventarisiert; Runtime-Version vor Bridge-Anbindung zu bereinigen |
 | ai-media-editor | `https://github.com/ellmos-ai/ai-media-editor.git` | `4e4c79d8c16a117bf69c0f72ad946575110a6b84` | MIT | Revisionsgebundener Medien-Handoff; keine Medienausführung im Artefaktplan |
@@ -28,7 +28,7 @@
 | llm-note | `https://github.com/doc-bricks/llm-note.git` | `b5fe59fc155ded9603566aa0fb920a53181a2426` | MIT | Gepinnter lokaler Notizstore über öffentliche Write-API und schemafesten read-only Adapter |
 | steuer-assistent | `https://github.com/ellmos-ai/steuer-assistent.git` | `5d39aeec98bf0a5734bf07dc35a58aa9e1331309` | MIT | Gepinnter lokaler Belegstore und private ZIP-Arbeitsunterlage über öffentliche Provider-API |
 | BACH Wetter/Newspaper/Daily Agent | `https://github.com/ellmos-ai/bach.git` | `9ff3df23d6e8e27b9c9eaad71f2430923224d4d9` | MIT | Ausschließlich Designreferenz; fremd veränderter Monolith wird nicht als FolderHome-Runtime geladen und kein Code kopiert |
-| law-checker | `https://github.com/ellmos-ai/law-checker.git` | `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b` | MIT | Unveränderter read-only Registry-/Quellenprovider; kein Code kopiert, kein Agentenworkflow importiert |
+| law-checker | `https://github.com/ellmos-ai/law-checker.git` | `a5b0cd51bc3666962f2fae8017c855dea0a712a2` | MIT | Unveränderter read-only Registry-/Quellenprovider; kein Code kopiert, kein Agentenworkflow importiert |
 | UpToday | Lokaler Checkout ohne Remote | `7582ca87e17e458bb99a7379d2c54003c15415a4` | MIT | Designreferenz für Inventar/Medikation und getesteter ICS-Dateihandoff; kein Runtime-Import |
 | Routinika | Lokaler OneDrive-Bestand | `portable_bundle.py` SHA-256 `3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2` | vor Distribution zu prüfen | Hashgebundene Bundle-Designreferenz; kein Live-Connector und kein kopierter Code |
 | Google Calendar Skill 1.2.5 | Lokales Plugin-Paket | `google-calendar-skill@1.2.5` | paketgebundener Bestand | Agentischer Handoff; kein kopierter Code und kein Live-Aufruf in Phase 27 |

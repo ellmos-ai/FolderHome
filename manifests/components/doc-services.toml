@@ -10,8 +10,8 @@ live_enabled = false
 
 [source]
 repository = "local://doc-services"
-revision = "037a432bbec94ac6db5dfa53941745fda7c2f38a"
-committed_at = "2026-08-18"
+revision = "e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2"
+committed_at = "2026-08-24"
 
 [[capabilities]]
 id = "documents.extract"

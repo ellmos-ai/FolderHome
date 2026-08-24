@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./README.de.md)
 
-The previous synchronized checkout remains read‑only due to lag and external changes. Phase 34 instead uses a separate clean checkout of `https://github.com/ellmos-ai/law-checker.git`, pinned to revision `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b`. The four provider tests passed on 2026-08-22.
+The previous synchronized checkout remains read‑only due to lag and external changes. Phase 34 instead uses a separate clean checkout of `https://github.com/ellmos-ai/law-checker.git`, pinned to revision `a5b0cd51bc3666962f2fae8017c855dea0a712a2`. The four provider tests passed on 2026-08-22.
 
 The associated pointer in the central repository `https://github.com/ellmos-ai/skills.git` was checked against revision `0317f32310eed11d21f603cb6f22a689485af226`. This local checkout is also one commit behind upstream. The skill describes `law-checker` as an initial guide, not as a lawyer or reliable deadline calendar, and requires official sources for statutes.
 

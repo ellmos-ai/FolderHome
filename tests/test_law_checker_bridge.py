@@ -8,7 +8,7 @@ from folderhome.bridges.law_checker import LawCheckerBridge, LawCheckerBridgeErr
 from folderhome.contracts import PluginDescriptor
 
 PROVIDER_ROOT = Path(__file__).parents[2] / "law-checker"
-REVISION = "06fb8d57ff90638cc50f5e33c50dbba455ac6f1b"
+REVISION = "a5b0cd51bc3666962f2fae8017c855dea0a712a2"
 
 
 def _plugin(*, revision: str = REVISION) -> PluginDescriptor:

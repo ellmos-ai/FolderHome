@@ -79,6 +79,13 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   Datenweitergabegates
 - ausdrückliche Bedrock-Verbindungs-/Lese-Timeouts und insgesamt ein
   SDK-Versuch pro Modellaufruf
+- der AgentCore-HTTP-Adapter nutzt jetzt dasselbe fail-closed Bedrock-Opt-in-
+  Gate wie die Unfalldemo (`FOLDERHOME_AGENTCORE_MODEL_PROVIDER`,
+  `FOLDERHOME_AGENTCORE_ALLOW_BEDROCK`,
+  `FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA`), verwendet standardmäßig
+  das lokale Fixture-Modell und meldet in jeder Antwort den aktiven
+  Modellanbieter sowie das echte `network_used`-Flag statt eines fest
+  verdrahteten `false`
 - reproduzierbare synthetische Wettbewerbsdemo mit vier gehashten Artefakten
 - `agent plan`, `agent run`, `agent chat`, `agent session` und `demo run` in der CLI
 - wiederverwendbarer Ressourcenbudget-Vertrag für Dateizahl, Bytes und Laufzeit
@@ -110,6 +117,26 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - Einreichungsunterlagen mit dem authentifizierten Devpost-Stand vom
   23. August 2026 abgeglichen, einschließlich aktueller Titelregel für
   Bonusartikel, Credit-Frist und der durchgehenden Hyundai-i10-Unfallgeschichte
+
+### Behoben
+
+- 2026-08-24: Die Komponenten-Manifest-Pins von HungryCall, law-checker und
+  Ringedingeding waren gegenüber ihren aktuellen öffentlichen Repository-
+  HEADs veraltet und verursachten fail-closed Revisionsabweichungen in vier
+  automatisierten Tests; alle drei Pins wurden auf die geprüften aktuellen
+  öffentlichen HEADs nachgezogen
+  (`2c7db533f073d07eae6d758ceab91b9423ae1dc7`,
+  `a5b0cd51bc3666962f2fae8017c855dea0a712a2`,
+  `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`); die betroffenen Tests
+  bestehen wieder
+- 2026-08-24: Der lokale doc-services-Checkout wanderte im selben Zeitraum
+  auf `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2`; der doc-services-Pin in
+  Manifest, Drittanbieter-Tabellen, Phasendokumenten und dem
+  Manifest-Vertragstest wurde entsprechend nachgezogen
+- 2026-08-24: Dem öffentlichen `gh-pages`-Showcase fehlten `assets/`
+  (Logo, Icon, Favicon) und `runtime-config.js`, beide im aktuellen
+  `site/index.html` referenziert; dadurch lud das Logo im Header nicht.
+  `gh-pages` liefert jetzt den vollständigen aktuellen `site/`-Ordner
 
 ### Sicherheit
 

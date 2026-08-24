@@ -17,7 +17,7 @@ Für Phase 31 wurden der zentrale Skills-Bestand und der vorhandene
 |---|---|---|---|
 | `ellmos-ai/skills` | `0317f32310eed11d21f603cb6f22a689485af226` | lokaler Checkout sauber, aber einen Commit hinter Upstream | Methodenreferenz über den `law-checker`-Pointer |
 | `ellmos-ai/law-checker` | `330fe47b3621c69ec824cd05ca5b283e107f9eaf` | Checkout einen Commit hinter Upstream und fremd verändert | keine Runtime-Anbindung |
-| `doc-services` | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | gepinnter, sauberer Provider | lokale Textextraktion ohne OCR |
+| `doc-services` | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | gepinnter, sauberer Provider | lokale Textextraktion ohne OCR |
 
 Der vorhandene `law-checker` ist für eine erste rechtliche Orientierung
 konzipiert und verlangt genaue Quellen, Fristprüfung und menschliche

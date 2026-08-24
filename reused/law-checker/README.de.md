@@ -5,7 +5,7 @@
 Der frühere synchronisierte Checkout bleibt wegen Rückstand und fremden
 Änderungen read-only. Phase 34 verwendet stattdessen einen getrennten sauberen
 Checkout von `https://github.com/ellmos-ai/law-checker.git`, gepinnt auf Revision
-`06fb8d57ff90638cc50f5e33c50dbba455ac6f1b`. Die vier Provider-Tests
+`a5b0cd51bc3666962f2fae8017c855dea0a712a2`. Die vier Provider-Tests
 bestanden am 2026-08-22.
 
 Der zugehörige Pointer im zentralen Repository

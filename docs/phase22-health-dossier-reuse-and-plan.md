@@ -16,7 +16,7 @@ Thus it satisfies local Markdown/JSON synthesis, evidence binding, time coverage
 
 | Component | Revision | Placement for Phase 22 |
 |---|---|---|
-| doc-services | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | Runtime bridge for read‑only extraction, data‑protection finding, and extraction provenance |
+| doc-services | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | Runtime bridge for read‑only extraction, data‑protection finding, and extraction provenance |
 | KnowledgeDigest | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | Existing document search; not re‑described or needed for the explicit dossier folder |
 | gesundheit‑Skill 2.0.0 | `0317f32310eed11d21f603cb6f22a689485af226` | Design reference for organizing provided information without diagnosis or therapy decision |
 | docs-analysis 1.0.0 | local skill state 2026-03-15 | Requirement/code‑gap method; no runtime import |

@@ -18,7 +18,7 @@ erfolgreichen Transformation als eigener Schritt folgen.
 
 | Baustein | Belegter Stand | Nutzbar für FolderHome | Grenze |
 |---|---|---|---|
-| `doc-services` | sauberer Checkout `037a432bbec94ac6db5dfa53941745fda7c2f38a`, Version `0.1.0` | Ja, gepinnte lokale Extraktion und Datenschutzstatus | Liest Dokumente; erzeugt keine TXT-/PDF-Ausgabedatei |
+| `doc-services` | sauberer Checkout `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2`, Version `0.1.0` | Ja, gepinnte lokale Extraktion und Datenschutzstatus | Liest Dokumente; erzeugt keine TXT-/PDF-Ausgabedatei |
 | MarkItDown | sauberer Checkout `fd239d5d2be43d9b68329730206b9312c7d5a388`, MIT | Nur indirekt über `doc-services` | Ausgabe ist Analyse-Markdown, ausdrücklich keine hochfidele Dokumentkonvertierung |
 | `report-forge` | sauberer Checkout `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | Noch nicht | Distribution meldet `1.1.4`, Runtime `1.1.0`; generischer PDF-Prozessor ist ein nicht implementierter Stub |
 | `PDFtoPDFocr` | sauberer Checkout `c89ae00982d7597b663c99527298363b9e2fce58`, Version `1.1.3` | Später über eine schmale Headless-Grenze | GUI-Monolith importiert PySide6; `merge_ocr_outputs` verschiebt nach dem Merge die Einzeldateien und verletzt damit die FolderHome-Quellgrenze |

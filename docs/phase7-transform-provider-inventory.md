@@ -13,7 +13,7 @@ FolderHome shall be able to deterministically bundle selected documents or entir
 
 | Component | Current State | Usable for FolderHome | Limitation |
 |---|---|---|---|
-| `doc-services` | clean checkout `037a432bbec94ac6db5dfa53941745fda7c2f38a`, version `0.1.0` | Yes, pinned local extraction and privacy status | Reads documents; does not produce a TXT/PDF output file |
+| `doc-services` | clean checkout `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2`, version `0.1.0` | Yes, pinned local extraction and privacy status | Reads documents; does not produce a TXT/PDF output file |
 | MarkItDown | clean checkout `fd239d5d2be43d9b68329730206b9312c7d5a388`, MIT | Only indirectly via `doc-services` | Output is analysis‑markdown, explicitly not a high‑fidelity document conversion |
 | `report-forge` | clean checkout `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | Not yet | Distribution reports `1.1.4`, runtime `1.1.0`; generic PDF processor is an unimplemented stub |
 | `PDFtoPDFocr` | clean checkout `c89ae00982d7597b663c99527298363b9e2fce58`, version `1.1.3` | Later via a narrow headless boundary | GUI monolith imports PySide6; `merge_ocr_outputs` moves individual files after the merge, violating FolderHome’s source boundary |

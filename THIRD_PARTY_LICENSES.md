@@ -10,9 +10,9 @@
 | Component | Repository | Revision | License | Integration |
 |---|---|---|---|---|
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Pinned plugin manifest |
-| HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `d2138476d23234cf1d23ec9609f124c58455b8e7` | MIT | Pinned plugin manifest |
-| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `01b269d1f76ac83ed64ff14eb0cc7bd4ccc9b5bf` | MIT | Pinned plugin manifest |
-| doc-services | Local checkout without remote | `037a432bbec94ac6db5dfa53941745fda7c2f38a` | MIT | Pinned plugin manifest and extraction bridge |
+| HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `2c7db533f073d07eae6d758ceab91b9423ae1dc7` | MIT | Pinned plugin manifest |
+| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990` | MIT | Pinned plugin manifest |
+| doc-services | Local checkout without remote | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | MIT | Pinned plugin manifest and extraction bridge |
 | KnowledgeDigest | `https://github.com/file-bricks/knowledgedigest.git` | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | MIT | Pinned plugin manifest and index/search bridge |
 | report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Inventoried; runtime version to be cleaned up before bridge integration |
 | ai-media-editor | `https://github.com/ellmos-ai/ai-media-editor.git` | `4e4c79d8c16a117bf69c0f72ad946575110a6b84` | MIT | Revision‑bound media handoff; no media execution in artifact plan |
@@ -28,7 +28,7 @@
 | llm-note | `https://github.com/doc-bricks/llm-note.git` | `b5fe59fc155ded9603566aa0fb920a53181a2426` | MIT | Pinned local note store via public write API and schema‑fixed read‑only adapter |
 | steuer-assistent | `https://github.com/ellmos-ai/steuer-assistent.git` | `5d39aeec98bf0a5734bf07dc35a58aa9e1331309` | MIT | Pinned local receipt store and private ZIP tax worksheet via public provider API |
 | BACH Wetter/Newspaper/Daily Agent | `https://github.com/ellmos-ai/bach.git` | `9ff3df23d6e8e27b9c9eaad71f2430923224d4d9` | MIT | Design reference only; externally modified monolith is not loaded as FolderHome runtime and no code is copied |
-| law-checker | `https://github.com/ellmos-ai/law-checker.git` | `06fb8d57ff90638cc50f5e33c50dbba455ac6f1b` | MIT | Unchanged read‑only registry/source provider; no code copied, no agent workflow imported |
+| law-checker | `https://github.com/ellmos-ai/law-checker.git` | `a5b0cd51bc3666962f2fae8017c855dea0a712a2` | MIT | Unchanged read‑only registry/source provider; no code copied, no agent workflow imported |
 | UpToday | Local checkout without remote | `7582ca87e17e458bb99a7379d2c54003c15415a4` | MIT | Design reference for inventory/medication and tested ICS file handoff; no runtime import |
 | Routinika | Local OneDrive inventory | `portable_bundle.py` SHA-256 `3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2` | to be checked before distribution | Hash‑bound bundle design reference; no live connector and no copied code |
 | Google Calendar Skill 1.2.5 | Local plugin package | `google-calendar-skill@1.2.5` | package‑bound asset | Agentic handoff; no copied code and no live call in phase 27 |
