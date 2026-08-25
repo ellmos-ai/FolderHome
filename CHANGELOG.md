@@ -22,6 +22,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   endpoint stays honestly `not_connected`
 - local SQLite draft ledger that reserves a deterministic idempotency key
   before the append, so the same draft cannot land twice in the same mailbox
+- one generated capability index (`folderhome.application.capability_index`)
+  that joins the endpoint catalog, the adapter request schemas and a short
+  purpose exactly once, and feeds both the compact master-agent prompt
+  excerpt and the generated `CAPABILITY-INDEX.md` / `.de.md`
+- `_tools/capability-index` with `--check`, so the documented index cannot
+  drift away from the code
 - optional ICS export on the local calendar endpoint: the recorded
   appointments are written as one private RFC 5545 file into a registry-bound
   output directory (purpose `calendar.export_output`), hash-bound by the same

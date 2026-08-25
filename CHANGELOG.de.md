@@ -24,6 +24,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - lokales SQLite-Entwurfsledger, das vor der Ablage einen deterministischen
   Idempotenzschlüssel reserviert, damit derselbe Entwurf nicht zweimal im
   selben Postfach landet
+- ein generierter Fähigkeitsindex (`folderhome.application.capability_index`),
+  der Endpunktkatalog, Adapter-Anfrageschemata und einen kurzen Zweck genau
+  einmal zusammenführt und daraus sowohl den kompakten Prompt-Auszug des
+  Master-Agenten als auch `CAPABILITY-INDEX.md` / `.de.md` speist
+- `_tools/capability-index` mit `--check`, damit der dokumentierte Index nicht
+  vom Code abweichen kann
 - optionaler ICS-Export am lokalen Kalenderendpunkt: die festgehaltenen Termine
   werden als eine private RFC-5545-Datei in ein registergebundenes
   Ausgabeverzeichnis geschrieben (Zweck `calendar.export_output`), durch

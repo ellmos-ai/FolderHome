@@ -183,7 +183,9 @@ _PLANNING_ONLY = {"local-app", "master-agent", "strands-agent"}
 _DIRECT_READ_ONLY = {"document-library"}
 _EXTERNAL_EFFECTS = {
     "calendar-connectors": ("external.calendar.write",),
-    "calendar-handoff": ("external.calendar.write",),
+    # The connected handoff adapter writes the local FolderHome calendar and, on
+    # request, one local ICS file. It never calls an external calendar service.
+    "calendar-handoff": ("state.calendar.write", "file.create"),
     "findcall": ("simulation.findcall.fixture",),
     "mail-connector": ("external.mailbox.draft_write",),
     "scheduler-handoff": ("external.scheduler.write",),

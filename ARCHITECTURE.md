@@ -123,6 +123,16 @@ approval `--approve-mail-draft`. No recipient is contacted, the mailbox
 password is read only from its configured local file at execution time, and a
 local ledger keeps the append at most once.
 
+One capability index describes every endpoint exactly once. It joins the master
+capability catalog (expert, execution mode, gates), the adapter request schemas
+(required and optional inputs, read statically from the adapter classes) and one
+short bilingual purpose. The same index produces the compact endpoint overview in
+the master-agent system prompt and the generated
+[`CAPABILITY-INDEX.md`](./CAPABILITY-INDEX.md); `_tools/capability-index --check`
+keeps them from drifting. The index states what exists in the code, never what a
+specific installation has configured — runtime connection stays the executor
+catalog's answer.
+
 The local calendar endpoint can optionally export the appointments it records
 as one private RFC 5545 file in a registry-bound output directory. The file
 content is hash-bound by the same confirmation as the state write, an existing

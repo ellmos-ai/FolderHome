@@ -1,0 +1,173 @@
+#!/usr/bin/env python3
+"""
+capability-index — Generiert CAPABILITY-INDEX.md aus dem einen Laufzeitindex
+
+Schwesterskript zu `_tools/workflows-sync`, gleiches Muster: eine Quelle, ein
+generierter Markdown-Spiegel, AUTOGEN-Marker, `--check` fuer CI.
+
+Der Unterschied: workflows-sync liest das Dateisystem, dieses Skript liest den
+Code. Quelle ist `folderhome.application.capability_index`, das Katalog,
+Adapter-Anfrageschema und Zweck genau einmal zusammenfuehrt. Derselbe Index
+speist den kompakten Systemprompt-Auszug, damit Modelltext und Dokumentation
+nicht auseinanderlaufen koennen.
+
+Usage:
+    capability-index              # Schreibt CAPABILITY-INDEX.md und .de.md
+    capability-index --root PATH  # Anderer Projekt-Root
+    capability-index --dry-run    # Zeigt den Block, schreibt nichts
+    capability-index --check      # Exit != 0 falls ein Spiegel veraltet ist
+
+Requirements:
+    - python >= 3.10
+    - folderhome importierbar (src/ auf dem Pfad oder installiertes Paket)
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from datetime import UTC, datetime
+from pathlib import Path
+
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+MARKER_START = "<!-- @auto-generated:capability-index -->"
+MARKER_END = "<!-- @end:capability-index -->"
+
+_HEADERS = {
+    "en": (
+        "# CAPABILITY-INDEX.md — One Index of Every Endpoint\n"
+        "\n"
+        "**English** | [Deutsch](./CAPABILITY-INDEX.de.md)\n"
+        "\n"
+        "> **Purpose:** One place that says what each endpoint is for, what it needs,\n"
+        "> and what it can affect.\n"
+        "> **Source:** `folderhome.application.capability_index` — the same index the\n"
+        "> master agent receives as a compact prompt excerpt.\n"
+        "> **Auto-generated:** The block between the markers is written by\n"
+        "> `_tools/capability-index`. Text outside the markers stays untouched.\n"
+        "\n"
+        "`Implementation` says whether a typed adapter exists in the code, not\n"
+        "whether your installation has it configured. An endpoint only becomes\n"
+        "`connected` at runtime once its resources are declared.\n"
+        "\n"
+        "---\n"
+        "\n"
+        "## Endpoints (auto-generated)\n"
+    ),
+    "de": (
+        "# CAPABILITY-INDEX.md — Ein Index aller Endpunkte\n"
+        "\n"
+        "[English](./CAPABILITY-INDEX.md) | **Deutsch**\n"
+        "\n"
+        "> **Zweck:** Eine Stelle, die sagt, wofuer ein Endpunkt da ist, was er\n"
+        "> braucht und was er bewirken kann.\n"
+        "> **Quelle:** `folderhome.application.capability_index` — derselbe Index, den\n"
+        "> der Master-Agent als kompakten Prompt-Auszug erhaelt.\n"
+        "> **Auto-generiert:** Der Block zwischen den Markern wird von\n"
+        "> `_tools/capability-index` geschrieben. Text ausserhalb bleibt unberuehrt.\n"
+        "\n"
+        "`Umsetzung` sagt, ob im Code ein typisierter Adapter existiert, nicht ob\n"
+        "die eigene Installation ihn konfiguriert hat. Ein Endpunkt wird erst zur\n"
+        "Laufzeit `connected`, wenn seine Ressourcen deklariert sind.\n"
+        "\n"
+        "---\n"
+        "\n"
+        "## Endpunkte (auto-generiert)\n"
+    ),
+}
+
+_FOOTER = "\n---\n<!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->\n"
+
+
+def _repo_root(value: str | None) -> Path:
+    return Path(value).resolve() if value else Path.cwd().resolve()
+
+
+def _load_index(root: Path):
+    source = root / "src"
+    if source.is_dir() and str(source) not in sys.path:
+        sys.path.insert(0, str(source))
+    from folderhome.application.capability_index import (  # noqa: PLC0415
+        capability_index_markdown,
+        master_capability_index,
+    )
+
+    return capability_index_markdown, master_capability_index
+
+
+def _block(root: Path, language: str) -> str:
+    capability_index_markdown, master_capability_index = _load_index(root)
+    stamp = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    count = len(master_capability_index())
+    return "\n".join(
+        (
+            MARKER_START,
+            f"<!-- last-updated: {stamp} -->",
+            "<!-- tool: _tools/capability-index -->",
+            f"<!-- count: {count} endpoints -->",
+            "",
+            capability_index_markdown(language=language),
+            "",
+            MARKER_END,
+        )
+    )
+
+
+def _document(root: Path, language: str) -> str:
+    return _HEADERS[language] + "\n" + _block(root, language) + _FOOTER
+
+
+def _strip_stamp(text: str) -> str:
+    return "\n".join(
+        line
+        for line in text.splitlines()
+        if not line.startswith("<!-- last-updated:")
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Generate CAPABILITY-INDEX.md")
+    parser.add_argument("--root")
+    parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+
+    root = _repo_root(args.root)
+    targets = {
+        "en": root / "CAPABILITY-INDEX.md",
+        "de": root / "CAPABILITY-INDEX.de.md",
+    }
+    print(f"==> Root:   {root}")
+
+    stale: list[str] = []
+    for language, target in targets.items():
+        rendered = _document(root, language)
+        if args.dry_run:
+            print(f"\n--- {target.name} ---\n{rendered}")
+            continue
+        current = target.read_text(encoding="utf-8") if target.is_file() else ""
+        if _strip_stamp(current) == _strip_stamp(rendered):
+            print(f"  UNCHANGED: {target.name}")
+            continue
+        if args.check:
+            stale.append(language)
+            continue
+        target.write_text(rendered, encoding="utf-8")
+        print(f"  UPDATED:   {target.name}")
+
+    if args.check:
+        if stale:
+            print(f"\n==> Check FAIL: veraltete Sprachfassungen: {', '.join(stale)}")
+            print("Run 'capability-index' (ohne --check) zum Updaten")
+            return 1
+        print("\n==> Check OK: beide CAPABILITY-INDEX-Sprachfassungen sind aktuell")
+    elif not args.dry_run:
+        print("\n==> Fertig.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

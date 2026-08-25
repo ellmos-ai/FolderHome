@@ -10,6 +10,7 @@ from hashlib import sha256
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
+from folderhome.application.capability_index import capability_index_prompt_excerpt
 from folderhome.application.local_app import LocalApplication
 from folderhome.application.master_agent import (
     MasterAgentError,
@@ -651,7 +652,12 @@ def _system_prompt(profile_id: str) -> str:
         "process-local and may be used to resolve follow-up references, but it is never an "
         "approval. Never execute a proposed workflow, invent evidence, diagnose, make "
         "legal, tax or benefit decisions, request arbitrary file paths, use a shell, or create "
-        "external effects. Reply in the user's language."
+        "external effects. Reply in the user's language.\n\n"
+        "Endpoint index (purpose, required inputs, effect class). It states what "
+        "exists in the code, not what this installation has configured; always "
+        "confirm the live status through list_home_capabilities before promising "
+        "execution:\n"
+        f"{capability_index_prompt_excerpt(language='en')}"
     )
 
 

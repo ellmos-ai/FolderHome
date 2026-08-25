@@ -133,6 +133,16 @@ kontaktiert, das Postfachpasswort wird erst zur Ausführung aus seinem
 konfigurierten lokalen Fundort gelesen, und ein lokales Ledger hält die Ablage
 höchstens einmal.
 
+Ein Fähigkeitsindex beschreibt jeden Endpunkt genau einmal. Er führt den
+Master-Fähigkeitskatalog (Fachrolle, Ausführungsmodus, Gates), die
+Adapter-Anfrageschemata (Pflicht- und optionale Eingaben, statisch aus den
+Adapterklassen gelesen) und einen kurzen zweisprachigen Zweck zusammen. Derselbe
+Index erzeugt die kompakte Endpunktübersicht im Systemprompt des Master-Agenten
+und das generierte [`CAPABILITY-INDEX.md`](./CAPABILITY-INDEX.md);
+`_tools/capability-index --check` verhindert ein Auseinanderlaufen. Der Index
+sagt, was im Code existiert, nie was eine konkrete Installation konfiguriert hat
+— die Laufzeitverbindung bleibt die Antwort des Executor-Katalogs.
+
 Der lokale Kalenderendpunkt kann die festgehaltenen Termine auf Wunsch als eine
 private RFC-5545-Datei in ein registergebundenes Ausgabeverzeichnis exportieren.
 Der Dateiinhalt ist durch dieselbe Bestätigung hashgebunden wie der
