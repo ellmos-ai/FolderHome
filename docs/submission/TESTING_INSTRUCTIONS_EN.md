@@ -108,8 +108,8 @@ network use and zero external actions. The tested wheel SHA-256 is
 This fail-closed result is intentional: the local HungryCall checkout was
 `2c7db533f073d07eae6d758ceab91b9423ae1dc7` instead of the disclosed manifest
 revision `2c7db533f073d07eae6d758ceab91b9423ae1dc7`; Ringedingeding was
-`d80dd81a6d7bf64298d4ef290c3b54ab5f50e990` instead of
-`d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`. FolderHome does not silently load
+`55f426598d716991b0fae8c5e1c092aceb8c4da8` instead of
+`55f426598d716991b0fae8c5e1c092aceb8c4da8`. FolderHome does not silently load
 either changed provider.
 
 ## What the fixture proves

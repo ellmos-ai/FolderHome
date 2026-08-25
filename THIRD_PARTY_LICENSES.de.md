@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Gepinntes Plugin-Manifest |
 | HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `2c7db533f073d07eae6d758ceab91b9423ae1dc7` | MIT | Gepinntes Plugin-Manifest |
-| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990` | MIT | Gepinntes Plugin-Manifest |
+| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `55f426598d716991b0fae8c5e1c092aceb8c4da8` | MIT | Gepinntes Plugin-Manifest |
 | doc-services | Lokaler Checkout ohne Remote | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | MIT | Gepinntes Plugin-Manifest und Extraktions-Bridge |
 | KnowledgeDigest | `https://github.com/file-bricks/knowledgedigest.git` | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | MIT | Gepinntes Plugin-Manifest sowie Index- und Such-Bridge |
 | report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Inventarisiert; Runtime-Version vor Bridge-Anbindung zu bereinigen |

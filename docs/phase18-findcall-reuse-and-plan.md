@@ -18,7 +18,7 @@ FindCall shall contact suitable providers sequentially until a request is succes
 - E.164 validation, masked outputs, Idempotency-Key, differentiated call status, and a network‑less fixture client are already in place.
 - The concrete runtime is intentionally typed to restaurant, order, pickup, and table reservation. Medical, workshop, or offer models must not be forced into restaurant data.
 
-### Ringedingeding, Revision `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`
+### Ringedingeding, Revision `55f426598d716991b0fae8c5e1c092aceb8c4da8`
 
 - Checkout and manifest are clean, version `0.1.0`, MIT; the full provider suite ran locally green.
 - Reusable are schema‑driven queries to multiple known persons, stable Idempotency‑Keys, received final status, masked numbers, and the local `FixtureTransport`.

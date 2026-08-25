@@ -28,7 +28,7 @@ und finanzielle Zusagen bleiben außerhalb der lokalen Wettbewerbsabnahme.
   und Tischreservierung typisiert. Arzt-, Werkstatt- oder Angebotsmodelle
   dürfen nicht als Restaurantdaten hineingezwängt werden.
 
-### Ringedingeding, Revision `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`
+### Ringedingeding, Revision `55f426598d716991b0fae8c5e1c092aceb8c4da8`
 
 - Checkout und Manifest sind sauber, Version `0.1.0`, MIT; die vollständige
   Provider-Suite lief lokal grün.

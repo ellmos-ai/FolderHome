@@ -17,7 +17,7 @@ def test_repository_manifests_pin_the_reused_components() -> None:
         "KnowledgeDigest": "7040c66aa9326975ad81c156acf0d49fd5dca60f",
         "law-checker": "a5b0cd51bc3666962f2fae8017c855dea0a712a2",
         "llm-note": "b5fe59fc155ded9603566aa0fb920a53181a2426",
-        "ringedingeding": "d80dd81a6d7bf64298d4ef290c3b54ab5f50e990",
+        "ringedingeding": "55f426598d716991b0fae8c5e1c092aceb8c4da8",
         "steuer-assistent": "5d39aeec98bf0a5734bf07dc35a58aa9e1331309",
     }
     assert all(plugin.license_id == "MIT" for plugin in plugins)
