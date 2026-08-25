@@ -136,6 +136,17 @@ message never writes; exact confirmation returns a separate domain execution
 report for a connected plan. External effects retain their own configuration
 and live-effect approvals.
 
+A capability recipe turns a whole journey into one plan. `recipes list` shows
+what ships, `recipes plan` resolves one into a single hash-bound multi-step plan,
+and `recipes run` executes the confirmed chain in order. The packaged
+`accident-aftercare` recipe reads the responsible contact, renders the claim
+letter, places exactly that letter as a draft in your own mailbox, and records
+the follow-up appointment with an ICS export — four endpoints, one confirmation.
+A recipe grants no new capability: each step keeps its own adapter and gates, and
+an endpoint that is not connected makes the recipe fail closed instead of
+silently skipping it. Details:
+[`docs/capability-recipes.md`](./docs/capability-recipes.md).
+
 The recommended CLI entry point is one in-process session. It preserves prepared
 plans between turns and accepts approval only through `/confirm <plan_id>`;
 `--json` emits one NDJSON event per line for controlled automation.

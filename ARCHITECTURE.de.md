@@ -133,6 +133,22 @@ kontaktiert, das Postfachpasswort wird erst zur Ausführung aus seinem
 konfigurierten lokalen Fundort gelesen, und ein lokales Ledger hält die Ablage
 höchstens einmal.
 
+Ein Fähigkeitsrezept macht aus einer echten Geschichte einen Plan. Es ist
+deklarativ (`folderhome/recipes/*.json`, im Paket ausgeliefert), verleiht keine
+neue Fähigkeit, und jeder Schritt bleibt ein vorhandener typisierter Endpunkt mit
+eigenem Adapter und eigenen Gates. Der Master löst die ganze Kette in einen
+hashgebundenen `MasterAgentPlan` auf, dessen Schritte jeweils die Fachrolle
+tragen, der der Endpunkt wirklich gehört; ein Rezept darf deshalb mehrere
+Domänen umspannen, ohne die Eigentumsregel aufzuweichen — sie wird pro Schritt
+geprüft statt einmal pro Plan. Daten fließen nur als logische Ressourcen-IDs;
+kein Wert aus einem Schrittbericht wird in eine spätere Anfrage eingesetzt,
+wodurch jede Anfrage vollständig und hashbar bleibt, bevor irgendetwas läuft.
+Zuerst läuft eine deterministische Abnahme, die jede beteiligte Fachrolle
+zeichnet und die Teil des Planhashes wird. Die Ausführung geht die Schritte der
+Reihe nach durch und hält beim ersten Fehler an; der Bericht nennt, was lief, was
+brach und was nie versucht wurde. Details:
+[`docs/capability-recipes.md`](./docs/capability-recipes.de.md).
+
 Ein Fähigkeitsindex beschreibt jeden Endpunkt genau einmal. Er führt den
 Master-Fähigkeitskatalog (Fachrolle, Ausführungsmodus, Gates), die
 Adapter-Anfrageschemata (Pflicht- und optionale Eingaben, statisch aus den

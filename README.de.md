@@ -140,6 +140,18 @@ Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
 verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten
 ihre eigene Konfiguration und getrennten Live-Effekt-Freigaben.
 
+Ein Fähigkeitsrezept macht aus einer ganzen Geschichte einen Plan.
+`recipes list` zeigt die mitgelieferten, `recipes plan` löst eines in einen
+hashgebundenen Mehrschrittplan auf, und `recipes run` führt die bestätigte Kette
+der Reihe nach aus. Das mitgelieferte Rezept `accident-aftercare` liest den
+zuständigen Kontakt, erzeugt das Schadensschreiben, legt genau dieses Schreiben
+als Entwurf im eigenen Postfach ab und hält den Folgetermin samt ICS-Export fest
+— vier Endpunkte, eine Bestätigung. Ein Rezept verleiht keine neue Fähigkeit:
+Jeder Schritt behält seinen Adapter und seine Gates, und ein nicht verbundener
+Endpunkt lässt das Rezept fail-closed scheitern, statt still übersprungen zu
+werden. Details:
+[`docs/capability-recipes.md`](./docs/capability-recipes.de.md).
+
 Der empfohlene CLI-Einstieg ist eine Sitzung im selben Prozess. Sie bewahrt
 vorbereitete Pläne zwischen den Gesprächsschritten und akzeptiert eine Freigabe
 ausschließlich über `/confirm <plan_id>`; mit `--json` wird pro Zeile ein

@@ -22,6 +22,18 @@ Explicit permission check before a side-effect. Missing or unknown permission re
 
 Versioned JSON report of a run in schema `ellmos.home-agent.run-report.v1` with provenance, actions, evidence and decisions.
 
+## Capability Recipe
+
+A declarative journey over existing endpoints. It grants no new capability: every step keeps its own adapter, request schema and gates. What it changes is the unit of consent — one confirmation for the whole ordered chain.
+
+## Handoff
+
+A declared link between two recipe steps: a named field of the earlier step and a named field of the later step must resolve to the same logical resource. It never carries a value from a step report.
+
+## Endorsement
+
+The deterministic review verdict for one recipe plan, signed by every expert whose endpoints appear in it. It is part of the plan hash, so confirming the plan confirms the review.
+
 ## Draft Placement
 
 Appending one prepared letter to the drafts folder of the user's own mailbox. It is not a delivery: no recipient is contacted, and the owner still sends the message themselves in their own mail program.

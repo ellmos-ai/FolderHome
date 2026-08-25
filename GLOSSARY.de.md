@@ -28,6 +28,25 @@ Versionierter JSON-Bericht eines Laufs im Schema
 `ellmos.home-agent.run-report.v1` mit Provenienz, Aktionen, Evidenz und
 Entscheidungen.
 
+## Fähigkeitsrezept
+
+Eine deklarative Geschichte über vorhandene Endpunkte. Sie verleiht keine neue
+Fähigkeit: Jeder Schritt behält seinen eigenen Adapter, sein Anfrageschema und
+seine Gates. Was sich ändert, ist die Einheit der Zustimmung — eine Bestätigung
+für die ganze geordnete Kette.
+
+## Übergabekante
+
+Eine deklarierte Verbindung zwischen zwei Rezeptschritten: Ein benanntes Feld des
+früheren und ein benanntes Feld des späteren Schrittes müssen dieselbe logische
+Ressource bezeichnen. Sie trägt niemals einen Wert aus einem Schrittbericht.
+
+## Abnahme
+
+Das deterministische Prüfergebnis eines Rezeptplans, gezeichnet von jeder
+Fachrolle, deren Endpunkte darin vorkommen. Es ist Teil des Planhashes; wer den
+Plan bestätigt, bestätigt die Abnahme mit.
+
 ## Entwurfsablage
 
 Das Anhängen eines vorbereiteten Schreibens an den Entwurfsordner des eigenen

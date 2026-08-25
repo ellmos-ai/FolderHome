@@ -1,0 +1,91 @@
+{
+  "schema": "folderhome.capability-recipe.v1",
+  "recipe_id": "accident-aftercare",
+  "title_en": "Sort out a car accident",
+  "title_de": "Einen Autounfall regeln",
+  "summary_en": "Find who is responsible, write the claim letter, put it in your own drafts folder, and keep the follow-up appointment in your calendar. Four endpoints, one confirmation.",
+  "summary_de": "Zuständigkeit ermitteln, das Schadensschreiben verfassen, es in den eigenen Entwurfsordner legen und den Folgetermin im Kalender behalten. Vier Endpunkte, eine Bestätigung.",
+  "lead_expert_id": "communication_expert",
+  "steps": [
+    {
+      "step_ref": "contacts",
+      "workflow_id": "contact-register",
+      "expert_id": "communication_expert",
+      "goal_en": "Read the responsible insurance contact out of the policy documents.",
+      "goal_de": "Den zuständigen Versicherungskontakt aus den Policendokumenten lesen.",
+      "request": {
+        "source_resource_id": "insurance_documents",
+        "state_resource_id": "contact_state",
+        "area": "versicherungen",
+        "recursive": true,
+        "allow_sensitive_local_read": false
+      }
+    },
+    {
+      "step_ref": "letter",
+      "workflow_id": "correspondence-studio",
+      "expert_id": "communication_expert",
+      "goal_en": "Render the claim letter locally from the controlled template.",
+      "goal_de": "Das Schadensschreiben lokal aus der geprüften Vorlage erzeugen.",
+      "request": {
+        "request_resource_id": "letter_request",
+        "designs_resource_id": "letter_designs",
+        "templates_resource_id": "letter_templates",
+        "output_resource_id": "claim_output",
+        "output_basename": "Schadensmeldung"
+      }
+    },
+    {
+      "step_ref": "draft",
+      "workflow_id": "mail-connector",
+      "expert_id": "communication_expert",
+      "goal_en": "Place exactly that letter as a draft in your own mailbox; nothing is sent.",
+      "goal_de": "Genau dieses Schreiben als Entwurf im eigenen Postfach ablegen; es wird nichts gesendet.",
+      "request": {
+        "account_resource_id": "mail_draft_account",
+        "request_resource_id": "letter_request",
+        "designs_resource_id": "letter_designs",
+        "templates_resource_id": "letter_templates",
+        "planned_at": "2026-08-25T09:00:00+02:00"
+      }
+    },
+    {
+      "step_ref": "appointment",
+      "workflow_id": "calendar-handoff",
+      "expert_id": "communication_expert",
+      "goal_en": "Record the follow-up appointment locally and export it as one ICS file.",
+      "goal_de": "Den Folgetermin lokal festhalten und als eine ICS-Datei exportieren.",
+      "request": {
+        "source_resource_id": "follow_up_documents",
+        "configuration_resource_id": "calendar_configuration",
+        "state_resource_id": "local_calendar",
+        "area": "versicherungen",
+        "planned_at": "2026-08-25T09:00:00+02:00",
+        "recursive": true,
+        "allow_sensitive_local_read": false,
+        "export_resource_id": "calendar_export",
+        "export_basename": "Unfall-Folgetermin"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "request_resource_id",
+      "to_field": "request_resource_id"
+    },
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "templates_resource_id",
+      "to_field": "templates_resource_id"
+    },
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "designs_resource_id",
+      "to_field": "designs_resource_id"
+    }
+  ]
+}

@@ -24,6 +24,20 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - lokales SQLite-Entwurfsledger, das vor der Ablage einen deterministischen
   Idempotenzschlüssel reserviert, damit derselbe Entwurf nicht zweimal im
   selben Postfach landet
+- Fähigkeitsrezepte: eine deklarative Geschichte über vorhandene Endpunkte wird
+  zu einem hashgebundenen Mehrschrittplan mit einer einzigen `/confirm`, während
+  jeder Schritt seinen eigenen Adapter, sein Anfrageschema und seine Gates behält
+- deterministische Rezeptabnahme, gezeichnet von jeder beteiligten Fachrolle
+  (eine bei einer Domäne, alle bei domänenübergreifenden Rezepten); die Abnahme
+  ist Teil des Planhashes, wer den Plan bestätigt, bestätigt die Abnahme mit
+- deklarierte Übergabekanten, die zwei Schritte an dieselbe logische
+  Ressourcen-ID binden; kein Wert aus einem Schrittbericht wird in eine spätere
+  Anfrage eingesetzt
+- sequenzielle Kettenausführung, die beim ersten Fehler anhält und berichtet,
+  welche Schritte liefen, welcher brach und welche nie versucht wurden
+- mitgeliefertes Rezept `accident-aftercare` (Kontakt, Schadensschreiben,
+  Mailentwurf, Kalendertermin mit ICS-Export) samt
+  `folderhome recipes list|plan|run`
 - ein generierter Fähigkeitsindex (`folderhome.application.capability_index`),
   der Endpunktkatalog, Adapter-Anfrageschemata und einen kurzen Zweck genau
   einmal zusammenführt und daraus sowohl den kompakten Prompt-Auszug des

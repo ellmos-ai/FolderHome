@@ -194,6 +194,12 @@ from folderhome.application.profile_rules import (
     load_profile_configuration,
     resolve_profile_policy,
 )
+from folderhome.application.recipes import (
+    build_recipe_plan,
+    execute_recipe_plan,
+    load_bundled_recipe,
+    load_bundled_recipes,
+)
 from folderhome.application.resource_registry import (
     ResourceRegistryError,
     default_resource_registry_path,
@@ -324,6 +330,7 @@ from folderhome.contracts import (
     TaxExportApproval,
     TaxReceiptApproval,
 )
+from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
@@ -563,6 +570,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_competition_demo(args)
     if args.command == "demo" and args.demo_command == "accident-serve":
         return _run_accident_demo_site(args)
+    if args.command == "recipes" and args.recipes_command == "list":
+        return _run_recipes_list(args)
+    if args.command == "recipes" and args.recipes_command == "plan":
+        return _run_recipes_plan(args)
+    if args.command == "recipes" and args.recipes_command == "run":
+        return _run_recipes_run(args)
     if args.command == "app" and args.app_command == "plan":
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
@@ -1225,6 +1238,28 @@ def _build_parser() -> argparse.ArgumentParser:
     accident_demo.add_argument("--port", type=int, default=8767)
     accident_demo.add_argument("--approve-loopback-server", action="store_true")
     accident_demo.add_argument("--json", action="store_true", dest="as_json")
+
+    recipes = commands.add_parser("recipes")
+    recipes_commands = recipes.add_subparsers(dest="recipes_command", required=True)
+    recipes_list = recipes_commands.add_parser("list")
+    recipes_list.add_argument("--language", choices=("en", "de"), default="en")
+    recipes_list.add_argument("--json", action="store_true", dest="as_json")
+    recipes_plan = recipes_commands.add_parser("plan")
+    _add_local_app_arguments(recipes_plan)
+    _add_strands_agent_arguments(recipes_plan)
+    recipes_plan.add_argument("--profile-id", required=True)
+    recipes_plan.add_argument("--recipe-id", required=True)
+    recipes_plan.add_argument("--language", choices=("en", "de"), default="en")
+    recipes_plan.add_argument("--json", action="store_true", dest="as_json")
+    recipes_run = recipes_commands.add_parser("run")
+    _add_local_app_arguments(recipes_run)
+    _add_strands_agent_arguments(recipes_run)
+    recipes_run.add_argument("--profile-id", required=True)
+    recipes_run.add_argument("--recipe-id", required=True)
+    recipes_run.add_argument("--language", choices=("en", "de"), default="en")
+    recipes_run.add_argument("--confirm", required=True)
+    recipes_run.add_argument("--approved-at", required=True)
+    recipes_run.add_argument("--json", action="store_true", dest="as_json")
 
     app = commands.add_parser("app")
     app_commands = app.add_subparsers(dest="app_command", required=True)
@@ -4846,6 +4881,90 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         bedrock_connect_timeout_seconds=args.bedrock_connect_timeout_seconds,
         bedrock_read_timeout_seconds=args.bedrock_read_timeout_seconds,
     )
+
+
+def _run_recipes_list(args: argparse.Namespace) -> int:
+    try:
+        payload = {
+            "schema": "folderhome.capability-recipe-catalog.v1",
+            "recipes": [
+                {
+                    "recipe_id": item.recipe_id,
+                    "title": item.title(language=args.language),
+                    "summary": item.summary(language=args.language),
+                    "lead_expert_id": item.lead_expert_id,
+                    "workflow_ids": list(item.workflow_ids),
+                    "step_count": len(item.steps),
+                    "grants_new_capability": False,
+                }
+                for item in load_bundled_recipes()
+            ],
+        }
+    except CapabilityRecipeError as exc:
+        return _print_error(str(exc))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _prepare_recipe_plan(args: argparse.Namespace):
+    application = _prepare_local_app(args)
+    gateway = application.workflow_executor
+    registry = application.resource_registry
+    if registry is None:
+        raise CapabilityRecipeError(
+            "Rezepte benötigen ein konfiguriertes privates Ressourcenregister."
+        )
+    known_resource_ids = frozenset(
+        item.resource_id
+        for item in registry.resources
+        if args.profile_id in item.profile_ids
+    )
+    statuses = {item.workflow_id: item.status for item in gateway.catalog()}
+    recipe = load_bundled_recipe(args.recipe_id)
+    recipe_plan = build_recipe_plan(
+        recipe,
+        profile_id=args.profile_id,
+        language=args.language,
+        prepare=lambda workflow_id, request: gateway.prepare(
+            workflow_id=workflow_id,
+            profile_id=args.profile_id,
+            request=request,
+        ),
+        endpoint_statuses=statuses,
+        known_resource_ids=known_resource_ids,
+    )
+    return gateway, recipe_plan
+
+
+def _run_recipes_plan(args: argparse.Namespace) -> int:
+    try:
+        _, recipe_plan = _prepare_recipe_plan(args)
+    except (CapabilityRecipeError, *_LOCAL_APP_ERRORS) as exc:
+        return _print_error(str(exc))
+    print(json.dumps(recipe_plan.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_recipes_run(args: argparse.Namespace) -> int:
+    try:
+        gateway, recipe_plan = _prepare_recipe_plan(args)
+        if args.confirm != recipe_plan.plan.plan_id:
+            raise CapabilityRecipeError(
+                "Die Bestätigung gehört nicht zu diesem Rezeptplan. Erwartet: "
+                f"/confirm {recipe_plan.plan.plan_id}"
+            )
+        report = execute_recipe_plan(
+            recipe_plan,
+            execute=lambda envelope_id, approved_at: gateway.execute(
+                envelope_id=envelope_id,
+                approved_at=approved_at,
+            ),
+            approved_at=args.approved_at,
+        )
+    except (CapabilityRecipeError, *_LOCAL_APP_ERRORS) as exc:
+        return _print_error(str(exc))
+    print(json.dumps(report.to_dict(), ensure_ascii=False, sort_keys=True))
+    return 0 if report.status == "executed" else 3
 
 
 def _run_local_app_plan(args: argparse.Namespace) -> int:

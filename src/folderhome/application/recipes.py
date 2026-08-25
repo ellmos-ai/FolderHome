@@ -9,10 +9,11 @@ Three rules keep that safe:
 
 * Every step is validated against the capability catalog, so an endpoint can
   only appear under the expert that actually owns it.
-* Data moves only through logical resource IDs. A handoff declares that the
-  resource one step writes is the resource a later step reads; no value from a
-  step report is ever substituted into a later request. Every request is
-  therefore complete and hashable before anything runs.
+* Data moves only through logical resource IDs. A handoff declares that two
+  steps must name the same logical resource — a store one writes and a later
+  one reads, or a source both must agree on. No value from a step report is
+  ever substituted into a later request, so every request is complete and
+  hashable before anything runs.
 * A deterministic review runs before the plan is shown, and its verdict is part
   of the plan hash, so the confirmation covers the review as well.
 """
@@ -64,12 +65,7 @@ _RECIPE_FIELDS = {
     "handoffs",
 }
 _STEP_FIELDS = {"step_ref", "workflow_id", "expert_id", "goal_en", "goal_de", "request"}
-_HANDOFF_FIELDS = {
-    "from_step",
-    "to_step",
-    "resource_field_out",
-    "resource_field_in",
-}
+_HANDOFF_FIELDS = {"from_step", "to_step", "from_field", "to_field"}
 
 PrepareStep = Callable[[str, dict[str, object]], WorkflowExecutionEnvelope]
 ExecuteStep = Callable[[str, str], WorkflowExecutionReport]
@@ -200,7 +196,7 @@ def review_recipe(
         "endpoint_connected_at_runtime",
         "side_effects_have_approval_gates",
         "referenced_resources_are_registered",
-        "handoffs_carry_matching_logical_resource_ids",
+        "handoffs_bind_the_same_logical_resource",
     )
     material = _canonical(
         {
@@ -414,8 +410,8 @@ def _handoff_findings(recipe: CapabilityRecipe) -> list[str]:
     for handoff in recipe.handoffs:
         source = by_ref[handoff.from_step]
         target = by_ref[handoff.to_step]
-        produced = source.request.get(handoff.resource_field_out)
-        consumed = target.request.get(handoff.resource_field_in)
+        produced = source.request.get(handoff.from_field)
+        consumed = target.request.get(handoff.to_field)
         if not isinstance(produced, str) or not isinstance(consumed, str):
             findings.append(
                 f"Übergabe {handoff.from_step}->{handoff.to_step} nennt keine "
@@ -457,8 +453,8 @@ def _parse_handoff(payload: object, index: int) -> CapabilityHandoff:
     return CapabilityHandoff(
         from_step=_text(payload, "from_step", label),
         to_step=_text(payload, "to_step", label),
-        resource_field_out=_text(payload, "resource_field_out", label),
-        resource_field_in=_text(payload, "resource_field_in", label),
+        from_field=_text(payload, "from_field", label),
+        to_field=_text(payload, "to_field", label),
     )
 
 

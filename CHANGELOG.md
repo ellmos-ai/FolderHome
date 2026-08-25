@@ -22,6 +22,18 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   endpoint stays honestly `not_connected`
 - local SQLite draft ledger that reserves a deterministic idempotency key
   before the append, so the same draft cannot land twice in the same mailbox
+- capability recipes: a declarative journey over existing endpoints resolves
+  into one hash-bound multi-step plan with a single `/confirm`, while every step
+  keeps its own adapter, request schema and gates
+- deterministic recipe review signed by every involved expert (one for a single
+  domain, all of them across domains); the endorsement is part of the plan hash,
+  so confirming the plan confirms the review
+- declared handoff edges that bind two steps to the same logical resource ID; no
+  value from a step report is ever substituted into a later request
+- sequential chain execution that stops at the first failure and reports which
+  steps ran, which one broke and which were never attempted
+- packaged `accident-aftercare` recipe (contact, claim letter, mail draft,
+  calendar appointment with ICS export) plus `folderhome recipes list|plan|run`
 - one generated capability index (`folderhome.application.capability_index`)
   that joins the endpoint catalog, the adapter request schemas and a short
   purpose exactly once, and feeds both the compact master-agent prompt

@@ -123,6 +123,20 @@ approval `--approve-mail-draft`. No recipient is contacted, the mailbox
 password is read only from its configured local file at execution time, and a
 local ledger keeps the append at most once.
 
+A capability recipe turns a real journey into one plan. It is declarative
+(`folderhome/recipes/*.json`, shipped inside the package), it grants no new
+capability, and every step stays an existing typed endpoint with its own adapter
+and gates. The master resolves the whole chain into one hash-bound
+`MasterAgentPlan` whose steps each carry the expert that actually owns the
+endpoint, so a recipe may span domains without weakening the ownership rule —
+the rule is checked per step instead of once per plan. Data moves only as
+logical resource IDs; no value from a step report is substituted into a later
+request, which is what keeps every request complete and hashable before anything
+runs. A deterministic review runs first, is signed by every involved expert, and
+becomes part of the plan hash. Execution walks the steps in order and stops at
+the first failure, reporting what ran, what broke and what was never attempted.
+Details: [`docs/capability-recipes.md`](./docs/capability-recipes.md).
+
 One capability index describes every endpoint exactly once. It joins the master
 capability catalog (expert, execution mode, gates), the adapter request schemas
 (required and optional inputs, read statically from the adapter classes) and one
