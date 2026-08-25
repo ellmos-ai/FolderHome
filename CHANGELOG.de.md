@@ -13,6 +13,17 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- reiner Entwurfsendpunkt für Mail: ein vorbereitetes Schreiben wird hinter der
+  getrennten Live-Effekt-Freigabe `--approve-mail-draft` an den Entwurfsordner
+  des eigenen IMAP-Postfachs des Nutzers angehängt; es gibt keinen Versandweg,
+  kein Empfänger wird kontaktiert, und das Postfachpasswort wird erst zur
+  Ausführung aus seinem konfigurierten lokalen Fundort gelesen
+- Registerzweck `mail.draft_account` samt striktem Konfigurationsschema
+  `folderhome.mail-draft-account.v1`; ohne eine solche Ressource bleibt der
+  Mailendpunkt ehrlich `not_connected`
+- lokales SQLite-Entwurfsledger, das vor der Ablage einen deterministischen
+  Idempotenzschlüssel reserviert, damit derselbe Entwurf nicht zweimal im
+  selben Postfach landet
 - mit einem Befehl startbare, token-geschützte synthetische Hyundai-i10-
   Unfalldemo über den echten Strands-Suchpfad und vier vorhandene typisierte
   Workflowadapter

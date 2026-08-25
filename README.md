@@ -125,10 +125,13 @@ confirmation of an existing scheduled medication dose, and the strictly local
 FindCall fixture cascade. With a configured registry, 23 additional typed
 resource adapters connect the complete local document, organization, health,
 finance, social-law, inventory, tax, briefing, design, FCSA and routine stack.
-This yields 26 connected endpoints, one direct read-only path, three
-intentionally planning-only system endpoints and only three visible,
-fail-closed external connector gaps: mail, external calendars and scheduler
-registration. Each connected adapter publishes a closed request schema. A chat
+A registry that also declares a drafts mailbox (`mail.draft_account`) connects
+the draft-only mail endpoint as well. This yields 27 connected endpoints, one
+direct read-only path, three intentionally planning-only system endpoints and
+only two visible, fail-closed external connector gaps: external calendars and
+scheduler registration. Without a configured mailbox, the mail endpoint stays
+honestly unconnected and the catalog reports 26 connected endpoints and three
+gaps. Each connected adapter publishes a closed request schema. A chat
 message never writes; exact confirmation returns a separate domain execution
 report for a connected plan. External effects retain their own configuration
 and live-effect approvals.

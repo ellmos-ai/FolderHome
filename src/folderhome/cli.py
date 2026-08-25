@@ -248,6 +248,7 @@ from folderhome.application.workflow_execution import (
     InventoryImportWorkflowAdapter,
     LegalChangeMonitorWorkflowAdapter,
     LocalCalendarWorkflowAdapter,
+    MailDraftWorkflowAdapter,
     MedicationIntakeWorkflowAdapter,
     OfficialNoticeWorkflowAdapter,
     PersonalNotesWorkflowAdapter,
@@ -1489,6 +1490,7 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
         type=Path,
         default=DEFAULT_FCSA_PROVIDER_ROOT,
     )
+    parser.add_argument("--approve-mail-draft", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--max-body-bytes", type=int, default=65_536)
@@ -5074,6 +5076,22 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                 ),
             )
         )
+        if any(
+            "mail.draft_account" in resource.purposes
+            for resource in resource_registry.resources
+        ):
+            workflow_adapters.append(
+                MailDraftWorkflowAdapter(
+                    registry=resource_registry,
+                    state_dir=settings.state_dir,
+                    report_forge_revision=REPORT_FORGE_REVISION,
+                    report_forge_distribution_version=(
+                        REPORT_FORGE_DISTRIBUTION_VERSION
+                    ),
+                    report_forge_runtime_version=REPORT_FORGE_RUNTIME_VERSION,
+                    allow_mail_draft=args.approve_mail_draft,
+                )
+            )
     workflow_executor = WorkflowExecutionGateway(tuple(workflow_adapters))
     return LocalApplication(
         settings=settings,

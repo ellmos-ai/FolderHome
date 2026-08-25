@@ -1,0 +1,13 @@
+{
+  "schema": "folderhome.mail-draft-account.v1",
+  "account_id": "family-mailbox",
+  "profile_id": "lukas",
+  "display_name": "Lukas Beispiel",
+  "from_address": "lukas@example.invalid",
+  "host": "imap.example.invalid",
+  "port": 993,
+  "use_ssl": true,
+  "username": "lukas@example.invalid",
+  "drafts_folder": "INBOX.Drafts",
+  "password_file": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\secrets\\family-mailbox.txt"
+}

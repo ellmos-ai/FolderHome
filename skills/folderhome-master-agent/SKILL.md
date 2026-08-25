@@ -95,11 +95,15 @@ handoff without execution.
 - Personal notes, a scheduled medication confirmation and the strictly local
   FindCall fixture are connected without a resource registry. A configured
   private registry adds 23 typed adapters for the complete local document and
-  assistance stack. This yields 26 connected, one direct-read-only, three
-  planning-only and three not-connected endpoints. Every connected adapter
-  exposes a closed request schema.
-- The runtime catalog explains every remaining gap: mail, external calendars
-  and scheduler registration need explicitly configured external connectors
+  assistance stack, plus the draft-only mail endpoint once the registry
+  declares a drafts mailbox. This yields 27 connected, one direct-read-only,
+  three planning-only and two not-connected endpoints. Without a configured
+  mailbox the mail endpoint stays not connected and the catalog reports 26 and
+  three. Every connected adapter exposes a closed request schema.
+- The mail endpoint places drafts only. It appends one prepared letter to the
+  user's own drafts folder behind `--approve-mail-draft` and never sends.
+- The runtime catalog explains every remaining gap: external calendars and
+  scheduler registration need explicitly configured external connectors
   and their own live-effect approvals.
 - FindCall is an explicit communication endpoint. Its current local plan and
   fixture simulation can execute only after exact approval and never performs a

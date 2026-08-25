@@ -647,6 +647,28 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
     state_dir.mkdir()
     documents = tmp_path / "documents"
     documents.mkdir()
+    password_file = tmp_path / "mailbox-password.txt"
+    password_file.write_text("synthetisches-postfach-geheimnis", encoding="utf-8")
+    mail_account_file = tmp_path / "mail-draft-account.json"
+    mail_account_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.mail-draft-account.v1",
+                "account_id": "family-mailbox",
+                "profile_id": "lukas",
+                "display_name": "Lukas Beispiel",
+                "from_address": "lukas@example.invalid",
+                "host": "imap.example.invalid",
+                "port": 993,
+                "use_ssl": True,
+                "username": "lukas@example.invalid",
+                "drafts_folder": "INBOX.Drafts",
+                "password_file": str(password_file),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
     resources_file = tmp_path / "resources.json"
     resources_file.write_text(
         json.dumps(
@@ -662,10 +684,25 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
                         "purposes": ["documents.source"],
                         "profile_ids": ["lukas"],
                         "cloud_context": "minimized_with_approval",
-                    }
+                    },
+                    {
+                        "resource_id": "mail_draft_account",
+                        "kind": "file",
+                        "locator": {
+                            "type": "local_path",
+                            "path": str(mail_account_file),
+                        },
+                        "operations": ["read"],
+                        "purposes": ["mail.draft_account"],
+                        "profile_ids": ["lukas"],
+                        "cloud_context": "deny",
+                    },
                 ],
                 "profile_defaults": {
-                    "lukas": {"documents.source": "documents_source"}
+                    "lukas": {
+                        "documents.source": "documents_source",
+                        "mail.draft_account": "mail_draft_account",
+                    }
                 },
             }
         ),
@@ -699,9 +736,12 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
     assert payload["server_started"] is False
     assert payload["shell_execution_available"] is False
     assert payload["logical_resources_configured"] is True
-    assert payload["agent"]["executor_coverage"]["connected"] == 26
-    assert payload["agent"]["executor_coverage"]["not_connected"] == 3
+    assert payload["agent"]["executor_coverage"]["connected"] == 27
+    assert payload["agent"]["executor_coverage"]["not_connected"] == 2
     assert str(documents) not in planned.stdout
+    assert str(password_file) not in planned.stdout
+    assert "synthetisches-postfach-geheimnis" not in planned.stdout
+    assert "imap.example.invalid" not in planned.stdout
 
     blocked = run_cli(
         "app",
@@ -720,6 +760,63 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
     )
     assert blocked.returncode == 2
     assert "127.0.0.1" in json.loads(blocked.stdout)["error"]
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_mail_connector_stays_not_connected_without_a_configured_mailbox(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    documents = tmp_path / "documents"
+    documents.mkdir()
+    resources_file = tmp_path / "resources.json"
+    resources_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.resource-registry.v1",
+                "os_account": "synthetic-family-account",
+                "resources": [
+                    {
+                        "resource_id": "documents_source",
+                        "kind": "directory",
+                        "locator": {"type": "local_path", "path": str(documents)},
+                        "operations": ["list", "read"],
+                        "purposes": ["documents.source"],
+                        "profile_ids": ["lukas"],
+                        "cloud_context": "minimized_with_approval",
+                    }
+                ],
+                "profile_defaults": {
+                    "lukas": {"documents.source": "documents_source"}
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    planned = run_cli(
+        "app",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--resources-file",
+        str(resources_file),
+        "--approve-mail-draft",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["agent"]["executor_coverage"]["connected"] == 26
+    assert payload["agent"]["executor_coverage"]["not_connected"] == 3
 
 
 @pytest.mark.skipif(

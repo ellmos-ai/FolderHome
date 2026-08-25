@@ -115,14 +115,23 @@ Endpoint-Katalog und eines erzeugt einen kurzlebigen Fachagenten mit genau
 einem Planungswerkzeug. Der Fachagent kann weder freigeben noch ausführen. Nach
 einer getrennten exakten Bestätigung darf der typisierte Executor-Katalog nur
 eine vorbereitete Ausführungshülle aufrufen und liefert den vorhandenen
-Fachbericht zurück. Derzeit sind 26 Workflows verbunden, ein Workflow direkt
-nur lesend, drei Systemendpunkte nur planend und drei externe Connectorlücken
-sichtbar. Verbundene Fachagenten erhalten das exakte geschlossene
-JSON-Anfrageschema ihres einzelnen Endpunkts; unbekannte Felder und beliebige
-Pfade werden blockiert. Alle 22 ressourcenabhängigen Endpunkte und die lokale
-Kalenderalternative sind umgesetzt. Mail, externe Kalender und
-Scheduler-Registrierung warten weiterhin auf ausdrücklich konfigurierte externe
-Connectoren samt Live-Effekt-Freigaben. Turnzahl,
+Fachbericht zurück. Mit vollständig konfiguriertem Register sind 27 Workflows
+verbunden, ein Workflow direkt nur lesend, drei Systemendpunkte nur planend und
+zwei externe Connectorlücken sichtbar. Verbundene Fachagenten erhalten das
+exakte geschlossene JSON-Anfrageschema ihres einzelnen Endpunkts; unbekannte
+Felder und beliebige Pfade werden blockiert. Alle 22 ressourcenabhängigen
+Endpunkte, die lokale Kalenderalternative und der reine Entwurfsendpunkt für
+Mail sind umgesetzt. Der Mailendpunkt verbindet sich nur, wenn das Register ein
+Entwurfspostfach deklariert; sonst bleibt er ehrlich unverbunden. Externe
+Kalender und Scheduler-Registrierung warten weiterhin auf ausdrücklich
+konfigurierte externe Connectoren samt Live-Effekt-Freigaben.
+
+Der Mailendpunkt besitzt keinen Versandweg. Er legt ein vorbereitetes Schreiben
+im Entwurfsordner des eigenen IMAP-Postfachs des Nutzers ab, hinter der
+getrennten Live-Effekt-Freigabe `--approve-mail-draft`. Kein Empfänger wird
+kontaktiert, das Postfachpasswort wird erst zur Ausführung aus seinem
+konfigurierten lokalen Fundort gelesen, und ein lokales Ledger hält die Ablage
+höchstens einmal. Turnzahl,
 Toolaufrufe, Prompt, Antwort, Toolresultat und
 Ausgabetokens sind endlich begrenzt. Der deterministische Fixture-Adapter
 durchläuft den echten Strands-Agenten und den echten Tool-Executor ohne

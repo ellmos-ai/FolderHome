@@ -15,7 +15,7 @@
 ## Verfügbare Workflows (auto-generated)
 
 <!-- @auto-generated:workflow-index -->
-<!-- last-updated: 2026-08-23 00:03 -->
+<!-- last-updated: 2026-08-25 02:42 -->
 <!-- tool: _tools/workflows-sync -->
 <!-- count: 33 workflows in 1 categories -->
 
@@ -43,7 +43,7 @@
 | **Korrespondenz sicher erstellen** [`correspondence-studio.de.md`](./workflows/correspondence-studio.de.md) | Einen Brief aus einer kontrollierten Vorlage und einem eigenen, vererbbaren Design zunächst vollständig lokal ansehen und anschließend als neue Mar... | ad-hoc | wenige Sekunden pro Brief |
 | **Leistungsvorcheck lokal ausführen** [`benefit-screening.de.md`](./workflows/benefit-screening.de.md) | Ein lokales Leistungsprofil mit groben, datierten Routingkriterien abgleichen und passende amtliche Vorchecks anzeigen. Das Ergebnis ist eine Orien... | bei geänderter Lebenssituation oder frischem Katalog | wenige Sekunden zuzüglich amtlichem Vorcheck |
 | **Lokale FolderHome-App starten** [`local-app.de.md`](./workflows/local-app.de.md) | Die gemeinsame FolderHome-Chatoberfläche auf dem aktuellen Betriebssystemkonto starten. Die GUI ruft denselben Master-Agentendienst wie die CLI auf... | — | — |
-| **Mail sicher lesen, zuordnen und freigeben** [`mail-connector.de.md`](./workflows/mail-connector.de.md) | Einen Postfachabruf ohne Postfachänderung planen, eingehende Nachrichtenreferenzen providerneutral übernehmen und einen Brief nur über eine explizi... | bei ausdrücklich ausgelöstem Mailabruf oder Versand | Plan unter einer Sekunde; Providerlauf abhängig vom Postfach |
+| **Mail sicher lesen, zuordnen und freigeben** [`mail-connector.de.md`](./workflows/mail-connector.de.md) | Einen Postfachabruf ohne Postfachänderung planen, eingehende Nachrichtenreferenzen providerneutral übernehmen und ein vorbereitetes Schreiben als E... | bei ausdrücklich ausgelöstem Mailabruf oder Entwurfsablage | Plan unter einer Sekunde; Providerlauf abhängig vom Postfach |
 | **Medikamentenplan und bestätigte Einnahme** [`medication-intake.de.md`](./workflows/medication-intake.de.md) | Einen bereitgestellten Medikamentenplan lokal und evidenzgebunden übernehmen, die organisatorische Tagesansicht lesen und eine ausdrückliche Einnah... | nach ausdrücklich bereitgestelltem Plan oder einer Einnahmebestätigung | wenige Sekunden |
 | **Mehrere Beobachtungsroutinen read-only bewerten** [`routine-queue.de.md`](./workflows/routine-queue.de.md) | Alle aktivierten Watches zu einem expliziten Zeitpunkt planen, Zustände vergleichbar bündeln und Konflikte über Watch-Grenzen erkennen, ohne Dateie... | bei jedem geplanten Scheduler- oder manuellen Prüflauf | abhängig von Watch- und Dokumentzahl |
 | **Persönliche Notiz geführt und revisionssicher ablegen** [`personal-notes.de.md`](./workflows/personal-notes.de.md) | Einen menschlich formulierten Notizinhalt mit getrennten Fragen und Vorschlägen prüfen, exakt freigeben und als neue Version im gepinnten lokalen `... | bei ausdrücklich gewünschter persönlicher Notiz | Planung und lokale Ablage wenige Sekunden |

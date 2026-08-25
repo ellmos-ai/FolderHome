@@ -100,10 +100,16 @@ es bei einer Übergabe ohne Ausführung.
 - Persönliche Notizen, eine geplante Medikamentenbestätigung und das strikt
   lokale FindCall-Fixture sind ohne Ressourcenregister verbunden. Ein
   konfiguriertes privates Register ergänzt 23 typisierte Adapter für den
-  vollständigen lokalen Dokument- und Assistenzstack. Damit sind 26 Endpunkte
-  verbunden, einer direkt nur lesend, drei nur planend und drei nicht verbunden.
-  Jeder verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema.
-- Der Runtime-Katalog erklärt jede verbleibende Lücke: Mail, externe Kalender
+  vollständigen lokalen Dokument- und Assistenzstack sowie den reinen
+  Entwurfsendpunkt für Mail, sobald das Register ein Entwurfspostfach
+  deklariert. Damit sind 27 Endpunkte verbunden, einer direkt nur lesend, drei
+  nur planend und zwei nicht verbunden. Ohne konfiguriertes Postfach bleibt der
+  Mailendpunkt unverbunden; der Katalog meldet dann 26 und drei. Jeder
+  verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema.
+- Der Mailendpunkt legt ausschließlich Entwürfe ab. Er hängt ein vorbereitetes
+  Schreiben hinter `--approve-mail-draft` an den eigenen Entwurfsordner des
+  Nutzers an und versendet nie.
+- Der Runtime-Katalog erklärt jede verbleibende Lücke: externe Kalender
   und Scheduler-Registrierung benötigen ausdrücklich konfigurierte externe
   Connectoren und eigene Live-Effekt-Freigaben.
 - FindCall ist ein ausdrücklicher Kommunikationsendpunkt. Sein lokaler Plan und

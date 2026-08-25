@@ -185,7 +185,7 @@ _EXTERNAL_EFFECTS = {
     "calendar-connectors": ("external.calendar.write",),
     "calendar-handoff": ("external.calendar.write",),
     "findcall": ("simulation.findcall.fixture",),
-    "mail-connector": ("external.mail.send",),
+    "mail-connector": ("external.mailbox.draft_write",),
     "scheduler-handoff": ("external.scheduler.write",),
 }
 

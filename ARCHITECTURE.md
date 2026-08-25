@@ -106,14 +106,22 @@ and read-only, one lists the verified role and endpoint catalog, and one creates
 a short-lived specialist with exactly one planning tool. The specialist cannot
 approve or execute. After a separate exact confirmation, the typed executor
 registry can invoke only a prepared envelope and returns the existing domain
-report. Current coverage is 26 connected workflows, one direct read-only
-workflow, three planning-only system endpoints and three visible external
-connector gaps.
+report. With a fully configured registry, coverage is 27 connected workflows,
+one direct read-only workflow, three planning-only system endpoints and two
+visible external connector gaps.
 Connected specialists receive the exact closed JSON request schema for their
 single endpoint; unknown fields and arbitrary paths fail closed.
-All 22 resource-ID-dependent endpoints and the local-calendar alternative are
-implemented. Mail, external calendars and scheduler registration still await
+All 22 resource-ID-dependent endpoints, the local-calendar alternative and the
+draft-only mail endpoint are implemented. The mail endpoint connects only when
+the registry declares a drafts mailbox; otherwise it stays honestly
+unconnected. External calendars and scheduler registration still await
 explicitly configured external connectors plus their live-effect approvals.
+
+The mail endpoint has no send path. It appends one prepared letter to the
+drafts folder of the user's own IMAP mailbox, behind the separate live-effect
+approval `--approve-mail-draft`. No recipient is contacted, the mailbox
+password is read only from its configured local file at execution time, and a
+local ledger keeps the append at most once.
 Turn count, tool invocations, prompt, response, tool result, and output tokens
 are finitely limited. The deterministic fixture adapter runs the real Strands
 agent and tool executor without credentials or network access. Bedrock requires

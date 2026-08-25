@@ -6,6 +6,7 @@ import json
 import os
 import secrets
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, time
 from hashlib import sha256
@@ -133,6 +134,11 @@ from folderhome.application.legal_change_monitor import (
     load_legal_source_snapshot,
     write_legal_change_report,
 )
+from folderhome.application.mail_draft import (
+    append_mail_draft,
+    build_mail_draft_message,
+    load_mail_draft_account,
+)
 from folderhome.application.master_agent import master_capability_catalog
 from folderhome.application.medication_intake import (
     MedicationWorkflowError,
@@ -178,6 +184,13 @@ from folderhome.capabilities.contact_registry import ContactRegisterError, Conta
 from folderhome.capabilities.finance_store import FinanceStore, FinanceStoreError
 from folderhome.capabilities.findcall import SyntheticFindCallProvider
 from folderhome.capabilities.inventory_store import InventoryStore, InventoryStoreError
+from folderhome.capabilities.mail_draft import (
+    ImapDraftTransport,
+    MailDraftError,
+    MailDraftLedger,
+    MailDraftTransport,
+    read_mailbox_password,
+)
 from folderhome.capabilities.medication_store import MedicationStore, MedicationStoreError
 from folderhome.capabilities.personal_note_guide import SyntheticPersonalNoteGuide
 from folderhome.contracts import (
@@ -232,6 +245,11 @@ from folderhome.contracts import (
     TaxExportApproval,
     TaxExportPlan,
     WatchedFolder,
+)
+from folderhome.contracts.mail_draft import (
+    MAIL_DRAFT_PROVIDER_ID,
+    MailDraftAccount,
+    MailDraftMessage,
 )
 from folderhome.contracts.medication import MedicationIntakeConfirmation
 from folderhome.contracts.personal_notes import (
@@ -498,6 +516,25 @@ _CORRESPONDENCE_REQUEST_SCHEMA: dict[str, object] = {
         "templates_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
         "output_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
         "output_basename": {"type": "string", "minLength": 1, "maxLength": 140},
+    },
+}
+
+_MAIL_DRAFT_REQUEST_SCHEMA: dict[str, object] = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": [
+        "account_resource_id",
+        "request_resource_id",
+        "designs_resource_id",
+        "templates_resource_id",
+        "planned_at",
+    ],
+    "properties": {
+        "account_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
+        "request_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
+        "designs_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
+        "templates_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
+        "planned_at": {"type": "string", "minLength": 20, "maxLength": 40},
     },
 }
 
@@ -1117,6 +1154,14 @@ class _PreparedCorrespondence:
     output_root: Path
     output_resource_id: str
     output_basename: str
+
+
+@dataclass(frozen=True, slots=True)
+class _PreparedMailDraft:
+    message: MailDraftMessage
+    public_plan: dict[str, object]
+    account: MailDraftAccount
+    account_resource_id: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -6199,6 +6244,255 @@ class CorrespondenceWorkflowAdapter:
         )
 
 
+class MailDraftWorkflowAdapter:
+    """Place one prepared letter into the drafts folder of the user's own mailbox."""
+
+    descriptor = WorkflowAdapterDescriptor(
+        workflow_id="mail-connector",
+        adapter_id="mail_draft_resource.v1",
+        status="connected",
+        plan_schema="folderhome.mail-draft-resource-plan.v1",
+        report_schema="folderhome.mail-draft-resource-report.v1",
+        side_effects=("external.mailbox.draft_write",),
+        reason=(
+            "Appends one prepared letter to the configured drafts folder of the "
+            "user's own mailbox. There is no send path at all: no recipient is "
+            "contacted, the mailbox password is read only from its configured local "
+            "file, and the separate live-effect approval stays required."
+        ),
+        request_schema=_MAIL_DRAFT_REQUEST_SCHEMA,
+    )
+
+    def __init__(
+        self,
+        *,
+        registry: ResourceRegistry,
+        state_dir: Path,
+        report_forge_revision: str,
+        report_forge_distribution_version: str,
+        report_forge_runtime_version: str,
+        allow_mail_draft: bool,
+        transport_factory: Callable[[MailDraftAccount], MailDraftTransport] | None = None,
+    ) -> None:
+        self._registry = registry
+        self._state_dir = state_dir
+        self._report_forge_revision = report_forge_revision
+        self._report_forge_distribution_version = report_forge_distribution_version
+        self._report_forge_runtime_version = report_forge_runtime_version
+        self._allow_mail_draft = allow_mail_draft
+        self._transport_factory = transport_factory or _imap_draft_transport
+
+    def prepare(
+        self,
+        *,
+        profile_id: str,
+        request: dict[str, object],
+    ) -> tuple[WorkflowExecutionEnvelope, _PreparedMailDraft]:
+        expected = {
+            "account_resource_id",
+            "request_resource_id",
+            "designs_resource_id",
+            "templates_resource_id",
+            "planned_at",
+        }
+        unknown = sorted(set(request).difference(expected))
+        missing = sorted(expected.difference(request))
+        if unknown:
+            raise WorkflowExecutionError(
+                "Unbekannte Felder in Mailentwurfsanfrage: " + ", ".join(unknown)
+            )
+        if missing:
+            raise WorkflowExecutionError(
+                "Mailentwurfsanfrage fehlt Feld: " + missing[0]
+            )
+        resource_ids = {
+            name: _text(request[name], name)
+            for name in (
+                "account_resource_id",
+                "request_resource_id",
+                "designs_resource_id",
+                "templates_resource_id",
+            )
+        }
+        planned_at = _text(request["planned_at"], "planned_at")
+        try:
+            account_resource = self._registry.resolve(
+                resource_id=resource_ids["account_resource_id"],
+                profile_id=profile_id,
+                purpose="mail.draft_account",
+                required_kind="file",
+                required_operations=frozenset({"read"}),
+            )
+            request_resource = self._registry.resolve(
+                resource_id=resource_ids["request_resource_id"],
+                profile_id=profile_id,
+                purpose="correspondence.request",
+                required_kind="file",
+                required_operations=frozenset({"read"}),
+            )
+            designs_resource = self._registry.resolve(
+                resource_id=resource_ids["designs_resource_id"],
+                profile_id=profile_id,
+                purpose="correspondence.designs",
+                required_kind="file",
+                required_operations=frozenset({"read"}),
+            )
+            templates_resource = self._registry.resolve(
+                resource_id=resource_ids["templates_resource_id"],
+                profile_id=profile_id,
+                purpose="correspondence.templates",
+                required_kind="file",
+                required_operations=frozenset({"read"}),
+            )
+            account = load_mail_draft_account(account_resource.local_path)
+            if account.profile_id != profile_id:
+                raise WorkflowExecutionError(
+                    "Entwurfskonto gehört zu einem anderen Profil."
+                )
+            correspondence_request = load_correspondence_request(
+                request_resource.local_path
+            )
+            if correspondence_request.profile_id != profile_id:
+                raise WorkflowExecutionError(
+                    "Korrespondenzanfrage gehört zu einem anderen Profil."
+                )
+            configuration = load_correspondence_configuration(
+                designs_resource.local_path,
+                templates_resource.local_path,
+            )
+            preview = build_correspondence_preview(
+                correspondence_request,
+                configuration=configuration,
+                report_forge_revision=self._report_forge_revision,
+                report_forge_distribution_version=(
+                    self._report_forge_distribution_version
+                ),
+                report_forge_runtime_version=self._report_forge_runtime_version,
+            )
+            message = build_mail_draft_message(
+                preview,
+                account=account,
+                planned_at=planned_at,
+            )
+        except (
+            CorrespondenceError,
+            MailDraftError,
+            ResourceRegistryError,
+            OSError,
+            TypeError,
+            ValueError,
+        ) as exc:
+            raise WorkflowExecutionError(str(exc)) from exc
+        public_plan = {
+            "schema": "folderhome.mail-draft-resource-plan.v1",
+            **resource_ids,
+            **message.to_public_dict(),
+            **account.to_public_dict(),
+            "live_effect_approved": self._allow_mail_draft,
+            "paths_disclosed": False,
+        }
+        plan_sha256 = sha256(_canonical_json(public_plan)).hexdigest()
+        material = _canonical_json(
+            {
+                "adapter_id": self.descriptor.adapter_id,
+                "workflow_id": self.descriptor.workflow_id,
+                "domain_plan_sha256": plan_sha256,
+            }
+        )
+        envelope = WorkflowExecutionEnvelope(
+            envelope_id=f"workflow_envelope_{sha256(material).hexdigest()}",
+            workflow_id=self.descriptor.workflow_id,
+            adapter_id=self.descriptor.adapter_id or "mail_draft_resource.v1",
+            domain_plan_id=message.draft_id,
+            domain_plan_schema=str(public_plan["schema"]),
+            domain_plan_sha256=plan_sha256,
+            domain_plan=public_plan,
+            approval_kind="explicit_mailbox_draft_write",
+            side_effects=self.descriptor.side_effects,
+        )
+        return envelope, _PreparedMailDraft(
+            message=message,
+            public_plan=public_plan,
+            account=account,
+            account_resource_id=account_resource.resource_id,
+        )
+
+    def execute(
+        self,
+        *,
+        envelope: WorkflowExecutionEnvelope,
+        domain_plan: object,
+        approved_at: str,
+    ) -> WorkflowExecutionReport:
+        if not isinstance(domain_plan, _PreparedMailDraft):
+            raise WorkflowExecutionError(
+                "Vorbereiteter Mailentwurf besitzt falschen Typ."
+            )
+        plan_sha256 = sha256(_canonical_json(domain_plan.public_plan)).hexdigest()
+        if (
+            envelope.domain_plan_id != domain_plan.message.draft_id
+            or envelope.domain_plan_sha256 != plan_sha256
+        ):
+            raise WorkflowExecutionError(
+                "Ausführungshülle stimmt nicht mit dem Mailentwurf überein."
+            )
+        if not self._allow_mail_draft:
+            raise WorkflowExecutionError(
+                "Die Entwurfsablage in ein echtes Postfach benötigt die getrennte "
+                "Freigabe --approve-mail-draft."
+            )
+        try:
+            transport = self._transport_factory(domain_plan.account)
+            report = append_mail_draft(
+                domain_plan.message,
+                account=domain_plan.account,
+                transport=transport,
+                ledger=MailDraftLedger(self._state_dir),
+                allow_mailbox_write=True,
+                appended_at=approved_at,
+            )
+        except (MailDraftError, OSError, TypeError, ValueError) as exc:
+            raise WorkflowExecutionError(str(exc)) from exc
+        public_report = dict(report.to_dict())
+        public_report.update(
+            {
+                "schema": "folderhome.mail-draft-resource-report.v1",
+                "account_resource_id": domain_plan.account_resource_id,
+                "provider_id": MAIL_DRAFT_PROVIDER_ID,
+                "paths_disclosed": False,
+            }
+        )
+        digest = sha256(
+            _canonical_json(
+                {
+                    "envelope_id": envelope.envelope_id,
+                    "approved_at": approved_at,
+                    "domain_report": public_report,
+                }
+            )
+        ).hexdigest()
+        return WorkflowExecutionReport(
+            execution_id=f"workflow_execution_{digest}",
+            envelope_id=envelope.envelope_id,
+            workflow_id=self.descriptor.workflow_id,
+            adapter_id=self.descriptor.adapter_id or "mail_draft_resource.v1",
+            domain_report_schema=str(public_report["schema"]),
+            domain_report=public_report,
+            side_effects=self.descriptor.side_effects,
+        )
+
+
+def _imap_draft_transport(account: MailDraftAccount) -> MailDraftTransport:
+    """Build the real IMAP transport and read the password exactly once."""
+
+    return ImapDraftTransport(
+        host=account.host,
+        port=account.port,
+        username=account.username,
+        password=read_mailbox_password(account),
+    )
+
+
 class ContactRegisterWorkflowAdapter:
     """Maintain the existing local contact register through logical resources."""
 
@@ -8051,6 +8345,7 @@ __all__ = [
     "InventoryImportWorkflowAdapter",
     "LegalChangeMonitorWorkflowAdapter",
     "LocalCalendarWorkflowAdapter",
+    "MailDraftWorkflowAdapter",
     "MedicationIntakeWorkflowAdapter",
     "OfficialNoticeWorkflowAdapter",
     "PersonalNotesWorkflowAdapter",

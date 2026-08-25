@@ -33,6 +33,7 @@ from folderhome.application.workflow_execution import (
     InventoryImportWorkflowAdapter,
     LegalChangeMonitorWorkflowAdapter,
     LocalCalendarWorkflowAdapter,
+    MailDraftWorkflowAdapter,
     MedicationIntakeWorkflowAdapter,
     OfficialNoticeWorkflowAdapter,
     PersonalNotesWorkflowAdapter,
@@ -52,6 +53,7 @@ from folderhome.capabilities.calendar_store import CalendarStore
 from folderhome.capabilities.contact_registry import ContactRegisterStore
 from folderhome.capabilities.finance_store import FinanceStore
 from folderhome.capabilities.inventory_store import InventoryStore
+from folderhome.capabilities.mail_draft import MailDraftLedger, SyntheticDraftTransport
 from folderhome.capabilities.medication_store import MedicationStore
 from folderhome.contracts import (
     ContentFormat,
@@ -725,6 +727,215 @@ def test_correspondence_adapter_writes_local_letter_without_model_content_leak(
     assert "SYN-4711" in markdown_file.read_text(encoding="utf-8")
     assert report.domain_report["output_resource_id"] == "letter_output"
     assert str(output) not in str(report.to_dict())
+
+
+def _mail_draft_registry(tmp_path: Path) -> tuple[ResourceRegistry, Path]:
+    example_root = REPOSITORY_ROOT / "examples" / "correspondence"
+    private = tmp_path / "private-mail-configuration"
+    private.mkdir()
+    password_file = private / "mailbox-password.txt"
+    password_file.write_text("synthetisches-postfach-geheimnis", encoding="utf-8")
+    account_file = private / "mail-draft-account.json"
+    account_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.mail-draft-account.v1",
+                "account_id": "family-mailbox",
+                "profile_id": "lukas",
+                "display_name": "Lukas Beispiel",
+                "from_address": "lukas@example.invalid",
+                "host": "imap.example.invalid",
+                "port": 993,
+                "use_ssl": True,
+                "username": "lukas@example.invalid",
+                "drafts_folder": "INBOX.Drafts",
+                "password_file": str(password_file),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    request_file = private / "letter-with-mail-recipient.json"
+    request_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.correspondence-request.v1",
+                "profile_id": "lukas",
+                "area": "versicherungen",
+                "purpose": "kuendigung",
+                "template_id": "insurance-cancellation",
+                "created_on": "2026-08-22",
+                "sender": {
+                    "name": "Lukas Beispiel",
+                    "address_lines": ["Musterweg 1", "12345 Beispielstadt"],
+                    "email": "lukas@example.invalid",
+                    "phone": None,
+                },
+                "recipient": {
+                    "name": "Beispiel Versicherung AG",
+                    "address_lines": ["Versicherungsplatz 2", "54321 Beispielstadt"],
+                    "email": "service@example.invalid",
+                    "phone": None,
+                },
+                "variables": {
+                    "policy_number": "SYN-4711",
+                    "vehicle": "Hyundai i10",
+                    "termination_date": "31.12.2026",
+                },
+                "attachments": [],
+                "evidence_refs": ["doc_" + "a" * 64],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    registry = ResourceRegistry(
+        os_account="synthetic-family-account",
+        resources=(
+            LogicalResource(
+                resource_id="mail_draft_account",
+                kind="file",
+                local_path=account_file,
+                operations=frozenset({"read"}),
+                purposes=frozenset({"mail.draft_account"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="letter_request",
+                kind="file",
+                local_path=request_file,
+                operations=frozenset({"read"}),
+                purposes=frozenset({"correspondence.request"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="letter_designs",
+                kind="file",
+                local_path=example_root / "designs.json",
+                operations=frozenset({"read"}),
+                purposes=frozenset({"correspondence.designs"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="letter_templates",
+                kind="file",
+                local_path=example_root / "templates.json",
+                operations=frozenset({"read"}),
+                purposes=frozenset({"correspondence.templates"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+        ),
+        profile_defaults={},
+        known_profile_ids=frozenset({"lukas"}),
+    )
+    return registry, password_file
+
+
+def _mail_draft_request() -> dict[str, object]:
+    return {
+        "account_resource_id": "mail_draft_account",
+        "request_resource_id": "letter_request",
+        "designs_resource_id": "letter_designs",
+        "templates_resource_id": "letter_templates",
+        "planned_at": "2026-08-25T09:00:00+02:00",
+    }
+
+
+def test_mail_draft_adapter_appends_one_draft_without_sending_or_leaking(
+    tmp_path: Path,
+) -> None:
+    registry, password_file = _mail_draft_registry(tmp_path)
+    transport = SyntheticDraftTransport()
+    gateway = WorkflowExecutionGateway(
+        (
+            MailDraftWorkflowAdapter(
+                registry=registry,
+                state_dir=tmp_path / "state",
+                report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+                report_forge_distribution_version="1.1.4",
+                report_forge_runtime_version="1.1.0",
+                allow_mail_draft=True,
+                transport_factory=lambda account: transport,
+            ),
+        )
+    )
+    descriptor = gateway.descriptor("mail-connector")
+    assert descriptor.status == "connected"
+    assert descriptor.side_effects == ("external.mailbox.draft_write",)
+
+    envelope = gateway.prepare(
+        workflow_id="mail-connector",
+        profile_id="lukas",
+        request=_mail_draft_request(),
+    )
+
+    serialized = str(envelope.to_dict())
+    assert envelope.domain_plan["delivery_attempted"] is False
+    assert envelope.domain_plan["recipient_disclosed"] is False
+    assert envelope.domain_plan["body_disclosed"] is False
+    assert envelope.domain_plan["live_effect_approved"] is True
+    assert envelope.domain_plan["drafts_folder"] == "INBOX.Drafts"
+    assert "service@example.invalid" not in serialized
+    assert "synthetisches-postfach-geheimnis" not in serialized
+    assert str(password_file) not in serialized
+    assert "imap.example.invalid" not in serialized
+    assert transport.appended == []
+
+    report = gateway.execute(
+        envelope_id=envelope.envelope_id,
+        approved_at="2026-08-25T09:05:00+02:00",
+    )
+
+    assert report.domain_report["status"] == "drafted"
+    assert report.domain_report["email_sent"] is False
+    assert report.domain_report["account_resource_id"] == "mail_draft_account"
+    assert len(transport.appended) == 1
+    folder, raw = transport.appended[0]
+    assert folder == "INBOX.Drafts"
+    assert b"service@example.invalid" in raw
+    assert MailDraftLedger(tmp_path / "state").status(
+        str(envelope.domain_plan["idempotency_key"])
+    ) == "drafted"
+    assert "synthetisches-postfach-geheimnis" not in str(report.to_dict())
+
+
+def test_mail_draft_adapter_plans_but_refuses_execution_without_live_gate(
+    tmp_path: Path,
+) -> None:
+    registry, _ = _mail_draft_registry(tmp_path)
+    transport = SyntheticDraftTransport()
+    gateway = WorkflowExecutionGateway(
+        (
+            MailDraftWorkflowAdapter(
+                registry=registry,
+                state_dir=tmp_path / "state",
+                report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+                report_forge_distribution_version="1.1.4",
+                report_forge_runtime_version="1.1.0",
+                allow_mail_draft=False,
+                transport_factory=lambda account: transport,
+            ),
+        )
+    )
+
+    envelope = gateway.prepare(
+        workflow_id="mail-connector",
+        profile_id="lukas",
+        request=_mail_draft_request(),
+    )
+    assert envelope.domain_plan["live_effect_approved"] is False
+
+    with pytest.raises(WorkflowExecutionError, match="--approve-mail-draft"):
+        gateway.execute(
+            envelope_id=envelope.envelope_id,
+            approved_at="2026-08-25T09:05:00+02:00",
+        )
+
+    assert transport.appended == []
 
 
 def test_local_calendar_adapter_records_evidenced_appointment_without_connector(

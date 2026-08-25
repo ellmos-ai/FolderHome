@@ -13,7 +13,7 @@
 ## Available Workflows (auto-generated)
 
 <!-- @auto-generated:workflow-index -->
-<!-- last-updated: 2026-08-23 00:03 -->
+<!-- last-updated: 2026-08-25 02:42 -->
 <!-- tool: _tools/workflows-sync -->
 <!-- count: 33 workflows in 1 categories -->
 
@@ -47,7 +47,7 @@
 | **Scan Observed Folder and Verify Corrections** [`directory-observation.md`](./workflows/directory-observation.md) | Check a declared folder (without raw document text) against its last verified checkpoint, explain changes, and emit documented manual moves as lear... | ad‑hoc, later per scheduled scan run | dependent on file count and file size |
 | **Securely Create Correspondence** [`correspondence-studio.md`](./workflows/correspondence-studio.md) | View a letter generated from a controlled template and a custom, inheritable design entirely locally first, and then output it as new Markdown and ... | ad-hoc | a few seconds per letter |
 | **Securely create administrative draft** [`administrative-drafts.md`](./workflows/administrative-drafts.md) | Prepare a visibly unchecked and unsent administrative letter from a documented notice structure and provided information. The workflow generates on... | per objection, response, or application draft | a few seconds plus full human review |
-| **Securely read, assign, and approve Mail** [`mail-connector.md`](./workflows/mail-connector.md) | Plan a mailbox fetch without changing the mailbox, adopt incoming message references in a provider‑neutral way, and prepare a letter for idempotent... | when mail fetch or send is explicitly triggered | plan under one second; provider runtime depends on mailbox |
+| **Securely read, assign, and approve Mail** [`mail-connector.md`](./workflows/mail-connector.md) | Plan a mailbox fetch without changing the mailbox, adopt incoming message references in a provider‑neutral way, and place one prepared letter as a ... | when mail fetch or draft placement is explicitly triggered | plan under one second; provider runtime depends on mailbox |
 | **Start Local FolderHome App** [`local-app.md`](./workflows/local-app.md) | Start the shared FolderHome chat interface on the current operating-system account. The GUI calls the same master-agent service as the CLI, shows r... | per local work session | a few seconds plus interactive usage |
 | **Supplement Local Household Inventory** [`inventory-import.md`](./workflows/inventory-import.md) | Validate provided inventory observations, ingest them in a revision‑bound manner into the local append‑only inventory store, and then display curre... | after an explicitly documented inventory | few seconds per inventory folder |
 | **Understanding a Social Law Official Notice** [`official-notice-understanding.md`](./workflows/official-notice-understanding.md) | Capture explicitly labeled information from a local official notice in a traceable way and output it as a verifiable Markdown/JSON report. This wor... | per provided official notice | a few seconds plus human review |

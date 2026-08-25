@@ -2,15 +2,16 @@
 
 [English](./mail-connector.md) | **Deutsch**
 
-> **Last verified:** 2026-08-22
-> **Frequency:** bei ausdrücklich ausgelöstem Mailabruf oder Versand
+> **Last verified:** 2026-08-25
+> **Frequency:** bei ausdrücklich ausgelöstem Mailabruf oder Entwurfsablage
 > **Duration:** Plan unter einer Sekunde; Providerlauf abhängig vom Postfach
 
 ## Purpose
 
 Einen Postfachabruf ohne Postfachänderung planen, eingehende
-Nachrichtenreferenzen providerneutral übernehmen und einen Brief nur über eine
-explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
+Nachrichtenreferenzen providerneutral übernehmen und ein vorbereitetes
+Schreiben als Entwurf in das eigene Postfach des Nutzers legen — niemals als
+Zustellung an Dritte.
 
 ## Preconditions
 
@@ -19,6 +20,45 @@ explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
 - Für einen Entwurf liegen ein aktiver Kontakt und eine unveränderte
   Korrespondenzvorschau vor.
 - Reale Netzwerkaktionen besitzen eine separate Freigabe.
+
+## Entwurfsablage über den Chat-Executor
+
+Der verbundene Endpunkt legt ausschließlich Entwürfe ab. Er rendert genau eine
+Korrespondenzvorschau in eine RFC-5322-Nachricht und hängt sie an den
+konfigurierten Entwurfsordner des eigenen IMAP-Postfachs des Nutzers an. Dieser
+Endpunkt besitzt keinen SMTP-Weg; kein Empfänger wird kontaktiert.
+
+1. **Postfach im privaten Register deklarieren** — eine `file`-Ressource mit
+   dem Zweck `mail.draft_account`, die auf ein Dokument nach
+   `folderhome.mail-draft-account.v1` zeigt. Vorlage:
+   [`../examples/mail/draft-account.example.json`](../examples/mail/draft-account.example.json).
+   Das Dokument enthält Host, Port, Benutzername, den ASCII-IMAP-Entwurfsordner
+   und `password_file`, einen absoluten Pfad auf eine lokale Datei mit dem
+   Passwort. Der Passwortwert erscheint nie in Plan, Bericht, Chat oder
+   Repository.
+
+2. **Vorbereiten** — der Executor löst Postfach, Briefanfrage, Designs und
+   Vorlagen über logische Ressourcen-IDs auf, baut die Korrespondenzvorschau
+   erneut auf und rendert einen deterministischen Entwurf. Der Plan zeigt
+   Betreff und Hashes, niemals den Brieftext, die Empfängeradresse, den Host
+   oder den Passwort-Fundort.
+
+3. **Genau einmal freigeben** — `/confirm <plan_id>` führt die vorbereitete,
+   hashgebundene Hülle ein einziges Mal aus.
+
+4. **Live-Effekt-Gate** — ohne `--approve-mail-draft` plant der Endpunkt, rührt
+   das Postfach aber nicht an. Mit der Freigabe liest der Transport das Passwort
+   aus seinem konfigurierten Fundort, hängt die Nachricht mit dem Flag
+   `\Draft` an und meldet sich wieder ab.
+
+5. **Ledger** — ein lokales SQLite-Ledger reserviert den deterministischen
+   Idempotenzschlüssel vor der Ablage und hält `drafted` oder `failed` fest.
+   Derselbe Entwurf kann nicht zweimal in dasselbe Postfach gelegt werden.
+
+Anhänge werden in dieser Fassung fail-closed abgelehnt: Der Entwurf trägt nur
+Text, und im Brief genannte Anlagen sind vor dem Senden von Hand anzuhängen.
+Ohne deklarierte `mail.draft_account`-Ressource bleibt der Endpunkt ehrlich
+`not_connected`.
 
 ## Steps
 
@@ -71,6 +111,10 @@ explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
 - [ ] Kontakt und Korrespondenz sind exakt und ausdrücklich gebunden.
 - [ ] Versandfreigabe und Ledger verhindern einen Wiederholungslauf.
 - [ ] Ohne reales Nutzer-Gate wurden weder Netzwerk noch E-Mail ausgelöst.
+- [ ] Der Entwurfsendpunkt hat höchstens eine Nachricht abgelegt und nichts
+  versendet.
+- [ ] Passwort, Host und Passwort-Fundort blieben aus Plan, Bericht und Chat
+  heraus.
 
 ## Fallstricke
 
@@ -93,6 +137,8 @@ explizite Kontaktzuordnung für einen idempotenten Versand vorbereiten.
 
 - **2026-08-22** — Providerinventur, read-only Ingest und synthetischer
   Entwurfs-/Versandablauf erstmals lokal abgenommen
+- **2026-08-25** — Reiner IMAP-Entwurfsendpunkt hinter `--approve-mail-draft`
+  an den Chat-Executor angebunden; kein Versandweg ergänzt
 
 ---
 <!-- REMEMBER: ENDUSERTEXTE BEKOMMEN ECHTE UMLAUTE Ü Ö Ä -->

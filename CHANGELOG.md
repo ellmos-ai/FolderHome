@@ -12,6 +12,16 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- draft-only mail endpoint: one prepared letter is appended to the drafts
+  folder of the user's own IMAP mailbox behind the separate live-effect
+  approval `--approve-mail-draft`; there is no send path, no recipient is
+  contacted, and the mailbox password is read only at execution time from its
+  configured local file
+- private registry purpose `mail.draft_account` plus the strict configuration
+  schema `folderhome.mail-draft-account.v1`; without such a resource the mail
+  endpoint stays honestly `not_connected`
+- local SQLite draft ledger that reserves a deterministic idempotency key
+  before the append, so the same draft cannot land twice in the same mailbox
 - one-command, token-gated synthetic Hyundai i10 accident demo over the real
   Strands search path and four existing typed workflow adapters
 - English-default bilingual accident-demo UI with persistent light/dark theme,

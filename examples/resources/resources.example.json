@@ -25,6 +25,18 @@
       "purposes": ["documents.output", "correspondence.output"],
       "profile_ids": ["lukas"],
       "cloud_context": "deny"
+    },
+    {
+      "resource_id": "family_mail_draft_account",
+      "kind": "file",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\mail-draft-account.json"
+      },
+      "operations": ["read"],
+      "purposes": ["mail.draft_account"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
     }
   ],
   "profile_defaults": {
@@ -32,7 +44,8 @@
       "documents.source": "family_documents_inbox",
       "documents.output": "family_documents_output",
       "insurance.source": "family_documents_inbox",
-      "correspondence.output": "family_documents_output"
+      "correspondence.output": "family_documents_output",
+      "mail.draft_account": "family_mail_draft_account"
     }
   }
 }

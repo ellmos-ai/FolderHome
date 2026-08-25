@@ -127,10 +127,14 @@ die Bestätigung einer bereits geplanten Medikamenteneinnahme und die strikt
 lokale FindCall-Fixture-Kaskade. Mit konfiguriertem Register kommen 23
 typisierte Ressourcenadapter für den vollständigen lokalen Dokument-,
 Organisations-, Gesundheits-, Finanz-, Sozialrechts-, Bestands-, Steuer-,
-Briefing-, Design-, FCSA- und Routinenstack hinzu. Damit sind 26 Endpunkte
-verbunden; hinzu kommen ein direkter Nur-Lese-Pfad, drei absichtlich nur
-planende Systemendpunkte und lediglich drei sichtbare, fail-closed externe
-Connectorlücken: Mail, externe Kalender und Scheduler-Registrierung. Jeder
+Briefing-, Design-, FCSA- und Routinenstack hinzu. Ein Register, das zusätzlich
+ein Entwurfspostfach (`mail.draft_account`) deklariert, verbindet auch den
+reinen Entwurfsendpunkt für Mail. Damit sind 27 Endpunkte verbunden; hinzu
+kommen ein direkter Nur-Lese-Pfad, drei absichtlich nur planende
+Systemendpunkte und lediglich zwei sichtbare, fail-closed externe
+Connectorlücken: externe Kalender und Scheduler-Registrierung. Ohne
+konfiguriertes Postfach bleibt der Mailendpunkt ehrlich unverbunden; der
+Katalog meldet dann 26 verbundene Endpunkte und drei Lücken. Jeder
 verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema. Eine
 Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
 verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten

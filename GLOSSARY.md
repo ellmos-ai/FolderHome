@@ -22,6 +22,14 @@ Explicit permission check before a side-effect. Missing or unknown permission re
 
 Versioned JSON report of a run in schema `ellmos.home-agent.run-report.v1` with provenance, actions, evidence and decisions.
 
+## Draft Placement
+
+Appending one prepared letter to the drafts folder of the user's own mailbox. It is not a delivery: no recipient is contacted, and the owner still sends the message themselves in their own mail program.
+
+## Password Location
+
+The absolute path of a local file that holds one credential. FolderHome configures the location, never the value; the file is read at execution time only and its path stays out of plans, reports and chat.
+
 ## Side-Effect
 
 External effect such as file writing, network access, phone call, email sending or calendar entry.
