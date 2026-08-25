@@ -3,7 +3,7 @@
 **English** | [Deutsch](./README.de.md)
 
 - Origin: `https://github.com/ellmos-ai/ringedingeding.git`
-- Revision: `55f426598d716991b0fae8c5e1c092aceb8c4da8`
+- Revision: `16b8c25a44f03d58c3f3a9625ac2f2993c6f6d6f`
 - License: MIT
 - Manifest: `../../manifests/components/ringedingeding.toml`
 - Class: `REUSED_UNCHANGED`

@@ -171,7 +171,7 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   HEADs veraltet und verursachten fail-closed Revisionsabweichungen in vier
   automatisierten Tests; alle drei Pins wurden auf die geprüften aktuellen
   öffentlichen HEADs nachgezogen
-  (`2c7db533f073d07eae6d758ceab91b9423ae1dc7`,
+  (`82c28e2de95b1b0d0343a40adfd8585938c305f8`,
   `a5b0cd51bc3666962f2fae8017c855dea0a712a2`,
   `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`); die betroffenen Tests
   bestehen wieder

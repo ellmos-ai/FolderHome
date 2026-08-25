@@ -10,7 +10,7 @@ live_enabled = false
 
 [source]
 repository = "https://github.com/ellmos-ai/hungrycall.git"
-revision = "2c7db533f073d07eae6d758ceab91b9423ae1dc7"
+revision = "82c28e2de95b1b0d0343a40adfd8585938c305f8"
 committed_at = "2026-08-24T15:34:36+02:00"
 
 [[capabilities]]

@@ -140,7 +140,7 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   pins were stale against their current public repository HEADs, causing
   fail-closed revision-mismatch failures in four automated tests; all three
   pins were refreshed to the verified current public HEADs
-  (`2c7db533f073d07eae6d758ceab91b9423ae1dc7`,
+  (`82c28e2de95b1b0d0343a40adfd8585938c305f8`,
   `a5b0cd51bc3666962f2fae8017c855dea0a712a2`,
   `d80dd81a6d7bf64298d4ef290c3b54ab5f50e990`) and the affected tests pass
   again
