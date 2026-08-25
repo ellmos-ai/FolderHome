@@ -22,6 +22,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   endpoint stays honestly `not_connected`
 - local SQLite draft ledger that reserves a deterministic idempotency key
   before the append, so the same draft cannot land twice in the same mailbox
+- optional ICS export on the local calendar endpoint: the recorded
+  appointments are written as one private RFC 5545 file into a registry-bound
+  output directory (purpose `calendar.export_output`), hash-bound by the same
+  confirmation, never overwriting, and rolled back if the calendar state write
+  fails; no calendar connector is involved
 - one-command, token-gated synthetic Hyundai i10 accident demo over the real
   Strands search path and four existing typed workflow adapters
 - English-default bilingual accident-demo UI with persistent light/dark theme,

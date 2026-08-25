@@ -15,7 +15,7 @@
 ## Verfügbare Workflows (auto-generated)
 
 <!-- @auto-generated:workflow-index -->
-<!-- last-updated: 2026-08-25 02:42 -->
+<!-- last-updated: 2026-08-25 02:57 -->
 <!-- tool: _tools/workflows-sync -->
 <!-- count: 33 workflows in 1 categories -->
 

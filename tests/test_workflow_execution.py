@@ -1039,7 +1039,202 @@ def test_local_calendar_adapter_records_evidenced_appointment_without_connector(
     assert len(events) == 1
     assert events[0].title == "Werkstattprüfung Hyundai i10"
     assert report.domain_report["connector_invoked"] is False
+    assert report.domain_report["export_written"] is False
+    assert report.side_effects == ("state.calendar.write",)
     assert str(state) not in str(report.to_dict())
+
+
+def _local_calendar_export_gateway(
+    tmp_path: Path,
+) -> tuple[WorkflowExecutionGateway, Path, Path]:
+    source = tmp_path / "private-appointment-documents"
+    state = tmp_path / "private-calendar-state"
+    export = tmp_path / "private-calendar-export"
+    for directory in (source, state, export):
+        directory.mkdir()
+    (source / "Werkstatttermin.txt").write_text(
+        "\n".join(
+            (
+                "Termin: Werkstattprüfung Hyundai i10",
+                "Datum: 2026-09-02",
+                "Beginn: 10:30",
+                "Ende: 11:30",
+                "Ort: Beispielwerkstatt",
+            )
+        ),
+        encoding="utf-8",
+    )
+    calendar_config = tmp_path / "calendar.json"
+    calendar_config.write_text(
+        '{"schema":"folderhome.calendar-config.v1",'
+        '"default_backend":"folderhome_local",'
+        '"default_timezone":"Europe/Berlin",'
+        '"uptoday_ics_directory":"unused"}',
+        encoding="utf-8",
+    )
+    registry = ResourceRegistry(
+        os_account="synthetic-family-account",
+        resources=(
+            LogicalResource(
+                resource_id="appointment_documents",
+                kind="directory",
+                local_path=source,
+                operations=frozenset({"list", "read"}),
+                purposes=frozenset({"calendar.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="minimized_with_approval",
+            ),
+            LogicalResource(
+                resource_id="calendar_configuration",
+                kind="file",
+                local_path=calendar_config,
+                operations=frozenset({"read"}),
+                purposes=frozenset({"calendar.configuration"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="local_calendar",
+                kind="local_calendar",
+                local_path=state,
+                operations=frozenset({"read", "state_write"}),
+                purposes=frozenset({"calendar.state"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="calendar_export",
+                kind="directory",
+                local_path=export,
+                operations=frozenset({"create"}),
+                purposes=frozenset({"calendar.export_output"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+        ),
+        profile_defaults={},
+        known_profile_ids=frozenset({"lukas", "hanna", "simon"}),
+    )
+    gateway = WorkflowExecutionGateway(
+        (
+            LocalCalendarWorkflowAdapter(
+                registry=registry,
+                profiles=load_profile_configuration(
+                    REPOSITORY_ROOT / "examples" / "profiles"
+                ),
+                extractor=StubBundleExtractor(),
+            ),
+        )
+    )
+    return gateway, state, export
+
+
+def _local_calendar_export_request(**overrides: object) -> dict[str, object]:
+    request: dict[str, object] = {
+        "source_resource_id": "appointment_documents",
+        "configuration_resource_id": "calendar_configuration",
+        "state_resource_id": "local_calendar",
+        "area": "termine",
+        "planned_at": "2026-08-23T08:30:00+02:00",
+        "recursive": True,
+        "allow_sensitive_local_read": False,
+        "export_resource_id": "calendar_export",
+        "export_basename": "Hyundai-i10-Termine",
+    }
+    request.update(overrides)
+    return request
+
+
+def test_local_calendar_adapter_exports_recorded_appointments_as_one_ics(
+    tmp_path: Path,
+) -> None:
+    gateway, state, export = _local_calendar_export_gateway(tmp_path)
+
+    envelope = gateway.prepare(
+        workflow_id="calendar-handoff",
+        profile_id="lukas",
+        request=_local_calendar_export_request(),
+    )
+
+    assert envelope.domain_plan["export_planned"] is True
+    assert envelope.domain_plan["export_resource_id"] == "calendar_export"
+    assert envelope.domain_plan["export_name"] == "Hyundai-i10-Termine"
+    assert len(str(envelope.domain_plan["export_sha256"])) == 64
+    assert envelope.side_effects == ("state.calendar.write", "file.create")
+    assert str(export) not in str(envelope.to_dict())
+    assert not any(export.iterdir())
+
+    report = gateway.execute(
+        envelope_id=envelope.envelope_id,
+        approved_at="2026-08-23T08:31:00+02:00",
+    )
+
+    exported = export / "Hyundai-i10-Termine.ics"
+    assert exported.is_file()
+    raw = exported.read_bytes()
+    payload = raw.decode("utf-8")
+    assert payload.startswith("BEGIN:VCALENDAR\r\n")
+    assert payload.rstrip("\r\n").endswith("END:VCALENDAR")
+    assert payload.count("BEGIN:VEVENT") == 1
+    assert "SUMMARY:Werkstattprüfung Hyundai i10" in payload
+    assert "DTSTART;TZID=Europe/Berlin:20260902T103000" in payload
+    assert sha256(raw).hexdigest() == envelope.domain_plan["export_sha256"]
+    assert report.domain_report["export_written"] is True
+    assert report.domain_report["export_name"] == "Hyundai-i10-Termine.ics"
+    assert report.domain_report["export_event_count"] == 1
+    assert report.side_effects == ("state.calendar.write", "file.create")
+    assert len(CalendarStore(state).list_events(profile_id="lukas")) == 1
+    assert str(export) not in str(report.to_dict())
+
+
+def test_local_calendar_export_never_overwrites_and_rolls_back(
+    tmp_path: Path,
+) -> None:
+    gateway, state, export = _local_calendar_export_gateway(tmp_path)
+    occupied = export / "Hyundai-i10-Termine.ics"
+    occupied.write_text("BESTEHENDE DATEI", encoding="utf-8")
+
+    envelope = gateway.prepare(
+        workflow_id="calendar-handoff",
+        profile_id="lukas",
+        request=_local_calendar_export_request(),
+    )
+    with pytest.raises(WorkflowExecutionError, match="existiert bereits"):
+        gateway.execute(
+            envelope_id=envelope.envelope_id,
+            approved_at="2026-08-23T08:31:00+02:00",
+        )
+
+    assert occupied.read_text(encoding="utf-8") == "BESTEHENDE DATEI"
+    assert CalendarStore(state).list_events(profile_id="lukas") == ()
+
+
+def test_local_calendar_export_requires_both_resource_and_name(
+    tmp_path: Path,
+) -> None:
+    gateway, _, _ = _local_calendar_export_gateway(tmp_path)
+
+    with pytest.raises(WorkflowExecutionError, match="gemeinsam"):
+        gateway.prepare(
+            workflow_id="calendar-handoff",
+            profile_id="lukas",
+            request=_local_calendar_export_request(export_basename=None),
+        )
+
+
+def test_local_calendar_export_rejects_a_resource_without_the_export_purpose(
+    tmp_path: Path,
+) -> None:
+    gateway, _, _ = _local_calendar_export_gateway(tmp_path)
+
+    with pytest.raises(WorkflowExecutionError, match="Zweckbindung"):
+        gateway.prepare(
+            workflow_id="calendar-handoff",
+            profile_id="lukas",
+            request=_local_calendar_export_request(
+                export_resource_id="appointment_documents"
+            ),
+        )
 
 
 def test_health_dossier_adapter_keeps_medical_content_in_local_outputs(

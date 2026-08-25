@@ -22,7 +22,11 @@
         "path": "C:\\Users\\Demo\\Documents\\FolderHome\\Output"
       },
       "operations": ["create"],
-      "purposes": ["documents.output", "correspondence.output"],
+      "purposes": [
+        "documents.output",
+        "correspondence.output",
+        "calendar.export_output"
+      ],
       "profile_ids": ["lukas"],
       "cloud_context": "deny"
     },
@@ -45,6 +49,7 @@
       "documents.output": "family_documents_output",
       "insurance.source": "family_documents_inbox",
       "correspondence.output": "family_documents_output",
+      "calendar.export_output": "family_documents_output",
       "mail.draft_account": "family_mail_draft_account"
     }
   }

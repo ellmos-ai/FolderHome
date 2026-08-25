@@ -131,7 +131,16 @@ im Entwurfsordner des eigenen IMAP-Postfachs des Nutzers ab, hinter der
 getrennten Live-Effekt-Freigabe `--approve-mail-draft`. Kein Empfänger wird
 kontaktiert, das Postfachpasswort wird erst zur Ausführung aus seinem
 konfigurierten lokalen Fundort gelesen, und ein lokales Ledger hält die Ablage
-höchstens einmal. Turnzahl,
+höchstens einmal.
+
+Der lokale Kalenderendpunkt kann die festgehaltenen Termine auf Wunsch als eine
+private RFC-5545-Datei in ein registergebundenes Ausgabeverzeichnis exportieren.
+Der Dateiinhalt ist durch dieselbe Bestätigung hashgebunden wie der
+Statusschreibvorgang, eine vorhandene Zieldatei bricht den Lauf ab, und ein
+fehlgeschlagener Statusschreibvorgang nimmt die publizierte Datei zurück;
+Status und Datei entstehen gemeinsam oder gar nicht. FolderHome schreibt eine
+lokale Datei; der Nutzer importiert sie von Hand in sein Kalenderprogramm, ein
+Kalender-Connector ist also nicht beteiligt. Turnzahl,
 Toolaufrufe, Prompt, Antwort, Toolresultat und
 Ausgabetokens sind endlich begrenzt. Der deterministische Fixture-Adapter
 durchläuft den echten Strands-Agenten und den echten Tool-Executor ohne

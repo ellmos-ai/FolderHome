@@ -174,7 +174,8 @@ Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 - TXT-/PDF-Bündel sowie deterministische ZIP-Typpakete erzeugen
 - Profile für Lukas, Hanna oder Simon und bereichsspezifische Regeln
   organisieren
-- Kontakte, Terminkandidaten, lokale Kalender- und ICS-Handoffs verwalten
+- Kontakte, Terminkandidaten, lokale Kalender- und ICS-Handoffs verwalten und
+  festgehaltene Termine als eine importierbare ICS-Datei exportieren
 - Kontoauszüge, virtuelle Konten, Datenlücken, Abos und Vertragscockpits
   evidenzgebunden darstellen
 - Haushalt, Lagerbestand, Medikamentenplan und bestätigte Einnahmen führen

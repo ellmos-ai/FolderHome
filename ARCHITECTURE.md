@@ -122,6 +122,14 @@ drafts folder of the user's own IMAP mailbox, behind the separate live-effect
 approval `--approve-mail-draft`. No recipient is contacted, the mailbox
 password is read only from its configured local file at execution time, and a
 local ledger keeps the append at most once.
+
+The local calendar endpoint can optionally export the appointments it records
+as one private RFC 5545 file in a registry-bound output directory. The file
+content is hash-bound by the same confirmation as the state write, an existing
+target aborts the run, and a failed state write rolls the published file back,
+so state and file appear together or not at all. FolderHome writes a local
+file; the user imports it into their calendar program by hand, so no calendar
+connector is involved.
 Turn count, tool invocations, prompt, response, tool result, and output tokens
 are finitely limited. The deterministic fixture adapter runs the real Strands
 agent and tool executor without credentials or network access. Bedrock requires

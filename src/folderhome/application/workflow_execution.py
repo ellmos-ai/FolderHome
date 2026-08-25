@@ -178,6 +178,13 @@ from folderhome.bridges.fcsa import CONFIG_FILENAMES, FcsaBridgeError
 from folderhome.bridges.law_checker import LawCheckerBridge, LawCheckerBridgeError
 from folderhome.bridges.llm_note import LlmNoteBridge, LlmNoteBridgeError
 from folderhome.bridges.tax_assistant import TaxAssistantBridge, TaxAssistantBridgeError
+from folderhome.capabilities.calendar_ics import (
+    CalendarIcsError,
+    IcsArtifact,
+    publish_ics_batch,
+    render_calendar_collection_ics,
+    rollback_published_ics,
+)
 from folderhome.capabilities.calendar_store import CalendarStore, CalendarStoreError
 from folderhome.capabilities.catalog import DocumentCatalogError, DocumentCatalogStore
 from folderhome.capabilities.contact_registry import ContactRegisterError, ContactRegisterStore
@@ -538,6 +545,10 @@ _MAIL_DRAFT_REQUEST_SCHEMA: dict[str, object] = {
     },
 }
 
+_LOCAL_CALENDAR_OPTIONAL_FIELDS = frozenset(
+    {"export_resource_id", "export_basename"}
+)
+
 _LOCAL_CALENDAR_REQUEST_SCHEMA: dict[str, object] = {
     "type": "object",
     "additionalProperties": False,
@@ -562,6 +573,16 @@ _LOCAL_CALENDAR_REQUEST_SCHEMA: dict[str, object] = {
         "planned_at": {"type": "string", "format": "date-time"},
         "recursive": {"type": "boolean"},
         "allow_sensitive_local_read": {"type": "boolean"},
+        "export_resource_id": {
+            "type": ["string", "null"],
+            "minLength": 2,
+            "maxLength": 64,
+        },
+        "export_basename": {
+            "type": ["string", "null"],
+            "minLength": 1,
+            "maxLength": 140,
+        },
     },
 }
 
@@ -1165,11 +1186,21 @@ class _PreparedMailDraft:
 
 
 @dataclass(frozen=True, slots=True)
+class _PreparedCalendarExport:
+    root: Path
+    resource_id: str
+    name: str
+    content: str
+    content_sha256: str
+
+
+@dataclass(frozen=True, slots=True)
 class _PreparedLocalCalendar:
     plan: CalendarHandoffPlan
     public_plan: dict[str, object]
     store: CalendarStore
     state_resource_id: str
+    export: _PreparedCalendarExport | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -5768,10 +5799,12 @@ class LocalCalendarWorkflowAdapter:
         status="connected",
         plan_schema="folderhome.local-calendar-resource-plan.v1",
         report_schema="folderhome.local-calendar-resource-report.v1",
-        side_effects=("state.calendar.write",),
+        side_effects=("state.calendar.write", "file.create"),
         reason=(
             "Reuses the existing calendar evidence and revision workflow but permits only "
-            "the FolderHome local backend; no external connector is invoked."
+            "the FolderHome local backend; no external connector is invoked. On request it "
+            "additionally exports the recorded appointments as one private RFC 5545 file "
+            "the user can import into any calendar program by hand."
         ),
         request_schema=_LOCAL_CALENDAR_REQUEST_SCHEMA,
     )
@@ -5802,7 +5835,9 @@ class LocalCalendarWorkflowAdapter:
             "recursive",
             "allow_sensitive_local_read",
         }
-        unknown = sorted(set(request).difference(expected))
+        unknown = sorted(
+            set(request).difference(expected | _LOCAL_CALENDAR_OPTIONAL_FIELDS)
+        )
         missing = sorted(expected.difference(request))
         if unknown:
             raise WorkflowExecutionError(
@@ -5811,6 +5846,14 @@ class LocalCalendarWorkflowAdapter:
         if missing:
             raise WorkflowExecutionError(
                 "Lokale Kalenderanfrage fehlt Feld: " + missing[0]
+            )
+        export_id = _optional_text(
+            request.get("export_resource_id"), "export_resource_id"
+        )
+        export_basename = request.get("export_basename")
+        if (export_id is None) != (export_basename is None):
+            raise WorkflowExecutionError(
+                "ICS-Export benötigt Ausgaberessource und Dateinamen gemeinsam."
             )
         source_id = _text(request["source_resource_id"], "source_resource_id")
         config_id = _text(
@@ -5886,7 +5929,16 @@ class LocalCalendarWorkflowAdapter:
                 calendar_revision=store.revision(),
                 existing_events=store.list_events(),
             )
+            export = self._prepare_export(
+                plan,
+                profile_id=profile_id,
+                export_resource_id=export_id,
+                export_basename=export_basename,
+                state_path=state.local_path,
+                source_path=source.local_path,
+            )
         except (
+            CalendarIcsError,
             CalendarStoreError,
             CalendarWorkflowError,
             ProfileConfigurationError,
@@ -5906,6 +5958,10 @@ class LocalCalendarWorkflowAdapter:
                 "planned_action_count": sum(
                     item.status == "planned" for item in plan.actions
                 ),
+                "export_planned": export is not None,
+                "export_resource_id": None if export is None else export.resource_id,
+                "export_name": None if export is None else export.name,
+                "export_sha256": None if export is None else export.content_sha256,
                 "paths_disclosed": False,
                 "connector_invoked": False,
             }
@@ -5927,13 +5983,54 @@ class LocalCalendarWorkflowAdapter:
             domain_plan_sha256=plan_sha256,
             domain_plan=public_plan,
             approval_kind="explicit_local_calendar_state_write",
-            side_effects=self.descriptor.side_effects,
+            side_effects=_local_calendar_side_effects(export is not None),
         )
         return envelope, _PreparedLocalCalendar(
             plan=plan,
             public_plan=public_plan,
             store=store,
             state_resource_id=state.resource_id,
+            export=export,
+        )
+
+    def _prepare_export(
+        self,
+        plan: CalendarHandoffPlan,
+        *,
+        profile_id: str,
+        export_resource_id: str | None,
+        export_basename: object,
+        state_path: Path,
+        source_path: Path,
+    ) -> _PreparedCalendarExport | None:
+        """Render the exportable appointments before anything is written."""
+
+        if export_resource_id is None:
+            return None
+        name = _safe_output_basename(export_basename)
+        export_resource = self._registry.resolve(
+            resource_id=export_resource_id,
+            profile_id=profile_id,
+            purpose="calendar.export_output",
+            required_kind="directory",
+            required_operations=frozenset({"create"}),
+        )
+        _require_separate_resources(export_resource.local_path, state_path)
+        _require_separate_resources(export_resource.local_path, source_path)
+        candidates = tuple(
+            action.candidate for action in plan.actions if action.status == "planned"
+        )
+        if not candidates:
+            raise WorkflowExecutionError(
+                "ICS-Export benötigt mindestens einen geplanten Termin."
+            )
+        content = render_calendar_collection_ics(candidates, plan.planned_at)
+        return _PreparedCalendarExport(
+            root=export_resource.local_path,
+            resource_id=export_resource.resource_id,
+            name=name,
+            content=content,
+            content_sha256=sha256(content.encode("utf-8")).hexdigest(),
         )
 
     def execute(
@@ -5971,7 +6068,19 @@ class LocalCalendarWorkflowAdapter:
             action_ids=action_ids,
             approved_at=approved_at,
         )
+        published = None
+        export = domain_plan.export
         try:
+            if export is not None:
+                published = publish_ics_batch(
+                    (
+                        IcsArtifact(
+                            export.root / f"{export.name}.ics",
+                            export.content,
+                            export.content_sha256,
+                        ),
+                    )
+                )
             report = apply_calendar_handoff_plan(
                 domain_plan.plan,
                 approval,
@@ -5980,18 +6089,33 @@ class LocalCalendarWorkflowAdapter:
                 allow_output_write=False,
             )
         except (
+            CalendarIcsError,
             CalendarStoreError,
             CalendarWorkflowError,
             OSError,
             TypeError,
             ValueError,
         ) as exc:
+            if published is not None:
+                try:
+                    rollback_published_ics(published)
+                except CalendarIcsError as rollback_exc:
+                    raise WorkflowExecutionError(
+                        f"{exc}; ICS-Rücknahme fehlgeschlagen: {rollback_exc}"
+                    ) from exc
             raise WorkflowExecutionError(str(exc)) from exc
         public_report = _redact_physical_paths(report.to_dict())
         public_report.update(
             {
                 "schema": "folderhome.local-calendar-resource-report.v1",
                 "state_resource_id": domain_plan.state_resource_id,
+                "export_written": export is not None,
+                "export_resource_id": None if export is None else export.resource_id,
+                "export_name": None if export is None else f"{export.name}.ics",
+                "export_sha256": None if export is None else export.content_sha256,
+                "export_event_count": (
+                    0 if export is None else len(action_ids)
+                ),
                 "connector_invoked": False,
                 "paths_disclosed": False,
             }
@@ -6012,7 +6136,7 @@ class LocalCalendarWorkflowAdapter:
             adapter_id=self.descriptor.adapter_id or "local_calendar_resource.v1",
             domain_report_schema=str(public_report["schema"]),
             domain_report=public_report,
-            side_effects=self.descriptor.side_effects,
+            side_effects=_local_calendar_side_effects(export is not None),
         )
 
 
@@ -6242,6 +6366,14 @@ class CorrespondenceWorkflowAdapter:
             domain_report=public_report,
             side_effects=self.descriptor.side_effects,
         )
+
+
+def _local_calendar_side_effects(exports_ics: bool) -> tuple[str, ...]:
+    """Declare only the effects this exact run performs."""
+
+    return ("state.calendar.write", "file.create") if exports_ics else (
+        "state.calendar.write",
+    )
 
 
 class MailDraftWorkflowAdapter:

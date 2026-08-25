@@ -168,7 +168,7 @@ More: [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
   audit and undo
 - Generate TXT/PDF bundles as well as deterministic ZIP‑type packages
 - Organize profiles for Lukas, Hanna or Simon and domain‑specific rules
-- Manage contacts, appointment candidates, local calendar and ICS handoffs
+- Manage contacts, appointment candidates, local calendar and ICS handoffs, and export recorded appointments as one importable ICS file
 - Present account statements, virtual accounts, data gaps, subscriptions and contract cockpits with evidence linkage
 - Track household inventory, medication schedules and confirmed medication intake
 - Create extractive health dossiers and medical report timelines

@@ -45,13 +45,58 @@ class IcsPublishResult:
 def render_calendar_ics(candidate: CalendarCandidate, planned_at: str) -> str:
     """Render a deterministic RFC5545-compatible event payload."""
 
-    timestamp = datetime.fromisoformat(planned_at.replace("Z", "+00:00"))
-    dtstamp = timestamp.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//FolderHome//Calendar Handoff 1.0//DE",
         "CALSCALE:GREGORIAN",
+        *_vevent_lines(candidate, _dtstamp(planned_at)),
+        "END:VCALENDAR",
+    ]
+    return "\r\n".join(lines) + "\r\n"
+
+
+def render_calendar_collection_ics(
+    candidates: tuple[CalendarCandidate, ...],
+    exported_at: str,
+) -> str:
+    """Render one deterministic RFC5545 calendar holding every given event.
+
+    A single file is what a mail or phone calendar imports in one step, so the
+    export bundles all events instead of scattering them over many files.
+    """
+
+    if not candidates:
+        raise CalendarIcsError("ICS-Export benötigt mindestens einen Termin.")
+    uids = [item.event_uid for item in candidates]
+    if len(uids) != len(set(uids)):
+        raise CalendarIcsError("ICS-Export benötigt eindeutige Termin-UIDs.")
+    dtstamp = _dtstamp(exported_at)
+    lines = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//FolderHome//Calendar Export 1.0//DE",
+        "CALSCALE:GREGORIAN",
+        "METHOD:PUBLISH",
+    ]
+    for candidate in candidates:
+        lines.extend(_vevent_lines(candidate, dtstamp))
+    lines.append("END:VCALENDAR")
+    return "\r\n".join(lines) + "\r\n"
+
+
+def _dtstamp(value: str) -> str:
+    try:
+        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise CalendarIcsError("ICS-Zeitstempel ist ungültig.") from exc
+    if timestamp.tzinfo is None:
+        raise CalendarIcsError("ICS-Zeitstempel benötigt eine Zeitzone.")
+    return timestamp.astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _vevent_lines(candidate: CalendarCandidate, dtstamp: str) -> list[str]:
+    lines = [
         "BEGIN:VEVENT",
         f"UID:{candidate.event_uid}",
         f"DTSTAMP:{dtstamp}",
@@ -80,8 +125,8 @@ def render_calendar_ics(candidate: CalendarCandidate, planned_at: str) -> str:
     lines.append(f"SUMMARY:{_escape_ics(candidate.title)}")
     if candidate.location:
         lines.append(f"LOCATION:{_escape_ics(candidate.location)}")
-    lines.extend(("END:VEVENT", "END:VCALENDAR"))
-    return "\r\n".join(lines) + "\r\n"
+    lines.append("END:VEVENT")
+    return lines
 
 
 def publish_ics_batch(artifacts: tuple[IcsArtifact, ...]) -> IcsPublishResult:

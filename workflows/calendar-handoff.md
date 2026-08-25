@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./calendar-handoff.de.md)
 
-> **Last verified:** 2026-08-22  
+> **Last verified:** 2026-08-25  
 > **Frequency:** for new or changed documents with appointment information  
 > **Duration:** a few seconds per document folder
 
@@ -29,13 +29,24 @@ Check labeled appointment data from an explicitly selected document folder and, 
 8. **Check result** — read event ID or ICS path and hash against the report.  
 9. **Query local calendar** — use `calendar list` by profile, area and optional date range.
 
+## Optional ICS export through the chat executor
+
+The connected chat endpoint can hand the recorded appointments back as one importable file. Pass `export_resource_id` and `export_basename` together; leave both out and nothing is exported.
+
+- The output directory is a registry resource with purpose `calendar.export_output` and operation `create`; it must not overlap the source folder or the calendar state.  
+- All approved appointments land in **one** RFC 5545 file, because that is what a phone or mail calendar imports in a single step.  
+- The plan already carries `export_sha256`, so the exact file content is bound by the same confirmation hash as the state write.  
+- The export never overwrites: an existing target file aborts the run, and a failed state write rolls the published file back. State and file are written together or not at all.  
+- No connector is involved. FolderHome writes a local file; the user imports it into their calendar program by hand.  
+
 ## Exit criteria
 
 - [ ] Plan, approval, calendar revision and source hash match.  
 - [ ] Source documents remained byte‑identical.  
 - [ ] Local events and audit were written together or not at all.  
 - [ ] All ICS files have the planned hash; nothing was overwritten.  
-- [ ] `connector_invoked` is `false`; an UpToday import was not claimed.
+- [ ] `connector_invoked` is `false`; an UpToday import was not claimed.  
+- [ ] An optional export wrote exactly one file with the planned hash, or none.
 
 ## Pitfalls
 
@@ -53,4 +64,5 @@ Check labeled appointment data from an explicitly selected document folder and, 
 
 ## History
 
-- **2026-08-22** — Created after Phase‑17 end‑to‑end acceptance
+- **2026-08-22** — Created after Phase‑17 end‑to‑end acceptance  
+- **2026-08-25** — Optional registry-bound ICS export of the recorded appointments added

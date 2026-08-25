@@ -24,6 +24,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - lokales SQLite-Entwurfsledger, das vor der Ablage einen deterministischen
   Idempotenzschlüssel reserviert, damit derselbe Entwurf nicht zweimal im
   selben Postfach landet
+- optionaler ICS-Export am lokalen Kalenderendpunkt: die festgehaltenen Termine
+  werden als eine private RFC-5545-Datei in ein registergebundenes
+  Ausgabeverzeichnis geschrieben (Zweck `calendar.export_output`), durch
+  dieselbe Bestätigung hashgebunden, ohne Überschreiben und mit Rücknahme, falls
+  der Kalenderstatus nicht geschrieben werden kann; kein Kalender-Connector ist
+  beteiligt
 - mit einem Befehl startbare, token-geschützte synthetische Hyundai-i10-
   Unfalldemo über den echten Strands-Suchpfad und vier vorhandene typisierte
   Workflowadapter

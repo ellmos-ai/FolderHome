@@ -2,7 +2,7 @@
 
 [English](./calendar-handoff.md) | **Deutsch**
 
-> **Last verified:** 2026-08-22
+> **Last verified:** 2026-08-25
 > **Frequency:** bei neuen oder geänderten Dokumenten mit Terminangaben
 > **Duration:** wenige Sekunden pro Dokumentordner
 
@@ -38,6 +38,25 @@ ICS-Dateien für UpToday übernehmen.
 9. **Lokalen Kalender abfragen** — `calendar list` nach Profil, Bereich und
    optionalem Datumsbereich verwenden.
 
+## Optionaler ICS-Export über den Chat-Executor
+
+Der verbundene Chat-Endpunkt kann die festgehaltenen Termine als eine
+importierbare Datei zurückgeben. `export_resource_id` und `export_basename`
+werden gemeinsam übergeben; lässt man beide weg, wird nichts exportiert.
+
+- Das Ausgabeverzeichnis ist eine Registerressource mit dem Zweck
+  `calendar.export_output` und der Operation `create`; es darf sich weder mit
+  dem Quellordner noch mit dem Kalenderstatus überlappen.
+- Alle freigegebenen Termine landen in **einer** RFC-5545-Datei, weil Telefon-
+  und Mailkalender genau das in einem Schritt importieren.
+- Der Plan trägt bereits `export_sha256`; der genaue Dateiinhalt ist damit an
+  denselben Bestätigungshash gebunden wie der Statusschreibvorgang.
+- Der Export überschreibt nie: Eine vorhandene Zieldatei bricht den Lauf ab, und
+  ein fehlgeschlagener Statusschreibvorgang nimmt die publizierte Datei zurück.
+  Status und Datei entstehen gemeinsam oder gar nicht.
+- Es ist kein Connector beteiligt. FolderHome schreibt eine lokale Datei; der
+  Nutzer importiert sie von Hand in sein Kalenderprogramm.
+
 ## Exit-Criteria
 
 - [ ] Plan, Approval, Kalenderrevision und Quellhash stimmen überein.
@@ -45,6 +64,8 @@ ICS-Dateien für UpToday übernehmen.
 - [ ] Lokale Ereignisse und Audit wurden gemeinsam geschrieben oder gar nicht.
 - [ ] Alle ICS-Dateien besitzen den geplanten Hash; es wurde nichts überschrieben.
 - [ ] `connector_invoked` ist `false`; ein UpToday-Import wurde nicht behauptet.
+- [ ] Ein optionaler Export schrieb genau eine Datei mit dem geplanten Hash
+  oder gar keine.
 
 ## Fallstricke
 
@@ -63,3 +84,5 @@ ICS-Dateien für UpToday übernehmen.
 ## Historie
 
 - **2026-08-22** — Nach Phase-17-End-to-End-Abnahme erstellt
+- **2026-08-25** — Optionaler registergebundener ICS-Export der festgehaltenen
+  Termine ergänzt
