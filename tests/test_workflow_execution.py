@@ -1237,6 +1237,337 @@ def test_local_calendar_export_rejects_a_resource_without_the_export_purpose(
         )
 
 
+def _recipe_environment(tmp_path: Path, *, allow_mail_draft: bool):
+    """Build the real gateway the accident recipe needs, with its own resources."""
+
+    example_root = REPOSITORY_ROOT / "examples" / "correspondence"
+    insurance = tmp_path / "private-insurance"
+    contacts = tmp_path / "private-contact-state"
+    appointments = tmp_path / "private-appointments"
+    calendar_state = tmp_path / "private-calendar-state"
+    output = tmp_path / "private-output"
+    calendar_export = tmp_path / "private-calendar-export"
+    private = tmp_path / "private-mail"
+    for directory in (
+        insurance,
+        contacts,
+        appointments,
+        calendar_state,
+        output,
+        calendar_export,
+        private,
+    ):
+        directory.mkdir()
+    (insurance / "Police.txt").write_text(
+        "\n".join(
+            (
+                "Organisation: Beispiel Versicherung AG",
+                "Ansprechpartner: Erika Beispiel",
+                "Zuständig für: KFZ-Versicherung",
+                "Vertragsobjekt: Hyundai i10",
+                "E-Mail: erika@example.invalid",
+                "Telefon: +49 30 123456",
+                "Gültig ab: 2026-08-01",
+            )
+        ),
+        encoding="utf-8",
+    )
+    (appointments / "Werkstatttermin.txt").write_text(
+        "\n".join(
+            (
+                "Termin: Werkstattprüfung Hyundai i10",
+                "Datum: 2026-09-02",
+                "Beginn: 10:30",
+                "Ende: 11:30",
+                "Ort: Beispielwerkstatt",
+            )
+        ),
+        encoding="utf-8",
+    )
+    calendar_config = private / "calendar.json"
+    calendar_config.write_text(
+        '{"schema":"folderhome.calendar-config.v1",'
+        '"default_backend":"folderhome_local",'
+        '"default_timezone":"Europe/Berlin",'
+        '"uptoday_ics_directory":"unused"}',
+        encoding="utf-8",
+    )
+    password_file = private / "mailbox-password.txt"
+    password_file.write_text("synthetisches-postfach-geheimnis", encoding="utf-8")
+    account_file = private / "mail-draft-account.json"
+    account_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.mail-draft-account.v1",
+                "account_id": "family-mailbox",
+                "profile_id": "lukas",
+                "display_name": "Lukas Beispiel",
+                "from_address": "lukas@example.invalid",
+                "host": "imap.example.invalid",
+                "port": 993,
+                "use_ssl": True,
+                "username": "lukas@example.invalid",
+                "drafts_folder": "INBOX.Drafts",
+                "password_file": str(password_file),
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    letter_request = private / "letter-request.json"
+    letter_request.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.correspondence-request.v1",
+                "profile_id": "lukas",
+                "area": "versicherungen",
+                "purpose": "kuendigung",
+                "template_id": "insurance-cancellation",
+                "created_on": "2026-08-22",
+                "sender": {
+                    "name": "Lukas Beispiel",
+                    "address_lines": ["Musterweg 1", "12345 Beispielstadt"],
+                    "email": "lukas@example.invalid",
+                    "phone": None,
+                },
+                "recipient": {
+                    "name": "Beispiel Versicherung AG",
+                    "address_lines": ["Versicherungsplatz 2", "54321 Beispielstadt"],
+                    "email": "erika@example.invalid",
+                    "phone": None,
+                },
+                "variables": {
+                    "policy_number": "SYN-4711",
+                    "vehicle": "Hyundai i10",
+                    "termination_date": "31.12.2026",
+                },
+                "attachments": [],
+                "evidence_refs": ["doc_" + "a" * 64],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    def _file(resource_id: str, path: Path, purpose: str) -> LogicalResource:
+        return LogicalResource(
+            resource_id=resource_id,
+            kind="file",
+            local_path=path,
+            operations=frozenset({"read"}),
+            purposes=frozenset({purpose}),
+            profile_ids=frozenset({"lukas"}),
+            cloud_context="deny",
+        )
+
+    registry = ResourceRegistry(
+        os_account="synthetic-family-account",
+        resources=(
+            LogicalResource(
+                resource_id="insurance_documents",
+                kind="directory",
+                local_path=insurance,
+                operations=frozenset({"list", "read"}),
+                purposes=frozenset({"contacts.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="contact_state",
+                kind="directory",
+                local_path=contacts,
+                operations=frozenset({"read", "state_write"}),
+                purposes=frozenset({"contacts.state"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            _file("letter_request", letter_request, "correspondence.request"),
+            _file(
+                "letter_designs",
+                example_root / "designs.json",
+                "correspondence.designs",
+            ),
+            _file(
+                "letter_templates",
+                example_root / "templates.json",
+                "correspondence.templates",
+            ),
+            LogicalResource(
+                resource_id="claim_output",
+                kind="directory",
+                local_path=output,
+                operations=frozenset({"create"}),
+                purposes=frozenset({"correspondence.output"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            _file("mail_draft_account", account_file, "mail.draft_account"),
+            LogicalResource(
+                resource_id="follow_up_documents",
+                kind="directory",
+                local_path=appointments,
+                operations=frozenset({"list", "read"}),
+                purposes=frozenset({"calendar.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            _file(
+                "calendar_configuration",
+                calendar_config,
+                "calendar.configuration",
+            ),
+            LogicalResource(
+                resource_id="local_calendar",
+                kind="local_calendar",
+                local_path=calendar_state,
+                operations=frozenset({"read", "state_write"}),
+                purposes=frozenset({"calendar.state"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+            LogicalResource(
+                resource_id="calendar_export",
+                kind="directory",
+                local_path=calendar_export,
+                operations=frozenset({"create"}),
+                purposes=frozenset({"calendar.export_output"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            ),
+        ),
+        profile_defaults={},
+        known_profile_ids=frozenset({"lukas", "hanna", "simon"}),
+    )
+    transport = SyntheticDraftTransport()
+    gateway = WorkflowExecutionGateway(
+        (
+            ContactRegisterWorkflowAdapter(
+                registry=registry,
+                extractor=StubBundleExtractor(),
+            ),
+            CorrespondenceWorkflowAdapter(
+                registry=registry,
+                report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+                report_forge_distribution_version="1.1.4",
+                report_forge_runtime_version="1.1.0",
+            ),
+            MailDraftWorkflowAdapter(
+                registry=registry,
+                state_dir=tmp_path / "state",
+                report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+                report_forge_distribution_version="1.1.4",
+                report_forge_runtime_version="1.1.0",
+                allow_mail_draft=allow_mail_draft,
+                transport_factory=lambda account: transport,
+            ),
+            LocalCalendarWorkflowAdapter(
+                registry=registry,
+                profiles=load_profile_configuration(
+                    REPOSITORY_ROOT / "examples" / "profiles"
+                ),
+                extractor=StubBundleExtractor(),
+            ),
+        )
+    )
+    return gateway, registry, transport, calendar_export, output
+
+
+def _recipe_plan_against(gateway, registry):
+    from folderhome.application.recipes import build_recipe_plan, load_bundled_recipe
+
+    return build_recipe_plan(
+        load_bundled_recipe("accident-aftercare"),
+        profile_id="lukas",
+        language="en",
+        prepare=lambda workflow_id, request: gateway.prepare(
+            workflow_id=workflow_id,
+            profile_id="lukas",
+            request=request,
+        ),
+        endpoint_statuses={
+            item.workflow_id: item.status for item in gateway.catalog()
+        },
+        known_resource_ids=frozenset(
+            item.resource_id for item in registry.resources
+        ),
+    )
+
+
+def test_accident_recipe_runs_end_to_end_against_the_real_gateway(
+    tmp_path: Path,
+) -> None:
+    from folderhome.application.recipes import execute_recipe_plan
+
+    gateway, registry, transport, calendar_export, output = _recipe_environment(
+        tmp_path, allow_mail_draft=True
+    )
+    recipe_plan = _recipe_plan_against(gateway, registry)
+
+    assert [item.workflow_id for item in recipe_plan.plan.steps] == [
+        "contact-register",
+        "correspondence-studio",
+        "mail-connector",
+        "calendar-handoff",
+    ]
+    assert recipe_plan.endorsement.reviewer_expert_ids == ("communication_expert",)
+    assert transport.appended == []
+
+    report = execute_recipe_plan(
+        recipe_plan,
+        execute=lambda envelope_id, approved_at: gateway.execute(
+            envelope_id=envelope_id,
+            approved_at=approved_at,
+        ),
+        approved_at="2026-08-25T09:05:00+02:00",
+    )
+
+    payload = report.to_dict()
+    assert report.status == "executed", payload
+    assert payload["executed_step_refs"] == [
+        "contacts",
+        "letter",
+        "draft",
+        "appointment",
+    ]
+    assert (output / "Schadensmeldung.txt").is_file()
+    assert (calendar_export / "Unfall-Folgetermin.ics").is_file()
+    assert len(transport.appended) == 1
+    assert b"erika@example.invalid" in transport.appended[0][1]
+
+
+def test_a_missing_step_gate_stops_the_chain_and_leaves_the_mailbox_untouched(
+    tmp_path: Path,
+) -> None:
+    from folderhome.application.recipes import execute_recipe_plan
+
+    gateway, registry, transport, calendar_export, output = _recipe_environment(
+        tmp_path, allow_mail_draft=False
+    )
+    recipe_plan = _recipe_plan_against(gateway, registry)
+
+    report = execute_recipe_plan(
+        recipe_plan,
+        execute=lambda envelope_id, approved_at: gateway.execute(
+            envelope_id=envelope_id,
+            approved_at=approved_at,
+        ),
+        approved_at="2026-08-25T09:05:00+02:00",
+    )
+
+    payload = report.to_dict()
+    assert report.status == "aborted"
+    assert payload["executed_step_refs"] == ["contacts", "letter"]
+    assert payload["failed_step_refs"] == ["draft"]
+    assert payload["not_attempted_step_refs"] == ["appointment"]
+
+    failure = next(item for item in report.outcomes if item.status == "failed")
+    assert "--approve-mail-draft" in str(failure.detail)
+
+    assert transport.appended == []
+    assert (output / "Schadensmeldung.txt").is_file()
+    assert not any(calendar_export.iterdir())
+
+
 def test_health_dossier_adapter_keeps_medical_content_in_local_outputs(
     tmp_path: Path,
 ) -> None:
