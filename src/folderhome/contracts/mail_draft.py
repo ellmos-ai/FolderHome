@@ -35,24 +35,26 @@ def _require_timestamp(value: str, *, label: str) -> None:
 
 
 def _require_folder(value: str, *, label: str) -> None:
+    """Accept the folder name a person actually sees, umlauts included.
+
+    IMAP carries mailbox names in modified UTF-7 (`Entwürfe` travels as
+    `Entw&APw-rfe`). Encoding that is the transport's job, so the configuration
+    stays readable and only genuinely unusable characters are refused.
+    """
+
     if not value.strip() or value != value.strip():
         raise ValueError(f"{label} darf nicht leer sein.")
     if any(char in value for char in "\r\n\"\\"):
         raise ValueError(f"{label} enthält unzulässige Zeichen.")
-    if not value.isascii():
-        raise ValueError(
-            f"{label} muss der ASCII-IMAP-Name sein, zum Beispiel INBOX.Drafts; "
-            "in der Oberfläche angezeigte Namen wie Entwürfe sind nicht der "
-            "Protokollname."
-        )
 
 
 @dataclass(frozen=True, slots=True)
 class MailDraftAccount:
     """One IMAP mailbox of the user that may receive drafts of their own letters.
 
-    The password itself is never part of this contract. Only the local file that
-    holds it is configured, and it is read exactly once during execution.
+    The password itself is never part of this contract. Only where to find it is
+    configured — the operating system keyring or a local file — and it is read
+    exactly once during execution.
     """
 
     account_id: str
@@ -64,7 +66,9 @@ class MailDraftAccount:
     use_ssl: bool
     username: str
     drafts_folder: str
-    password_file: Path
+    password_file: Path | None = None
+    keyring_service: str | None = None
+    keyring_user: str | None = None
 
     SCHEMA = "folderhome.mail-draft-account.v1"
 
@@ -88,9 +92,31 @@ class MailDraftAccount:
         if not self.username.strip() or any(char in self.username for char in "\r\n"):
             raise ValueError("IMAP-Benutzername ist ungültig.")
         _require_folder(self.drafts_folder, label="Entwurfsordner")
-        if not self.password_file.is_absolute():
-            raise ValueError("Passwort-Fundort benötigt einen absoluten Pfad.")
-        object.__setattr__(self, "password_file", self.password_file.resolve())
+        if self.keyring_service is not None and not self.keyring_service.strip():
+            raise ValueError("Keyring-Dienst muss Text oder null sein.")
+        if self.keyring_user is not None and not self.keyring_user.strip():
+            raise ValueError("Keyring-Benutzer muss Text oder null sein.")
+        if (self.keyring_service is None) != (self.keyring_user is None):
+            raise ValueError(
+                "Keyring benötigt Dienst und Benutzer gemeinsam."
+            )
+        if self.password_file is not None:
+            if not self.password_file.is_absolute():
+                raise ValueError("Passwort-Fundort benötigt einen absoluten Pfad.")
+            object.__setattr__(self, "password_file", self.password_file.resolve())
+        if self.password_file is None and self.keyring_service is None:
+            raise ValueError(
+                "Mailkonto benötigt genau einen Passwort-Fundort: entweder "
+                "keyring_service und keyring_user oder password_file."
+            )
+
+    @property
+    def credential_source(self) -> str:
+        """Name where the password comes from, never what it is."""
+
+        if self.keyring_service is not None:
+            return "operating_system_keyring"
+        return "local_password_file"
 
     def to_public_dict(self) -> dict[str, object]:
         """Return model-safe metadata without host secrets or the password path."""
@@ -103,6 +129,7 @@ class MailDraftAccount:
             "transport": MAIL_DRAFT_TRANSPORT,
             "transport_security": "implicit_tls",
             "provider_id": MAIL_DRAFT_PROVIDER_ID,
+            "credential_source": self.credential_source,
             "credentials_disclosed": False,
             "password_path_disclosed": False,
             "host_disclosed": False,

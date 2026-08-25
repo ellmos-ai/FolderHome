@@ -17,6 +17,14 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   approval `--approve-mail-draft`; there is no send path, no recipient is
   contacted, and the mailbox password is read only at execution time from its
   configured local file
+- mailbox folder names are configured the way a mail program shows them:
+  `Entwürfe` is accepted and encoded to the RFC 3501 wire name `Entw&APw-rfe`,
+  so appending into a non-ASCII drafts folder works at all
+- the drafts folder is verified against the mailbox's own folder list before an
+  append, and a missing folder aborts with the folders that do exist
+- two password sources: the operating system keyring (`keyring_service` plus
+  `keyring_user`) or a local file (`password_file`); the value never reaches a
+  log, a plan, a report or an error message
 - private registry purpose `mail.draft_account` plus the strict configuration
   schema `folderhome.mail-draft-account.v1`; without such a resource the mail
   endpoint stays honestly `not_connected`

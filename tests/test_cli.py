@@ -664,6 +664,8 @@ def test_local_app_cli_plans_loopback_surface_without_starting_server(
                 "username": "lukas@example.invalid",
                 "drafts_folder": "INBOX.Drafts",
                 "password_file": str(password_file),
+                "keyring_service": None,
+                "keyring_user": None,
             },
             ensure_ascii=False,
         ),

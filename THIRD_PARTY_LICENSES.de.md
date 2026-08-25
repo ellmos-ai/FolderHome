@@ -35,6 +35,7 @@
 | gesundheit-Skill 2.0.0 | `https://github.com/ellmos-ai/skills.git` | `0317f32310eed11d21f603cb6f22a689485af226` | MIT | Designreferenz für bereitgestellte Gesundheitsinformationen und Organisationsgrenzen |
 | docs-analysis 1.0.0 | Lokaler, aus BACH extrahierter Skill | Stand 2026-03-15 | MIT / projektinterner Bestand | Anforderungs- und Code-Differenzmethode für Phase 22; kein Runtime-Import |
 | project-docs | Lokales internes project-docs-Template | Stand 2026-08-21 | Projektinterner Bestand | Doku-Grundgerüst |
+| ellmos mail-connector | Lokales Modul `.MODULES/.CONNECTORS/mail-connector` | Designreferenz, bewusst nicht gepinnt | MIT | Verbindungslebenszyklus, Modified-UTF-7-Ordnernamen und zweiwegige Passwortauflösung als Muster übernommen; kein Code importiert und keine Revision gepinnt, daher kann kein Checkout wegdriften |
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Verpflichtender Agentenloop; Fixture standardmäßig ohne Netzwerk, Bedrock nur nach Gate |
 | tzdata | PyPI-Paket `tzdata` | `==2026.3` auf Windows | Apache-2.0 | IANA-Zeitzonendaten für reproduzierbare Kalender-, Medikamenten- und Scheduler-Verträge auf Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-gepinnte Action für den Pages-Build |

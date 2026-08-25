@@ -17,9 +17,12 @@ from folderhome.application.mail_draft import (
     load_mail_draft_account,
 )
 from folderhome.capabilities.mail_draft import (
+    ImapDraftTransport,
     MailDraftError,
     MailDraftLedger,
     SyntheticDraftTransport,
+    decode_modified_utf7,
+    encode_modified_utf7,
     read_mailbox_password,
 )
 from folderhome.contracts.correspondence import CorrespondencePreview
@@ -93,7 +96,12 @@ def _preview(
     )
 
 
-def _account_file(tmp_path: Path, *, password_file: Path, **overrides: object) -> Path:
+def _account_file(
+    tmp_path: Path,
+    *,
+    password_file: Path | None,
+    **overrides: object,
+) -> Path:
     payload: dict[str, object] = {
         "schema": "folderhome.mail-draft-account.v1",
         "account_id": "family-mailbox",
@@ -105,7 +113,9 @@ def _account_file(tmp_path: Path, *, password_file: Path, **overrides: object) -
         "use_ssl": True,
         "username": "lukas@example.invalid",
         "drafts_folder": "INBOX.Drafts",
-        "password_file": str(password_file),
+        "password_file": None if password_file is None else str(password_file),
+        "keyring_service": None,
+        "keyring_user": None,
     }
     payload.update(overrides)
     path = tmp_path / "mail-draft-account.json"
@@ -160,18 +170,68 @@ def test_account_rejects_unknown_field_and_plaintext_password(tmp_path: Path) ->
         load_mail_draft_account(path)
 
 
-def test_account_requires_tls_and_ascii_folder(tmp_path: Path) -> None:
+def test_account_requires_tls_and_accepts_a_german_folder_name(
+    tmp_path: Path,
+) -> None:
     password_file = _password_file(tmp_path)
     with pytest.raises(MailDraftError, match="TLS"):
         load_mail_draft_account(
             _account_file(tmp_path, password_file=password_file, use_ssl=False)
         )
-    with pytest.raises(MailDraftError, match="ASCII-IMAP-Name"):
+
+    account = load_mail_draft_account(
+        _account_file(
+            tmp_path,
+            password_file=password_file,
+            drafts_folder="Entwürfe",
+        )
+    )
+
+    assert account.drafts_folder == "Entwürfe"
+    assert encode_modified_utf7(account.drafts_folder) == "Entw&APw-rfe"
+
+
+def test_modified_utf7_round_trips_the_names_mailboxes_really_use() -> None:
+    for readable, wire in (
+        ("INBOX.Drafts", "INBOX.Drafts"),
+        ("Entwürfe", "Entw&APw-rfe"),
+        ("Gelöschte Elemente", "Gel&APY-schte Elemente"),
+        ("Ordner & Co", "Ordner &- Co"),
+        ("日本語", "&ZeVnLIqe-"),
+    ):
+        assert encode_modified_utf7(readable) == wire
+        assert decode_modified_utf7(wire) == readable
+
+
+def test_account_accepts_the_keyring_as_the_password_source(tmp_path: Path) -> None:
+    account = load_mail_draft_account(
+        _account_file(
+            tmp_path,
+            password_file=None,
+            keyring_service="FolderHome",
+            keyring_user="lukas@example.invalid",
+        )
+    )
+
+    assert account.credential_source == "operating_system_keyring"
+    assert account.password_file is None
+    assert account.to_public_dict()["credential_source"] == (
+        "operating_system_keyring"
+    )
+
+
+def test_account_without_any_password_source_fails_closed(tmp_path: Path) -> None:
+    with pytest.raises(MailDraftError, match="genau einen Passwort-Fundort"):
+        load_mail_draft_account(_account_file(tmp_path, password_file=None))
+
+
+def test_keyring_needs_service_and_user_together(tmp_path: Path) -> None:
+    with pytest.raises(MailDraftError, match="Dienst und Benutzer gemeinsam"):
         load_mail_draft_account(
             _account_file(
                 tmp_path,
-                password_file=password_file,
-                drafts_folder="Entwürfe",
+                password_file=_password_file(tmp_path),
+                keyring_service="FolderHome",
             )
         )
 
@@ -348,6 +408,114 @@ def test_draft_is_bound_to_its_own_account(tmp_path: Path) -> None:
             allow_mailbox_write=True,
             appended_at=PLANNED_AT,
         )
+
+
+class _FakeImapConnection:
+    """Fake IMAP server: records what the transport really sent on the wire."""
+
+    def __init__(
+        self,
+        *,
+        folders: tuple[bytes, ...] = (
+            b'(\\HasNoChildren) "." "INBOX"',
+            b'(\\HasNoChildren \\Drafts) "." "Entw&APw-rfe"',
+        ),
+        append_status: str = "OK",
+    ) -> None:
+        self.folders = folders
+        self.append_status = append_status
+        self.logged_in: list[tuple[str, str]] = []
+        self.appended: list[tuple[str, str, bytes]] = []
+        self.logged_out = False
+
+    def login(self, username: str, password: str):
+        self.logged_in.append((username, password))
+        return "OK", [b"logged in"]
+
+    def list(self):
+        return "OK", list(self.folders)
+
+    def append(self, mailbox, flags, date_time, message):
+        self.appended.append((mailbox, flags, message))
+        return self.append_status, [b"[APPENDUID 3 42] Append completed."]
+
+    def logout(self):
+        self.logged_out = True
+        return "BYE", [b"logout"]
+
+
+def _imap_transport(connection: _FakeImapConnection) -> ImapDraftTransport:
+    return ImapDraftTransport(
+        host="imap.example.invalid",
+        port=993,
+        username="lukas@example.invalid",
+        password="synthetisches-geheimnis",
+        connection_factory=lambda: connection,
+    )
+
+
+def test_imap_transport_encodes_a_german_folder_and_sets_the_draft_flag() -> None:
+    connection = _FakeImapConnection()
+
+    reference = _imap_transport(connection).append_draft(
+        folder="Entwürfe",
+        message_bytes=b"Subject: Test\r\n\r\nText",
+    )
+
+    assert connection.logged_in == [
+        ("lukas@example.invalid", "synthetisches-geheimnis")
+    ]
+    mailbox, flags, message = connection.appended[0]
+    assert mailbox == "Entw&APw-rfe"
+    assert flags == r"(\Draft)"
+    assert message == b"Subject: Test\r\n\r\nText"
+    assert "APPENDUID" in reference
+    assert connection.logged_out is True
+
+
+def test_imap_transport_names_the_real_folders_when_the_configured_one_is_absent() -> (
+    None
+):
+    connection = _FakeImapConnection()
+
+    with pytest.raises(MailDraftError, match="kennt keinen Ordner") as failure:
+        _imap_transport(connection).append_draft(
+            folder="Drafts",
+            message_bytes=b"Subject: Test\r\n\r\nText",
+        )
+
+    assert "Entwürfe" in str(failure.value)
+    assert connection.appended == []
+    assert connection.logged_out is True
+
+
+def test_imap_transport_reports_a_refused_append_and_closes_the_connection() -> None:
+    connection = _FakeImapConnection(append_status="NO")
+
+    with pytest.raises(MailDraftError, match="abgelehnt"):
+        _imap_transport(connection).append_draft(
+            folder="Entwürfe",
+            message_bytes=b"Subject: Test\r\n\r\nText",
+        )
+
+    assert connection.logged_out is True
+
+
+def test_imap_transport_never_puts_the_password_into_an_error() -> None:
+    class _RefusingConnection(_FakeImapConnection):
+        def login(self, username: str, password: str):
+            raise OSError(f"auth failed for {username} with {password}")
+
+    connection = _RefusingConnection()
+
+    with pytest.raises(MailDraftError) as failure:
+        _imap_transport(connection).append_draft(
+            folder="Entwürfe",
+            message_bytes=b"Subject: Test\r\n\r\nText",
+        )
+
+    assert "synthetisches-geheimnis" not in str(failure.value)
+    assert "lukas@example.invalid" not in str(failure.value)
 
 
 def test_profile_mismatch_between_letter_and_mailbox_fails_closed(

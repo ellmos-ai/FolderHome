@@ -8,6 +8,8 @@
   "port": 993,
   "use_ssl": true,
   "username": "lukas@example.invalid",
-  "drafts_folder": "INBOX.Drafts",
-  "password_file": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\secrets\\family-mailbox.txt"
+  "drafts_folder": "Entwürfe",
+  "password_file": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\secrets\\family-mailbox.txt",
+  "keyring_service": null,
+  "keyring_user": null
 }

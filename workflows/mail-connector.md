@@ -21,13 +21,13 @@ Plan a mailbox fetch without changing the mailbox, adopt incoming message refere
 
 The connected endpoint is draft-only. It renders exactly one correspondence preview into an RFC 5322 message and appends it to the configured drafts folder of the user's own IMAP mailbox. There is no SMTP path in this endpoint, so no recipient is contacted.
 
-1. **Declare the mailbox in the private registry** — one `file` resource with purpose `mail.draft_account` that points at a `folderhome.mail-draft-account.v1` document. Template: [`../examples/mail/draft-account.example.json`](../examples/mail/draft-account.example.json). The document carries host, port, username, the ASCII IMAP drafts folder and `password_file`, an absolute path to a local file holding the password. The password value never appears in a plan, a report, the chat or the repository.  
+1. **Declare the mailbox in the private registry** — one `file` resource with purpose `mail.draft_account` that points at a `folderhome.mail-draft-account.v1` document. Template: [`../examples/mail/draft-account.example.json`](../examples/mail/draft-account.example.json). Write the drafts folder the way your mail program shows it, umlauts included: `Entwürfe` is correct, and the transport encodes it to the RFC 3501 wire name `Entw&APw-rfe` itself. Name the password source, never the password: either `keyring_service` plus `keyring_user`, or `password_file` with an absolute path to a local file. The value never appears in a plan, a report, the chat or the repository.  
 
 2. **Prepare** — the executor resolves the mailbox, the letter request, the designs and the templates by logical resource ID, rebuilds the correspondence preview and renders one deterministic draft. The plan discloses subject and hashes, never the body, the recipient address, the host or the password location.  
 
 3. **Approve exactly once** — `/confirm <plan_id>` executes the prepared, hash-bound envelope one single time.  
 
-4. **Live-effect gate** — without `--approve-mail-draft` the endpoint plans but refuses to touch the mailbox. With the gate the transport reads the password from its configured file, appends the message with the `\Draft` flag and logs out.  
+4. **Live-effect gate** — without `--approve-mail-draft` the endpoint plans but refuses to touch the mailbox. With the gate the transport opens one session, verifies the configured folder against the mailbox's own folder list, appends the message with the `\Draft` flag and logs out. A folder the mailbox does not have aborts the run and the error names the folders that do exist.  
 
 5. **Ledger** — a local SQLite ledger reserves the deterministic idempotency key before the append and records `drafted` or `failed`. The same draft cannot be appended to the same mailbox twice.  
 

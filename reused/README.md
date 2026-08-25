@@ -14,4 +14,6 @@ Phase 30 documents BACH's weather, newspaper, and daily agent inventory at [`bac
 
 Phase 31 documents the existing `law-checker` at [`law-checker/`](law-checker/) initially as a method reference. Phase 34 adds a separate clean checkout as a pinned read‑only registry and source provider. The earlier externally modified checkout remains untouched; an automatic legal‑review API is not claimed.
 
+The draft-only mail endpoint documents at [`ellmos-mail-connector/`](ellmos-mail-connector/) three patterns reused as design from the ellmos `mail-connector` module: connection lifecycle, modified UTF-7 mailbox names and two-way credential lookup. No code is imported and no revision is pinned, so no checkout can drift out from under this repository.
+
 Phase 33 documents, at [`benefit-routing/`](benefit-routing/), three official, manually opened benefit‑finder handoffs. No portal code is copied, no profile is transferred, and the pedagogical `foerderplaner` is not misused as a social benefit module.

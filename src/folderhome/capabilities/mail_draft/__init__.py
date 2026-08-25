@@ -3,10 +3,16 @@
 The seam appends one prepared message to the user's own drafts folder. It has
 no send path at all, so no code in this capability can deliver mail to a third
 party even if it is called incorrectly.
+
+The connection lifecycle, the modified UTF-7 mailbox encoding and the two-way
+credential lookup follow the patterns of the MIT-licensed ellmos
+`mail-connector` module by the same author. Its code is not imported or pinned;
+only the approach was reused, reimplemented here for the append-only case.
 """
 
 from __future__ import annotations
 
+import base64
 import imaplib
 import sqlite3
 from contextlib import suppress
@@ -50,6 +56,63 @@ class SyntheticDraftTransport:
         return f"synthetic-draft-{len(self.appended)}"
 
 
+def encode_modified_utf7(value: str) -> str:
+    """Encode a mailbox name for the wire, as RFC 3501 requires.
+
+    A German drafts folder is called `Entwürfe` on screen but travels as
+    `Entw&APw-rfe`. Without this an append into a non-ASCII folder fails on
+    every mailbox that has one.
+    """
+
+    output: list[str] = []
+    pending: list[str] = []
+
+    def flush() -> None:
+        if not pending:
+            return
+        raw = "".join(pending).encode("utf-16-be")
+        encoded = base64.b64encode(raw).decode("ascii").rstrip("=").replace("/", ",")
+        output.append(f"&{encoded}-")
+        pending.clear()
+
+    for char in value:
+        if 0x20 <= ord(char) <= 0x7E:
+            flush()
+            output.append("&-" if char == "&" else char)
+        else:
+            pending.append(char)
+    flush()
+    return "".join(output)
+
+
+def decode_modified_utf7(value: str) -> str:
+    """Decode a wire mailbox name back into what the user reads."""
+
+    output: list[str] = []
+    index = 0
+    while index < len(value):
+        if value[index] != "&":
+            output.append(value[index])
+            index += 1
+            continue
+        end = value.find("-", index)
+        if end == -1:
+            output.append(value[index:])
+            break
+        encoded = value[index + 1 : end]
+        if not encoded:
+            output.append("&")
+        else:
+            standard = encoded.replace(",", "/")
+            standard += "=" * (-len(standard) % 4)
+            try:
+                output.append(base64.b64decode(standard).decode("utf-16-be"))
+            except (ValueError, UnicodeDecodeError):
+                output.append(value[index : end + 1])
+        index = end + 1
+    return "".join(output)
+
+
 class ImapDraftTransport:
     """Append one message to one IMAP drafts folder over implicit TLS."""
 
@@ -64,36 +127,97 @@ class ImapDraftTransport:
         username: str,
         password: str,
         timeout_seconds: int = _APPEND_TIMEOUT_SECONDS,
+        connection_factory: object | None = None,
     ) -> None:
         self._host = host
         self._port = port
         self._username = username
         self._password = password
         self._timeout_seconds = timeout_seconds
+        self._connection_factory = connection_factory
+        self._connection: object | None = None
 
-    def append_draft(self, *, folder: str, message_bytes: bytes) -> str:
-        connection: imaplib.IMAP4_SSL | None = None
+    def __enter__(self) -> ImapDraftTransport:
+        self._connect()
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        self._close()
+
+    def _connect(self) -> None:
         try:
-            connection = imaplib.IMAP4_SSL(
-                self._host,
-                self._port,
-                timeout=self._timeout_seconds,
-            )
-            connection.login(self._username, self._password)
-            status, response = connection.append(
-                f'"{folder}"',
-                r"(\Draft)",
-                None,
-                message_bytes,
-            )
+            if self._connection_factory is not None:
+                self._connection = self._connection_factory()
+            else:
+                self._connection = imaplib.IMAP4_SSL(
+                    self._host,
+                    self._port,
+                    timeout=self._timeout_seconds,
+                )
+            self._connection.login(self._username, self._password)
+        except (imaplib.IMAP4.error, OSError) as exc:
+            self._close()
+            raise MailDraftError(
+                f"Postfachverbindung ist fehlgeschlagen: {_redact(exc)}"
+            ) from None
+
+    def _close(self) -> None:
+        if self._connection is not None:
+            with suppress(imaplib.IMAP4.error, OSError, AttributeError):
+                self._connection.logout()
+            self._connection = None
+
+    def available_folders(self) -> tuple[str, ...]:
+        """List mailbox names as the user reads them, not as the wire spells them."""
+
+        if self._connection is None:
+            raise MailDraftError("Postfachverbindung ist nicht offen.")
+        try:
+            status, data = self._connection.list()
         except (imaplib.IMAP4.error, OSError) as exc:
             raise MailDraftError(
-                f"Entwurf konnte nicht im Postfach abgelegt werden: {_redact(exc)}"
+                f"Postfachordner sind nicht lesbar: {_redact(exc)}"
             ) from None
-        finally:
-            if connection is not None:
-                with suppress(imaplib.IMAP4.error, OSError):
-                    connection.logout()
+        if status != "OK" or not data:
+            raise MailDraftError("Postfach lieferte keine Ordnerliste.")
+        folders: list[str] = []
+        for item in data:
+            if not item:
+                continue
+            text = (
+                item.decode("utf-8", errors="replace")
+                if isinstance(item, bytes)
+                else str(item)
+            )
+            stripped = text.strip()
+            if stripped.endswith('"'):
+                opening = stripped.rfind('"', 0, len(stripped) - 1)
+                name = stripped[opening + 1 : -1]
+            else:
+                name = stripped.rsplit(" ", 1)[-1].strip('"')
+            if name:
+                folders.append(decode_modified_utf7(name))
+        return tuple(folders)
+
+    def append_draft(self, *, folder: str, message_bytes: bytes) -> str:
+        with self:
+            known = self.available_folders()
+            if folder not in known:
+                raise MailDraftError(
+                    f"Das Postfach kennt keinen Ordner {folder!r}. Vorhanden sind: "
+                    + ", ".join(sorted(known))
+                )
+            try:
+                status, response = self._connection.append(  # type: ignore[union-attr]
+                    encode_modified_utf7(folder),
+                    r"(\Draft)",
+                    None,
+                    message_bytes,
+                )
+            except (imaplib.IMAP4.error, OSError) as exc:
+                raise MailDraftError(
+                    f"Entwurf konnte nicht im Postfach abgelegt werden: {_redact(exc)}"
+                ) from None
         if status != "OK":
             raise MailDraftError(
                 "Postfach hat die Entwurfsablage abgelehnt: "
@@ -103,9 +227,48 @@ class ImapDraftTransport:
 
 
 def read_mailbox_password(account: MailDraftAccount) -> str:
-    """Read the configured password exactly once and never expose its location."""
+    """Resolve the password from the configured source, exactly once.
 
-    path = account.password_file
+    Two sources are supported, in this order: the operating system keyring, and
+    a local file. Neither the value nor its location ever leaves this function.
+    """
+
+    if account.keyring_service is not None and account.keyring_user is not None:
+        password = _keyring_password(
+            service=account.keyring_service,
+            user=account.keyring_user,
+        )
+        if password:
+            return password
+        if account.password_file is None:
+            raise MailDraftError(
+                "Der Schlüsselbund enthält für dieses Konto kein Passwort."
+            )
+    if account.password_file is None:
+        raise MailDraftError("Mailkonto besitzt keinen nutzbaren Passwort-Fundort.")
+    return _password_from_file(account.password_file)
+
+
+def _keyring_password(*, service: str, user: str) -> str | None:
+    try:
+        import keyring
+    except ImportError:
+        raise MailDraftError(
+            "Das Konto verweist auf den Schlüsselbund, aber das Paket keyring "
+            "ist nicht installiert."
+        ) from None
+    try:
+        value = keyring.get_password(service, user)
+    except Exception as exc:  # noqa: BLE001 - backend errors must stay opaque
+        raise MailDraftError(
+            f"Schlüsselbund ist nicht lesbar: {_redact(exc)}"
+        ) from None
+    if value is None or not value.strip():
+        return None
+    return value
+
+
+def _password_from_file(path: Path) -> str:
     try:
         if path.is_symlink() or not path.is_file():
             raise MailDraftError(

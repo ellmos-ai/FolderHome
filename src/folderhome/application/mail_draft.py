@@ -40,6 +40,8 @@ _ACCOUNT_FIELDS = {
     "username",
     "drafts_folder",
     "password_file",
+    "keyring_service",
+    "keyring_user",
 }
 
 
@@ -66,9 +68,7 @@ def load_mail_draft_account(path: Path) -> MailDraftAccount:
         raise MailDraftError("Entwurfskonto benötigt Felder: " + ", ".join(missing))
     if payload["schema"] != MailDraftAccount.SCHEMA:
         raise MailDraftError("Entwurfskonto verwendet ein unbekanntes Schema.")
-    raw_password_file = payload["password_file"]
-    if not isinstance(raw_password_file, str) or not raw_password_file.strip():
-        raise MailDraftError("Entwurfskonto benötigt einen Passwort-Fundort.")
+    raw_password_file = _optional_text(payload, "password_file")
     try:
         return MailDraftAccount(
             account_id=_text(payload, "account_id"),
@@ -80,7 +80,11 @@ def load_mail_draft_account(path: Path) -> MailDraftAccount:
             use_ssl=_boolean(payload, "use_ssl"),
             username=_text(payload, "username"),
             drafts_folder=_text(payload, "drafts_folder"),
-            password_file=Path(raw_password_file),
+            password_file=(
+                None if raw_password_file is None else Path(raw_password_file)
+            ),
+            keyring_service=_optional_text(payload, "keyring_service"),
+            keyring_user=_optional_text(payload, "keyring_user"),
         )
     except ValueError as exc:
         raise MailDraftError(f"Entwurfskonto ist ungültig: {exc}") from exc
@@ -251,6 +255,15 @@ def _text(payload: dict[str, object], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value.strip():
         raise MailDraftError(f"Entwurfskonto.{key} muss nichtleerer Text sein.")
+    return value
+
+
+def _optional_text(payload: dict[str, object], key: str) -> str | None:
+    value = payload.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise MailDraftError(f"Entwurfskonto.{key} muss Text oder null sein.")
     return value
 
 

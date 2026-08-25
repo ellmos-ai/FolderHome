@@ -31,6 +31,13 @@ einen getrennten sauberen Checkout als gepinnten read-only Registry- und
 Quellenprovider. Der frühere fremd veränderte Checkout bleibt unangetastet;
 eine automatische Rechtsprüf-API wird nicht behauptet.
 
+Der reine Entwurfsendpunkt für Mail dokumentiert unter
+[`ellmos-mail-connector/`](ellmos-mail-connector/) drei als Entwurfsmuster
+übernommene Ansätze des ellmos-Moduls `mail-connector`:
+Verbindungslebenszyklus, Modified-UTF-7-Ordnernamen und zweiwegige
+Passwortauflösung. Es wird kein Code importiert und keine Revision gepinnt,
+daher kann sich kein Checkout unter diesem Repository wegbewegen.
+
 Phase 33 dokumentiert unter [`benefit-routing/`](benefit-routing/) drei
 amtliche, manuell zu öffnende Leistungsfinder-Handoffs. Kein Portalcode wird
 kopiert, kein Profil übertragen und der pädagogische `foerderplaner` nicht

@@ -18,6 +18,15 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   des eigenen IMAP-Postfachs des Nutzers angehängt; es gibt keinen Versandweg,
   kein Empfänger wird kontaktiert, und das Postfachpasswort wird erst zur
   Ausführung aus seinem konfigurierten lokalen Fundort gelesen
+- Postfach-Ordnernamen werden so konfiguriert, wie das Mailprogramm sie zeigt:
+  `Entwürfe` wird angenommen und in den RFC-3501-Leitungsnamen `Entw&APw-rfe`
+  kodiert, damit die Ablage in einem Nicht-ASCII-Entwurfsordner überhaupt
+  funktioniert
+- der Entwurfsordner wird vor der Ablage gegen die Ordnerliste des Postfachs
+  geprüft; ein fehlender Ordner bricht ab und nennt die vorhandenen
+- zwei Passwortquellen: Schlüsselbund des Betriebssystems (`keyring_service`
+  und `keyring_user`) oder lokale Datei (`password_file`); der Wert erreicht nie
+  ein Log, einen Plan, einen Bericht oder eine Fehlermeldung
 - Registerzweck `mail.draft_account` samt striktem Konfigurationsschema
   `folderhome.mail-draft-account.v1`; ohne eine solche Ressource bleibt der
   Mailendpunkt ehrlich `not_connected`

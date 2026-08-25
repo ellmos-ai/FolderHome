@@ -32,10 +32,12 @@ Endpunkt besitzt keinen SMTP-Weg; kein Empfänger wird kontaktiert.
    dem Zweck `mail.draft_account`, die auf ein Dokument nach
    `folderhome.mail-draft-account.v1` zeigt. Vorlage:
    [`../examples/mail/draft-account.example.json`](../examples/mail/draft-account.example.json).
-   Das Dokument enthält Host, Port, Benutzername, den ASCII-IMAP-Entwurfsordner
-   und `password_file`, einen absoluten Pfad auf eine lokale Datei mit dem
-   Passwort. Der Passwortwert erscheint nie in Plan, Bericht, Chat oder
-   Repository.
+   Den Entwurfsordner so eintragen, wie ihn das eigene Mailprogramm anzeigt,
+   Umlaute eingeschlossen: `Entwürfe` ist richtig, und der Transport kodiert ihn
+   selbst in den RFC-3501-Leitungsnamen `Entw&APw-rfe`. Beim Passwort wird nur
+   die Quelle genannt, nie der Wert: entweder `keyring_service` und
+   `keyring_user` oder `password_file` mit absolutem Pfad auf eine lokale Datei.
+   Der Wert erscheint nie in Plan, Bericht, Chat oder Repository.
 
 2. **Vorbereiten** — der Executor löst Postfach, Briefanfrage, Designs und
    Vorlagen über logische Ressourcen-IDs auf, baut die Korrespondenzvorschau
@@ -47,9 +49,11 @@ Endpunkt besitzt keinen SMTP-Weg; kein Empfänger wird kontaktiert.
    hashgebundene Hülle ein einziges Mal aus.
 
 4. **Live-Effekt-Gate** — ohne `--approve-mail-draft` plant der Endpunkt, rührt
-   das Postfach aber nicht an. Mit der Freigabe liest der Transport das Passwort
-   aus seinem konfigurierten Fundort, hängt die Nachricht mit dem Flag
-   `\Draft` an und meldet sich wieder ab.
+   das Postfach aber nicht an. Mit der Freigabe öffnet der Transport eine
+   Sitzung, gleicht den konfigurierten Ordner gegen die Ordnerliste des
+   Postfachs ab, hängt die Nachricht mit dem Flag `\Draft` an und meldet sich
+   wieder ab. Ein Ordner, den das Postfach nicht kennt, bricht den Lauf ab; die
+   Meldung nennt die tatsächlich vorhandenen Ordner.
 
 5. **Ledger** — ein lokales SQLite-Ledger reserviert den deterministischen
    Idempotenzschlüssel vor der Ablage und hält `drafted` oder `failed` fest.
