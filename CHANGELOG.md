@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./CHANGELOG.de.md)
 
-**Current short version:** 0.47 / 2026-08-23  
+**Current short version:** 0.52 / 2026-08-27  
 **Direct predecessor:**  
 [`docs/archive/CHANGELOG-through-phase35.md`](./docs/archive/CHANGELOG-through-phase35.md)
 
@@ -133,6 +133,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - Submission materials aligned with the authenticated 2026-08-23 Devpost
   readback, including the current bonus-post title rule, credit deadline and
   the single end-to-end Hyundai i10 accident narrative
+- 2026-08-26: post-submission state consolidated across README, submission
+  packet and local operator files; obsolete draft, Pages, upload and submit
+  gates were replaced by their authenticated completed state
+- AgentCore documentation now distinguishes the deployed `READY` direct-code
+  Runtime and verified fixture roundtrip from the still-unverified
+  Bedrock-backed journey and disabled public browser path
 
 ### Fixed
 
@@ -171,6 +177,22 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Verified
 
+- 2026-08-26 live AWS readback: both CloudFormation stacks
+  `CREATE_COMPLETE`; AgentCore Runtime `READY`, version 4, HTTP; public quota
+  API key enabled; CloudFront `runtime-config.js` remains `enabled: false`
+- EU Nova Micro remained `ACTIVE`, but applied on-demand quotas were zero. One
+  16-output-token Converse request with no retry returned
+  `ThrottlingException: Too many tokens per day`; no second model call and no
+  `manage.py verify` were performed
+- 2026-08-27 AWS recheck after a successful OAuth renewal: AgentCore remained
+  `READY`, version 4, EU Nova Micro remained `ACTIVE`, and all three real-time
+  quotas remained zero. CloudWatch showed one throttle and no successful
+  invocation over 24 hours, so no further model request was sent
+- AWS budget readback: 5 USD monthly limit and 0.018 USD calculated actual
+  spend; the P-010 cumulative carry-over cap is not yet implemented
+- Current full feature suite on the consolidated working tree based on HEAD
+  `436928f`: 503 passed, zero failed in 370.04 seconds; its final manifest check
+  also passed 10/10
 - synthetic accident demo, local HTTP site, CLI start gate and AgentCore
   contract covered by focused automated tests
 - AgentCore `/ping` and one prepare invocation passed as a real loopback HTTP

@@ -55,8 +55,9 @@ flowchart TB
   accident demo and the optional AgentCore adapter invoke the real synthetic
   Strands journey; neither enables external effects.
 - The AgentCore adapter implements the HTTP `/ping` and `/invocations`
-  contract in an ARM64 non-root container and isolates state by runtime session.
-  Local contract tests do not constitute a deployed AWS endpoint claim.
+  contract and isolates state by runtime session. The quota-bounded direct-code
+  Runtime is deployed and was read back as `READY`, version 4, on 2026-08-26;
+  the ARM64 non-root container remains an alternative packaging candidate.
 - GUI and CLI call the same master service. Its direct document tools reuse the
   same `LocalApplication` services.
 - Interactive GUI and CLI sessions keep bounded model-visible history per
@@ -77,10 +78,13 @@ flowchart TB
 - Without a private resource registry, connected coverage reuses personal
   notes, scheduled medication confirmation and the strictly local FindCall
   fixture. A configured registry adds 23 typed adapters covering the complete
-  local document and assistance stack. All publish closed request schemas; this
-  configuration reports 26 connected and three visibly unconnected endpoints.
-- Only mail, external calendars and scheduler registration still need explicit
-  external connector configuration with live-effect approvals.
+  local document and assistance stack. A configured `mail.draft_account` adds
+  the draft-only IMAP endpoint. Across all 33 endpoints, the full configuration
+  reports 27 connected, one direct read-only, three planning-only and two
+  visibly unconnected endpoints.
+- Draft-only mail has no send path and requires `--approve-mail-draft`. External
+  calendars and scheduler registration still need explicit connector
+  configuration with live-effect approvals.
 - Broader domain workflows retain their own sensitivity, state, output and
   side-effect gates.
 - OS accounts and filesystem permissions form the security boundary.

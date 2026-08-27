@@ -55,11 +55,10 @@ feature montage. After a Hyundai i10 accident, the user asks FolderHome to find
 the current insurance policy, identify the right contact and prepare the next
 steps. The master agent searches both current and older documents, keeps the
 older policy as evidence, and returns a hash-bound plan. Only the exact
-`/confirm <plan_id>` command may execute it. Four existing typed adapters then
-write a contact record, a contract cockpit, a claim-letter draft and a local
-calendar reminder. The result view exposes the individual receipts and hashes.
-No email is sent, no call is placed, no external calendar is changed and no
-old policy is silently archived.
+`/confirm <plan_id>` command may execute it. The packaged `accident-aftercare`
+recipe resolves contact, claim letter, draft-only IMAP mailbox and local
+calendar/ICS work into one reviewed plan. It never sends the message, places a
+call, changes an external calendar or silently archives the older policy.
 
 ## How we built it
 
@@ -83,10 +82,11 @@ the strictly local FindCall fixture. A configured registry adds 23 typed
 resource adapters for the complete local document and assistance stack,
 including organization, health, finance, social law, inventory, tax, briefing,
 design, FCSA and routines. Each publishes a closed request schema to its scoped
-specialist. This configuration reports 26 connected and three visibly
-unconnected endpoints instead of falling back to a generic command runner. Only
-mail, external calendars and scheduler registration still need explicit
-external connector configuration with live-effect gates.
+specialist. A registry that also declares `mail.draft_account` reports, across
+all 33 endpoints, 27 connected, one direct read-only, three planning-only and
+two visibly unconnected endpoints instead of falling back to a generic command
+runner. Draft-only mail has no send path and requires its own approval.
+External calendars and scheduler registration remain unconnected.
 
 The application core is Python 3.11+, with stable data contracts, a CLI, a
 loopback-only API and a responsive local web interface. SQLite stores use
@@ -102,11 +102,14 @@ Both surfaces retain a finite Strands message window per organizational profile
 for natural follow-up questions. The history never leaves process memory and a
 new-conversation action clears it together with unconfirmed plans.
 
-An isolated HTTP adapter maps the same application contract to an
-AgentCore-compatible runtime boundary and includes an ARM64 container
-candidate. Its session isolation and local `/ping` behavior are tested. The
-submission does not claim an AgentCore cloud deployment unless a later live
-deployment is separately completed and verified.
+An isolated HTTP adapter maps the same application contract to AgentCore. The
+quota-bounded direct-code Runtime is deployed and `READY`; a synthetic fixture
+roundtrip reached `confirmation_required`. The public CloudFront configuration
+keeps the browser agent disabled, and the submission does not claim a
+Bedrock-backed AgentCore journey while the applied Nova Micro quotas remain
+zero. A fresh 2026-08-27 readback again found the Runtime `READY`, version 4,
+the model profile `ACTIVE`, and all three real-time quotas at zero; CloudWatch
+showed one throttled request and no successful invocation over 24 hours.
 
 ## Safety and privacy by construction
 

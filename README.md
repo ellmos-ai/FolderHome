@@ -21,15 +21,17 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 - 36 of 36 local competition phases implemented
 - one real `strands.Agent` master with four bounded tools and on-demand planning specialists
-- 415 of 418 automated tests passed; three live-checkout pin tests fail closed on local HungryCall/Ringedingeding revision drift
+- full feature suite: 503 passed, zero failed; repeated after the 2026-08-27
+  provenance repin with 503/503 passing, while the manifest check passed 10/10
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated
   FolderHome workflow adapters
-- bilingual light/dark public showcase in [`site/`](./site/) and a tested,
-  deployment-ready AgentCore HTTP/ARM64 adapter in
-  [`deploy/agentcore/`](./deploy/agentcore/)
+- bilingual light/dark public showcase in [`site/`](./site/) and a deployed,
+  quota-bounded AgentCore HTTP runtime; its public browser path stays disabled
+  while Bedrock's applied on-demand quotas remain zero
 - complete baseline scan over 12/12 surfaces plus current 66-file delta audit; four findings resolved
-- public MIT repository and [three-minute public demo video](https://youtu.be/2LeWU_WJZKM); no Devpost submission performed
+- public MIT repository, [three-minute public demo video](https://youtu.be/2LeWU_WJZKM)
+  and a submitted [Agents for Humans entry](https://devpost.com/software/folderhome)
 
 The canonical evidence is in
 [`Phase-36-Completion-Audit`](./docs/phase36-completion-audit.md). During the competition the
@@ -76,9 +78,11 @@ Open the emitted token-bearing `access_url`. The English-default interface has
 an English/German switch and light/dark themes. It searches synthetic current
 and older Hyundai i10 policies, proposes contact, claim-letter, contract and
 local-calendar steps, and executes the actual typed adapters only after the
-exact displayed `/confirm <plan_id>` command. It never sends mail, calls a
-cloud model or archives the older policy automatically. Use **Reset case** to
-restore the deterministic fixture.
+exact displayed `/confirm <plan_id>` command. It never sends a message, calls a
+cloud model or archives the older policy automatically. A separately gated
+recipe can place the prepared letter as a reviewable draft in the user's own
+mailbox without any send path. Use **Reset case** to restore the deterministic
+fixture.
 
 The public browser walkthrough is in [`site/`](./site/). It is deliberately
 labelled as a scripted synthetic showcase with no backend. The repository
@@ -162,9 +166,11 @@ claims a working model connection.
 The optional AgentCore surface implements the current AWS HTTP contract on
 ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
 fixture prompts, isolates state by AgentCore runtime session, and cannot ingest
-household uploads or perform external actions. The contract is locally tested;
-an AWS deployment is not claimed until an image, runtime endpoint and health
-check are independently verified.
+household uploads or perform external actions. The quota-bounded runtime was
+deployed and most recently read back as `READY` on 2026-08-27; its fixture roundtrip reached
+`confirmation_required`. The public CloudFront configuration remains
+`enabled: false`, and no successful Bedrock-backed journey is claimed while
+Nova Micro's applied on-demand quotas remain zero.
 
 More: [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -224,8 +230,12 @@ With a configured registry, the master agent can execute existing FolderHome
 services for document bundles, contacts, local correspondence, the own
 FolderHome calendar, health dossiers, finance import, official-notice reports,
 review-only administrative drafts and benefit pre-screening. Every write still
-requires the separate exact plan confirmation. External calendar and mail
-connectors remain separately gated.
+requires the separate exact plan confirmation. Draft-only IMAP mail is
+available only with a `mail.draft_account` resource and the separate
+`--approve-mail-draft` gate. External calendar connectors and scheduler
+registration remain unconnected and separately gated.
+The full registry reports 27 connected, one direct read-only, three
+planning-only and two unconnected endpoints.
 
 ## Important commands
 
@@ -318,8 +328,9 @@ English description, diagram, tests, video script and checklist are prepared und
 [`docs/submission/`](./docs/submission/). The public
 repository is at <https://github.com/ellmos-ai/FolderHome>. AWS Builder
 ID remains private to the Devpost form. The approved demo video is public at
-<https://youtu.be/2LeWU_WJZKM>; final Devpost submission still requires an
-explicit human approval.
+<https://youtu.be/2LeWU_WJZKM>. The user submitted FolderHome to Agents for
+Humans on 2026-08-23; the authenticated readback records
+`submitted_at=2026-08-23T17:14:05.813-04:00`.
 
 ## License
 

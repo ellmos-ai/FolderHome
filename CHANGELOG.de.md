@@ -2,7 +2,7 @@
 
 [English](./CHANGELOG.md) | **Deutsch**
 
-**Aktuelle Kurzfassung:** 0.47 / 2026-08-23  
+**Aktuelle Kurzfassung:** 0.52 / 2026-08-27  
 **Direkter Vorläufer:**
 [`docs/archive/CHANGELOG-through-phase35.md`](docs/archive/CHANGELOG-through-phase35.de.md)
 
@@ -163,6 +163,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - Einreichungsunterlagen mit dem authentifizierten Devpost-Stand vom
   23. August 2026 abgeglichen, einschließlich aktueller Titelregel für
   Bonusartikel, Credit-Frist und der durchgehenden Hyundai-i10-Unfallgeschichte
+- 26.08.2026: Post-Submission-Stand in README, Einreichungspaket und lokalen
+  Operator-Dateien konsolidiert; veraltete Draft-, Pages-, Upload- und
+  Submit-Gates durch den authentifizierten Abschlussstand ersetzt
+- AgentCore-Dokumentation unterscheidet jetzt die bereitgestellte, als `READY`
+  rückgelesene Direct-Code-Runtime samt Fixture-Roundtrip von der weiterhin
+  unverifizierten Bedrock-Geschichte und dem deaktivierten Browserpfad
 
 ### Behoben
 
@@ -209,6 +215,25 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Verifiziert
 
+- AWS-Live-Readback vom 26.08.2026: beide CloudFormation-Stacks
+  `CREATE_COMPLETE`; AgentCore-Runtime `READY`, Version 4, HTTP; öffentlicher
+  Quota-API-Key aktiviert; CloudFront-`runtime-config.js` weiterhin
+  `enabled: false`
+- EU Nova Micro blieb `ACTIVE`, seine angewandten On-Demand-Quoten standen
+  jedoch auf null. Genau ein Converse-Aufruf mit 16 Ausgabetokens und ohne
+  Retry endete mit `ThrottlingException: Too many tokens per day`; kein zweiter
+  Modellaufruf und kein `manage.py verify`
+- Erneuter AWS-Readback vom 27.08.2026 nach erfolgreicher OAuth-Erneuerung:
+  AgentCore weiterhin `READY`, Version 4, EU Nova Micro weiterhin `ACTIVE` und
+  alle drei Echtzeitquoten weiterhin null. CloudWatch zeigte in 24 Stunden eine
+  Drosselung und keine erfolgreiche Invocation; deshalb erfolgte kein weiterer
+  Modellaufruf
+- AWS-Budget-Readback: 5 USD Monatslimit und 0,018 USD berechneter bisheriger
+  Verbrauch; der kumulierende P-010-Deckel mit Restübertrag ist noch nicht
+  implementiert
+- Aktuelle vollständige Feature-Suite auf dem konsolidierten Arbeitsstand zu
+  HEAD `436928f`: 503 bestanden, 0 fehlgeschlagen in 370,04 Sekunden; auch die
+  abschließende Manifestprüfung bestand 10/10
 - synthetische Unfalldemo, lokale HTTP-Seite, CLI-Startgate und
   AgentCore-Vertrag durch fokussierte automatisierte Tests abgedeckt
 - AgentCore-`/ping` und ein Prepare-Aufruf als echter Loopback-HTTP-Prozess

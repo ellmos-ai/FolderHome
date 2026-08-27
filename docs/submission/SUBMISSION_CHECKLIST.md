@@ -11,8 +11,8 @@
 - [x] `COMPETITION_CODE_MAP.md` and `THIRD_PARTY_LICENSES.md` current
 - [x] Security and privacy wording reviewed
 - [x] English description and testing instructions proofread
-- [x] Root `devpost-submission.md` prepared against the authenticated current
-  fields, criteria, dates and announcements; no Devpost write performed
+- [x] Root `devpost-submission.md` consolidated against the authenticated
+  submitted project, current product coverage and AWS readback
 - [x] Video script contains only implemented or visibly qualified behavior
 - [x] End-to-end synthetic accident story executes four real typed adapters
 - [x] Token-gated bilingual local demo with light/dark themes tested
@@ -43,12 +43,14 @@
 - [x] Create the FolderHome Devpost project and associate it with Agents for Humans
 - [x] Verify the Devpost project live as an authored, in-progress draft
 - [x] Confirm the required Devpost repository field contains the public URL
-- [x] Replace the older two-tool Devpost description with the current
-  four-tool master-agent, 26-connected-workflow and accident-demo narrative
+- [x] Replace the older two-tool Devpost description with the four-tool
+  master-agent and accident-demo narrative
 - [x] Prepare an English Builder article draft with the current honest AWS boundary
 - [x] Enable GitHub Pages and verify the public showcase URL
-- [ ] Build and inspect the AgentCore ARM64 image
-- [ ] Decide whether to create paid ECR/AgentCore resources; if yes, verify the live `/ping` and one synthetic invocation
+- [x] Deploy the quota-bounded direct-code AgentCore runtime and read it back as
+  `READY`; verify one synthetic fixture invocation up to `confirmation_required`
+- [ ] Verify one Bedrock-backed AgentCore journey only after AWS assigns non-zero
+  on-demand quotas and the user separately authorizes `manage.py verify`
 - [x] Record final working demo from the verified build
 - [x] Verify that v2 has no embedded subtitle stream and retains privacy and
   synthetic-data labels
@@ -75,19 +77,35 @@
 - Video URL: <https://youtu.be/2LeWU_WJZKM>
 - Live showcase: <https://ellmos-ai.github.io/FolderHome/>
 - Submitted at: `2026-08-23T17:14:05.813-04:00`
-- Local plugin stage: Resources completed; rules acknowledged; next tracked
-  stage is Prepare submission
-- AWS credit request: submitted and confirmed by Google Forms on 2026-08-23;
-  approval is not guaranteed and may take up to three business days
+- Local plugin stage: Submit completed; post-submission review is next
+- AWS credit request: submitted on 2026-08-23; the user reported the additional
+  50 promotional credits as granted on 2026-08-26. This was not independently
+  read back through a Billing API in the consolidation run
+
+## Live AWS readbacks — 2026-08-26/27
+
+- Bootstrap and application stacks: `CREATE_COMPLETE`
+- AgentCore Runtime `FolderHomeDemo-V7fjgTH232`: `READY`, version 4, HTTP
+- Public quota API key: enabled; CloudFront browser agent path: `enabled: false`
+- Monthly budget: 5 USD; calculated actual spend: 0.018 USD
+- EU Nova Micro profile: `ACTIVE`, but applied cross-region quotas remain zero
+- Exactly one 16-token Converse request on 2026-08-26, no retry:
+  `ThrottlingException`
+- Rechecked after successful OAuth renewal on 2026-08-27: Runtime still
+  `READY`, version 4; profile still `ACTIVE`; 0 tokens/minute,
+  0 requests/minute and 0 tokens/day
+- CloudWatch 24-hour readback: one throttled request, no successful invocation
+  and no input or output tokens; no second model request was sent
 
 ## Post-submit maintenance
 
 - [x] Detect that the branch-published showcase omitted three referenced brand assets
 - [x] Add the canonical logo, icon and favicon below `site/assets/`
 - [x] Replace the obsolete Actions-workflow test with a branch-publishing asset contract
-- [ ] Run the complete final verification suite after the public-site repair
-- [ ] Push the final source commit and updated `gh-pages` subtree
-- [ ] Verify the three public asset URLs and visually recheck the header
+- [x] Run the complete suite on the consolidated working tree and repeat it
+  after the provider provenance repin: 503 passed, zero failed in both runs
+- [x] Push the source commits and updated `gh-pages` branch
+- [x] Verify the public page and brand asset URLs with HTTP 200
 - [ ] Create and read back a fixed submission tag or release
 
 ## Never infer these states

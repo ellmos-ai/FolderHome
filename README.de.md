@@ -22,16 +22,20 @@ Cloudberechtigungen zu geben.
 
 - 36 von 36 lokalen Wettbewerbsphasen umgesetzt
 - ein echter `strands.Agent`-Master mit vier begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- 415 von 418 automatisierten Tests bestanden; drei Live-Checkout-Pinprüfungen blockieren wegen lokaler HungryCall-/Ringedingeding-Revisionsabweichungen
+- vollständige Feature-Suite: 503 bestanden, 0 fehlgeschlagen; nach dem
+  Provenienz-Repin vom 27.08.2026 erneut 503/503 bestanden, auch die
+  Manifestprüfung bestand 10/10
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,
   bestätigungspflichtige FolderHome-Workflowadapter
 - zweisprachiger öffentlicher Showcase mit Hell-/Dunkelmodus in
-  [`site/`](./site/) und ein getesteter, deploymentbereiter
-  AgentCore-HTTP-/ARM64-Adapter in [`deploy/agentcore/`](./deploy/agentcore/)
+  [`site/`](./site/) und eine bereitgestellte, quotenbegrenzte
+  AgentCore-HTTP-Runtime; ihr öffentlicher Browserpfad bleibt deaktiviert,
+  solange Bedrocks angewandte On-Demand-Quoten null sind
 - vollständiger Baseline-Scan über 12/12 Oberflächen plus aktueller
   66-Dateien-Delta-Audit; vier Befunde behoben
-- öffentliches MIT-Repository und [dreiminütiges öffentliches Demovideo](https://youtu.be/2LeWU_WJZKM); kein Devpost-Submit erfolgt
+- öffentliches MIT-Repository, [dreiminütiges öffentliches Demovideo](https://youtu.be/2LeWU_WJZKM)
+  und eine eingereichte [Agents-for-Humans-Teilnahme](https://devpost.com/software/folderhome)
 
 Der kanonische Nachweis steht im
 [`Phase-36-Completion-Audit`](docs/phase36-completion-audit.de.md). Während des
@@ -78,9 +82,11 @@ Oberfläche bietet eine Deutsch-/Englisch-Umschaltung und Hell-/Dunkelmodus. Sie
 durchsucht synthetische aktuelle und ältere Hyundai-i10-Policen, schlägt
 Kontakt-, Schadensbrief-, Vertrags- und lokale Kalenderschritte vor und führt
 die echten typisierten Adapter erst nach dem exakt angezeigten Befehl
-`/confirm <plan_id>` aus. Sie sendet niemals E-Mails, ruft kein Cloudmodell auf
-und archiviert die ältere Police nicht automatisch. **Fall zurücksetzen**
-stellt das deterministische Fixture wieder her.
+`/confirm <plan_id>` aus. Sie versendet niemals E-Mails, ruft kein Cloudmodell
+auf und archiviert die ältere Police nicht automatisch. Ein getrennt
+freizugebendes Rezept kann das vorbereitete Schreiben ohne Versandweg als
+prüfbaren Entwurf im eigenen Postfach ablegen. **Fall zurücksetzen** stellt das
+deterministische Fixture wieder her.
 
 Der öffentliche Browser-Rundgang liegt in [`site/`](./site/). Er ist
 ausdrücklich als skriptbasierter synthetischer Showcase ohne Backend
@@ -169,8 +175,11 @@ Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
 auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
 synthetische Fixture-Prompts, trennt den Zustand nach AgentCore-Runtime-Sitzung
 und kann weder Haushaltsdateien einlesen noch externe Aktionen ausführen. Der
-Vertrag ist lokal getestet; ein AWS-Deployment wird erst nach unabhängig
-verifiziertem Image, Runtime-Endpoint und Healthcheck behauptet.
+Vertrag ist lokal getestet. Die quotenbegrenzte Runtime wurde bereitgestellt
+und zuletzt am 27.08.2026 als `READY` rückgelesen; ihr Fixture-Roundtrip erreichte
+`confirmation_required`. Die öffentliche CloudFront-Konfiguration bleibt
+`enabled: false`. Solange Nova Micros angewandte On-Demand-Quoten null sind,
+wird keine erfolgreiche Bedrock-gestützte Geschichte behauptet.
 
 Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -239,8 +248,12 @@ Mit konfiguriertem Register kann der Masteragent vorhandene FolderHome-Dienste
 für Dokumentbündel, Kontakte, lokale Korrespondenz, den eigenen
 FolderHome-Kalender, Gesundheitsdossiers, Finanzimport, Bescheidberichte,
 ungeprüfte Verwaltungsentwürfe und Leistungsvorchecks ausführen. Jeder
-Schreibvorgang benötigt weiterhin die getrennte exakte Planbestätigung. Externe
-Kalender- und Mailconnectoren bleiben separat gegatet.
+Schreibvorgang benötigt weiterhin die getrennte exakte Planbestätigung. Reine
+IMAP-Mailentwürfe stehen nur mit einer Ressource `mail.draft_account` und dem
+getrennten Gate `--approve-mail-draft` bereit. Externe Kalenderconnectoren und
+Scheduler-Registrierung bleiben unverbunden und separat gegatet.
+Das vollständige Register weist 27 verbundene, einen direkt nur lesenden, drei
+rein planende und zwei unverbundene Endpunkte aus.
 
 ## Wichtige Befehle
 
@@ -332,8 +345,9 @@ Englische Beschreibung, Diagramm, Tests, Videoskript und Checkliste sind unter
 [`docs/submission/`](./docs/submission/) vorbereitet. Das öffentliche
 Repository liegt unter <https://github.com/ellmos-ai/FolderHome>. AWS Builder
 ID bleibt ausschließlich im privaten Devpost-Formular. Das freigegebene
-Demovideo ist unter <https://youtu.be/2LeWU_WJZKM> öffentlich; der abschließende
-Devpost-Submit benötigt weiterhin eine ausdrückliche menschliche Freigabe.
+Demovideo ist unter <https://youtu.be/2LeWU_WJZKM> öffentlich. Der Nutzer hat
+FolderHome am 23.08.2026 bei Agents for Humans eingereicht; der authentifizierte
+Readback enthält `submitted_at=2026-08-23T17:14:05.813-04:00`.
 
 ## Lizenz
 

@@ -55,8 +55,4 @@ _tools/README.md
 docs/superpowers/
 /docs/submission/BUILDER_ARTICLE_DRAFT_EN.md
 /devpost-submission.md
-/_reports/pages_browser_smoke.mjs
-/_reports/pages_browser_smoke.ps1
-/_reports/credit_form_inspect.mjs
-/_reports/credit_form_submit.mjs
-/_reports/credit_form_handoff.mjs
+/_reports/
