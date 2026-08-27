@@ -11,7 +11,7 @@
 |---|---|---|---|---|
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Pinned plugin manifest |
 | HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c` | MIT | Pinned plugin manifest |
-| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `b52780b0dcd35e47f0d0d7565d4d53eeee4bf387` | MIT | Pinned plugin manifest |
+| Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `94ae1f1e028be5aaf100baafadc18b64ff0940a2` | MIT | Pinned plugin manifest |
 | doc-services | Local checkout without remote | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | MIT | Pinned plugin manifest and extraction bridge |
 | KnowledgeDigest | `https://github.com/file-bricks/knowledgedigest.git` | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | MIT | Pinned plugin manifest and index/search bridge |
 | report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Inventoried; runtime version to be cleaned up before bridge integration |
