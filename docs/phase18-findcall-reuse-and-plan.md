@@ -11,14 +11,14 @@ FindCall shall contact suitable providers sequentially until a request is succes
 
 ## Verified Inventory
 
-### HungryCall, Revision `82c28e2de95b1b0d0343a40adfd8585938c305f8`
+### HungryCall, Revision `9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c`
 
 - Checkout and manifest are clean, version `0.1.0`, MIT; 301 provider tests ran locally green.
 - Reusable is the generalized cascade principle: filter and sort candidates, contact them serially, evaluate structured results against mandatory, price, and concession limits, and stop after the first success.
 - E.164 validation, masked outputs, Idempotency-Key, differentiated call status, and a network‑less fixture client are already in place.
 - The concrete runtime is intentionally typed to restaurant, order, pickup, and table reservation. Medical, workshop, or offer models must not be forced into restaurant data.
 
-### Ringedingeding, Revision `16b8c25a44f03d58c3f3a9625ac2f2993c6f6d6f`
+### Ringedingeding, Revision `b52780b0dcd35e47f0d0d7565d4d53eeee4bf387`
 
 - Checkout and manifest are clean, version `0.1.0`, MIT; the full provider suite ran locally green.
 - Reusable are schema‑driven queries to multiple known persons, stable Idempotency‑Keys, received final status, masked numbers, and the local `FixtureTransport`.

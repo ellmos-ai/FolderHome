@@ -15,7 +15,7 @@ und finanzielle Zusagen bleiben außerhalb der lokalen Wettbewerbsabnahme.
 
 ## Verifizierter Bestand
 
-### HungryCall, Revision `82c28e2de95b1b0d0343a40adfd8585938c305f8`
+### HungryCall, Revision `9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c`
 
 - Checkout und Manifest sind sauber, Version `0.1.0`, MIT; 301 Provider-Tests
   liefen lokal grün.
@@ -28,7 +28,7 @@ und finanzielle Zusagen bleiben außerhalb der lokalen Wettbewerbsabnahme.
   und Tischreservierung typisiert. Arzt-, Werkstatt- oder Angebotsmodelle
   dürfen nicht als Restaurantdaten hineingezwängt werden.
 
-### Ringedingeding, Revision `16b8c25a44f03d58c3f3a9625ac2f2993c6f6d6f`
+### Ringedingeding, Revision `b52780b0dcd35e47f0d0d7565d4d53eeee4bf387`
 
 - Checkout und Manifest sind sauber, Version `0.1.0`, MIT; die vollständige
   Provider-Suite lief lokal grün.

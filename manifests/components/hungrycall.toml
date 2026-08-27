@@ -10,8 +10,8 @@ live_enabled = false
 
 [source]
 repository = "https://github.com/ellmos-ai/hungrycall.git"
-revision = "82c28e2de95b1b0d0343a40adfd8585938c305f8"
-committed_at = "2026-08-24T15:34:36+02:00"
+revision = "9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c"
+committed_at = "2026-08-27T07:30:09+02:00"
 
 [[capabilities]]
 id = "calls.hungry_cascade"
