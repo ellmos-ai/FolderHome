@@ -34,7 +34,7 @@ Cloudberechtigungen zu geben.
   solange Bedrocks angewandte On-Demand-Quoten null sind
 - vollständiger Baseline-Scan über 12/12 Oberflächen plus aktueller
   66-Dateien-Delta-Audit; vier Befunde behoben
-- öffentliches MIT-Repository, [dreiminütiges öffentliches Demovideo](https://youtu.be/2LeWU_WJZKM)
+- öffentliches MIT-Repository, [dreiminütiges öffentliches Demovideo](https://youtu.be/wPb1wBJcLjQ)
   und eine eingereichte [Agents-for-Humans-Teilnahme](https://devpost.com/software/folderhome)
 
 Der kanonische Nachweis steht im
@@ -93,7 +93,7 @@ ausdrücklich als skriptbasierter synthetischer Showcase ohne Backend
 gekennzeichnet. Der Repository-Befehl oben ist der ausführbare Nachweis.
 
 Das abgenommene Wettbewerbsvideo ist öffentlich auf YouTube:
-<https://youtu.be/2LeWU_WJZKM>.
+<https://youtu.be/wPb1wBJcLjQ>.
 
 ## Agentenarchitektur
 
@@ -345,7 +345,7 @@ Englische Beschreibung, Diagramm, Tests, Videoskript und Checkliste sind unter
 [`docs/submission/`](./docs/submission/) vorbereitet. Das öffentliche
 Repository liegt unter <https://github.com/ellmos-ai/FolderHome>. AWS Builder
 ID bleibt ausschließlich im privaten Devpost-Formular. Das freigegebene
-Demovideo ist unter <https://youtu.be/2LeWU_WJZKM> öffentlich. Der Nutzer hat
+Demovideo ist unter <https://youtu.be/wPb1wBJcLjQ> öffentlich. Der Nutzer hat
 FolderHome am 23.08.2026 bei Agents for Humans eingereicht; der authentifizierte
 Readback enthält `submitted_at=2026-08-23T17:14:05.813-04:00`.
 

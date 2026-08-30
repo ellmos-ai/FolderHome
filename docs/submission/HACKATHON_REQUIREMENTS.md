@@ -60,7 +60,7 @@ Published repository:
 
 Published video:
 
-- <https://youtu.be/2LeWU_WJZKM> (2:59, accepted final v2)
+- <https://youtu.be/wPb1wBJcLjQ> (3:26, v3 with orchestral score, accepted 2026-08-30; v2 was 2:59)
 
 Still requiring the human's external gate:
 

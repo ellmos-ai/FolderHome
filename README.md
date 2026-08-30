@@ -30,7 +30,7 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
   quota-bounded AgentCore HTTP runtime; its public browser path stays disabled
   while Bedrock's applied on-demand quotas remain zero
 - complete baseline scan over 12/12 surfaces plus current 66-file delta audit; four findings resolved
-- public MIT repository, [three-minute public demo video](https://youtu.be/2LeWU_WJZKM)
+- public MIT repository, [three-minute public demo video](https://youtu.be/wPb1wBJcLjQ)
   and a submitted [Agents for Humans entry](https://devpost.com/software/folderhome)
 
 The canonical evidence is in
@@ -89,7 +89,7 @@ labelled as a scripted synthetic showcase with no backend. The repository
 command above is the executable evidence.
 
 The accepted competition video is public on YouTube:
-<https://youtu.be/2LeWU_WJZKM>.
+<https://youtu.be/wPb1wBJcLjQ>.
 
 ## Agent architecture
 
@@ -328,7 +328,7 @@ English description, diagram, tests, video script and checklist are prepared und
 [`docs/submission/`](./docs/submission/). The public
 repository is at <https://github.com/ellmos-ai/FolderHome>. AWS Builder
 ID remains private to the Devpost form. The approved demo video is public at
-<https://youtu.be/2LeWU_WJZKM>. The user submitted FolderHome to Agents for
+<https://youtu.be/wPb1wBJcLjQ>. The user submitted FolderHome to Agents for
 Humans on 2026-08-23; the authenticated readback records
 `submitted_at=2026-08-23T17:14:05.813-04:00`.
 

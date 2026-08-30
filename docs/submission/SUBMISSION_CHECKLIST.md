@@ -57,7 +57,7 @@
 - [x] Human watched and accepted the v2 candidate as the submission video on
   2026-08-23
 - [x] Authorize and complete public YouTube upload
-- [x] Insert public video URL: <https://youtu.be/2LeWU_WJZKM>
+- [x] Insert public video URL: <https://youtu.be/wPb1wBJcLjQ>
 - [x] Decide to provide the optional static GitHub Pages showcase
 - [x] Upload the required architecture diagram
 - [x] Enter the private AWS Builder ID without storing it in the repository
@@ -74,7 +74,7 @@
 - State: submitted to Agents for Humans
 - Hackathon: Agents for Humans
 - Public project URL assigned by Devpost: <https://devpost.com/software/folderhome>
-- Video URL: <https://youtu.be/2LeWU_WJZKM>
+- Video URL: <https://youtu.be/wPb1wBJcLjQ>
 - Live showcase: <https://ellmos-ai.github.io/FolderHome/>
 - Submitted at: `2026-08-23T17:14:05.813-04:00`
 - Local plugin stage: Submit completed; post-submission review is next

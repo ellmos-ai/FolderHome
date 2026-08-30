@@ -7,7 +7,7 @@ a home, with optional AWS capabilities when they add value.
 
 **Source repository:** <https://github.com/ellmos-ai/FolderHome>
 
-**Demo video:** <https://youtu.be/2LeWU_WJZKM>
+**Demo video:** <https://youtu.be/wPb1wBJcLjQ>
 
 ## Inspiration
 
