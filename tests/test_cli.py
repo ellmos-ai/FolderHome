@@ -4508,3 +4508,107 @@ def test_mcp_serve_cli_fails_closed_and_keeps_stdout_free_for_the_transport() ->
     assert remote.returncode == 2
     assert remote.stdout == ""
     assert "127.0.0.1" in json.loads(remote.stderr)["error"]
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_launch_config_supplies_defaults_but_never_a_gate(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    launch = tmp_path / "launch.json"
+    launch.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                "state_dir": str(state_dir),
+                "port": 8791,
+                "model_provider": "ollama",
+                "ollama_host": "http://127.0.0.1:11434",
+                "ollama_model_id": "qwen3.8:27b-mlx",
+                "allow_network": True,
+                "approve_sensitive_cloud_data": True,
+                "approve_loopback_server": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    planned = run_cli(
+        "app",
+        "plan",
+        "--launch-config",
+        str(launch),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--json",
+    )
+    overridden = run_cli(
+        "app",
+        "plan",
+        "--launch-config",
+        str(launch),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "fixture",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["settings"]["port"] == 8791
+    assert payload["agent"]["model_provider"] == "ollama"
+    assert payload["agent"]["model_connection"]["model_id"] == "qwen3.8:27b-mlx"
+    # Gates are start-up flags and are never read from the file.
+    assert payload["agent"]["model_connection"]["network_authorized"] is False
+    assert payload["agent"]["model_connection"][
+        "sensitive_cloud_data_authorized"
+    ] is False
+
+    assert overridden.returncode == 0, overridden.stderr
+    assert json.loads(overridden.stdout)["agent"]["model_provider"] == "fixture"
+
+
+def test_app_plan_without_profiles_dir_or_launch_config_fails_closed() -> None:
+    missing = run_cli("app", "plan", "--json")
+
+    assert missing.returncode == 2
+    assert "--profiles-dir" in json.loads(missing.stdout)["error"]
+
+
+def test_setup_cli_plans_read_only_and_refuses_a_listener_without_the_gate(
+    tmp_path: Path,
+) -> None:
+    config_dir = tmp_path / "config"
+
+    planned = run_cli(
+        "setup",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--config-dir",
+        str(config_dir),
+        "--json",
+    )
+    ungated = run_cli(
+        "setup",
+        "serve",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--config-dir",
+        str(config_dir),
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["schema"] == "folderhome.setup-state.v1"
+    assert payload["configured"] is False
+    assert payload["writes_credentials"] is False
+    # Planning stays read-only: it does not even create the configuration folder.
+    assert not config_dir.exists()
+    assert ungated.returncode == 2
+    assert "Serverfreigabe" in json.loads(ungated.stdout)["error"]

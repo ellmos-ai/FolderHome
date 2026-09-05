@@ -310,9 +310,9 @@ Start the app first and copy its access URL; the token is new on every start.
 `mcp plan` emits the exact `claude mcp add folderhome -- ...` command and the
 matching `[mcp_servers.folderhome]` block for `~/.codex/config.toml`. The
 address must be `127.0.0.1`; any other host is refused before the server starts,
-as is a missing `--approve-mcp-server`. Ten tools are exposed:
+as is a missing `--approve-mcp-server`. Eleven tools are exposed:
 `folderhome_status`, `_profiles`, `_capabilities`, `_executors`, `_resources`,
-`_search_documents`, `_topic_dossier`, `_chat`, `_confirm_plan` and
+`_results`, `_search_documents`, `_topic_dossier`, `_chat`, `_confirm_plan` and
 `_reset_conversation`.
 
 Chat over MCP is no more an approval than chat in the GUI. A proposed plan runs
@@ -341,6 +341,62 @@ Only files inside a registered output resource of that profile are offered, and
 only under the name the execution report itself declares. Runs that merely
 change local state, for example a confirmed medication dose, appear with no file
 and say so.
+
+## Set up FolderHome (local installer)
+
+FolderHome's own GUI never writes configuration. A separate installer does, on
+its own loopback port, with its own token and behind the same explicit listener
+gate. That split is the point: the program you chat with cannot change where it
+is allowed to read and write.
+
+```powershell
+# Show what the installer would configure, without starting a listener
+.venv\Scripts\python.exe -m folderhome setup plan `
+  --profiles-dir examples\profiles --json
+
+# Start the installer and open the printed access_url in a browser
+.venv\Scripts\python.exe -m folderhome setup serve `
+  --profiles-dir examples\profiles --port 8766 `
+  --approve-loopback-server --json
+```
+
+The page walks through four steps: the folder per profile and purpose
+(`documents.source`, `insurance.source`, `documents.output`,
+`correspondence.output`, `calendar.export_output`), the model provider, the
+runtime values, and a summary. Nothing is written until you press the save
+button, and the server accepts a save only together with the hash of exactly the
+plan it showed you. Folders are checked before that: they must exist, must not
+be symbolic links, and one outside your own user folder needs an explicit tick.
+
+Saving writes two files into your configuration folder, by default
+`%LOCALAPPDATA%\FolderHome\`:
+
+| File | Content |
+|---|---|
+| `resources.json` | the private resource registry, validated against the same contract the app loads |
+| `launch.json` | the start-up values for `app serve`: profiles, state folder, registry, model, port |
+
+An existing file is kept as a `.bak-<timestamp>` copy, and both files are written
+through a temporary file so a crash cannot leave half a registry behind. Neither
+file ever holds a password: the drafts mailbox stays a reference to its own local
+credentials file.
+
+Start the app with what was written:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome app serve `
+  --launch-config $env:LOCALAPPDATA\FolderHome\launch.json `
+  --approve-loopback-server --json
+```
+
+`--launch-config` supplies defaults only. An explicit flag on the command line
+always wins, and the gates are deliberately not part of the file: `--allow-network`,
+`--approve-sensitive-cloud-data` and `--approve-loopback-server` stay start-up
+flags, so no file can grant them.
+
+In the AWS or browser variant there are no local output folders at all. There the
+results view is the delivery path, and files land in the browser's own download
+folder.
 
 ## Direct HTTP API
 

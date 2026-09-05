@@ -1572,8 +1572,36 @@ def test_result_artifact_download_returns_exactly_the_created_bytes(
     assert downloaded.content == (export / "Hyundai-i10-Termine.ics").read_bytes()
     assert downloaded.content_type == "text/calendar; charset=utf-8"
     assert downloaded.headers["Content-Disposition"] == (
-        'attachment; filename="Hyundai-i10-Termine.ics"'
+        "attachment; filename*=UTF-8''Hyundai-i10-Termine.ics"
     )
     assert missing_index.status_code == 404
     assert unknown.status_code == 404
     assert unauthorized.status_code == 401
+
+
+def test_result_artifact_download_refuses_a_file_changed_after_execution(
+    tmp_path: Path,
+) -> None:
+    app, export, plan_id = _calendar_export_app(tmp_path)
+    port = 8765
+    _confirm(app, plan_id, port)
+    listed = app.handle(
+        method="GET",
+        target="/api/v1/agent/results?profile_id=lukas",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+    execution_id = listed.payload["results"][0]["execution_id"]
+    (export / "Hyundai-i10-Termine.ics").write_text("BEGIN:VCALENDAR\n", encoding="utf-8")
+
+    tampered = app.handle(
+        method="GET",
+        target=f"/api/v1/agent/results/{execution_id}/artifacts/0",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+
+    assert tampered.status_code == 409
+    assert "verändert" in tampered.payload["message"]

@@ -332,10 +332,10 @@ Start neu.
 `mcp plan` gibt den exakten Befehl `claude mcp add folderhome -- ...` und den
 passenden Block `[mcp_servers.folderhome]` für `~/.codex/config.toml` aus. Die
 Adresse muss `127.0.0.1` sein; jeder andere Host wird vor dem Serverstart
-abgelehnt, ebenso ein fehlendes `--approve-mcp-server`. Zehn Werkzeuge stehen
+abgelehnt, ebenso ein fehlendes `--approve-mcp-server`. Elf Werkzeuge stehen
 bereit: `folderhome_status`, `_profiles`, `_capabilities`, `_executors`,
-`_resources`, `_search_documents`, `_topic_dossier`, `_chat`, `_confirm_plan`
-und `_reset_conversation`.
+`_resources`, `_results`, `_search_documents`, `_topic_dossier`, `_chat`,
+`_confirm_plan` und `_reset_conversation`.
 
 Ein Chat über MCP ist genauso wenig eine Freigabe wie ein Chat in der GUI. Ein
 vorgeschlagener Plan läuft nur über `folderhome_confirm_plan` mit seinem exakten
@@ -365,6 +365,66 @@ Angeboten werden ausschließlich Dateien innerhalb einer registrierten
 Ausgaberessource dieses Profils, und nur unter dem Namen, den der
 Ausführungsbericht selbst nennt. Läufe, die lediglich lokalen Zustand ändern,
 etwa eine bestätigte Medikamentengabe, erscheinen ohne Datei und sagen das auch.
+
+## FolderHome einrichten (lokales Einrichtungsprogramm)
+
+Die GUI von FolderHome schreibt niemals Konfiguration. Das tut ein getrenntes
+Einrichtungsprogramm, auf einem eigenen Loopback-Port, mit eigenem Token und
+hinter derselben ausdrücklichen Serverfreigabe. Genau diese Trennung ist der
+Zweck: Das Programm, mit dem du chattest, kann nicht ändern, wo es lesen und
+schreiben darf.
+
+```powershell
+# Zeigen, was eingerichtet würde, ohne einen Listener zu starten
+.venv\Scripts\python.exe -m folderhome setup plan `
+  --profiles-dir examples\profiles --json
+
+# Einrichtung starten und die ausgegebene access_url im Browser öffnen
+.venv\Scripts\python.exe -m folderhome setup serve `
+  --profiles-dir examples\profiles --port 8766 `
+  --approve-loopback-server --json
+```
+
+Die Seite führt durch vier Schritte: den Ordner je Profil und Zweck
+(`documents.source`, `insurance.source`, `documents.output`,
+`correspondence.output`, `calendar.export_output`), den Modell-Provider, die
+Laufzeitwerte und eine Zusammenfassung. Geschrieben wird erst auf den
+Speichern-Knopf, und der Server nimmt ein Speichern nur zusammen mit dem Hash
+genau des Plans an, den er dir gezeigt hat. Ordner werden vorher geprüft: Sie
+müssen existieren, dürfen keine Symlinks sein, und einer außerhalb des eigenen
+Benutzerordners braucht ein ausdrückliches Häkchen.
+
+Das Speichern schreibt zwei Dateien in dein Konfigurationsverzeichnis,
+standardmäßig `%LOCALAPPDATA%\FolderHome\`:
+
+| Datei | Inhalt |
+|---|---|
+| `resources.json` | das private Ressourcenregister, geprüft gegen denselben Vertrag, den die App lädt |
+| `launch.json` | die Startwerte für `app serve`: Profile, State-Ordner, Register, Modell, Port |
+
+Eine vorhandene Datei bleibt als Kopie `.bak-<Zeitstempel>` erhalten, und beide
+Dateien werden über eine temporäre Datei geschrieben, damit ein Absturz kein
+halbes Register hinterlässt. Keine der beiden Dateien enthält je ein Passwort:
+Das Entwurfspostfach bleibt ein Verweis auf seine eigene lokale
+Zugangsdatendatei.
+
+Die App mit dem Geschriebenen starten:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome app serve `
+  --launch-config $env:LOCALAPPDATA\FolderHome\launch.json `
+  --approve-loopback-server --json
+```
+
+`--launch-config` liefert ausschließlich Vorgabewerte. Ein ausdrücklicher
+Schalter auf der Kommandozeile gewinnt immer, und die Gates stehen bewusst nicht
+in der Datei: `--allow-network`, `--approve-sensitive-cloud-data` und
+`--approve-loopback-server` bleiben Startschalter, damit keine Datei sie
+erteilen kann.
+
+In der AWS- oder Browser-Variante gibt es überhaupt keine lokalen
+Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg, und Dateien landen
+im Download-Ordner des Browsers.
 
 ## Direkte HTTP-API
 

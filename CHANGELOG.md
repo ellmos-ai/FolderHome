@@ -26,6 +26,21 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- separate installer `folderhome setup serve`: a second loopback application on
+  its own port and token is the only place that writes FolderHome configuration.
+  The app GUI keeps no write path to it
+- the installer plans first and writes only against the hash of exactly the plan
+  it displayed, with an explicit confirmation; folders are checked for existence,
+  symbolic links and location inside the user's own folder beforehand
+- it writes `resources.json` and `launch.json` atomically through a temporary
+  file, keeps the previous version as `.bak-<timestamp>` and loads the written
+  registry back through the existing contract before reporting success
+- provider fields are validated by constructing the real `StrandsAgentSettings`
+  instead of a second rule set; no password and no mailbox credential is ever
+  written
+- `app serve --launch-config <file>` takes those start-up values as defaults. An
+  explicit flag always wins, and the gates are not on the allowlist, so no file
+  can grant network access, a cloud data approval or a listener
 - cloud variant delivers result files inline: the AgentCore runtime answer now
   carries `content`, `content_type` and `content_encoding` per result, so the
   browser can offer a download although that runtime exposes only `/ping` and

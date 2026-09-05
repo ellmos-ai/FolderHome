@@ -28,6 +28,23 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- getrenntes Einrichtungsprogramm `folderhome setup serve`: Eine zweite
+  Loopback-Anwendung mit eigenem Port und eigenem Token ist der einzige Ort, der
+  FolderHome-Konfiguration schreibt. Die App-GUI behält keinen Schreibweg dorthin
+- die Einrichtung plant zuerst und schreibt nur gegen den Hash genau des Plans,
+  den sie angezeigt hat, und nur mit ausdrücklicher Bestätigung; Ordner werden
+  vorher auf Existenz, Symlinks und Lage im eigenen Benutzerordner geprüft
+- sie schreibt `resources.json` und `launch.json` atomar über eine temporäre
+  Datei, behält die Vorversion als `.bak-<Zeitstempel>` und lädt das
+  geschriebene Register über den bestehenden Vertrag zurück, bevor sie Erfolg
+  meldet
+- Provider-Felder werden geprüft, indem die echten `StrandsAgentSettings`
+  konstruiert werden, statt ein zweites Regelwerk zu pflegen; kein Passwort und
+  keine Postfach-Zugangsdaten werden je geschrieben
+- `app serve --launch-config <datei>` übernimmt diese Startwerte als Vorgaben.
+  Ein ausdrücklicher Schalter gewinnt immer, und die Gates stehen nicht auf der
+  Allowlist: Keine Datei kann Netzzugang, eine Datenweitergabefreigabe oder
+  einen Listener erteilen
 - die Cloud-Variante liefert Ergebnisdateien inline: Die Antwort der
   AgentCore-Runtime trägt jetzt je Ergebnis `content`, `content_type` und
   `content_encoding`, sodass der Browser einen Download anbieten kann, obwohl

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>FolderHome setup</title>
+    <link rel="stylesheet" href="/assets/app.css?token=__FOLDERHOME_TOKEN__">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">FH</span>
+          <span>
+            <strong>FolderHome</strong>
+            <small data-i18n="subtitle">Local setup</small>
+          </span>
+        </div>
+        <div class="topbar-tools">
+          <div id="language-switch" class="language-switch" role="group">
+            <button type="button" data-language="en" aria-pressed="true">EN</button>
+            <button type="button" data-language="de" aria-pressed="false">DE</button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="card">
+          <p class="eyebrow" data-i18n="eyebrow">Installer</p>
+          <h1 data-i18n="title">Set up FolderHome</h1>
+          <p class="lead" data-i18n="lead">
+            This program is the only place that writes FolderHome configuration. The app
+            itself never changes it. Nothing is written before you confirm the exact plan.
+          </p>
+          <p class="hint" id="account-line"></p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="foldersTitle">1. Folders</h2>
+          <p class="hint" data-i18n="foldersHint">
+            Give each profile a folder per purpose. Source folders are read, output folders
+            receive files. Leave a field empty to skip that purpose.
+          </p>
+          <div id="folder-grid"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="modelTitle">2. Model</h2>
+          <p class="hint" data-i18n="modelHint">
+            The provider is a start-up choice. Network and data approvals stay command-line
+            flags and are never written to a file.
+          </p>
+          <label class="field">
+            <span data-i18n="providerLabel">Provider</span>
+            <select id="provider">
+              <option value="fixture">fixture</option>
+              <option value="ollama">ollama</option>
+              <option value="bedrock">bedrock</option>
+            </select>
+          </label>
+          <div id="ollama-fields" hidden>
+            <label class="field">
+              <span data-i18n="ollamaHost">Ollama host</span>
+              <input id="ollama-host" value="http://127.0.0.1:11434" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="ollamaModel">Ollama model id</span>
+              <input id="ollama-model-id" placeholder="qwen3.8:27b-mlx" spellcheck="false">
+            </label>
+          </div>
+          <div id="bedrock-fields" hidden>
+            <label class="field">
+              <span data-i18n="bedrockModel">Bedrock model id</span>
+              <input id="bedrock-model-id" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="awsRegion">AWS region</span>
+              <input id="aws-region" placeholder="eu-central-1" spellcheck="false">
+            </label>
+          </div>
+          <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="runtimeTitle">3. Runtime</h2>
+          <label class="field">
+            <span data-i18n="stateDir">App state folder</span>
+            <input id="state-dir" spellcheck="false">
+          </label>
+          <label class="field">
+            <span data-i18n="portLabel">Port</span>
+            <input id="port" type="number" min="1" max="65535" value="8765">
+          </label>
+          <label class="checkbox">
+            <input id="outside-home" type="checkbox">
+            <span data-i18n="outsideHome">I confirm folders outside my user folder</span>
+          </label>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="summaryTitle">4. Summary and save</h2>
+          <button id="check" class="button" type="button" data-i18n="checkButton">Check</button>
+          <button id="save" class="button primary" type="button" disabled
+                  data-i18n="saveButton">Write these two files</button>
+          <div id="summary" aria-live="polite"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="cloudTitle">Cloud variant</h2>
+          <p class="hint" data-i18n="cloudHint">
+            In the AWS or browser variant there are no local output folders. There the
+            results view is the delivery path: files are downloaded into the browser's own
+            download folder.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="/assets/app.js?token=__FOLDERHOME_TOKEN__"></script>
+  </body>
+</html>

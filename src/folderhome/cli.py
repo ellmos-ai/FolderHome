@@ -335,6 +335,12 @@ from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
+from folderhome.setup_app import (
+    LAUNCH_CONFIG_SCHEMA,
+    SetupAppError,
+    SetupApplication,
+    default_config_dir,
+)
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 DEFAULT_MANIFEST_ROOT = REPOSITORY_ROOT / "manifests" / "components"
@@ -581,6 +587,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
         return _run_local_app_serve(args)
+    if args.command == "setup" and args.setup_command == "plan":
+        return _run_setup_plan(args)
+    if args.command == "setup" and args.setup_command == "serve":
+        return _run_setup_serve(args)
     if args.command == "mcp" and args.mcp_command == "plan":
         return _run_mcp_plan(args)
     if args.command == "mcp" and args.mcp_command == "serve":
@@ -1278,6 +1288,17 @@ def _build_parser() -> argparse.ArgumentParser:
     app_serve.add_argument("--approve-loopback-server", action="store_true")
     app_serve.add_argument("--json", action="store_true", dest="as_json")
 
+    setup = commands.add_parser("setup")
+    setup_commands = setup.add_subparsers(dest="setup_command", required=True)
+    setup_plan = setup_commands.add_parser("plan")
+    setup_serve = setup_commands.add_parser("serve")
+    for parser_ in (setup_plan, setup_serve):
+        parser_.add_argument("--profiles-dir", type=Path, required=True)
+        parser_.add_argument("--config-dir", type=Path)
+        parser_.add_argument("--port", type=int, default=8766)
+        parser_.add_argument("--json", action="store_true", dest="as_json")
+    setup_serve.add_argument("--approve-loopback-server", action="store_true")
+
     mcp = commands.add_parser("mcp")
     mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
     mcp_plan = mcp_commands.add_parser("plan")
@@ -1510,9 +1531,12 @@ def _add_legal_change_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--profiles-dir", type=Path, required=True)
-    parser.add_argument("--state-dir", type=Path, required=True)
-    parser.add_argument("--resources-file", type=Path)
+    # Values a launch config may supply use SUPPRESS, so an explicit flag always
+    # wins: the attribute simply does not exist unless the caller passed it.
+    parser.add_argument("--launch-config", type=Path)
+    parser.add_argument("--profiles-dir", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--state-dir", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--resources-file", type=Path, default=argparse.SUPPRESS)
     parser.add_argument("--manifest-root", type=Path, default=DEFAULT_MANIFEST_ROOT)
     parser.add_argument(
         "--knowledge-digest-root",
@@ -1541,7 +1565,7 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--approve-mail-draft", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--max-body-bytes", type=int, default=65_536)
     parser.add_argument("--max-query-limit", type=int, default=50)
     parser.add_argument("--max-concurrent-requests", type=int, default=32)
@@ -1552,12 +1576,12 @@ def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--model-provider",
         choices=("fixture", "bedrock", "ollama"),
-        default="fixture",
+        default=argparse.SUPPRESS,
     )
-    parser.add_argument("--bedrock-model-id")
-    parser.add_argument("--aws-region")
-    parser.add_argument("--ollama-host")
-    parser.add_argument("--ollama-model-id")
+    parser.add_argument("--bedrock-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--aws-region", default=argparse.SUPPRESS)
+    parser.add_argument("--ollama-host", default=argparse.SUPPRESS)
+    parser.add_argument("--ollama-model-id", default=argparse.SUPPRESS)
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--approve-sensitive-cloud-data", action="store_true")
     parser.add_argument("--max-turns", type=int, default=4)
@@ -5022,6 +5046,58 @@ def _run_local_app_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_setup_app(args: argparse.Namespace) -> SetupApplication:
+    config_dir = Path(args.config_dir or default_config_dir())
+    return SetupApplication(
+        settings=LocalAppSettings(
+            host="127.0.0.1",
+            port=args.port,
+            profiles_dir=args.profiles_dir,
+            state_dir=config_dir,
+        ),
+        profiles=load_profile_configuration(args.profiles_dir),
+        config_dir=config_dir,
+    )
+
+
+def _run_setup_plan(args: argparse.Namespace) -> int:
+    """Show what the installer would configure without starting a listener."""
+
+    try:
+        payload = _build_setup_app(args).state_payload()
+    except (*_LOCAL_APP_ERRORS, SetupAppError) as exc:
+        return _print_error(str(exc))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_setup_serve(args: argparse.Namespace) -> int:
+    """Serve the installer on its own loopback port with its own token."""
+
+    server = None
+    try:
+        application = _build_setup_app(args)
+        # The installer writes here, and the server insists on an existing state
+        # dir. Only after the gate, so a refused start leaves nothing behind.
+        if args.approve_loopback_server:
+            application.config_dir.mkdir(parents=True, exist_ok=True)
+        server = create_local_server(
+            application,
+            allow_loopback_server=args.approve_loopback_server,
+        )
+        print(json.dumps(server.to_public_dict(), ensure_ascii=False, sort_keys=True))
+        sys.stdout.flush()
+        server.serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    except (*_LOCAL_APP_ERRORS, SetupAppError) as exc:
+        return _print_error(str(exc))
+    finally:
+        if server is not None:
+            server.server_close()
+    return 0
+
+
 def _run_mcp_plan(args: argparse.Namespace) -> int:
     from folderhome.mcp_server import ACCESS_URL_ENV, integration_plan
 
@@ -5064,7 +5140,81 @@ _LOCAL_APP_ERRORS = (
 )
 
 
+_LAUNCH_CONFIG_FIELDS = {
+    "profiles_dir": Path,
+    "state_dir": Path,
+    "resources_file": Path,
+    "port": int,
+    "model_provider": str,
+    "ollama_host": str,
+    "ollama_model_id": str,
+    "bedrock_model_id": str,
+    "aws_region": str,
+}
+_LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
+    "resources_file": None,
+    "port": 8765,
+    "model_provider": "fixture",
+    "ollama_host": None,
+    "ollama_model_id": None,
+    "bedrock_model_id": None,
+    "aws_region": None,
+}
+
+
+def _apply_launch_config(args: argparse.Namespace) -> None:
+    """Fill start-up values from a launch config; explicit flags always win.
+
+    Gates stay start-up flags on purpose: they are not on the allowlist, so no
+    file can grant network access or a cloud data approval.
+    """
+
+    supplied: dict[str, object] = {}
+    launch_config = getattr(args, "launch_config", None)
+    if launch_config is not None:
+        try:
+            payload = json.loads(Path(launch_config).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Startkonfiguration ist nicht lesbar: {exc}") from exc
+        if not isinstance(payload, dict) or payload.get("schema") != (
+            LAUNCH_CONFIG_SCHEMA
+        ):
+            raise ValueError("Startkonfiguration verwendet ein unbekanntes Schema.")
+        for name, kind in _LAUNCH_CONFIG_FIELDS.items():
+            value = payload.get(name)
+            if value is None:
+                continue
+            if kind is int and (isinstance(value, bool) or not isinstance(value, int)):
+                raise ValueError(f"Startkonfiguration braucht für {name} eine Zahl.")
+            if kind is not int and not isinstance(value, str):
+                raise ValueError(f"Startkonfiguration braucht für {name} einen Text.")
+            supplied[name] = kind(value) if kind is not str else value
+    # A launch config describes one intended provider. If the caller picks a
+    # different one on the command line, the other provider's fields do not apply.
+    effective = getattr(args, "model_provider", supplied.get("model_provider", "fixture"))
+    if effective != "ollama":
+        supplied.pop("ollama_host", None)
+        supplied.pop("ollama_model_id", None)
+    if effective != "bedrock":
+        supplied.pop("bedrock_model_id", None)
+        supplied.pop("aws_region", None)
+    for name in _LAUNCH_CONFIG_FIELDS:
+        if hasattr(args, name):
+            continue
+        if name in supplied:
+            setattr(args, name, supplied[name])
+        elif name in _LAUNCH_CONFIG_DEFAULTS:
+            setattr(args, name, _LAUNCH_CONFIG_DEFAULTS[name])
+    for name in ("profiles_dir", "state_dir"):
+        if getattr(args, name, None) is None:
+            flag = f"--{name.replace('_', '-')}"
+            raise ValueError(
+                f"{flag} fehlt; gib es an oder nenne es in --launch-config."
+            )
+
+
 def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
+    _apply_launch_config(args)
     settings = LocalAppSettings(
         host=args.host,
         port=args.port,

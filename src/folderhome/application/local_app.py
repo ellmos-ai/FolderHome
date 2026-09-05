@@ -392,6 +392,7 @@ class LocalApplication:
                             "index": index,
                             "name": item.name,
                             "size_bytes": item.stat().st_size,
+                            "sha256": sha256(item.read_bytes()).hexdigest(),
                         }
                         for index, item in enumerate(artifacts)
                     ],
@@ -464,6 +465,9 @@ class LocalApplication:
         if index >= len(artifacts):
             return self._error(404, "Ergebnisdatei ist in dieser Sitzung nicht bekannt.")
         target = artifacts[index]
+        expected = str(
+            self._execution_results[execution_id]["artifacts"][index]["sha256"]
+        )
         try:
             if target.is_symlink() or not target.is_file():
                 return self._error(404, "Ergebnisdatei existiert nicht mehr.")
@@ -472,8 +476,12 @@ class LocalApplication:
             content = target.read_bytes()
         except OSError:
             return self._error(404, "Ergebnisdatei ist nicht mehr lesbar.")
+        if sha256(content).hexdigest() != expected:
+            return self._error(409, "Ergebnisdatei wurde seit der Ausführung verändert.")
         headers = self._security_headers()
-        headers["Content-Disposition"] = f'attachment; filename="{target.name}"'
+        headers["Content-Disposition"] = (
+            f"attachment; filename*=UTF-8''{quote(target.name, safe='')}"
+        )
         return LocalApiResponse(
             status_code=200,
             content_type=_ARTIFACT_CONTENT_TYPES.get(
