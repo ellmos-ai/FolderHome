@@ -2,9 +2,9 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.37
-**Aktualisiert:** 2026-08-23
-**Grund:** Unfallgeschichte, öffentlicher Showcase und optionaler AgentCore-Adapter eingeordnet
+**Version:** 0.38
+**Aktualisiert:** 2026-09-05
+**Grund:** Lokaler Ollama-Provider und MCP-Server eingeordnet
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
 
 > Wenn du veraltete Passagen oder Verweise entdeckst, korrigiere diese Datei
@@ -140,6 +140,17 @@
 - `examples/competition/evidence/` wird ausschließlich aus synthetischen
   internen Fixtures erzeugt. Die vier Artefakte belegen Toolwahl, Ausgabehash,
   No-network und fehlende Side-Effects; sie enthalten keine Personendaten.
+- Der Modell-Provider `ollama` unter `contracts.strands_agent`,
+  `application.strands_agent` und `cli` ist `NEW_CORE`. Er wählt das
+  `OllamaModel` des Strands-SDK aus; es wird kein Provider-Code kopiert.
+  Das MIT-lizenzierte Paket `ollama` ist ein optionales Extra und wird
+  installiert, nicht mitgeliefert. Die loopback-bewusste Gate-Logik ist
+  neuer FolderHome-Code.
+- `src/folderhome/mcp_server.py` und `tests/test_mcp_server.py` sind
+  `NEW_CORE`. Der Server registriert FolderHome-Werkzeuge auf dem
+  MIT-lizenzierten `mcp`-SDK und spiegelt die vorhandene Loopback-API mit
+  der Python-Standardbibliothek; er hält keinen Zustand, ergänzt keinen
+  Endpunkt und kopiert keinen SDK-Code.
 - Spätere Submodule, Live-Connectoren, öffentliche Veröffentlichung und
   kostenpflichtige Aktionen benötigen eigene Entscheidungen und Gates.
 

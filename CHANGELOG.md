@@ -12,6 +12,39 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- local model provider `ollama`: the master agent can run on a model in the
+  user's own home instead of the deterministic fixture or Amazon Bedrock. The
+  gate follows the transport, not the vendor: a loopback host needs no approval
+  because nothing leaves the machine, while any other host needs the same two
+  approvals as Bedrock, `--allow-network` and `--approve-sensitive-cloud-data`
+- new CLI options `--model-provider ollama`, `--ollama-host` (default
+  `http://127.0.0.1:11434`) and `--ollama-model-id`; the model id is always
+  explicit and never guessed
+- new settings properties `network_used` and `is_live_model` separate the
+  transport question from the provider question; the agent report, the live-turn
+  counter and the status payload now ask them instead of comparing a provider
+  name to `"bedrock"`
+- status and GUI name a local model as a local model: `model_inference_location`
+  reports `local_ollama_host` or `remote_ollama_host` instead of `aws_cloud`,
+  and the interface no longer announces a running Ollama model as configured
+  Amazon Bedrock
+- optional extra `folderhome[ollama]`; the provider is imported only when it is
+  selected, and a missing package fails closed with the install command
+- MCP server `folderhome mcp serve`: Claude Code and the Codex CLI can use the
+  bounded FolderHome surface as a tool over stdio. The server keeps no state of
+  its own but proxies the loopback API of a running `app serve`, so an editor
+  agent and the GUI share one process, one conversation and one set of proposed
+  plans
+- ten MCP tools behind the `folderhome_` prefix for status, profiles,
+  capabilities, executors, resources, document search, topic dossier, chat, plan
+  confirmation and conversation reset; a refusal from the local API reaches the
+  editor verbatim
+- `folderhome mcp plan` prints the ready-made `claude mcp add` command and the
+  matching `[mcp_servers.folderhome]` block for `~/.codex/config.toml` without
+  starting anything
+- the MCP proxy fails closed before it starts: only `127.0.0.1` is accepted, a
+  session token is required, and `--approve-mcp-server` must be given. stdout
+  belongs to the transport, so every diagnostic and every error goes to stderr
 - draft-only mail endpoint: one prepared letter is appended to the drafts
   folder of the user's own IMAP mailbox behind the separate live-effect
   approval `--approve-mail-draft`; there is no send path, no recipient is

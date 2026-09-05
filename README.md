@@ -101,6 +101,7 @@ flowchart LR
   AC[Optional AgentCore HTTP runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
+  A -. loopback: no gate / other host: same two gates .-> O[Local Ollama model]
   A --> S[search_home_documents]
   A --> D[build_home_theme_dossier]
   A --> C[list_home_capabilities]
@@ -112,6 +113,8 @@ flowchart LR
   S --> L[FolderHome LocalApplication]
   D --> L
   L --> K[KnowledgeDigest read-only index]
+  MCP[Claude Code / Codex CLI] -- stdio --> PX[folderhome mcp serve]
+  PX -- loopback API + token --> L
   UI --> W[Other gated domain workflows]
   P --> W
 ```
@@ -120,7 +123,9 @@ flowchart LR
 The fixture adapter runs through the real Strands agent and its sequential
 tool executor without credentials. Bedrock uses the same agent, but
 requires model ID, AWS region, `--allow-network` and the separate approval
-`--approve-sensitive-cloud-data`; a Bedrock live run has not been claimed.
+`--approve-sensitive-cloud-data`; a Bedrock live run has not been claimed. A
+local Ollama model is the third provider and was verified live: the model
+selected and executed `list_home_capabilities` through the same agent loop.
 Semantic domain selection belongs to the model. Endpoint lookup, plan hashes,
 and confirmation remain deterministic and fail closed; personas change style
 only and never grant capabilities. Without a private resource registry, the
@@ -236,6 +241,83 @@ available only with a `mail.draft_account` resource and the separate
 registration remain unconnected and separately gated.
 The full registry reports 27 connected, one direct read-only, three
 planning-only and two unconnected endpoints.
+
+## Local model via Ollama
+
+The master agent can run on a local Ollama model instead of the deterministic
+fixture or Amazon Bedrock. The gates follow the transport, not the vendor: an
+Ollama host on the loopback interface needs no gate at all, because nothing
+leaves this machine. Any other host, including one on your own private network,
+needs exactly the same two approvals as Bedrock, `--allow-network` and
+`--approve-sensitive-cloud-data`.
+
+The word "cloud" in that flag name means "outside this operating system
+account", not "outside your home". FolderHome cannot know whether the machine
+behind an address belongs to you, so it asks once for the network and once for
+the data, in both cases.
+
+```powershell
+# Optional extra; the provider is not imported unless you select it
+.venv\Scripts\pip.exe install -e ".[ollama]"
+
+# A model on this machine: no gate, because nothing leaves the loopback interface
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-model-id qwen3.8:27b-mlx `
+  --profile-id lukas --prompt "What can you do?" --json
+
+# A model on another machine: both approvals, exactly like Bedrock
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-host http://192.0.2.10:11434 `
+  --ollama-model-id qwen3.8:27b-mlx `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "What can you do?" --json
+```
+
+`--ollama-host` defaults to `http://127.0.0.1:11434`. The model id is always
+required and never guessed. The status endpoint and the GUI report a local model
+as a local model: `model_inference_location` becomes `local_ollama_host` or
+`remote_ollama_host` instead of `aws_cloud`, and no run claims a verified
+connection before one successful live turn in the same process.
+
+## Use FolderHome from Claude Code or Codex (MCP)
+
+`folderhome mcp serve` publishes the same bounded surface over the Model Context
+Protocol on stdio, so a coding agent can search your documents, ask the master
+agent and approve a plan. The server holds no state of its own: it is a proxy
+over the loopback API of a running `app serve`. Editor and GUI therefore share
+one process, one conversation and one set of proposed plans.
+
+Start the app first and copy its access URL; the token is new on every start.
+
+```powershell
+# 1. Start the local app and note the access_url it prints
+.venv\Scripts\python.exe -m folderhome app serve `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --port 8765 --approve-loopback-server --json
+
+# 2. Print the ready-made integration for both editors
+.venv\Scripts\python.exe -m folderhome mcp plan `
+  --access-url "http://127.0.0.1:8765/?token=<token>" --json
+```
+
+`mcp plan` emits the exact `claude mcp add folderhome -- ...` command and the
+matching `[mcp_servers.folderhome]` block for `~/.codex/config.toml`. The
+address must be `127.0.0.1`; any other host is refused before the server starts,
+as is a missing `--approve-mcp-server`. Ten tools are exposed:
+`folderhome_status`, `_profiles`, `_capabilities`, `_executors`, `_resources`,
+`_search_documents`, `_topic_dossier`, `_chat`, `_confirm_plan` and
+`_reset_conversation`.
+
+Chat over MCP is no more an approval than chat in the GUI. A proposed plan runs
+only through `folderhome_confirm_plan` with its exact hash and the selected step
+ids; a wrong hash is refused and the refusal reaches the editor verbatim.
+
+Because the token is new on every `app serve` start, the editor entry it was
+written into goes stale with it: run `mcp plan` again after each restart and
+replace the stored command, or export the current URL as `FOLDERHOME_ACCESS_URL`
+and register the server without `--access-url`.
 
 ## Important commands
 
