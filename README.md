@@ -364,6 +364,9 @@ written into goes stale with it: run `mcp plan` again after each restart and
 replace the stored command, or export the current URL as `FOLDERHOME_ACCESS_URL`
 and register the server without `--access-url`.
 
+Agents: [`llms.txt`](./llms.txt) in the repository root is this connection
+guide condensed into one file, written for a machine reader.
+
 ## Results you can pick up
 
 Everything a confirmed plan produces stays reachable in the GUI, even when the

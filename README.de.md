@@ -389,6 +389,9 @@ hinterlegten Befehl ersetzen — oder die aktuelle URL als
 `FOLDERHOME_ACCESS_URL` exportieren und den Server ohne `--access-url`
 eintragen.
 
+Agenten: [`llms.txt`](./llms.txt) im Wurzelverzeichnis des Repositorys ist diese
+Anbindungsanleitung in einer Datei, geschrieben für maschinelle Leser.
+
 ## Ergebnisse zum Abholen
 
 Alles, was ein freigegebener Plan erzeugt, bleibt in der GUI erreichbar — auch
