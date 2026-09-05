@@ -145,6 +145,20 @@ def build_mcp_server(client: FolderHomeApiClient):
         return client.get("/api/v1/resources", {"profile_id": profile_id})
 
     @mcp.tool(
+        name="folderhome_results",
+        description=(
+            "List what this process already executed for one profile, newest "
+            "first, with the artifact names it produced. Downloads run in the "
+            "local GUI."
+        ),
+    )
+    def results(profile_id: str, limit: int = 10) -> dict[str, Any]:
+        return client.get(
+            "/api/v1/agent/results",
+            {"profile_id": profile_id, "limit": str(limit)},
+        )
+
+    @mcp.tool(
         name="folderhome_search_documents",
         description="Search the local document index read-only.",
     )
@@ -289,6 +303,7 @@ def integration_plan(access_url: str | None) -> dict[str, Any]:
             "folderhome_capabilities",
             "folderhome_executors",
             "folderhome_resources",
+            "folderhome_results",
             "folderhome_search_documents",
             "folderhome_topic_dossier",
             "folderhome_chat",

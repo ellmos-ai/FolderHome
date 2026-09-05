@@ -343,6 +343,79 @@ hinterlegten Befehl ersetzen — oder die aktuelle URL als
 `FOLDERHOME_ACCESS_URL` exportieren und den Server ohne `--access-url`
 eintragen.
 
+## Ergebnisse zum Abholen
+
+Alles, was ein freigegebener Plan erzeugt, bleibt in der GUI erreichbar — auch
+wenn der Lauf anderswo gestartet wurde. Das Panel **Ergebnisse** listet, was
+dieser Prozess für das gewählte Profil ausgeführt hat, das Neueste zuerst, mit
+Workflow, Status, Zeitpunkt und den geschriebenen Dateien. Ein Klick lädt eine
+Datei über die tokengeschützte API; der Browser sieht dabei nie einen Dateipfad,
+denn die Liste trägt nur Dateinamen, Größe und einen Index.
+
+Damit schließt sich die Lücke zwischen den drei Zugängen: Ein über die API oder
+über einen Editor per MCP freigegebener Plan erscheint im selben Panel wie einer
+aus der GUI, weil alle drei denselben Prozess bedienen.
+
+Angeboten werden ausschließlich Dateien innerhalb einer registrierten
+Ausgaberessource dieses Profils, und nur unter dem Namen, den der
+Ausführungsbericht selbst nennt. Läufe, die lediglich lokalen Zustand ändern,
+etwa eine bestätigte Medikamentengabe, erscheinen ohne Datei und sagen das auch.
+
+## Direkte HTTP-API
+
+Derselbe Loopback-Dienst, den die GUI nutzt, ist eine schlichte JSON-API.
+`app serve` gibt seine `access_url` aus; darin steckt das Sitzungstoken, das bei
+jedem Start wechselt. Browser-Routen lesen dieses Token aus der Query, jede
+`/api/`-Route dagegen aus dem Kopffeld `X-FolderHome-Token`.
+
+| Methode und Route | Zweck |
+|---|---|
+| `GET /api/v1/status` | Laufzeitgrenze und Modellverbindung |
+| `GET /api/v1/profiles` | organisatorische Profile |
+| `GET /api/v1/capabilities` | Fähigkeiten und ihre Oberfläche |
+| `GET /api/v1/agent/executors` | welche Workflows einen verbundenen Executor haben |
+| `GET /api/v1/resources?profile_id=…` | logische Ressourcen, ohne Pfade |
+| `GET /api/v1/agent/results?profile_id=…&limit=…` | was bereits lief, das Neueste zuerst |
+| `GET /api/v1/agent/results/<execution_id>/artifacts/<index>` | eine erzeugte Datei als Download |
+| `POST /api/v1/documents/search` | read-only Dokumentsuche |
+| `POST /api/v1/documents/dossier` | Themendossier mit verknüpften Belegen |
+| `POST /api/v1/agent/chat` | eine begrenzte Master-Agenten-Runde |
+| `POST /api/v1/agent/confirm` | exakte Schritte eines Plans freigeben |
+| `POST /api/v1/agent/conversation/reset` | neue prozesslokale Unterhaltung |
+
+Jeder POST-Rumpf folgt einem geschlossenen Schema: Unbekannte oder fehlende
+Felder werden abgelehnt statt ignoriert, und die Anfragegrenze liegt bei
+65 536 Byte.
+
+```bash
+TOKEN="<Token aus access_url>"
+BASE="http://127.0.0.1:8765"
+
+# Den Agenten fragen; die Antwort kann einen vorgeschlagenen Plan enthalten
+curl -s "$BASE/api/v1/agent/chat" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-chat-request.v1",
+       "profile_id":"lukas","message":"Was kannst du?"}'
+
+# Genau diesen Plan freigeben; ein Chat allein führt nie etwas aus
+curl -s "$BASE/api/v1/agent/confirm" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-confirmation-request.v1",
+       "plan_id":"<plan_id>","plan_sha256":"<plan_sha256>",
+       "step_ids":["<step_id>"]}'
+
+# Abholen, was dabei entstanden ist
+curl -s "$BASE/api/v1/agent/results?profile_id=lukas" \
+  -H "X-FolderHome-Token: $TOKEN"
+curl -s -OJ "$BASE/api/v1/agent/results/<execution_id>/artifacts/0" \
+  -H "X-FolderHome-Token: $TOKEN"
+```
+
+Der Dienst bindet ausschließlich an `127.0.0.1`, prüft das `Host`-Kopffeld gegen
+diese Bindung, weist einen fremden Browser-`Origin` ab und sendet keine
+CORS-Kopfzeilen. Er ist eine Schnittstelle für Programme auf diesem Rechner,
+kein Netzwerkdienst.
+
 ## Wichtige Befehle
 
 ```powershell

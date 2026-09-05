@@ -151,6 +151,10 @@
   MIT-lizenzierten `mcp`-SDK und spiegelt die vorhandene Loopback-API mit
   der Python-Standardbibliothek; er hält keinen Zustand, ergänzt keinen
   Endpunkt und kopiert keinen SDK-Code.
+- Die Ergebnisansicht unter `application.local_app` und `web_ui/` ist
+  `NEW_CORE`. Sie ergänzt keine Fähigkeit, sondern behält die Berichte
+  bereits erfolgter Ausführungen und liefert deklarierte Ausgabedateien über
+  einen Index aus. Die Pfadredaktion bleibt unverändert.
 - Spätere Submodule, Live-Connectoren, öffentliche Veröffentlichung und
   kostenpflichtige Aktionen benötigen eigene Entscheidungen und Gates.
 

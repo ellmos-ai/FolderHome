@@ -110,6 +110,7 @@ def test_mcp_tools_expose_the_bounded_folderhome_surface(tmp_path: Path) -> None
         "folderhome_capabilities",
         "folderhome_executors",
         "folderhome_resources",
+        "folderhome_results",
         "folderhome_search_documents",
         "folderhome_topic_dossier",
         "folderhome_chat",
@@ -130,12 +131,17 @@ def test_mcp_read_only_tools_pass_through_the_running_local_app(tmp_path: Path) 
                     "folderhome_resources", {"profile_id": "lukas"}
                 ),
                 await session.call_tool(
+                    "folderhome_results", {"profile_id": "lukas"}
+                ),
+                await session.call_tool(
                     "folderhome_search_documents",
                     {"profile_id": "lukas", "query": "Krankenversicherung"},
                 ),
             )
 
-        status, profiles, executors, resources, search = _call(server.access_url, calls)
+        status, profiles, executors, resources, results, search = _call(
+            server.access_url, calls
+        )
 
     assert _payload(status)["network_scope"] == "loopback_only"
     assert {item["profile_id"] for item in _payload(profiles)["profiles"]} == {
@@ -147,6 +153,9 @@ def test_mcp_read_only_tools_pass_through_the_running_local_app(tmp_path: Path) 
         "folderhome.local-agent-executor-catalog.v1"
     )
     assert _payload(resources)["profile_id"] == "lukas"
+    empty = _payload(results)
+    assert empty["schema"] == "folderhome.local-agent-result-list.v1"
+    assert empty["results"] == []
     found = _payload(search)
     assert found["schema"] == "folderhome.local-search-response.v1"
     assert found["side_effects"] == []

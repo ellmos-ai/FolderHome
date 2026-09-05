@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import platform
+import re
 import secrets
 import threading
 from datetime import UTC, datetime
@@ -32,6 +33,52 @@ from folderhome.contracts.resources import ResourceRegistry
 from folderhome.contracts.strands_agent import FolderHomeAgentReport, StrandsAgentSettings
 
 _MAX_PROPOSED_AGENT_PLANS = 128
+_MAX_RETAINED_EXECUTION_RESULTS = 128
+_MAX_ARTIFACT_BYTES = 25 * 1024 * 1024
+_ARTIFACT_ROUTE = re.compile(
+    r"/api/v1/agent/results/(workflow_execution_[0-9a-f]{64})/artifacts/(\d{1,4})"
+)
+_ARTIFACT_CONTENT_TYPES = {
+    ".csv": "text/csv; charset=utf-8",
+    ".ics": "text/calendar; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".pdf": "application/pdf",
+    ".txt": "text/plain; charset=utf-8",
+    ".zip": "application/zip",
+}
+
+
+def _result_limit(query: dict[str, list[str]], maximum: int) -> int:
+    raw = query.get("limit", [])
+    if not raw:
+        return maximum
+    try:
+        limit = int(raw[0])
+    except ValueError as exc:
+        raise LocalAppError("limit muss eine ganze Zahl sein.") from exc
+    if not 1 <= limit <= maximum:
+        raise LocalAppError(f"limit muss zwischen 1 und {maximum} liegen.")
+    return limit
+
+
+def _declared_output_names(value: object, root: Path) -> list[str]:
+    """Collect file names a public report declares, without reading any path."""
+
+    names: list[str] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if isinstance(item, str):
+                if (key == "name" or key.endswith("_name")) and Path(item).suffix:
+                    names.append(item)
+                elif key.endswith("basename") and not set(item) & set("*?[]"):
+                    names.extend(path.name for path in root.glob(f"{item}.*"))
+            else:
+                names.extend(_declared_output_names(item, root))
+    elif isinstance(value, list):
+        for item in value:
+            names.extend(_declared_output_names(item, root))
+    return names
 
 
 class LocalDocumentSearcher(Protocol):
@@ -92,6 +139,9 @@ class LocalApplication:
         self._agent_conversation_locks = {
             profile_id: threading.RLock() for profile_id in profile_ids
         }
+        self._execution_results: dict[str, dict[str, object]] = {}
+        self._execution_artifacts: dict[str, tuple[Path, ...]] = {}
+        self._execution_results_lock = threading.RLock()
         self._successful_live_model_turns = 0
         self._model_status_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
@@ -292,6 +342,12 @@ class LocalApplication:
                     approved_at=approved_at,
                 )
             )
+        self._retain_execution_results(
+            profile_id=plan.profile_id,
+            plan_id=plan.plan_id,
+            reports=execution_reports,
+            executed_at=approved_at,
+        )
         return {
             "schema": "folderhome.local-agent-confirmation-response.v1",
             "receipt": receipt.to_dict(),
@@ -305,6 +361,128 @@ class LocalApplication:
                 )
             ),
         }
+
+    def _retain_execution_results(
+        self,
+        *,
+        profile_id: str,
+        plan_id: str,
+        reports: list[object],
+        executed_at: str,
+    ) -> None:
+        """Keep a bounded record of what really ran so a GUI can fetch it later."""
+
+        with self._execution_results_lock:
+            for report in reports:
+                artifacts = self._artifact_paths(
+                    profile_id=profile_id,
+                    domain_report=report.domain_report,
+                )
+                self._execution_results[report.execution_id] = {
+                    "execution_id": report.execution_id,
+                    "plan_id": plan_id,
+                    "profile_id": profile_id,
+                    "workflow_id": report.workflow_id,
+                    "adapter_id": report.adapter_id,
+                    "status": report.status,
+                    "executed_at": executed_at,
+                    "side_effects": list(report.side_effects),
+                    "artifacts": [
+                        {
+                            "index": index,
+                            "name": item.name,
+                            "size_bytes": item.stat().st_size,
+                        }
+                        for index, item in enumerate(artifacts)
+                    ],
+                }
+                self._execution_artifacts[report.execution_id] = artifacts
+            while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
+                oldest = next(iter(self._execution_results))
+                self._execution_results.pop(oldest)
+                self._execution_artifacts.pop(oldest, None)
+
+    def _artifact_paths(
+        self,
+        *,
+        profile_id: str,
+        domain_report: dict[str, object],
+    ) -> tuple[Path, ...]:
+        """Resolve names the report declares inside this profile's output areas."""
+
+        if self.resource_registry is None:
+            return ()
+        found: list[Path] = []
+        for resource in self.resource_registry.resources:
+            if "create" not in resource.operations:
+                continue
+            if profile_id not in resource.profile_ids:
+                continue
+            root = resource.local_path
+            if not root.is_dir():
+                continue
+            for name in _declared_output_names(domain_report, root):
+                candidate = root / name
+                if (
+                    candidate.parent == root
+                    and not candidate.is_symlink()
+                    and candidate.is_file()
+                    and candidate not in found
+                ):
+                    found.append(candidate)
+        return tuple(found)
+
+    def execution_results_payload(
+        self,
+        *,
+        profile_id: str,
+        limit: int,
+    ) -> dict[str, object]:
+        """List what this process executed for one profile, newest first."""
+
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Unbekanntes organisatorisches Profil.")
+        with self._execution_results_lock:
+            results = [
+                dict(item)
+                for item in self._execution_results.values()
+                if item["profile_id"] == profile_id
+            ]
+        results.reverse()
+        return {
+            "schema": "folderhome.local-agent-result-list.v1",
+            "profile_id": profile_id,
+            "security_boundary": "operating_system_account",
+            "paths_disclosed": False,
+            "results": results[:limit],
+            "side_effects": [],
+        }
+
+    def _artifact_response(self, execution_id: str, index: int) -> LocalApiResponse:
+        with self._execution_results_lock:
+            artifacts = self._execution_artifacts.get(execution_id, ())
+        if index >= len(artifacts):
+            return self._error(404, "Ergebnisdatei ist in dieser Sitzung nicht bekannt.")
+        target = artifacts[index]
+        try:
+            if target.is_symlink() or not target.is_file():
+                return self._error(404, "Ergebnisdatei existiert nicht mehr.")
+            if target.stat().st_size > _MAX_ARTIFACT_BYTES:
+                return self._error(413, "Ergebnisdatei überschreitet die Download-Grenze.")
+            content = target.read_bytes()
+        except OSError:
+            return self._error(404, "Ergebnisdatei ist nicht mehr lesbar.")
+        headers = self._security_headers()
+        headers["Content-Disposition"] = f'attachment; filename="{target.name}"'
+        return LocalApiResponse(
+            status_code=200,
+            content_type=_ARTIFACT_CONTENT_TYPES.get(
+                target.suffix.casefold(),
+                "application/octet-stream",
+            ),
+            content=content,
+            headers=headers,
+        )
 
     def handle(
         self,
@@ -390,6 +568,22 @@ class LocalApplication:
             return self._json_response(self._capabilities_payload())
         if method == "GET" and parsed.path == "/api/v1/agent/executors":
             return self._json_response(self.executor_catalog_payload())
+        if method == "GET" and parsed.path == "/api/v1/agent/results":
+            query = parse_qs(parsed.query)
+            profile_ids = query.get("profile_id", [])
+            if len(profile_ids) != 1 or not profile_ids[0].strip():
+                raise LocalAppError("Ergebnisliste benötigt genau eine profile_id.")
+            return self._json_response(
+                self.execution_results_payload(
+                    profile_id=profile_ids[0],
+                    limit=_result_limit(query, self.settings.max_query_limit),
+                )
+            )
+        artifact = _ARTIFACT_ROUTE.fullmatch(parsed.path)
+        if artifact is not None:
+            if method != "GET":
+                return self._error(405, "Ergebnisdateien sind nur per GET abrufbar.")
+            return self._artifact_response(artifact.group(1), int(artifact.group(2)))
         if method == "GET" and parsed.path == "/api/v1/resources":
             profile_ids = parse_qs(parsed.query).get("profile_id", [])
             if len(profile_ids) != 1 or not profile_ids[0].strip():
@@ -400,6 +594,7 @@ class LocalApplication:
             "/api/v1/profiles",
             "/api/v1/capabilities",
             "/api/v1/agent/executors",
+            "/api/v1/agent/results",
             "/api/v1/resources",
         }:
             return self._error(405, "API-Endpunkt ist ausschließlich read-only per GET verfügbar.")

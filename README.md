@@ -319,6 +319,77 @@ written into goes stale with it: run `mcp plan` again after each restart and
 replace the stored command, or export the current URL as `FOLDERHOME_ACCESS_URL`
 and register the server without `--access-url`.
 
+## Results you can pick up
+
+Everything a confirmed plan produces stays reachable in the GUI, even when the
+run was started elsewhere. The **Results** panel lists what this process
+executed for the selected profile, newest first, with the workflow, the status,
+the time and the files the run wrote. One click downloads a file through the
+token-protected API; the browser never sees a filesystem path, because the list
+carries only the basename, the size and an index.
+
+That closes the gap between the three ways in: a plan confirmed through the API
+or through an editor over MCP shows up in the same panel as one confirmed in the
+GUI, because all three drive the same process.
+
+Only files inside a registered output resource of that profile are offered, and
+only under the name the execution report itself declares. Runs that merely
+change local state, for example a confirmed medication dose, appear with no file
+and say so.
+
+## Direct HTTP API
+
+The same loopback service the GUI uses is a plain JSON API. `app serve` prints
+its `access_url`, which carries the session token that changes on every start.
+Browser routes read that token from the query string; every `/api/` route reads
+it from the `X-FolderHome-Token` header instead.
+
+| Method and route | Purpose |
+|---|---|
+| `GET /api/v1/status` | runtime boundary and model connection |
+| `GET /api/v1/profiles` | organizational profiles |
+| `GET /api/v1/capabilities` | capabilities and how each is surfaced |
+| `GET /api/v1/agent/executors` | which workflows have a connected executor |
+| `GET /api/v1/resources?profile_id=…` | logical resources, no paths |
+| `GET /api/v1/agent/results?profile_id=…&limit=…` | what already ran, newest first |
+| `GET /api/v1/agent/results/<execution_id>/artifacts/<index>` | one produced file as a download |
+| `POST /api/v1/documents/search` | read-only document search |
+| `POST /api/v1/documents/dossier` | topic dossier with linked evidence |
+| `POST /api/v1/agent/chat` | one bounded master-agent turn |
+| `POST /api/v1/agent/confirm` | approve exact steps of one proposed plan |
+| `POST /api/v1/agent/conversation/reset` | new process-local conversation |
+
+Every POST body is a closed schema: unknown or missing fields are refused rather
+than ignored, and the request limit is 65 536 bytes.
+
+```bash
+TOKEN="<token from access_url>"
+BASE="http://127.0.0.1:8765"
+
+# Ask the agent; the answer may contain a proposed plan
+curl -s "$BASE/api/v1/agent/chat" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-chat-request.v1",
+       "profile_id":"lukas","message":"What can you do?"}'
+
+# Approve exactly that plan; chat alone never executes anything
+curl -s "$BASE/api/v1/agent/confirm" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-confirmation-request.v1",
+       "plan_id":"<plan_id>","plan_sha256":"<plan_sha256>",
+       "step_ids":["<step_id>"]}'
+
+# Pick up what it produced
+curl -s "$BASE/api/v1/agent/results?profile_id=lukas" \
+  -H "X-FolderHome-Token: $TOKEN"
+curl -s -OJ "$BASE/api/v1/agent/results/<execution_id>/artifacts/0" \
+  -H "X-FolderHome-Token: $TOKEN"
+```
+
+The service binds to `127.0.0.1` only, checks the `Host` header against that
+binding, rejects a foreign browser `Origin`, and sends no CORS headers. It is an
+interface for programs on this machine, not a network service.
+
 ## Important commands
 
 ```powershell

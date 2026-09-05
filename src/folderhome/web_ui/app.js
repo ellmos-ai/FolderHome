@@ -35,6 +35,12 @@ const translations = {
     modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in {region}. No successful live chat has been verified in this process yet.",
     modelVerified: "Amazon Bedrock active",
     modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in {region}. {count} successful live model turn(s) in this process.",
+    resultsEyebrow: "Delivery",
+    resultsTitle: "Results you can pick up",
+    refreshResults: "Refresh",
+    resultsEmpty: "Nothing has run yet in this process. Confirmed plans and their files appear here, including runs started through the API or an editor.",
+    resultArtifacts: "Files",
+    resultNoArtifacts: "This run changed local state and produced no file.",
     modelLocalConfigured: "Local model configured (Ollama)",
     modelLocalConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} at {host}. No successful live chat has been verified in this process yet.",
     modelLocalVerified: "Local model active (Ollama)",
@@ -120,6 +126,12 @@ const translations = {
     modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelVerified: "Amazon Bedrock aktiv",
     modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    resultsEyebrow: "Zustellung",
+    resultsTitle: "Ergebnisse zum Abholen",
+    refreshResults: "Aktualisieren",
+    resultsEmpty: "In diesem Prozess lief noch nichts. Freigegebene Pläne und ihre Dateien erscheinen hier, auch wenn sie über die API oder einen Editor gestartet wurden.",
+    resultArtifacts: "Dateien",
+    resultNoArtifacts: "Dieser Lauf hat lokalen Zustand geändert und keine Datei erzeugt.",
     modelLocalConfigured: "Lokales Modell konfiguriert (Ollama)",
     modelLocalConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelLocalVerified: "Lokales Modell aktiv (Ollama)",
@@ -207,6 +219,9 @@ const capabilityTitles = {
 
 const profileSelect = document.querySelector("#profile-select");
 const resultSection = document.querySelector("#result-section");
+const resultsSection = document.querySelector("#results-section");
+const resultsContent = document.querySelector("#results-content");
+const refreshResultsButton = document.querySelector("#refresh-results");
 const resultContent = document.querySelector("#result-content");
 const resultCount = document.querySelector("#result-count");
 const messageInput = document.querySelector("#message");
@@ -504,6 +519,61 @@ function renderCurrentView(scroll = true) {
   if (scroll) resultSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+async function loadResults() {
+  const profileId = profileSelect.value;
+  if (!profileId) return;
+  const payload = await api(`/api/v1/agent/results?profile_id=${encodeURIComponent(profileId)}`);
+  renderResults(payload.results || []);
+}
+
+function renderResults(items) {
+  resultsSection.hidden = false;
+  resultsContent.replaceChildren();
+  if (!items.length) {
+    resultsContent.append(textElement("p", t("resultsEmpty")));
+    return;
+  }
+  for (const item of items) {
+    const card = document.createElement("article");
+    card.className = "result-card";
+    card.append(textElement("h3", `${item.workflow_id} · ${item.status}`));
+    card.append(textElement("p", `${item.executed_at} · ${(item.side_effects || []).join(", ")}`));
+    const artifacts = item.artifacts || [];
+    if (!artifacts.length) {
+      card.append(textElement("p", t("resultNoArtifacts")));
+    } else {
+      const list = document.createElement("p");
+      list.append(textElement("strong", `${t("resultArtifacts")}: `));
+      for (const artifact of artifacts) {
+        const link = document.createElement("button");
+        link.type = "button";
+        link.className = "button secondary";
+        link.textContent = `${artifact.name} (${artifact.size_bytes} B)`;
+        link.addEventListener("click", () => {
+          downloadArtifact(item.execution_id, artifact.index, artifact.name).catch(showError);
+        });
+        list.append(link);
+      }
+      card.append(list);
+    }
+    resultsContent.append(card);
+  }
+}
+
+async function downloadArtifact(executionId, index, filename) {
+  const response = await fetch(
+    `/api/v1/agent/results/${encodeURIComponent(executionId)}/artifacts/${index}`,
+    { headers: { "X-FolderHome-Token": token }, credentials: "omit" },
+  );
+  if (!response.ok) throw new LocalRequestError(response.status);
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 async function confirmPlan(plan, button) {
   button.disabled = true;
   const payload = await api("/api/v1/agent/confirm", {
@@ -524,6 +594,7 @@ async function confirmPlan(plan, button) {
     appendChatMessage("assistant", t("planConfirmed"));
   }
   renderCurrentView(false);
+  await loadResults();
 }
 
 function appendChatMessage(kind, value) {
@@ -625,6 +696,7 @@ async function bootstrap() {
   renderModelStatus();
   renderConnection();
   renderCapabilities();
+  await loadResults();
 }
 
 languageButtons.forEach((button) => {
@@ -636,6 +708,12 @@ themeButtons.forEach((button) => {
 document.querySelector("#agent-form").addEventListener("submit", (event) => {
   event.preventDefault();
   runAgent().catch(showError);
+});
+refreshResultsButton.addEventListener("click", () => {
+  loadResults().catch(showError);
+});
+profileSelect.addEventListener("change", () => {
+  loadResults().catch(showError);
 });
 newConversationButton.addEventListener("click", () => {
   resetConversation().catch(showError);

@@ -8,6 +8,20 @@
 
 All relevant changes are documented in this file. The detailed phase‑by‑phase history up to Phase 35 remains unchanged in the archive.
 
+- results view: what a confirmed plan really executed stays retrievable in the
+  local GUI, including runs started through the HTTP API or an editor over MCP,
+  because all three drive the same process. New panel with a refresh button,
+  reloaded automatically after an own confirmation
+- new read-only routes `GET /api/v1/agent/results` and
+  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; the list carries
+  basename, size and index but never a path, and the file is served as an
+  attachment addressed only by that index
+- executed reports are kept in a bounded in-process ring buffer; artifacts are
+  resolved once at execution time and only inside a registered output resource
+  of that profile, under the name the report itself declares
+- MCP tool `folderhome_results` proxies the same list for editor agents
+- the GUI downloads through the token-protected API and builds the file from a
+  blob, so no token ever appears in a URL or in browser history
 ## [Unreleased]
 
 ### Added

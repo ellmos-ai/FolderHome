@@ -9,6 +9,21 @@
 Alle relevanten Änderungen werden in dieser Datei dokumentiert. Der
 ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
+- Ergebnisansicht: Was ein freigegebener Plan wirklich ausgeführt hat, bleibt in
+  der lokalen GUI abrufbar — auch Läufe, die über die HTTP-API oder einen Editor
+  per MCP gestartet wurden, weil alle drei denselben Prozess bedienen. Neues
+  Panel mit Aktualisieren-Knopf, nach eigener Freigabe automatisch nachgeladen
+- neue read-only-Routen `GET /api/v1/agent/results` und
+  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; die Liste trägt
+  Dateiname, Größe und Index, aber nie einen Pfad, und die Datei wird
+  ausschließlich über diesen Index als Anhang ausgeliefert
+- ausgeführte Berichte liegen in einem begrenzten prozesslokalen Ringpuffer;
+  Artefakte werden einmal zur Ausführungszeit aufgelöst und nur innerhalb einer
+  registrierten Ausgaberessource dieses Profils, unter dem Namen, den der
+  Bericht selbst nennt
+- MCP-Werkzeug `folderhome_results` spiegelt dieselbe Liste für Editor-Agenten
+- die GUI lädt über die tokengeschützte API und baut die Datei aus einem Blob;
+  so steht nie ein Token in einer URL oder im Browserverlauf
 ## [Unreleased]
 
 ### Hinzugefügt

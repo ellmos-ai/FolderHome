@@ -1432,3 +1432,148 @@ def test_loopback_ollama_status_reports_local_inference_without_cloud_claims(
     assert connection["aws_region"] is None
     assert connection["connection_status"] == "configured_not_verified"
     assert connection["network_authorized"] is False
+
+
+def _calendar_export_app(tmp_path: Path) -> tuple[LocalApplication, Path, str]:
+    """One app whose confirmed calendar plan really writes an ICS export."""
+
+    from test_workflow_execution import (
+        _local_calendar_export_gateway,
+        _local_calendar_export_request,
+    )
+
+    app = _app(tmp_path)
+    calendar_root = tmp_path / "calendar"
+    calendar_root.mkdir()
+    gateway, _state, export, registry = _local_calendar_export_gateway(calendar_root)
+    app.workflow_executor = gateway
+    app.resource_registry = registry
+    prepared = gateway.prepare(
+        workflow_id="calendar-handoff",
+        profile_id="lukas",
+        request=_local_calendar_export_request(),
+    )
+    plan = build_master_agent_plan(
+        "Export my recorded appointments as one calendar file.",
+        profile_id="lukas",
+        language="en",
+        expert_id="communication_expert",
+        workflow_ids=("calendar-handoff",),
+        persona_id="methodical_operator",
+        execution_envelopes={"calendar-handoff": prepared},
+    )
+    app._proposed_agent_plans[plan.plan_id] = plan
+    return app, export, plan.plan_id
+
+
+def _confirm(app: LocalApplication, plan_id: str, port: int) -> dict[str, object]:
+    plan = app._proposed_agent_plans[plan_id]
+    response = app.handle(
+        method="POST",
+        target="/api/v1/agent/confirm",
+        headers=_api_headers(port, app.session_token),
+        body=json.dumps(
+            {
+                "schema": "folderhome.local-agent-confirmation-request.v1",
+                "plan_id": plan.plan_id,
+                "plan_sha256": plan.plan_sha256,
+                "step_ids": [item.step_id for item in plan.steps],
+            }
+        ).encode("utf-8"),
+        server_port=port,
+    )
+    assert response.status_code == 200, response.payload
+    return response.payload
+
+
+def test_executed_results_are_listed_for_the_profile_without_any_path(
+    tmp_path: Path,
+) -> None:
+    app, export, plan_id = _calendar_export_app(tmp_path)
+    port = 8765
+    confirmed = _confirm(app, plan_id, port)
+
+    listed = app.handle(
+        method="GET",
+        target="/api/v1/agent/results?profile_id=lukas",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+    other = app.handle(
+        method="GET",
+        target="/api/v1/agent/results?profile_id=hanna",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+
+    assert confirmed["execution_performed"] is True
+    assert listed.status_code == 200
+    assert listed.payload["schema"] == "folderhome.local-agent-result-list.v1"
+    assert listed.payload["paths_disclosed"] is False
+    entry = listed.payload["results"][0]
+    assert entry["workflow_id"] == "calendar-handoff"
+    assert entry["plan_id"] == plan_id
+    assert entry["status"] == "executed"
+    assert entry["side_effects"] == ["state.calendar.write", "file.create"]
+    assert [item["name"] for item in entry["artifacts"]] == [
+        "Hyundai-i10-Termine.ics"
+    ]
+    assert entry["artifacts"][0]["size_bytes"] == (
+        export / "Hyundai-i10-Termine.ics"
+    ).stat().st_size
+    serialized = json.dumps(listed.payload, ensure_ascii=False)
+    assert str(export) not in serialized
+    assert str(tmp_path) not in serialized
+    assert "_path" not in serialized
+    assert other.payload["results"] == []
+
+
+def test_result_artifact_download_returns_exactly_the_created_bytes(
+    tmp_path: Path,
+) -> None:
+    app, export, plan_id = _calendar_export_app(tmp_path)
+    port = 8765
+    _confirm(app, plan_id, port)
+    listed = app.handle(
+        method="GET",
+        target="/api/v1/agent/results?profile_id=lukas",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+    execution_id = listed.payload["results"][0]["execution_id"]
+
+    def fetch(target: str, headers: dict[str, str] | None = None):
+        return app.handle(
+            method="GET",
+            target=target,
+            headers=headers
+            if headers is not None
+            else _api_headers(port, app.session_token),
+            body=b"",
+            server_port=port,
+        )
+
+    downloaded = fetch(f"/api/v1/agent/results/{execution_id}/artifacts/0")
+    missing_index = fetch(f"/api/v1/agent/results/{execution_id}/artifacts/7")
+    unknown = fetch(
+        "/api/v1/agent/results/workflow_execution_"
+        + "0" * 64
+        + "/artifacts/0"
+    )
+    unauthorized = fetch(
+        f"/api/v1/agent/results/{execution_id}/artifacts/0",
+        headers={"Host": f"127.0.0.1:{port}"},
+    )
+
+    assert downloaded.status_code == 200
+    assert downloaded.content == (export / "Hyundai-i10-Termine.ics").read_bytes()
+    assert downloaded.content_type == "text/calendar; charset=utf-8"
+    assert downloaded.headers["Content-Disposition"] == (
+        'attachment; filename="Hyundai-i10-Termine.ics"'
+    )
+    assert missing_index.status_code == 404
+    assert unknown.status_code == 404
+    assert unauthorized.status_code == 401
