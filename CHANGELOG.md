@@ -8,6 +8,13 @@
 
 All relevant changes are documented in this file. The detailed phase‑by‑phase history up to Phase 35 remains unchanged in the archive.
 
+## [Unreleased]
+
+_Nothing yet._
+
+## [0.2.0] - 2026-09-05
+
+### Added
 - results view: what a confirmed plan really executed stays retrievable in the
   local GUI, including runs started through the HTTP API or an editor over MCP,
   because all three drive the same process. New panel with a refresh button,
@@ -22,9 +29,6 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - MCP tool `folderhome_results` proxies the same list for editor agents
 - the GUI downloads through the token-protected API and builds the file from a
   blob, so no token ever appears in a URL or in browser history
-## [Unreleased]
-
-### Added
 
 - installer section "Subscriptions" between the model and the API keys: Claude
   Code with a Claude subscription and the Codex CLI with a ChatGPT subscription

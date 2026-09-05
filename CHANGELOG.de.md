@@ -9,6 +9,13 @@
 Alle relevanten Änderungen werden in dieser Datei dokumentiert. Der
 ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
+## [Unreleased]
+
+_Noch nichts._
+
+## [0.2.0] - 2026-09-05
+
+### Hinzugefügt
 - Ergebnisansicht: Was ein freigegebener Plan wirklich ausgeführt hat, bleibt in
   der lokalen GUI abrufbar — auch Läufe, die über die HTTP-API oder einen Editor
   per MCP gestartet wurden, weil alle drei denselben Prozess bedienen. Neues
@@ -24,9 +31,6 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - MCP-Werkzeug `folderhome_results` spiegelt dieselbe Liste für Editor-Agenten
 - die GUI lädt über die tokengeschützte API und baut die Datei aus einem Blob;
   so steht nie ein Token in einer URL oder im Browserverlauf
-## [Unreleased]
-
-### Hinzugefügt
 
 - Abschnitt „Abonnements" im Einrichtungsprogramm, zwischen Modell und
   API-Schlüsseln: Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo
