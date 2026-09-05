@@ -24,6 +24,12 @@ transform = [
 ollama = [
   "ollama>=0.4",
 ]
+anthropic = [
+  "anthropic>=0.40",
+]
+openai = [
+  "openai>=1.60",
+]
 dev = [
   "pytest>=9.0.3",
   "ruff>=0.15",

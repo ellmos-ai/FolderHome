@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from collections.abc import AsyncIterable
 from copy import deepcopy
@@ -610,6 +611,18 @@ def plan_folderhome_agent(
     }
 
 
+def _api_key(variable: str) -> str:
+    """Read one hosted-provider key from the environment, never from a setting."""
+
+    value = os.environ.get(variable, "").strip()
+    if not value:
+        raise FolderHomeAgentError(
+            f"{variable} ist nicht gesetzt. Hinterlege den Schlüssel im "
+            "Einrichtungsprogramm (.env im Konfigurationsordner) und starte die App neu."
+        )
+    return value
+
+
 def _build_model(
     settings: StrandsAgentSettings,
     *,
@@ -630,6 +643,35 @@ def _build_model(
             settings.ollama_host,
             model_id=settings.ollama_model_id,
             max_tokens=settings.max_output_tokens,
+        )
+    if settings.model_provider == "anthropic":
+        try:
+            from strands.models.anthropic import AnthropicModel
+        except ImportError as exc:  # pragma: no cover - dependency contract
+            raise FolderHomeAgentError(
+                "Strands-Anthropic-Provider ist nicht installiert: "
+                "pip install 'folderhome[anthropic]'"
+            ) from exc
+        return AnthropicModel(
+            client_args={"api_key": _api_key("ANTHROPIC_API_KEY")},
+            model_id=settings.anthropic_model_id,
+            max_tokens=settings.max_output_tokens,
+        )
+    if settings.model_provider == "openai":
+        try:
+            from strands.models.openai import OpenAIModel
+        except ImportError as exc:  # pragma: no cover - dependency contract
+            raise FolderHomeAgentError(
+                "Strands-OpenAI-Provider ist nicht installiert: "
+                "pip install 'folderhome[openai]'"
+            ) from exc
+        client_args: dict[str, object] = {"api_key": _api_key("OPENAI_API_KEY")}
+        if settings.openai_base_url is not None:
+            client_args["base_url"] = settings.openai_base_url
+        return OpenAIModel(
+            client_args=client_args,
+            model_id=settings.openai_model_id,
+            params={"max_tokens": settings.max_output_tokens},
         )
     try:
         from botocore.config import Config as BotocoreConfig

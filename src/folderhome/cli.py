@@ -1575,13 +1575,16 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--model-provider",
-        choices=("fixture", "bedrock", "ollama"),
+        choices=("fixture", "bedrock", "ollama", "anthropic", "openai"),
         default=argparse.SUPPRESS,
     )
     parser.add_argument("--bedrock-model-id", default=argparse.SUPPRESS)
     parser.add_argument("--aws-region", default=argparse.SUPPRESS)
     parser.add_argument("--ollama-host", default=argparse.SUPPRESS)
     parser.add_argument("--ollama-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--anthropic-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--openai-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--openai-base-url", default=argparse.SUPPRESS)
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--approve-sensitive-cloud-data", action="store_true")
     parser.add_argument("--max-turns", type=int, default=4)
@@ -4917,6 +4920,9 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         aws_region=args.aws_region,
         ollama_host=ollama_host,
         ollama_model_id=args.ollama_model_id,
+        anthropic_model_id=args.anthropic_model_id,
+        openai_model_id=args.openai_model_id,
+        openai_base_url=args.openai_base_url,
         allow_network=args.allow_network,
         allow_sensitive_cloud_data=args.approve_sensitive_cloud_data,
         max_turns=args.max_turns,
@@ -5150,6 +5156,9 @@ _LAUNCH_CONFIG_FIELDS = {
     "ollama_model_id": str,
     "bedrock_model_id": str,
     "aws_region": str,
+    "anthropic_model_id": str,
+    "openai_model_id": str,
+    "openai_base_url": str,
 }
 _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "resources_file": None,
@@ -5159,6 +5168,9 @@ _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "ollama_model_id": None,
     "bedrock_model_id": None,
     "aws_region": None,
+    "anthropic_model_id": None,
+    "openai_model_id": None,
+    "openai_base_url": None,
 }
 
 
@@ -5198,6 +5210,11 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
     if effective != "bedrock":
         supplied.pop("bedrock_model_id", None)
         supplied.pop("aws_region", None)
+    if effective != "anthropic":
+        supplied.pop("anthropic_model_id", None)
+    if effective != "openai":
+        supplied.pop("openai_model_id", None)
+        supplied.pop("openai_base_url", None)
     for name in _LAUNCH_CONFIG_FIELDS:
         if hasattr(args, name):
             continue

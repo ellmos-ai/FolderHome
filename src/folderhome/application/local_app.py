@@ -709,16 +709,17 @@ class LocalApplication:
             successful_turns = self._successful_live_model_turns
         is_live_provider = self.agent_settings.is_live_model
         provider = self.agent_settings.model_provider
-        if provider == "bedrock":
-            inference_location = "aws_cloud"
-        elif provider == "ollama":
-            inference_location = (
+        inference_location = {
+            "bedrock": "aws_cloud",
+            "anthropic": "anthropic_api",
+            # The base URL may point at any compatible endpoint, so do not claim OpenAI.
+            "openai": "openai_compatible_api",
+            "ollama": (
                 "remote_ollama_host"
                 if self.agent_settings.network_used
                 else "local_ollama_host"
-            )
-        else:
-            inference_location = "local_fixture"
+            ),
+        }.get(provider, "local_fixture")
         return {
             "schema": "folderhome.model-connection-status.v1",
             "provider": self.agent_settings.model_provider,
@@ -745,6 +746,8 @@ class LocalApplication:
             "model_id": (
                 self.agent_settings.bedrock_model_id
                 or self.agent_settings.ollama_model_id
+                or self.agent_settings.anthropic_model_id
+                or self.agent_settings.openai_model_id
             ),
             "aws_region": self.agent_settings.aws_region,
             "ollama_host": self.agent_settings.ollama_host,

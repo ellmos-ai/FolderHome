@@ -11,6 +11,24 @@ from folderhome.contracts.master_agent import MasterAgentPlan
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{2,254}")
 _AWS_REGION = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+# Which settings belong to which provider. Every other provider field must stay
+# unset, so one table replaces a growing cross product of pairwise checks.
+_PROVIDER_FIELDS: dict[str, tuple[str, ...]] = {
+    "fixture": (),
+    "bedrock": ("bedrock_model_id", "aws_region"),
+    "ollama": ("ollama_host", "ollama_model_id"),
+    "anthropic": ("anthropic_model_id",),
+    "openai": ("openai_model_id", "openai_base_url"),
+}
+_PROVIDER_LABELS = {
+    "fixture": "Fixture",
+    "bedrock": "Bedrock",
+    "ollama": "Ollama",
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+}
+# Providers that answer from someone else's machine, whatever their address.
+_HOSTED_PROVIDERS = frozenset({"bedrock", "anthropic", "openai"})
 
 
 def _parsed_model_host(value: str | None) -> SplitResult | None:
@@ -33,6 +51,9 @@ class StrandsAgentSettings:
     aws_region: str | None = None
     ollama_host: str | None = None
     ollama_model_id: str | None = None
+    anthropic_model_id: str | None = None
+    openai_model_id: str | None = None
+    openai_base_url: str | None = None
     allow_network: bool = False
     allow_sensitive_cloud_data: bool = False
     max_turns: int = 4
@@ -48,8 +69,12 @@ class StrandsAgentSettings:
     SCHEMA = "folderhome.strands-agent-settings.v1"
 
     def __post_init__(self) -> None:
-        if self.model_provider not in {"fixture", "bedrock", "ollama"}:
-            raise ValueError("model_provider muss fixture, bedrock oder ollama sein.")
+        if self.model_provider not in _PROVIDER_FIELDS:
+            raise ValueError(
+                "model_provider muss "
+                + ", ".join(sorted(_PROVIDER_FIELDS))
+                + " sein."
+            )
         limits = {
             "max_turns": (self.max_turns, 1, 8),
             "max_tool_calls": (self.max_tool_calls, 1, 8),
@@ -80,22 +105,25 @@ class StrandsAgentSettings:
                 or not minimum <= value <= maximum
             ):
                 raise ValueError(f"{name} muss zwischen {minimum} und {maximum} liegen.")
+        label = _PROVIDER_LABELS[self.model_provider]
+        own = _PROVIDER_FIELDS[self.model_provider]
+        foreign = [
+            name
+            for fields in _PROVIDER_FIELDS.values()
+            for name in fields
+            if name not in own and getattr(self, name) is not None
+        ]
+        if foreign:
+            raise ValueError(
+                f"{label}-Modus darf keine fremden Provider-Angaben tragen: "
+                + ", ".join(sorted(foreign))
+                + "."
+            )
         if self.model_provider == "fixture":
-            if (
-                self.allow_network
-                or self.allow_sensitive_cloud_data
-                or self.bedrock_model_id is not None
-                or self.aws_region is not None
-                or self.ollama_host is not None
-                or self.ollama_model_id is not None
-            ):
-                raise ValueError(
-                    "Fixture-Modus darf keine Netzwerk-, Bedrock- oder Ollama-Angaben tragen."
-                )
+            if self.allow_network or self.allow_sensitive_cloud_data:
+                raise ValueError("Fixture-Modus darf keine Netzwerkfreigaben tragen.")
             return
         if self.model_provider == "ollama":
-            if self.bedrock_model_id is not None or self.aws_region is not None:
-                raise ValueError("Ollama-Modus darf keine Bedrock-Angaben tragen.")
             if (
                 self.ollama_model_id is None
                 or _MODEL_ID.fullmatch(self.ollama_model_id) is None
@@ -118,14 +146,27 @@ class StrandsAgentSettings:
                     "ausdrückliche Datenweitergabefreigabe."
                 )
             return
-        if self.ollama_host is not None or self.ollama_model_id is not None:
-            raise ValueError("Bedrock-Modus darf keine Ollama-Angaben tragen.")
         if not self.allow_network:
-            raise ValueError("Bedrock benötigt eine ausdrückliche Netzwerkfreigabe.")
+            raise ValueError(f"{label} benötigt eine ausdrückliche Netzwerkfreigabe.")
         if not self.allow_sensitive_cloud_data:
             raise ValueError(
-                "Bedrock benötigt eine getrennte ausdrückliche Datenweitergabefreigabe."
+                f"{label} benötigt eine getrennte ausdrückliche Datenweitergabefreigabe."
             )
+        if self.model_provider == "anthropic":
+            if _MODEL_ID.fullmatch(self.anthropic_model_id or "") is None:
+                raise ValueError("Anthropic benötigt eine gültige explizite Modell-ID.")
+            return
+        if self.model_provider == "openai":
+            if _MODEL_ID.fullmatch(self.openai_model_id or "") is None:
+                raise ValueError("OpenAI benötigt eine gültige explizite Modell-ID.")
+            if (
+                self.openai_base_url is not None
+                and _parsed_model_host(self.openai_base_url) is None
+            ):
+                raise ValueError(
+                    "OpenAI-Basis-URL benötigt http:// oder https://."
+                )
+            return
         if self.bedrock_model_id is None or _MODEL_ID.fullmatch(self.bedrock_model_id) is None:
             raise ValueError("Bedrock benötigt eine gültige explizite Modell-ID.")
         if self.aws_region is None or _AWS_REGION.fullmatch(self.aws_region) is None:
@@ -135,7 +176,7 @@ class StrandsAgentSettings:
     def network_used(self) -> bool:
         """Report whether this provider leaves the loopback interface."""
 
-        if self.model_provider == "bedrock":
+        if self.model_provider in _HOSTED_PROVIDERS:
             return True
         if self.model_provider != "ollama":
             return False
@@ -156,6 +197,9 @@ class StrandsAgentSettings:
             "aws_region": self.aws_region,
             "ollama_host": self.ollama_host,
             "ollama_model_id": self.ollama_model_id,
+            "anthropic_model_id": self.anthropic_model_id,
+            "openai_model_id": self.openai_model_id,
+            "openai_base_url": self.openai_base_url,
             "network_used": self.network_used,
             "allow_network": self.allow_network,
             "allow_sensitive_cloud_data": self.allow_sensitive_cloud_data,

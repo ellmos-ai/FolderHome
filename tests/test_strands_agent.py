@@ -398,3 +398,114 @@ def test_ollama_model_receives_host_model_id_and_output_budget() -> None:
     assert model.host == "http://127.0.0.1:11434"
     assert model.get_config()["model_id"] == "qwen3.8:27b-mlx"
     assert model.get_config()["max_tokens"] == 2_048
+
+
+def test_hosted_api_providers_need_both_gates_and_never_hold_the_key() -> None:
+    for provider, fields in (
+        ("anthropic", {"anthropic_model_id": "claude-sonnet-4-5-20250929"}),
+        ("openai", {"openai_model_id": "gpt-4o"}),
+    ):
+        common = {"model_provider": provider, **fields}
+        with pytest.raises(ValueError, match="Netzwerkfreigabe"):
+            StrandsAgentSettings(**common)
+        with pytest.raises(ValueError, match="Datenweitergabefreigabe"):
+            StrandsAgentSettings(**common, allow_network=True)
+
+        settings = StrandsAgentSettings(
+            **common,
+            allow_network=True,
+            allow_sensitive_cloud_data=True,
+        )
+        assert (settings.network_used, settings.is_live_model) == (True, True)
+        payload = settings.to_dict()
+        assert payload["model_provider"] == provider
+        # An API key is not a setting; nothing here may carry one.
+        assert not any("key" in str(name).casefold() for name in payload)
+
+
+def test_hosted_api_providers_reject_missing_and_foreign_fields() -> None:
+    gates = {"allow_network": True, "allow_sensitive_cloud_data": True}
+    with pytest.raises(ValueError, match="Modell-ID"):
+        StrandsAgentSettings(model_provider="anthropic", **gates)
+    with pytest.raises(ValueError, match="Modell-ID"):
+        StrandsAgentSettings(model_provider="openai", **gates)
+    with pytest.raises(ValueError, match="Anthropic-Modus"):
+        StrandsAgentSettings(
+            model_provider="anthropic",
+            anthropic_model_id="claude-sonnet-4-5-20250929",
+            aws_region="eu-central-1",
+            **gates,
+        )
+    with pytest.raises(ValueError, match="OpenAI-Modus"):
+        StrandsAgentSettings(
+            model_provider="openai",
+            openai_model_id="gpt-4o",
+            ollama_model_id="qwen3.8:27b-mlx",
+            **gates,
+        )
+    with pytest.raises(ValueError, match="Basis-URL"):
+        StrandsAgentSettings(
+            model_provider="openai",
+            openai_model_id="gpt-4o",
+            openai_base_url="gateway.example/v1",
+            **gates,
+        )
+    with pytest.raises(ValueError, match="Fixture-Modus"):
+        StrandsAgentSettings(model_provider="fixture", openai_model_id="gpt-4o")
+
+
+def test_hosted_api_providers_name_the_missing_key_without_printing_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    pytest.importorskip("strands.models.anthropic")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    settings = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-sonnet-4-5-20250929",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+
+    with pytest.raises(strands_module.FolderHomeAgentError, match="ANTHROPIC_API_KEY"):
+        strands_module._build_model(settings)
+
+
+def test_anthropic_model_receives_key_model_id_and_output_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    anthropic_models = pytest.importorskip("strands.models.anthropic")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-a-real-secret")
+    settings = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-sonnet-4-5-20250929",
+        max_output_tokens=2_048,
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+
+    model = strands_module._build_model(settings)
+
+    assert isinstance(model, anthropic_models.AnthropicModel)
+    assert model.get_config()["model_id"] == "claude-sonnet-4-5-20250929"
+    assert model.get_config()["max_tokens"] == 2_048
+
+
+def test_openai_model_receives_key_model_id_base_url_and_output_budget(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    openai_models = pytest.importorskip("strands.models.openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-a-real-secret")
+    settings = StrandsAgentSettings(
+        model_provider="openai",
+        openai_model_id="gpt-4o",
+        openai_base_url="https://gateway.example/v1",
+        max_output_tokens=2_048,
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+
+    model = strands_module._build_model(settings)
+
+    assert isinstance(model, openai_models.OpenAIModel)
+    assert model.get_config()["model_id"] == "gpt-4o"
+    assert model.get_config()["params"]["max_tokens"] == 2_048

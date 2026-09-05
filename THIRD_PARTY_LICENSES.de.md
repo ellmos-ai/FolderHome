@@ -39,6 +39,8 @@
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Verpflichtender Agentenloop; Fixture standardmäßig ohne Netzwerk, Bedrock nur nach Gate |
 | MCP Python SDK | PyPI-Paket `mcp` | `1.29.0`, transitiv über `strands-agents`, jetzt direkt importiert | MIT | stdio-Server für `folderhome mcp serve` |
 | ollama | PyPI-Paket `ollama` | `>=0.4`, geprüft mit `0.6.2` | MIT | Optionales Extra `folderhome[ollama]`; HTTP-Client für den lokalen Ollama-Provider, wird nur bei `--model-provider ollama` geladen |
+| anthropic | PyPI-Paket `anthropic` | `>=0.40`, geprüft mit `1.4.0` | MIT | Optionales Extra `folderhome[anthropic]`; SDK für den fremdgehosteten Anthropic-Provider, wird nur bei `--model-provider anthropic` geladen |
+| openai | PyPI-Paket `openai` | `>=1.60`, geprüft mit `3.8.0` | Apache-2.0 | Optionales Extra `folderhome[openai]`; SDK für den fremdgehosteten OpenAI-Provider und OpenAI-kompatible Endpunkte, wird nur bei `--model-provider openai` geladen |
 | tzdata | PyPI-Paket `tzdata` | `==2026.3` auf Windows | Apache-2.0 | IANA-Zeitzonendaten für reproduzierbare Kalender-, Medikamenten- und Scheduler-Verträge auf Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-gepinnte Action für den Pages-Build |
 | actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-gepinnte Action für die Pages-Konfiguration |

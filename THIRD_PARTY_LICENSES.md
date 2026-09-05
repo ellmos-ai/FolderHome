@@ -39,6 +39,8 @@
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Mandatory agent loop; fixture by default without network, Bedrock only after gate |
 | MCP Python SDK | PyPI package `mcp` | `1.29.0`, transitive via `strands-agents`, now imported directly | MIT | stdio server for `folderhome mcp serve` |
 | ollama | PyPI package `ollama` | `>=0.4`, checked with `0.6.2` | MIT | Optional extra `folderhome[ollama]`; HTTP client for the local Ollama provider, loaded only for `--model-provider ollama` |
+| anthropic | PyPI package `anthropic` | `>=0.40`, checked with `1.4.0` | MIT | Optional extra `folderhome[anthropic]`; SDK for the hosted Anthropic provider, loaded only for `--model-provider anthropic` |
+| openai | PyPI package `openai` | `>=1.60`, checked with `3.8.0` | Apache-2.0 | Optional extra `folderhome[openai]`; SDK for the hosted OpenAI provider and OpenAI-compatible endpoints, loaded only for `--model-provider openai` |
 | tzdata | PyPI package `tzdata` | `==2026.3` on Windows | Apache-2.0 | IANA time‑zone data for reproducible calendar, medication, and scheduler contracts on Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-pinned Pages build action |
 | actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-pinned Pages configuration action |

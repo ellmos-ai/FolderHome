@@ -4612,3 +4612,36 @@ def test_setup_cli_plans_read_only_and_refuses_a_listener_without_the_gate(
     assert not config_dir.exists()
     assert ungated.returncode == 2
     assert "Serverfreigabe" in json.loads(ungated.stdout)["error"]
+
+
+def test_app_plan_reports_the_model_id_and_location_of_hosted_providers(
+    tmp_path: Path,
+) -> None:
+    for provider, flag, model_id, location in (
+        ("anthropic", "--anthropic-model-id", "claude-sonnet-4-5-20250929", "anthropic_api"),
+        ("openai", "--openai-model-id", "gpt-4o", "openai_compatible_api"),
+    ):
+        planned = run_cli(
+            "app",
+            "plan",
+            "--profiles-dir",
+            str(REPO_ROOT / "examples" / "profiles"),
+            "--state-dir",
+            str(tmp_path),
+            "--knowledge-digest-root",
+            str(KNOWLEDGE_DIGEST_ROOT),
+            "--model-provider",
+            provider,
+            flag,
+            model_id,
+            "--allow-network",
+            "--approve-sensitive-cloud-data",
+            "--json",
+        )
+
+        assert planned.returncode == 0, planned.stderr
+        connection = json.loads(planned.stdout)["agent"]["model_connection"]
+        assert connection["provider"] == provider
+        assert connection["model_id"] == model_id
+        assert connection["model_inference_location"] == location
+        assert connection["live_model_configured"] is True
