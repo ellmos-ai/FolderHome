@@ -37,7 +37,45 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="foldersTitle">1. Folders</h2>
+          <h2 data-i18n="profilesTitle">1. Profiles</h2>
+          <p class="hint" data-i18n="profilesHint">
+            A profile organises documents inside this operating system account; it is
+            not an access boundary. Every folder, rule and calendar account below binds
+            to one of these profiles.
+          </p>
+          <label class="field">
+            <span data-i18n="profilesDir">Profile folder</span>
+            <div class="field-input">
+              <input id="profiles-dir" spellcheck="false">
+              <button id="profiles-dir-choose" class="button compact" type="button"
+                      data-i18n="chooseButton">Choose folder</button>
+            </div>
+          </label>
+          <div id="profile-starters" hidden>
+            <p class="hint" data-i18n="profilesEmpty">
+              This folder holds no profiles yet. Take the shipped examples as a starting
+              point, or begin with an empty list and add your own.
+            </p>
+            <button id="profiles-take-examples" class="button compact" type="button"
+                    data-i18n="profilesTakeExamples">Take the examples</button>
+            <button id="profiles-start-empty" class="button compact" type="button"
+                    data-i18n="profilesStartEmpty">Start empty</button>
+          </div>
+          <div id="profile-list"></div>
+          <button id="profile-add" class="button compact" type="button"
+                  data-i18n="profileAdd">+ Profile</button>
+          <fieldset>
+            <legend data-i18n="householdRules">Rules for everyone</legend>
+            <p class="hint" data-i18n="householdHint">
+              These live in household.json and apply to every profile. A profile rule of
+              the same key wins over them.
+            </p>
+            <div id="household-rules"></div>
+          </fieldset>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="foldersTitle">2. Folders</h2>
           <p class="hint" data-i18n="foldersHint">
             Give each profile a folder per purpose. Source folders are read, output folders
             receive files. Leave a field empty to skip that purpose. A source purpose may
@@ -47,7 +85,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="modelTitle">2. Model</h2>
+          <h2 data-i18n="modelTitle">3. Model</h2>
           <p class="hint" data-i18n="modelHint">
             The provider is a start-up choice: the app reads the active preset when it
             starts. Network and data approvals stay command-line flags and are never
@@ -115,7 +153,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="subscriptionsTitle">3. Subscriptions</h2>
+          <h2 data-i18n="subscriptionsTitle">4. Subscriptions</h2>
           <p class="hint" data-i18n="subscriptionsHint">
             Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
             subscription can drive FolderHome as a tool: the agent is the brain, FolderHome
@@ -124,7 +162,7 @@
           </p>
           <ol>
             <li data-i18n="subscriptionsStep1">
-              Start the app with the command shown in section 7 after saving.
+              Start the app with the command shown in section 8 after saving.
             </li>
             <li data-i18n="subscriptionsStep2">
               Take the access URL from its start output and put it in place of the
@@ -143,7 +181,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="keysTitle">4. API keys</h2>
+          <h2 data-i18n="keysTitle">5. API keys</h2>
           <p class="hint" data-i18n="keysHint">
             Hosted providers need a key. The installer stores it in a .env file next to
             launch.json and never shows it again; on Windows only your user account
@@ -153,7 +191,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="runtimeTitle">5. Runtime</h2>
+          <h2 data-i18n="runtimeTitle">6. Runtime</h2>
           <label class="field">
             <span data-i18n="stateDir">App state folder</span>
             <input id="state-dir" spellcheck="false">
@@ -169,7 +207,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="calendarTitle">6. Calendar</h2>
+          <h2 data-i18n="calendarTitle">7. Calendar</h2>
           <p class="hint" data-i18n="calendarHint">
             This writes calendar.json and calendar-accounts.json. The calendar commands read
             them; the app itself does not, and there is no Outlook backend in this build.
@@ -203,7 +241,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="summaryTitle">7. Summary and save</h2>
+          <h2 data-i18n="summaryTitle">8. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving replaces resources.json completely. Entries you added by hand are
             lost; the previous version stays next to it as .bak-&lt;timestamp&gt;.

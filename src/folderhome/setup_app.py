@@ -211,7 +211,8 @@ class SetupApplication:
             ],
             "purposes": list(SETUP_PURPOSES),
             "profiles_configured": self.profiles_configured,
-            "profiles_dir_writable": True,
+            "profiles_dir_is_template": is_template_directory(self.profiles_dir),
+            "default_profiles_dir": str(self.config_dir / "profiles"),
             "household_rules": _household_form(self.profiles),
             "profile_forms": _profile_form(self.profiles),
             "profile_templates": profile_templates(),
@@ -272,6 +273,7 @@ class SetupApplication:
         calendar_json, calendar_accounts_json = _calendar_documents(
             request, planned, errors
         )
+        cascade, calendar_accounts_json = self._cascade(removed, calendar_accounts_json)
         port = _port(request, errors)
         state_dir = _directory(request.get("state_dir"), "state_dir", errors)
         profiles_dir = _writable_directory(
@@ -279,6 +281,21 @@ class SetupApplication:
             "profiles_dir",
             errors,
         )
+        if (
+            profiles_json is not None
+            and profiles_dir is not None
+            and is_template_directory(profiles_dir)
+        ):
+            errors.append(
+                {
+                    "field": "profiles_dir",
+                    "message": (
+                        "Der Beispielordner ist eine Vorlage und wird nicht "
+                        "beschrieben; wähle einen eigenen Profilordner, etwa "
+                        f"{self.config_dir / 'profiles'}."
+                    ),
+                }
+            )
         for entry in folders:
             _check_folder(entry, errors)
         if not errors and state_dir is not None and profiles_dir is not None:
@@ -329,6 +346,7 @@ class SetupApplication:
             "household_json": household_json,
             "profiles_json": profiles_json,
             "removed_profile_ids": removed,
+            "cascade": cascade,
             "written": False,
             "side_effects": [],
         }
@@ -369,6 +387,56 @@ class SetupApplication:
         except (ProfileConfigurationError, SetupAppError) as exc:
             errors.append({"field": "profiles", "message": str(exc)})
             return self.profiles
+
+    def _cascade(
+        self,
+        removed: list[str],
+        calendar_accounts_json: dict[str, Any] | None,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Say what a deleted profile takes with it, and take it in the same plan.
+
+        A folder binding or a calendar account of a profile that no longer exists
+        would keep the app from starting, so it cannot be left behind.
+        """
+
+        cascade: dict[str, Any] = {
+            "resource_ids": [],
+            "calendar_account_ids": [],
+            "retired_files": [],
+        }
+        if not removed:
+            return cascade, calendar_accounts_json
+        gone = set(removed)
+        registry = self._load_registry()
+        if registry is not None:
+            cascade["resource_ids"] = sorted(
+                resource.resource_id
+                for resource in registry.resources
+                if resource.profile_ids.issubset(gone)
+            )
+        stored = _stored_calendar_accounts(self.calendar_accounts_file)
+        orphaned = [
+            account
+            for account in stored
+            if isinstance(account, dict) and account.get("profile_id") in gone
+        ]
+        if not orphaned:
+            return cascade, calendar_accounts_json
+        cascade["calendar_account_ids"] = sorted(
+            str(account.get("account_id")) for account in orphaned
+        )
+        if calendar_accounts_json is not None:
+            # The request rewrites the file anyway; it already left them out.
+            return cascade, calendar_accounts_json
+        remaining = [account for account in stored if account not in orphaned]
+        if remaining:
+            return cascade, {
+                "schema": "folderhome.calendar-connector-accounts.v1",
+                "accounts": remaining,
+            }
+        # An empty account list is not a valid document, so the file is retired.
+        cascade["retired_files"] = [str(self.calendar_accounts_file)]
+        return cascade, None
 
     def _document_errors(self, payload: dict[str, Any]) -> list[dict[str, str]]:
         """Run each written document through the contract that will load it."""
@@ -484,6 +552,10 @@ class SetupApplication:
                 if profiles_dir is not None
                 else []
             )
+            retired += [
+                _retire_file(Path(item)) for item in plan["cascade"]["retired_files"]
+            ]
+            retired = [item for item in retired if item is not None]
             if api_keys:
                 write_env_file(self.env_file, api_keys)
         plan["written"] = True
@@ -718,6 +790,13 @@ def empty_profile_configuration() -> ProfileConfiguration:
         common_rules=(),
         profiles=(),
     )
+
+
+def is_template_directory(directory: Path) -> bool:
+    """Say whether a folder is one of the shipped examples, which stay read-only."""
+
+    resolved = directory.resolve()
+    return any(item.resolve() == resolved for item in _TEMPLATE_DIRECTORIES if item.exists())
 
 
 def profile_templates() -> dict[str, Any]:
@@ -1096,6 +1175,28 @@ def _verify_profiles(household: Path, staged: list[tuple[Path, Path]]) -> None:
         raise SetupAppError(f"Geschriebene Profile sind nicht ladbar: {exc}") from exc
 
 
+def _stored_calendar_accounts(path: Path) -> list[Any]:
+    """Read the account rows on disk; an unreadable file simply has none."""
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    accounts = payload.get("accounts") if isinstance(payload, dict) else None
+    return accounts if isinstance(accounts, list) else []
+
+
+def _retire_file(target: Path) -> Path | None:
+    """Move a file out of the way under a dated name, keeping its content."""
+
+    if not target.is_file():
+        return None
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    destination = target.with_name(f"{target.name}.bak-{stamp}")
+    os.replace(target, destination)
+    return destination
+
+
 def _retire_profiles(directory: Path, profile_ids: list[str]) -> list[Path]:
     """Move deleted profile files into a dated folder instead of deleting them."""
 
@@ -1456,6 +1557,7 @@ def _plan_digest(payload: dict[str, Any]) -> str:
         "household_json": payload["household_json"],
         "profiles_json": payload["profiles_json"],
         "removed_profile_ids": payload["removed_profile_ids"],
+        "cascade": payload["cascade"],
         "targets": payload["targets"],
     }
     return sha256(
@@ -1505,6 +1607,7 @@ __all__ = [
     "SetupApplication",
     "default_config_dir",
     "default_profiles_dir",
+    "is_template_directory",
     "empty_profile_configuration",
     "profile_templates",
     "read_env_file",

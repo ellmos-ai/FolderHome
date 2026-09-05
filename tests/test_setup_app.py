@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -1142,6 +1143,17 @@ def _save(app: SetupApplication, request: dict[str, object]) -> dict[str, object
     return app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
 
 
+def _reopened(tmp_path: Path, app: SetupApplication) -> SetupApplication:
+    """Open the installer again on what the previous save left on disk."""
+
+    return SetupApplication(
+        settings=app.settings,
+        profiles=load_profile_configuration(app.profiles_dir),
+        config_dir=app.config_dir,
+        session_token=TOKEN,
+    )
+
+
 def test_first_run_reports_no_profiles_and_offers_the_examples(tmp_path: Path) -> None:
     """Without a household file the installer still starts; it exists to create one."""
 
@@ -1465,3 +1477,265 @@ def test_profile_documents_are_checked_before_they_are_written(tmp_path: Path) -
     assert any(item["field"] == "profiles" for item in plan["errors"])
     with pytest.raises(ProfileConfigurationError):
         load_profile_configuration(app.profiles_dir)
+
+
+# --------------------------------------------------------------- profiles 9b
+def test_deleting_a_profile_takes_its_calendar_account_with_it(tmp_path: Path) -> None:
+    """A stale account would keep the app from starting, so it cannot stay behind."""
+
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        calendar={
+            "default_backend": "uptoday_ics",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "simon",
+                    "backend": "folderhome_local",
+                    "account_id": "local-simon",
+                    "display_name": "Simon lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "simon",
+                },
+                {
+                    "profile_id": "lukas",
+                    "backend": "folderhome_local",
+                    "account_id": "local-lukas",
+                    "display_name": "Lukas lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "lukas",
+                },
+            ],
+        },
+    )
+    _save(app, request)
+    assert app.calendar_accounts_file.is_file()
+
+    # The next round drops Simon and does not touch the calendar section at all.
+    reloaded = _reopened(tmp_path, app)
+    without_simon = {
+        key: value for key, value in request.items() if key != "calendar"
+    }
+    without_simon["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(without_simon)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert plan["cascade"]["calendar_account_ids"] == ["local-simon"]
+
+    reloaded.save({**without_simon, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    remaining = json.loads(app.calendar_accounts_file.read_text(encoding="utf-8"))
+    assert [item["account_id"] for item in remaining["accounts"]] == ["local-lukas"]
+
+
+def test_the_last_calendar_account_of_a_deleted_profile_retires_the_file(
+    tmp_path: Path,
+) -> None:
+    """An empty account list is not a valid document, so the file is moved aside."""
+
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        calendar={
+            "default_backend": "uptoday_ics",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "simon",
+                    "backend": "folderhome_local",
+                    "account_id": "local-simon",
+                    "display_name": "Simon lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "simon",
+                }
+            ],
+        },
+    )
+    _save(app, request)
+
+    reloaded = _reopened(tmp_path, app)
+    without_simon = {
+        key: value for key, value in request.items() if key != "calendar"
+    }
+    without_simon["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(without_simon)
+    assert plan["cascade"]["retired_files"] == [str(app.calendar_accounts_file)]
+
+    saved = reloaded.save(
+        {**without_simon, "confirm": True, "plan_sha256": plan["plan_sha256"]}
+    )
+
+    assert not app.calendar_accounts_file.exists()
+    assert any(
+        Path(item).name.startswith("calendar-accounts.json.bak-")
+        for item in saved["retired_profiles"]
+    )
+
+
+def test_a_deleted_profile_drops_its_folder_bindings(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    documents = tmp_path / "documents"
+    request = _profile_request(tmp_path, app)
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "simon",
+            "purpose": "documents.source",
+            "path": str(documents),
+        },
+    ]
+    _save(app, request)
+    registry = json.loads((tmp_path / "config" / "resources.json").read_text("utf-8"))
+    assert "simon" in registry["profile_defaults"]
+
+    reloaded = _reopened(tmp_path, app)
+    request["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    request["folders"] = [
+        row for row in request["folders"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(request)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert plan["cascade"]["resource_ids"] == ["simon_resource_1"]
+    reloaded.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    after = json.loads((tmp_path / "config" / "resources.json").read_text("utf-8"))
+    assert "simon" not in after["profile_defaults"]
+
+
+def test_a_folder_for_a_profile_that_is_gone_is_refused(tmp_path: Path) -> None:
+    """Bindings follow the planned profiles, so a leftover row is caught, not written."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    request["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "simon",
+            "purpose": "documents.source",
+            "path": str(tmp_path / "documents"),
+        },
+    ]
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"].startswith("folders[") for item in plan["errors"])
+
+
+def test_a_folder_for_a_profile_added_in_the_same_plan_is_accepted(
+    tmp_path: Path,
+) -> None:
+    """A new profile has to be able to get a folder without saving twice."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    request["profiles"] = [
+        *request["profiles"],
+        {"profile_id": "mika", "display_name": "Mika", "rules": []},
+    ]
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "mika",
+            "purpose": "documents.source",
+            "path": str(tmp_path / "documents"),
+        },
+    ]
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert "mika" in plan["resources_json"]["profile_defaults"]
+
+
+def test_the_example_folder_is_never_written_into(tmp_path: Path) -> None:
+    """The shipped profiles are a template; a write is refused at the field."""
+
+    app = _app(tmp_path)
+    templates = profile_templates()
+    request = _request(
+        tmp_path,
+        profiles=_profile_rows(templates["profiles"]),
+        household_rules=_household_rows(templates["household"]),
+        profiles_dir=str(PROFILE_DIR),
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles_dir" for item in plan["errors"])
+
+
+def test_setup_script_parses(tmp_path: Path) -> None:
+    """A syntax error in the installer script is invisible until the browser loads it."""
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not available")
+    result = subprocess.run(
+        [node, "--check", str(SETUP_UI / "app.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_setup_ui_sections_are_numbered_once_and_without_gaps() -> None:
+    """A new section renumbers the rest; three places have to agree on the result."""
+
+    markup = (SETUP_UI / "index.html").read_text(encoding="utf-8")
+    script = (SETUP_UI / "app.js").read_text(encoding="utf-8")
+
+    headings = re.findall(r'<h2 data-i18n="([A-Za-z]+)">(\d+)\. ', markup)
+    numbers = [int(number) for _key, number in headings]
+    assert numbers == list(range(1, len(numbers) + 1)), numbers
+
+    for key, number in headings:
+        for language in ("en", "de"):
+            start = script.index(f"  {language}: {{")
+            end = script.index("\n  },", start)
+            match = re.search(rf'^    {key}: "(\d+)\. ', script[start:end], re.M)
+            assert match is not None, f"{key} missing in {language}"
+            assert match.group(1) == number, f"{key} is {match.group(1)} in {language}"
+
+
+def test_setup_ui_reads_every_state_field_the_service_reports(tmp_path: Path) -> None:
+    """The profile section is driven by the service, not by a second copy of the rules."""
+
+    script = (SETUP_UI / "app.js").read_text(encoding="utf-8")
+    state = _empty_profile_app(tmp_path).state_payload()
+
+    for field in (
+        "profile_forms",
+        "household_rules",
+        "profile_templates",
+        "rule_keys",
+        "integer_rule_keys",
+        "profile_rule_scopes",
+        "household_rule_scopes",
+        "profiles_dir_is_template",
+        "default_profiles_dir",
+    ):
+        assert field in state
+        assert field in script, field
