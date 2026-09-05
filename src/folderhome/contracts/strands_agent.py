@@ -4,11 +4,42 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import SplitResult, urlsplit
 
 from folderhome.contracts.master_agent import MasterAgentPlan
 
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{2,254}")
 _AWS_REGION = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+# Which settings belong to which provider. Every other provider field must stay
+# unset, so one table replaces a growing cross product of pairwise checks.
+_PROVIDER_FIELDS: dict[str, tuple[str, ...]] = {
+    "fixture": (),
+    "bedrock": ("bedrock_model_id", "aws_region"),
+    "ollama": ("ollama_host", "ollama_model_id"),
+    "anthropic": ("anthropic_model_id",),
+    "openai": ("openai_model_id", "openai_base_url"),
+}
+_PROVIDER_LABELS = {
+    "fixture": "Fixture",
+    "bedrock": "Bedrock",
+    "ollama": "Ollama",
+    "anthropic": "Anthropic",
+    "openai": "OpenAI",
+}
+# Providers that answer from someone else's machine, whatever their address.
+_HOSTED_PROVIDERS = frozenset({"bedrock", "anthropic", "openai"})
+
+
+def _parsed_model_host(value: str | None) -> SplitResult | None:
+    """Return the parsed host only when it is an explicit http(s) endpoint."""
+
+    if not isinstance(value, str):
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    return parsed
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +49,11 @@ class StrandsAgentSettings:
     model_provider: str = "fixture"
     bedrock_model_id: str | None = None
     aws_region: str | None = None
+    ollama_host: str | None = None
+    ollama_model_id: str | None = None
+    anthropic_model_id: str | None = None
+    openai_model_id: str | None = None
+    openai_base_url: str | None = None
     allow_network: bool = False
     allow_sensitive_cloud_data: bool = False
     max_turns: int = 4
@@ -27,14 +63,21 @@ class StrandsAgentSettings:
     max_tool_result_bytes: int = 1_048_576
     max_output_tokens: int = 4_096
     max_conversation_messages: int = 24
+    # One finite HTTP budget for ollama, anthropic and openai. Bedrock keeps its
+    # own connect and read timeouts, which botocore wants separately.
+    model_timeout_seconds: int = 120
     bedrock_connect_timeout_seconds: int = 5
     bedrock_read_timeout_seconds: int = 30
 
     SCHEMA = "folderhome.strands-agent-settings.v1"
 
     def __post_init__(self) -> None:
-        if self.model_provider not in {"fixture", "bedrock"}:
-            raise ValueError("model_provider muss fixture oder bedrock sein.")
+        if self.model_provider not in _PROVIDER_FIELDS:
+            raise ValueError(
+                "model_provider muss "
+                + ", ".join(sorted(_PROVIDER_FIELDS))
+                + " sein."
+            )
         limits = {
             "max_turns": (self.max_turns, 1, 8),
             "max_tool_calls": (self.max_tool_calls, 1, 8),
@@ -47,6 +90,7 @@ class StrandsAgentSettings:
                 4,
                 64,
             ),
+            "model_timeout_seconds": (self.model_timeout_seconds, 5, 900),
             "bedrock_connect_timeout_seconds": (
                 self.bedrock_connect_timeout_seconds,
                 1,
@@ -65,25 +109,89 @@ class StrandsAgentSettings:
                 or not minimum <= value <= maximum
             ):
                 raise ValueError(f"{name} muss zwischen {minimum} und {maximum} liegen.")
+        label = _PROVIDER_LABELS[self.model_provider]
+        own = _PROVIDER_FIELDS[self.model_provider]
+        foreign = [
+            name
+            for fields in _PROVIDER_FIELDS.values()
+            for name in fields
+            if name not in own and getattr(self, name) is not None
+        ]
+        if foreign:
+            raise ValueError(
+                f"{label}-Modus darf keine fremden Provider-Angaben tragen: "
+                + ", ".join(sorted(foreign))
+                + "."
+            )
         if self.model_provider == "fixture":
+            if self.allow_network or self.allow_sensitive_cloud_data:
+                raise ValueError("Fixture-Modus darf keine Netzwerkfreigaben tragen.")
+            return
+        if self.model_provider == "ollama":
             if (
-                self.allow_network
-                or self.allow_sensitive_cloud_data
-                or self.bedrock_model_id is not None
-                or self.aws_region is not None
+                self.ollama_model_id is None
+                or _MODEL_ID.fullmatch(self.ollama_model_id) is None
             ):
-                raise ValueError("Fixture-Modus darf keine Netzwerk- oder Bedrock-Angaben tragen.")
+                raise ValueError("Ollama benötigt eine gültige explizite Modell-ID.")
+            if _parsed_model_host(self.ollama_host) is None:
+                raise ValueError(
+                    "Ollama benötigt einen expliziten Host mit http:// oder https://."
+                )
+            if not self.network_used:
+                return
+            if not self.allow_network:
+                raise ValueError(
+                    "Ollama außerhalb der Loopback-Adresse benötigt eine ausdrückliche "
+                    "Netzwerkfreigabe."
+                )
+            if not self.allow_sensitive_cloud_data:
+                raise ValueError(
+                    "Ollama außerhalb der Loopback-Adresse benötigt eine getrennte "
+                    "ausdrückliche Datenweitergabefreigabe."
+                )
             return
         if not self.allow_network:
-            raise ValueError("Bedrock benötigt eine ausdrückliche Netzwerkfreigabe.")
+            raise ValueError(f"{label} benötigt eine ausdrückliche Netzwerkfreigabe.")
         if not self.allow_sensitive_cloud_data:
             raise ValueError(
-                "Bedrock benötigt eine getrennte ausdrückliche Datenweitergabefreigabe."
+                f"{label} benötigt eine getrennte ausdrückliche Datenweitergabefreigabe."
             )
+        if self.model_provider == "anthropic":
+            if _MODEL_ID.fullmatch(self.anthropic_model_id or "") is None:
+                raise ValueError("Anthropic benötigt eine gültige explizite Modell-ID.")
+            return
+        if self.model_provider == "openai":
+            if _MODEL_ID.fullmatch(self.openai_model_id or "") is None:
+                raise ValueError("OpenAI benötigt eine gültige explizite Modell-ID.")
+            if (
+                self.openai_base_url is not None
+                and _parsed_model_host(self.openai_base_url) is None
+            ):
+                raise ValueError(
+                    "OpenAI-Basis-URL benötigt http:// oder https://."
+                )
+            return
         if self.bedrock_model_id is None or _MODEL_ID.fullmatch(self.bedrock_model_id) is None:
             raise ValueError("Bedrock benötigt eine gültige explizite Modell-ID.")
         if self.aws_region is None or _AWS_REGION.fullmatch(self.aws_region) is None:
             raise ValueError("Bedrock benötigt eine gültige explizite AWS-Region.")
+
+    @property
+    def network_used(self) -> bool:
+        """Report whether this provider leaves the loopback interface."""
+
+        if self.model_provider in _HOSTED_PROVIDERS:
+            return True
+        if self.model_provider != "ollama":
+            return False
+        parsed = _parsed_model_host(self.ollama_host)
+        return parsed is None or parsed.hostname.lower() not in _LOOPBACK_HOSTS
+
+    @property
+    def is_live_model(self) -> bool:
+        """Report whether a real model answers instead of the deterministic fixture."""
+
+        return self.model_provider != "fixture"
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -91,6 +199,12 @@ class StrandsAgentSettings:
             "model_provider": self.model_provider,
             "bedrock_model_id": self.bedrock_model_id,
             "aws_region": self.aws_region,
+            "ollama_host": self.ollama_host,
+            "ollama_model_id": self.ollama_model_id,
+            "anthropic_model_id": self.anthropic_model_id,
+            "openai_model_id": self.openai_model_id,
+            "openai_base_url": self.openai_base_url,
+            "network_used": self.network_used,
             "allow_network": self.allow_network,
             "allow_sensitive_cloud_data": self.allow_sensitive_cloud_data,
             "max_turns": self.max_turns,
@@ -100,6 +214,7 @@ class StrandsAgentSettings:
             "max_tool_result_bytes": self.max_tool_result_bytes,
             "max_output_tokens": self.max_output_tokens,
             "max_conversation_messages": self.max_conversation_messages,
+            "model_timeout_seconds": self.model_timeout_seconds,
             "bedrock_connect_timeout_seconds": self.bedrock_connect_timeout_seconds,
             "bedrock_read_timeout_seconds": self.bedrock_read_timeout_seconds,
         }

@@ -69,6 +69,15 @@ endlich begrenzten Strands-Agenten aus.
 | FindCall | Lokal umgesetzt | Generische serielle Angebots-/Terminplanung mit Zeit-, Preis- und Stoppgrenzen; nur Fixture-Provider |
 | Strands-Agent | Lokal umgesetzt | Echte `strands.Agent`-Schleife mit zwei read-only Tools für Suche und Themendossier |
 | Amazon Bedrock | Handoff | Derselbe Agent unterstützt `BedrockModel`, aber nur mit Modell-ID, Region und getrennten Netzwerk-/Datenweitergabegates; nicht live getestet |
+| Lokales Modell (Ollama) | Lokal umgesetzt | `OllamaModel`-Provider auf derselben Agentenschleife; ein Loopback-Host braucht kein Gate, ein entfernter dieselben zwei Gates wie Bedrock. Gegen einen entfernten Ollama-Host smoke-getestet; der Loopback-Smoke ist offen. Der Client teilt sich das endliche `model_timeout_seconds`-Budget aller HTTP-Provider |
+| MCP-Adapter | Lokal umgesetzt | `mcp serve` reicht elf Lese- und Bestätigungswerkzeuge über stdio an ein laufendes `app serve` weiter; jede Nicht-Loopback-Adresse wird abgelehnt und auf stdout steht nur Protokoll |
+| Ergebnisansicht | Lokal umgesetzt | Ausgeführte Berichte bleiben in einem begrenzten Ringpuffer und werden je Profil aufgelistet; Artefakte werden über den Index geholt, nie über einen Pfadparameter, begrenzt auf 25 MB |
+| Einrichtungsprogramm | Lokal umgesetzt | Ein getrenntes Loopback-Einrichtungsprogramm ist der einzige Ort, der Konfiguration schreibt; das Speichern schreibt `resources.json` vollständig neu, von Hand ergänzte Einträge gehen verloren und nur die `.bak-<Zeitstempel>`-Kopie bewahrt sie |
+| Fremdgehostete Modelle (Anthropic, OpenAI) | Lokal umgesetzt | `AnthropicModel` und `OpenAIModel` auf derselben Agentenschleife; beide verlassen die Maschine und brauchen deshalb `--allow-network` und `--approve-sensitive-cloud-data`. Der Schlüssel ist nie eine Einstellung: Er wird aus `ANTHROPIC_API_KEY` oder `OPENAI_API_KEY` gelesen und erscheint in keinem Plan, Status oder Log. Nicht live getestet |
+| Modell-Presets | Lokal umgesetzt | Benannte Provider-Einstellungen in `launch.json`; ein Modellwechsel ist das Aktivieren eines Presets und Speichern. Ein Kommandozeilen-Schalter schlägt ein flaches Feld, ein flaches Feld das aktive Preset. Auch inaktive Presets werden geprüft |
+| Einrichtung: Dialoge, Quellen, Kalender | Lokal umgesetzt | Ein nativer Ordnerdialog läuft in einem Kindprozess, ein Quellzweck nimmt mehrere Ordner auf, und `calendar.json` samt `calendar-accounts.json` werden über denselben hashgebundenen Weg aus Bestätigen, Rückladeprüfung und Ersetzen geschrieben. Ehrliche Grenze: Diese zwei Dateien liest nur die Kalender-CLI, `app serve` nicht |
+| Abschnitt „Abonnements" | Lokal umgesetzt | Das Einrichtungsprogramm zeigt den fertigen Claude-Code-Befehl und den Codex-TOML-Block aus demselben `integration_plan`, den die CLI ausgibt. Bei einem Abo-Agenten ist der Agent das Gehirn, FolderHome braucht also keinen eigenen Schlüssel; kein Abo wird gelesen, gespeichert oder geprüft |
+| Anleitung für Agenten | Lokal umgesetzt | `llms.txt` im Wurzelverzeichnis und unter `site/` benennt die MCP- und HTTP-Einstiege, das Sicherheitsmodell und die Provider; ein Test belegt, dass es jede genannte Route, jedes Schema und jedes Werkzeug im Dienst gibt |
 | API/GUI/CLI | Lokal umgesetzt | Gemeinsamer Application Service, Loopback-API, responsive lokale GUI und umfassende CLI |
 | OS-Kontotrennung | Lokal umgesetzt | Betriebssystemkonto und Dateirechte sind die Sicherheitsgrenze; keine Scheinsicherheit zwischen Profilen |
 
@@ -95,11 +104,11 @@ Die exakten Revisionen und Herkunftsklassen stehen in
 |---|:---:|---|
 | Funktionsumfang | 4 | Alle gewünschten Bereiche besitzen mindestens einen ehrlichen lokalen Kern oder klaren Handoff; Live-Provider bleiben getrennt |
 | Agentik | 4 | Echter, endlich begrenzter Strands-Loop; zur Wettbewerbsabnahme bewusst nur zwei read-only Tools |
-| UI/UX | 4 | Responsive Loopback-GUI und CLI auf demselben Service; noch kein nativer Desktop-Installer |
+| UI/UX | 4 | Responsive Loopback-GUI und CLI auf demselben Service, dazu ein getrenntes browserbasiertes Einrichtungsprogramm; noch kein nativer Desktop-Installer |
 | Stabilität | 5 | Erfolgs-, Missbrauchs-, Gate-, Rollback- und Never-overwrite-Pfade werden breit automatisiert geprüft |
 | Dokumentation | 5 | Architektur, Entscheidungen, Herkunft, Sicherheit, aktueller Stand und Submission-Paket sind getrennt dokumentiert |
 | Datenschutz/Sicherheit | 5 | Local-first, OS-Kontogrenze, Default deny, Ressourcenbudgets, Provenienz und explizite Außenwirkungsgates |
-| Live-Integration | 2 | Absichtlich konservativ: keine Cloud-, Telefon-, Mail-, Kalender- oder Portalwirkung ohne gesonderte Freigabe |
+| Live-Integration | 2 | Absichtlich konservativ: keine Cloud-, Telefon-, Mail-, Kalender- oder Portalwirkung ohne gesonderte Freigabe. Ein echtes lokales Modell über das Netz ist der eine erprobte Live-Pfad |
 
 ## Was nach dem lokalen Vollausbau verbleibt
 

@@ -1,9 +1,11 @@
 import json
 import re
+from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
+from folderhome.application import accident_demo
 from folderhome.application.agentcore_runtime import AgentCoreRuntimeApplication
 from folderhome.contracts.strands_agent import StrandsAgentSettings
 
@@ -211,3 +213,78 @@ def test_agentcore_deployment_files_pin_arm64_non_root_contract() -> None:
     )
     assert "[English](./README.md) | **Deutsch**" in german
     assert "ausdrücklich" in german
+
+
+def test_agentcore_runtime_returns_result_files_inline_for_browser_download(
+    tmp_path: Path,
+) -> None:
+    app = AgentCoreRuntimeApplication(tmp_path)
+    prepared = _invoke(
+        app,
+        {
+            "prompt": (
+                "I had an accident with my Hyundai i10. Find the current insurance "
+                "and prepare the next steps."
+            )
+        },
+    )
+    confirmed = _invoke(
+        app,
+        {"prompt": prepared.payload["plan"]["confirmation_command"]},
+    )
+
+    results = confirmed.payload["result"]["generated_results"]
+    assert [item["filename"] for item in results] == [
+        "Hyundai-i10-claim-letter.md",
+        "Hyundai-i10-claim-letter.txt",
+        "Hyundai-i10-insurance-overview.json",
+        "Hyundai-i10-insurance-overview.md",
+    ]
+    inline = [item for item in results if item["inline"]]
+    assert [item["filename"] for item in inline] == [
+        "Hyundai-i10-claim-letter.md",
+        "Hyundai-i10-claim-letter.txt",
+    ]
+    for item in inline:
+        assert item["content_encoding"] == "utf-8"
+        assert sha256(item["content"].encode("utf-8")).hexdigest() == item["sha256"]
+    assert inline[0]["content_type"] == "text/markdown; charset=utf-8"
+
+    # The two overview files embed the workspace path, so they stay metadata only.
+    withheld = [item for item in results if not item["inline"]]
+    assert [item["filename"] for item in withheld] == [
+        "Hyundai-i10-insurance-overview.json",
+        "Hyundai-i10-insurance-overview.md",
+    ]
+    assert all(item["inline_skipped_reason"] == "local_paths" for item in withheld)
+    assert all("content" not in item for item in withheld)
+    assert str(tmp_path) not in json.dumps(confirmed.payload, ensure_ascii=False)
+
+
+def test_agentcore_runtime_reports_oversized_results_as_metadata_only(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(accident_demo, "_MAX_INLINE_RESULT_BYTES", 32)
+    app = AgentCoreRuntimeApplication(tmp_path)
+    prepared = _invoke(
+        app,
+        {
+            "prompt": (
+                "I had an accident with my Hyundai i10. Find the current insurance "
+                "and prepare the next steps."
+            )
+        },
+    )
+    confirmed = _invoke(
+        app,
+        {"prompt": prepared.payload["plan"]["confirmation_command"]},
+    )
+
+    results = confirmed.payload["result"]["generated_results"]
+    assert results
+    for item in results:
+        assert item["inline"] is False
+        assert "content" not in item
+        assert item["inline_skipped_reason"] == "size_limit"
+        assert item["size_bytes"] > 32

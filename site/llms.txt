@@ -1,0 +1,108 @@
+# FolderHome
+
+> FolderHome is a local document and everyday-assistance agent that runs on one
+> machine, keeps physical paths out of every model-visible payload, and executes
+> nothing without a hash-bound confirmation of the exact plan it showed.
+
+An agent reaches FolderHome in one of two ways: as a tool provider over the Model
+Context Protocol, or directly over the loopback HTTP API. Both talk to the same
+running process, so a plan proposed in one place is confirmed in the other. Start
+that process first:
+
+```
+folderhome app serve --profiles-dir <profiles> --state-dir <state> --port 8765 --approve-loopback-server --json
+```
+
+It prints a `folderhome.local-server-start.v1` document carrying `base_url` and
+`access_url`. The session token in that URL is new on every start.
+
+## Connect via MCP
+
+`folderhome mcp serve --access-url <access_url> --approve-mcp-server` publishes
+eleven tools over stdio. The server owns no state; it proxies the loopback API of
+the running app. The address must be `127.0.0.1`, and a missing
+`--approve-mcp-server` is refused before the server starts. `stdout` belongs to
+the MCP transport, diagnostics go to `stderr`.
+
+- Do not write the editor entry by hand: `folderhome mcp plan --access-url <access_url> --json`
+  emits a `folderhome.mcp-integration-plan.v1` document with the exact
+  `claude mcp add folderhome -- ...` command for Claude Code and the matching
+  `[mcp_servers.folderhome]` table for `~/.codex/config.toml`.
+- Read-only tools: `folderhome_status`, `folderhome_profiles`,
+  `folderhome_capabilities`, `folderhome_executors`, `folderhome_resources`,
+  `folderhome_results`, `folderhome_search_documents`, `folderhome_topic_dossier`.
+- Conversation: `folderhome_chat`, `folderhome_reset_conversation`.
+- The only tool that can cause an effect: `folderhome_confirm_plan`.
+- `FOLDERHOME_ACCESS_URL` is read when `--access-url` is absent. Because the token
+  rotates per start, a stored editor entry goes stale with it; run `mcp plan`
+  again after a restart.
+
+With a subscription agent the agent is the brain and FolderHome is the tool.
+FolderHome needs no API key of its own for that, and its own provider may stay
+`fixture`. Only `folderhome_chat` uses the provider configured inside FolderHome.
+
+## Connect via HTTP
+
+Browser routes read the session token from the query string; every `/api/` route
+reads it from the `X-FolderHome-Token` header instead. Every POST body is a
+closed schema: unknown or missing fields are refused rather than ignored, and the
+request limit is 65536 bytes.
+
+- `GET /api/v1/status` — runtime boundary and model connection
+- `GET /api/v1/profiles` — organizational profiles
+- `GET /api/v1/capabilities` — capabilities and how each is surfaced
+- `GET /api/v1/agent/executors` — which workflows have a connected executor
+- `GET /api/v1/resources?profile_id=…` — logical resource ids, never paths
+- `GET /api/v1/agent/results?profile_id=…` — what already ran, newest first
+- `GET /api/v1/agent/results/<execution_id>/artifacts/<index>` — one produced file
+- `POST /api/v1/documents/search` — send `folderhome.local-search-request.v1`
+- `POST /api/v1/documents/dossier` — send `folderhome.local-dossier-request.v1`
+- `POST /api/v1/agent/chat` — send `folderhome.local-agent-chat-request.v1`
+- `POST /api/v1/agent/confirm` — send `folderhome.local-agent-confirmation-request.v1`
+- `POST /api/v1/agent/conversation/reset` — send `folderhome.local-agent-conversation-reset-request.v1`
+
+The service binds to `127.0.0.1` only, checks the `Host` header against that
+binding, rejects a foreign browser `Origin` and sends no CORS headers. It is an
+interface for programs on this machine, not a network service.
+
+## Safety model
+
+- **Chat is not approval.** A chat turn may answer with a proposed plan. Nothing
+  runs until `POST /api/v1/agent/confirm` (or `folderhome_confirm_plan`) carries
+  the exact `plan_id`, its `plan_sha256` and the selected `step_ids`. A wrong hash
+  is refused and the refusal reaches you verbatim. Do not retry with a hash you
+  computed yourself; take the one the proposal carried.
+- **Gates are start-up flags, never file settings:** `--approve-loopback-server`,
+  `--approve-mcp-server`, `--allow-network`, `--approve-sensitive-cloud-data`. Do
+  not read them from a file and do not try to set one; an agent cannot grant
+  itself a gate. Unknown plugins, capabilities, side effects and manifest fields
+  are treated fail-closed.
+- **Paths stay out of payloads.** Answers name logical resource ids. Do not ask
+  the service to disclose a physical path and do not infer one from an id.
+- **Results are picked up, not guessed.** A confirmed plan leaves an execution
+  report; fetch produced files through the results routes above rather than from a
+  directory you assume.
+
+## Model providers
+
+- `fixture` — deterministic, no model, no network. The default, and enough for
+  every tool above when a subscription agent supplies the reasoning.
+- `ollama` on `127.0.0.1` — a model on this machine; nothing leaves the loopback
+  interface, so no approval is needed.
+- `ollama` on another host, `bedrock`, `anthropic`, `openai` — these leave the
+  machine and therefore need both `--allow-network` and
+  `--approve-sensitive-cloud-data`.
+
+An API key is never a setting. It is read from `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY` when the model is built and appears in no plan, status, report
+or log. The installer stores it in a `.env` file beside `launch.json`.
+
+## Docs
+
+- [README (English)](https://github.com/ellmos-ai/FolderHome/blob/main/README.md): install, providers, MCP, HTTP API, installer
+- [README (Deutsch)](https://github.com/ellmos-ai/FolderHome/blob/main/README.de.md): the same in German
+- [CAPABILITY-INDEX](https://github.com/ellmos-ai/FolderHome/blob/main/CAPABILITY-INDEX.md): every endpoint, its inputs and its effect class
+- [SECURITY](https://github.com/ellmos-ai/FolderHome/blob/main/SECURITY.md): the boundary this build claims, and the one it does not
+- [ARCHITECTURE](https://github.com/ellmos-ai/FolderHome/blob/main/ARCHITECTURE.md): how the master agent, typed adapters and gates fit together
+- [Feature analysis](https://github.com/ellmos-ai/FolderHome/blob/main/Feature_Analyse_FolderHome.md): what is built and what is deliberately absent
+- [docs/](https://github.com/ellmos-ai/FolderHome/tree/main/docs): per-capability reuse and plan notes

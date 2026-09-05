@@ -48,7 +48,16 @@ class CalendarConnectorGateway(Protocol):
 
 
 def load_calendar_connector_accounts(path: Path) -> tuple[CalendarConnectorAccount, ...]:
-    payload = _load_json_object(path, "Kalenderconnectorkonten")
+    return parse_calendar_connector_accounts(
+        _load_json_object(path, "Kalenderconnectorkonten")
+    )
+
+
+def parse_calendar_connector_accounts(
+    payload: dict[str, object],
+) -> tuple[CalendarConnectorAccount, ...]:
+    """Apply the same checks to a document that is not on disk yet."""
+
     _strict_fields(payload, {"schema", "accounts"}, "Kalenderconnectorkonten")
     if payload.get("schema") != "folderhome.calendar-connector-accounts.v1":
         raise CalendarConnectorError(

@@ -70,8 +70,12 @@ then resolves the selected workflow endpoint deterministically and fail-closed.
 A short-lived specialist sees one plan-only tool. Optional personas change
 communication style but never grant capability or permission. The same runtime
 can use Amazon Bedrock after separate explicit network and local-data-disclosure
-gates. For judges and automated tests, a deterministic Strands model adapter
-executes the real loop without credentials or network access.
+gates. A third provider runs the same loop against an Ollama server, where the
+gates follow the transport rather than the vendor: a model on the loopback
+interface needs no approval because nothing leaves the machine, while a remote
+Ollama host needs exactly the two gates Bedrock needs. For judges and automated
+tests, a deterministic Strands model adapter executes the real loop without
+credentials or network access.
 
 An explicit executor catalog keeps runtime coverage honest. A chat message can
 only produce a plan. After a separate confirmation bound to the exact plan hash
@@ -102,6 +106,42 @@ Both surfaces retain a finite Strands message window per organizational profile
 for natural follow-up questions. The history never leaves process memory and a
 new-conversation action clears it together with unconfirmed plans.
 
+A third surface attaches coding agents. An MCP proxy speaks stdio to Claude Code
+or the Codex CLI and forwards eleven tools to a running local server. It starts
+no application of its own, so there is never a second state; it refuses any
+address that is not loopback, and it keeps its diagnostics on stderr because
+stdout is the protocol. Chat over MCP is no more an approval than chat in the
+GUI: a plan still executes only through the confirm tool with its exact hash.
+What those runs produce is collectable. Executed reports stay in a bounded
+in-process buffer, and the GUI lists them per profile with file name and size.
+Artifacts are fetched by index rather than by a path parameter, so no physical
+path travels in the API. Configuration itself is written by a separate
+installer on its own port and token, and the app GUI keeps no write path to it
+at all.
+
+That installer became the place where the model lives too. Five providers are
+selectable: the deterministic fixture, Ollama on this machine or on another
+host, Bedrock, Anthropic and OpenAI. Everything from the third onwards leaves
+the machine and therefore carries both the network and the sensitive-data gate.
+Named presets in `launch.json` turn switching models into an activation rather
+than an edit. An API key is never a setting: it goes into a `.env` file beside
+that config under one of two known names, and it appears in no plan hash, no
+status, no report and no log. A native folder dialog runs in a child process so
+a household can point at a folder instead of typing a path, a source purpose
+accepts several folders, and the calendar files are written through the same
+confirm-verify-replace path as everything else, though only the calendar
+commands read them and the running app does not.
+
+A section called Subscriptions closes the loop for people who already pay for an
+agent. Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
+subscription drive FolderHome as a tool, which means the agent is the brain and
+FolderHome needs no key of its own. The installer shows both editor entries
+ready to copy, generated from the same integration plan the CLI prints. And
+because an agent may arrive without a human reading a README first, `llms.txt`
+states the MCP and HTTP entry points, the safety model and the providers in one
+file at the repository root; a test asserts that every route, schema and tool it
+names really exists in the service.
+
 An isolated HTTP adapter maps the same application contract to AgentCore. The
 quota-bounded direct-code Runtime is deployed and `READY`; a synthetic fixture
 roundtrip reached `confirmation_required`. The public CloudFront configuration
@@ -109,7 +149,11 @@ keeps the browser agent disabled, and the submission does not claim a
 Bedrock-backed AgentCore journey while the applied Nova Micro quotas remain
 zero. A fresh 2026-08-27 readback again found the Runtime `READY`, version 4,
 the model profile `ACTIVE`, and all three real-time quotas at zero; CloudWatch
-showed one throttled request and no successful invocation over 24 hours.
+showed one throttled request and no successful invocation over 24 hours. Because
+the cloud runtime exposes only `/ping` and `/invocations`, result files are
+returned inline in the AgentCore response, so a browser can save them without a
+storage service. That path is implemented and tested locally and is not yet
+deployed.
 
 ## Safety and privacy by construction
 
@@ -181,6 +225,8 @@ least-authority contracts.
 - Python
 - Strands Agents SDK 1.53.0
 - Amazon Bedrock integration path
+- Ollama for local and self-hosted models
+- Model Context Protocol Python SDK
 - SQLite
 - HTML, CSS and JavaScript local interface
 - file-collect-sort-action

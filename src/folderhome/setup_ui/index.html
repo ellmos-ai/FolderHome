@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>FolderHome setup</title>
+    <link rel="stylesheet" href="/assets/app.css?token=__FOLDERHOME_TOKEN__">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">FH</span>
+          <span>
+            <strong>FolderHome</strong>
+            <small data-i18n="subtitle">Local setup</small>
+          </span>
+        </div>
+        <div class="topbar-tools">
+          <div id="language-switch" class="language-switch" role="group">
+            <button type="button" data-language="en" aria-pressed="true">EN</button>
+            <button type="button" data-language="de" aria-pressed="false">DE</button>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section class="card">
+          <p class="eyebrow" data-i18n="eyebrow">Installer</p>
+          <h1 data-i18n="title">Set up FolderHome</h1>
+          <p class="lead" data-i18n="lead">
+            This program is the only place that writes FolderHome configuration. The app
+            itself never changes it. Nothing is written before you confirm the exact plan.
+          </p>
+          <p class="hint" id="account-line"></p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="foldersTitle">1. Folders</h2>
+          <p class="hint" data-i18n="foldersHint">
+            Give each profile a folder per purpose. Source folders are read, output folders
+            receive files. Leave a field empty to skip that purpose. A source purpose may
+            list several folders; the first one is the default.
+          </p>
+          <div id="folder-grid"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="modelTitle">2. Model</h2>
+          <p class="hint" data-i18n="modelHint">
+            The provider is a start-up choice: the app reads the active preset when it
+            starts. Network and data approvals stay command-line flags and are never
+            written to a file.
+          </p>
+          <div id="preset-list"></div>
+          <fieldset>
+            <legend data-i18n="presetFormTitle">New or edited preset</legend>
+            <label class="field">
+              <span data-i18n="presetName">Preset name (optional)</span>
+              <input id="preset-name" placeholder="local" spellcheck="false">
+            </label>
+          <label class="field">
+            <span data-i18n="providerLabel">Provider</span>
+            <select id="provider">
+              <option value="fixture">fixture</option>
+              <option value="ollama">ollama</option>
+              <option value="bedrock">bedrock</option>
+              <option value="anthropic">anthropic</option>
+              <option value="openai">openai</option>
+            </select>
+          </label>
+          <div id="ollama-fields" hidden>
+            <label class="field">
+              <span data-i18n="ollamaHost">Ollama host</span>
+              <input id="ollama-host" value="http://127.0.0.1:11434" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="ollamaModel">Ollama model id</span>
+              <input id="ollama-model-id" placeholder="qwen3.8:27b-mlx" spellcheck="false">
+            </label>
+          </div>
+          <div id="bedrock-fields" hidden>
+            <label class="field">
+              <span data-i18n="bedrockModel">Bedrock model id</span>
+              <input id="bedrock-model-id" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="awsRegion">AWS region</span>
+              <input id="aws-region" placeholder="eu-central-1" spellcheck="false">
+            </label>
+          </div>
+          <div id="anthropic-fields" hidden>
+            <label class="field">
+              <span data-i18n="anthropicModel">Anthropic model id</span>
+              <input id="anthropic-model-id" placeholder="claude-sonnet-4-5-20250929"
+                     spellcheck="false">
+            </label>
+          </div>
+          <div id="openai-fields" hidden>
+            <label class="field">
+              <span data-i18n="openaiModel">OpenAI model id</span>
+              <input id="openai-model-id" placeholder="gpt-4o" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="openaiBaseUrl">OpenAI base URL (optional)</span>
+              <input id="openai-base-url" placeholder="https://api.openai.com/v1"
+                     spellcheck="false">
+            </label>
+          </div>
+            <button id="preset-save" class="button compact" type="button"
+                    data-i18n="presetSave">Save as preset</button>
+          </fieldset>
+          <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="subscriptionsTitle">3. Subscriptions</h2>
+          <p class="hint" data-i18n="subscriptionsHint">
+            Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
+            subscription can drive FolderHome as a tool: the agent is the brain, FolderHome
+            is the tool. FolderHome needs no key of its own for this, and the provider above
+            may stay fixture. Nothing here reads, stores or checks a subscription.
+          </p>
+          <ol>
+            <li data-i18n="subscriptionsStep1">
+              Start the app with the command shown in section 7 after saving.
+            </li>
+            <li data-i18n="subscriptionsStep2">
+              Take the access URL from its start output and put it in place of the
+              placeholder below.
+            </li>
+            <li data-i18n="subscriptionsStep3">
+              Run the command in Claude Code, or paste the block into
+              ~/.codex/config.toml for Codex.
+            </li>
+          </ol>
+          <div id="subscriptions"></div>
+          <p class="hint" data-i18n="subscriptionsToken">
+            The token changes on every app start, so a stored editor entry goes stale with
+            it. After a restart, put the new access URL in again.
+          </p>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="keysTitle">4. API keys</h2>
+          <p class="hint" data-i18n="keysHint">
+            Hosted providers need a key. The installer stores it in a .env file next to
+            launch.json and never shows it again; on Windows only your user account
+            protects that file. Leave a field empty to keep the stored key.
+          </p>
+          <div id="key-fields"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="runtimeTitle">5. Runtime</h2>
+          <label class="field">
+            <span data-i18n="stateDir">App state folder</span>
+            <input id="state-dir" spellcheck="false">
+          </label>
+          <label class="field">
+            <span data-i18n="portLabel">Port</span>
+            <input id="port" type="number" min="1" max="65535" value="8765">
+          </label>
+          <label class="checkbox">
+            <input id="outside-home" type="checkbox">
+            <span data-i18n="outsideHome">I confirm folders outside my user folder</span>
+          </label>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="calendarTitle">6. Calendar</h2>
+          <p class="hint" data-i18n="calendarHint">
+            This writes calendar.json and calendar-accounts.json. The calendar commands read
+            them; the app itself does not, and there is no Outlook backend in this build.
+            An account stores a reference to a secret, never the secret.
+          </p>
+          <label class="checkbox">
+            <input id="calendar-enabled" type="checkbox">
+            <span data-i18n="calendarEnable">Write calendar configuration</span>
+          </label>
+          <div id="calendar-fields" hidden>
+            <label class="field">
+              <span data-i18n="calendarBackend">Default backend</span>
+              <select id="calendar-backend"></select>
+            </label>
+            <label class="field">
+              <span data-i18n="calendarTimezone">Default time zone</span>
+              <input id="calendar-timezone" placeholder="Europe/Berlin" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="calendarDirectory">UpToday ICS folder</span>
+              <div class="field-input">
+                <input id="calendar-directory" spellcheck="false">
+                <button id="calendar-directory-choose" class="button compact" type="button"
+                        data-i18n="chooseButton">Choose folder</button>
+              </div>
+            </label>
+            <div id="calendar-accounts"></div>
+            <button id="calendar-account-add" class="button compact" type="button"
+                    data-i18n="calendarAddAccount">+ another account</button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="summaryTitle">7. Summary and save</h2>
+          <p class="hint" data-i18n="overwriteHint">
+            Saving replaces resources.json completely. Entries you added by hand are
+            lost; the previous version stays next to it as .bak-&lt;timestamp&gt;.
+          </p>
+          <button id="check" class="button" type="button" data-i18n="checkButton">Check</button>
+          <button id="save" class="button primary" type="button" disabled
+                  data-i18n="saveButton">Save</button>
+          <p class="hint" id="save-note" data-i18n="saveNote">
+            Nothing is saved automatically. Check first, then save; saving writes
+            resources.json and launch.json.
+          </p>
+          <div id="summary" aria-live="polite"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="cloudTitle">Cloud variant</h2>
+          <p class="hint" data-i18n="cloudHint">
+            In the AWS or browser variant there are no local output folders. There the
+            results view is the delivery path: files are downloaded into the download folder
+            of the browser.
+          </p>
+        </section>
+      </main>
+    </div>
+    <script src="/assets/app.js?token=__FOLDERHOME_TOKEN__"></script>
+  </body>
+</html>

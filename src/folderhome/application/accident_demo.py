@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+from base64 import b64encode
 from hashlib import sha256
 from pathlib import Path
 from urllib.parse import quote
@@ -165,6 +166,14 @@ _LETTER_TEMPLATES = {
             "closing": "Kind regards",
         }
     ],
+}
+
+_MAX_INLINE_RESULT_BYTES = 262_144
+_INLINE_CONTENT_TYPES = {
+    ".ics": "text/calendar; charset=utf-8",
+    ".json": "application/json; charset=utf-8",
+    ".md": "text/markdown; charset=utf-8",
+    ".txt": "text/plain; charset=utf-8",
 }
 
 _RESULT_FILES = (
@@ -771,16 +780,56 @@ class SyntheticAccidentDemo:
             if path.is_file() and not path.is_symlink():
                 payload = path.read_bytes()
                 result_url = f"/demo/results/{quote(filename, safe='')}"
-                results.append(
-                    {
-                        "filename": filename,
-                        "sha256": sha256(payload).hexdigest(),
-                        "size_bytes": len(payload),
-                        "view_url": result_url,
-                        "download_url": f"{result_url}?download=1",
-                    }
+                entry: dict[str, object] = {
+                    "filename": filename,
+                    "sha256": sha256(payload).hexdigest(),
+                    "size_bytes": len(payload),
+                    "view_url": result_url,
+                    "download_url": f"{result_url}?download=1",
+                    "content_type": _INLINE_CONTENT_TYPES.get(
+                        path.suffix.casefold(),
+                        "application/octet-stream",
+                    ),
+                }
+                entry.update(
+                    _inline_content(
+                        payload,
+                        str(entry["content_type"]),
+                        workspace=str(self.runtime_root),
+                    )
                 )
+                results.append(entry)
         return results
+
+
+def _inline_content(
+    payload: bytes,
+    content_type: str,
+    *,
+    workspace: str,
+) -> dict[str, object]:
+    """Carry a small result in the answer itself, for callers without a file route."""
+
+    if len(payload) > _MAX_INLINE_RESULT_BYTES:
+        return {"inline": False, "inline_skipped_reason": "size_limit"}
+    if content_type.startswith("text/") or content_type.startswith("application/json"):
+        try:
+            text = payload.decode("utf-8")
+        except UnicodeDecodeError:
+            text = None
+        if text is not None:
+            if workspace in text or json.dumps(workspace)[1:-1] in text:
+                return {"inline": False, "inline_skipped_reason": "local_paths"}
+            return {
+                "inline": True,
+                "content_encoding": "utf-8",
+                "content": text,
+            }
+    return {
+        "inline": True,
+        "content_encoding": "base64",
+        "content": b64encode(payload).decode("ascii"),
+    }
 
 
 def _canonical_json(payload: object) -> bytes:

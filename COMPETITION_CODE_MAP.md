@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.37  
-**Updated:** 2026-08-23  
-**Reason:** Accident journey, public showcase, and optional AgentCore adapter classified  
+**Version:** 0.38  
+**Updated:** 2026-09-05  
+**Reason:** Local Ollama provider and MCP server classified  
 **Purpose:** Assigns each relevant repository area to an origin class.
 
 > If you discover outdated passages or references, correct this file and the associated manifests. The Git history remains the technical evidence.
@@ -46,6 +46,10 @@
 - Legal source, interest, amendment, candidate, and output contracts under `contracts.legal_change_monitor` and the local comparison under `application.legal_change_monitor` are `NEW_CORE`. `bridges.law_checker` is `NEW_BRIDGE`; the provider remains unchanged on the manifest revision. FolderHome reads only identity, registry, and source metadata and does not claim a legal‑review API. The files under `examples/legal/` are clearly isolated synthetic fixtures.  
 - Local app contracts, handler allowlist, and HTTP adapters under `contracts.local_app`, `application.local_app`, and `local_server` and the assets under `web_ui/` are `NEW_CORE`. They use only the Python standard library and existing FolderHome services; no web framework, frontend package, or external source code is embedded.  
 - Strands contracts, agent adapters, and competition demo under `contracts.strands_agent`, `application.strands_agent`, and `application.competition_demo` and the exclusively synthetic package fixtures under `demo_data/` are `NEW_CORE` and `GENERATED_OR_TEST_DATA` respectively. The adapter instantiates the real `strands.Agent`, limits turns and tool calls, and provides exactly two profile‑specific read‑only FolderHome tools. The deterministic fixture implements only the public Strands model interface and is also new FolderHome code; it is not emitted as a model‑quality proof or Bedrock execution.  
+- The `ollama` model provider under `contracts.strands_agent`, `application.strands_agent` and `cli` is `NEW_CORE`. It selects the Strands SDK's own `OllamaModel`; no provider code is copied. The MIT‑licensed `ollama` package is an optional extra and is installed, not vendored. The loopback‑aware gate logic is new FolderHome code.  
+- `src/folderhome/mcp_server.py` and `tests/test_mcp_server.py` are `NEW_CORE`. The server registers FolderHome tools on the MIT‑licensed `mcp` SDK and proxies the existing loopback API with the Python standard library; it holds no state, adds no endpoint and copies no SDK code.  
+- The results view under `application.local_app` and `web_ui/` is `NEW_CORE`. It adds no new capability: it retains the reports of executions that already happened and serves declared output files by index. Path redaction stays exactly as before.  
+- The installer under `setup_app` and `setup_ui/` is `NEW_CORE`. It reuses the existing loopback server, the existing resource contract and the existing model contract; only the planning, confirmation and atomic write are new. `setup_ui/app.css` is a copy of `web_ui/app.css` plus installer-specific rules, so both surfaces stay one design.  
 - `strands-agents==1.53.0` is a required Apache‑2.0 runtime dependency. `tzdata==2026.3` is needed on Windows because a system‑wide IANA time‑zone database cannot be assumed there. Both packages are installed, not copied into the repository.  
 - The synthetic accident journey under `application.accident_demo`, its local token-gated UI under `demo_site`, the backend-free `site/` walkthrough and the optional AgentCore HTTP adapter are `NEW_CORE`. The public walkthrough is explicitly not presented as runtime or cloud evidence.  
 - The Pages workflow and ARM64 Dockerfile use immutable action and base-image digests. They package new FolderHome code; they do not change the origin classification of disclosed reused modules.  

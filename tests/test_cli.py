@@ -4387,3 +4387,353 @@ def test_mail_cli_inventories_providers_and_plans_without_provider_call() -> Non
     assert payload["provider_id"] == "folderhome.synthetic-mail"
     assert payload["mailbox_mutations"] == []
     assert payload["provider_invoked"] is False
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_ollama_cli_plans_loopback_provider_without_gates_or_model_call(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+
+    planned = run_cli(
+        "agent",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "ollama",
+        "--ollama-model-id",
+        "qwen3.8:27b-mlx",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["model_call_performed"] is False
+    assert payload["settings"]["model_provider"] == "ollama"
+    assert payload["settings"]["ollama_host"] == "http://127.0.0.1:11434"
+    assert payload["settings"]["ollama_model_id"] == "qwen3.8:27b-mlx"
+    assert payload["settings"]["network_used"] is False
+    assert payload["settings"]["allow_network"] is False
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_ollama_cli_refuses_remote_host_without_both_gates(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    arguments = (
+        "agent",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "ollama",
+        "--ollama-host",
+        "http://192.0.2.10:11434",
+        "--ollama-model-id",
+        "qwen3.8:27b-mlx",
+    )
+
+    blocked = run_cli(*arguments, "--json")
+    approved = run_cli(
+        *arguments,
+        "--allow-network",
+        "--approve-sensitive-cloud-data",
+        "--json",
+    )
+
+    assert blocked.returncode == 2
+    assert "Netzwerkfreigabe" in json.loads(blocked.stdout)["error"]
+    assert approved.returncode == 0, approved.stderr
+    settings = json.loads(approved.stdout)["settings"]
+    assert settings["network_used"] is True
+    assert settings["ollama_host"] == "http://192.0.2.10:11434"
+
+
+def test_mcp_plan_cli_describes_both_editor_integrations_read_only() -> None:
+    planned = run_cli(
+        "mcp",
+        "plan",
+        "--access-url",
+        "http://127.0.0.1:8765/?token=cli-plan-token",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["schema"] == "folderhome.mcp-integration-plan.v1"
+    assert payload["transport"] == "stdio"
+    assert payload["network_scope"] == "loopback_only"
+    assert payload["own_application_instance"] is False
+    assert payload["server_started"] is False
+    assert payload["requires_running_app_serve"] is True
+    assert "claude mcp add folderhome" in payload["claude_code_command"]
+    assert "[mcp_servers.folderhome]" in payload["codex_config_toml"]
+    assert "folderhome_confirm_plan" in payload["tools"]
+
+
+def test_mcp_serve_cli_fails_closed_and_keeps_stdout_free_for_the_transport() -> None:
+    ungated = run_cli(
+        "mcp",
+        "serve",
+        "--access-url",
+        "http://127.0.0.1:8765/?token=cli-serve-token",
+    )
+    remote = run_cli(
+        "mcp",
+        "serve",
+        "--access-url",
+        "http://192.0.2.10:8765/?token=cli-serve-token",
+        "--approve-mcp-server",
+    )
+
+    assert ungated.returncode == 2
+    assert ungated.stdout == ""
+    assert "--approve-mcp-server" in json.loads(ungated.stderr)["error"]
+    assert remote.returncode == 2
+    assert remote.stdout == ""
+    assert "127.0.0.1" in json.loads(remote.stderr)["error"]
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_launch_config_supplies_defaults_but_never_a_gate(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    launch = tmp_path / "launch.json"
+    launch.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                "state_dir": str(state_dir),
+                "port": 8791,
+                "model_provider": "ollama",
+                "ollama_host": "http://127.0.0.1:11434",
+                "ollama_model_id": "qwen3.8:27b-mlx",
+                "allow_network": True,
+                "approve_sensitive_cloud_data": True,
+                "approve_loopback_server": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    planned = run_cli(
+        "app",
+        "plan",
+        "--launch-config",
+        str(launch),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--json",
+    )
+    overridden = run_cli(
+        "app",
+        "plan",
+        "--launch-config",
+        str(launch),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "fixture",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["settings"]["port"] == 8791
+    assert payload["agent"]["model_provider"] == "ollama"
+    assert payload["agent"]["model_connection"]["model_id"] == "qwen3.8:27b-mlx"
+    # Gates are start-up flags and are never read from the file.
+    assert payload["agent"]["model_connection"]["network_authorized"] is False
+    assert payload["agent"]["model_connection"][
+        "sensitive_cloud_data_authorized"
+    ] is False
+
+    assert overridden.returncode == 0, overridden.stderr
+    assert json.loads(overridden.stdout)["agent"]["model_provider"] == "fixture"
+
+
+def test_app_plan_without_profiles_dir_or_launch_config_fails_closed() -> None:
+    missing = run_cli("app", "plan", "--json")
+
+    assert missing.returncode == 2
+    assert "--profiles-dir" in json.loads(missing.stdout)["error"]
+
+
+def test_setup_cli_plans_read_only_and_refuses_a_listener_without_the_gate(
+    tmp_path: Path,
+) -> None:
+    config_dir = tmp_path / "config"
+
+    planned = run_cli(
+        "setup",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--config-dir",
+        str(config_dir),
+        "--json",
+    )
+    ungated = run_cli(
+        "setup",
+        "serve",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--config-dir",
+        str(config_dir),
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["schema"] == "folderhome.setup-state.v1"
+    assert payload["configured"] is False
+    assert payload["writes_credentials"] is False
+    # Planning stays read-only: it does not even create the configuration folder.
+    assert not config_dir.exists()
+    assert ungated.returncode == 2
+    assert "Serverfreigabe" in json.loads(ungated.stdout)["error"]
+
+
+def test_app_plan_reports_the_model_id_and_location_of_hosted_providers(
+    tmp_path: Path,
+) -> None:
+    for provider, flag, model_id, location in (
+        ("anthropic", "--anthropic-model-id", "claude-sonnet-4-5-20250929", "anthropic_api"),
+        ("openai", "--openai-model-id", "gpt-4o", "openai_compatible_api"),
+    ):
+        planned = run_cli(
+            "app",
+            "plan",
+            "--profiles-dir",
+            str(REPO_ROOT / "examples" / "profiles"),
+            "--state-dir",
+            str(tmp_path),
+            "--knowledge-digest-root",
+            str(KNOWLEDGE_DIGEST_ROOT),
+            "--model-provider",
+            provider,
+            flag,
+            model_id,
+            "--allow-network",
+            "--approve-sensitive-cloud-data",
+            "--json",
+        )
+
+        assert planned.returncode == 0, planned.stderr
+        connection = json.loads(planned.stdout)["agent"]["model_connection"]
+        assert connection["provider"] == provider
+        assert connection["model_id"] == model_id
+        assert connection["model_inference_location"] == location
+        assert connection["live_model_configured"] is True
+
+
+def test_launch_config_loads_stored_keys_without_overriding_the_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The installer's .env fills gaps in the environment; it never overwrites."""
+
+    import argparse
+
+    from folderhome import cli
+
+    launch = tmp_path / "launch.json"
+    launch.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                "state_dir": str(tmp_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text(
+        "ANTHROPIC_API_KEY=from-file\nOPENAI_API_KEY=from-file\nPATH=hijacked\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "already-exported")
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+    before_path = os.environ["PATH"]
+
+    cli._apply_launch_config(argparse.Namespace(launch_config=str(launch)))
+
+    assert os.environ["ANTHROPIC_API_KEY"] == "from-file"
+    assert os.environ["OPENAI_API_KEY"] == "already-exported"
+    # Unknown names in the file are ignored outright, not merely skipped.
+    assert os.environ["PATH"] == before_path
+
+
+def test_launch_config_resolves_the_active_preset_but_yields_to_flat_fields_and_flags(
+    tmp_path: Path,
+) -> None:
+    """Precedence: explicit command line, then flat fields, then the active preset."""
+
+    import argparse
+
+    from folderhome import cli
+
+    def _config(**extra: object) -> Path:
+        target = tmp_path / f"launch-{len(list(tmp_path.iterdir()))}.json"
+        target.write_text(
+            json.dumps(
+                {
+                    "schema": "folderhome.launch-config.v1",
+                    "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                    "state_dir": str(tmp_path),
+                    "model_preset": "local",
+                    "model_presets": {
+                        "local": {
+                            "model_provider": "ollama",
+                            "ollama_host": "http://127.0.0.1:11434",
+                            "ollama_model_id": "qwen3.8:27b-mlx",
+                        }
+                    },
+                    **extra,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return target
+
+    from_preset = argparse.Namespace(launch_config=str(_config()))
+    cli._apply_launch_config(from_preset)
+    assert from_preset.model_provider == "ollama"
+    assert from_preset.ollama_model_id == "qwen3.8:27b-mlx"
+
+    flat_wins = argparse.Namespace(
+        launch_config=str(_config(model_provider="fixture")),
+    )
+    cli._apply_launch_config(flat_wins)
+    assert flat_wins.model_provider == "fixture"
+    # A fixture start must not inherit the preset's ollama fields.
+    assert flat_wins.ollama_model_id is None
+
+    flag_wins = argparse.Namespace(
+        launch_config=str(_config()),
+        model_provider="fixture",
+    )
+    cli._apply_launch_config(flag_wins)
+    assert flag_wins.model_provider == "fixture"
+    assert flag_wins.ollama_host is None

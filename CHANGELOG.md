@@ -8,10 +8,139 @@
 
 All relevant changes are documented in this file. The detailed phase‑by‑phase history up to Phase 35 remains unchanged in the archive.
 
+- results view: what a confirmed plan really executed stays retrievable in the
+  local GUI, including runs started through the HTTP API or an editor over MCP,
+  because all three drive the same process. New panel with a refresh button,
+  reloaded automatically after an own confirmation
+- new read-only routes `GET /api/v1/agent/results` and
+  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; the list carries
+  basename, size and index but never a path, and the file is served as an
+  attachment addressed only by that index
+- executed reports are kept in a bounded in-process ring buffer; artifacts are
+  resolved once at execution time and only inside a registered output resource
+  of that profile, under the name the report itself declares
+- MCP tool `folderhome_results` proxies the same list for editor agents
+- the GUI downloads through the token-protected API and builds the file from a
+  blob, so no token ever appears in a URL or in browser history
 ## [Unreleased]
 
 ### Added
 
+- installer section "Subscriptions" between the model and the API keys: Claude
+  Code with a Claude subscription and the Codex CLI with a ChatGPT subscription
+  drive FolderHome as a tool, so the agent is the brain and FolderHome needs no
+  key of its own. Both editor entries are shown ready to copy, taken from the
+  same `integration_plan` that `mcp plan` prints instead of being written a
+  second time. The section is instructions only: it starts no server, writes no
+  file and touches no plan hash
+- `llms.txt` at the repository root and published under `site/`, in the shape of
+  llmstxt.org: attaching over MCP, calling the loopback HTTP API, what the safety
+  model refuses, which providers exist, and where the long documents are
+- a test reads every route, schema and tool name out of `llms.txt` and asserts
+  each one exists in the service, that the published copy is byte-identical, and
+  that no key, token or real path is in it
+
+- one finite HTTP budget for every provider that speaks HTTP:
+  `model_timeout_seconds` (default 120, CLI `--model-timeout-seconds`) reaches
+  the Ollama, Anthropic and OpenAI clients alike, and a timeout is reported as a
+  stated failure naming the budget instead of a hang. Bedrock keeps its own
+  connect and read pair
+- the installer refuses a plan the loader would reject during the check, not
+  only when saving: reading and checking are separate in all three loaders, so
+  the real contracts run over the documents while they are still in memory and
+  the error appears at its own field
+- `configured` now means that the registry loads, not that a file exists
+- installer fix: `calendar.export_output` ends in `_output`, not `.output`, so the
+  suffix guess left it without operations. The written registry no longer loaded,
+  the save answered 400, and both files were already on disk without a backup on
+  a first install. An explicit purpose-to-operations table replaces the guess,
+  and the export folder gets `create` plus `cloud_context: deny`
+- the installer now stages every file it is about to write, loads each one back
+  through its own contract, and replaces the live files only afterwards; a plan
+  that turns out unloadable leaves the previous state exactly as it was
+- installer usability: the save button is called Save and one line under it says
+  that nothing is stored automatically. Every folder field can ask the operating
+  system for a directory (`POST /api/v1/setup/pick-folder`, one dialog at a time,
+  501 without a dialog toolkit, so typing a path stays the fallback)
+- a source purpose takes several folders; the first one becomes the profile
+  default and the agent sees all of them in its catalogue. Reopening the
+  installer lists every configured source instead of the default alone
+- installer writes `calendar.json` and `calendar-accounts.json` when that section
+  is enabled, through the same confirm, verify and replace path. There is no
+  Outlook backend in this build, so none is offered, and `app serve` reads
+  neither file: only the `calendar` commands do
+- hosted model providers `anthropic` and `openai`, with the same two approvals as
+  Bedrock and `--openai-base-url` for a compatible endpoint. An API key is not a
+  setting: it is read from `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` at model build
+  time and appears in no plan, status, report or log
+- the installer stores those keys in a `.env` beside `launch.json`, owner-only,
+  keeping every other line of that file and leaving no backup of a key; the state
+  answers only whether a key is stored. `app serve --launch-config` fills those
+  two names into the environment when they are not already set
+- model presets in `launch.json` (`model_presets`, `model_preset`): save several
+  model choices, activate one, delete one. Start-up precedence is explicit and
+  tested, an explicit flag over a flat field over the active preset
+- a static test checks that the installer page references only ids and text keys
+  that exist and that both languages carry the same keys; it found the cloud card
+  printing its own key names for want of a translation
+- separate installer `folderhome setup serve`: a second loopback application on
+  its own port and token is the only place that writes FolderHome configuration.
+  The app GUI keeps no write path to it
+- the installer plans first and writes only against the hash of exactly the plan
+  it displayed, with an explicit confirmation; folders are checked for existence,
+  symbolic links and location inside the user's own folder beforehand
+- it writes `resources.json` and `launch.json` atomically through a temporary
+  file, keeps the previous version as `.bak-<timestamp>` and loads the written
+  registry back through the existing contract before reporting success
+- provider fields are validated by constructing the real `StrandsAgentSettings`
+  instead of a second rule set; no password and no mailbox credential is ever
+  written
+- `app serve --launch-config <file>` takes those start-up values as defaults. An
+  explicit flag always wins, and the gates are not on the allowlist, so no file
+  can grant network access, a cloud data approval or a listener
+- cloud variant delivers result files inline: the AgentCore runtime answer now
+  carries `content`, `content_type` and `content_encoding` per result, so the
+  browser can offer a download although that runtime exposes only `/ping` and
+  `/invocations` and no file route. No API Gateway and no S3 were added
+- two honest limits: a file above 262 144 bytes travels as metadata only
+  (`inline: false`, reason `size_limit`), and a file whose text contains the
+  workspace path is withheld the same way (reason `local_paths`) rather than
+  shipping local paths to a browser
+- the public walkthrough builds the download from that inline content and falls
+  back to the local file route when a result carries none
+- local model provider `ollama`: the master agent can run on a model in the
+  user's own home instead of the deterministic fixture or Amazon Bedrock. The
+  gate follows the transport, not the vendor: a loopback host needs no approval
+  because nothing leaves the machine, while any other host needs the same two
+  approvals as Bedrock, `--allow-network` and `--approve-sensitive-cloud-data`
+- new CLI options `--model-provider ollama`, `--ollama-host` (default
+  `http://127.0.0.1:11434`) and `--ollama-model-id`; the model id is always
+  explicit and never guessed
+- new settings properties `network_used` and `is_live_model` separate the
+  transport question from the provider question; the agent report, the live-turn
+  counter and the status payload now ask them instead of comparing a provider
+  name to `"bedrock"`
+- status and GUI name a local model as a local model: `model_inference_location`
+  reports `local_ollama_host` or `remote_ollama_host` instead of `aws_cloud`,
+  and the interface no longer announces a running Ollama model as configured
+  Amazon Bedrock
+- optional extra `folderhome[ollama]`; the provider is imported only when it is
+  selected, and a missing package fails closed with the install command
+- MCP server `folderhome mcp serve`: Claude Code and the Codex CLI can use the
+  bounded FolderHome surface as a tool over stdio. The server keeps no state of
+  its own but proxies the loopback API of a running `app serve`, so an editor
+  agent and the GUI share one process, one conversation and one set of proposed
+  plans
+- ten MCP tools behind the `folderhome_` prefix for status, profiles,
+  capabilities, executors, resources, document search, topic dossier, chat, plan
+  confirmation and conversation reset; a refusal from the local API reaches the
+  editor verbatim
+- `folderhome mcp plan` prints the ready-made `claude mcp add` command and the
+  matching `[mcp_servers.folderhome]` block for `~/.codex/config.toml` without
+  starting anything
+- the MCP proxy fails closed before it starts: only `127.0.0.1` is accepted, a
+  session token is required, and `--approve-mcp-server` must be given. stdout
+  belongs to the transport, so every diagnostic and every error goes to stderr
 - draft-only mail endpoint: one prepared letter is appended to the drafts
   folder of the user's own IMAP mailbox behind the separate live-effect
   approval `--approve-mail-draft`; there is no send path, no recipient is

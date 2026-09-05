@@ -9,10 +9,154 @@
 Alle relevanten Änderungen werden in dieser Datei dokumentiert. Der
 ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
+- Ergebnisansicht: Was ein freigegebener Plan wirklich ausgeführt hat, bleibt in
+  der lokalen GUI abrufbar — auch Läufe, die über die HTTP-API oder einen Editor
+  per MCP gestartet wurden, weil alle drei denselben Prozess bedienen. Neues
+  Panel mit Aktualisieren-Knopf, nach eigener Freigabe automatisch nachgeladen
+- neue read-only-Routen `GET /api/v1/agent/results` und
+  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; die Liste trägt
+  Dateiname, Größe und Index, aber nie einen Pfad, und die Datei wird
+  ausschließlich über diesen Index als Anhang ausgeliefert
+- ausgeführte Berichte liegen in einem begrenzten prozesslokalen Ringpuffer;
+  Artefakte werden einmal zur Ausführungszeit aufgelöst und nur innerhalb einer
+  registrierten Ausgaberessource dieses Profils, unter dem Namen, den der
+  Bericht selbst nennt
+- MCP-Werkzeug `folderhome_results` spiegelt dieselbe Liste für Editor-Agenten
+- die GUI lädt über die tokengeschützte API und baut die Datei aus einem Blob;
+  so steht nie ein Token in einer URL oder im Browserverlauf
 ## [Unreleased]
 
 ### Hinzugefügt
 
+- Abschnitt „Abonnements" im Einrichtungsprogramm, zwischen Modell und
+  API-Schlüsseln: Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo
+  steuern FolderHome als Werkzeug, der Agent ist also das Gehirn und FolderHome
+  braucht keinen eigenen Schlüssel. Beide Editor-Einträge stehen fertig zum
+  Kopieren bereit und stammen aus demselben `integration_plan`, den `mcp plan`
+  ausgibt, statt ein zweites Mal geschrieben zu werden. Der Abschnitt ist reine
+  Anleitung: Er startet keinen Server, schreibt keine Datei und berührt keinen
+  Plan-Hash
+- `llms.txt` im Wurzelverzeichnis des Repositorys und veröffentlicht unter
+  `site/`, in der Form von llmstxt.org: Anbindung über MCP, Aufruf der
+  Loopback-HTTP-API, was das Sicherheitsmodell ablehnt, welche Provider es gibt
+  und wo die ausführlichen Dokumente liegen
+- ein Test liest jede Route, jeden Schema- und Werkzeugnamen aus `llms.txt` und
+  belegt, dass es sie im Dienst gibt, dass die veröffentlichte Kopie byte-gleich
+  ist und dass kein Schlüssel, Token oder echter Pfad darin steht
+
+- ein endliches HTTP-Budget für jeden Provider, der über HTTP spricht:
+  `model_timeout_seconds` (Vorgabe 120, CLI `--model-timeout-seconds`) erreicht
+  den Ollama-, Anthropic- und OpenAI-Client gleichermaßen, und eine
+  Zeitüberschreitung wird als benannter Fehler gemeldet statt als Hänger.
+  Bedrock behält sein eigenes Paar aus Verbindungs- und Lesezeit
+- das Einrichtungsprogramm lehnt einen Plan, den der Loader ablehnen würde,
+  schon beim Prüfen ab und nicht erst beim Speichern: Lesen und Prüfen sind in
+  allen drei Loadern getrennt, sodass die echten Verträge über die noch im
+  Speicher liegenden Dokumente laufen und der Fehler an seinem Feld erscheint
+- `configured` bedeutet jetzt, dass das Register lädt, nicht dass eine Datei
+  existiert
+- Fehler im Einrichtungsprogramm behoben: `calendar.export_output` endet auf
+  `_output`, nicht auf `.output`, weshalb die Suffix-Raterei ihm keine
+  Operationen gab. Das geschriebene Register war nicht mehr ladbar, das Speichern
+  antwortete mit 400, und beide Dateien lagen bereits auf der Platte, bei einer
+  Ersteinrichtung ohne Sicherung. Eine ausdrückliche Tabelle Zweck zu Operationen
+  ersetzt das Raten; der Exportordner bekommt `create` und `cloud_context: deny`
+- die Einrichtung legt jede zu schreibende Datei zuerst temporär an, lädt sie
+  über ihren eigenen Vertrag zurück und ersetzt die echten Dateien erst danach;
+  ein Plan, der sich als nicht ladbar erweist, lässt den Vorzustand unverändert
+- Bedienbarkeit: Der Knopf heißt Speichern, und eine Zeile darunter sagt, dass
+  nichts automatisch gespeichert wird. Jedes Ordnerfeld kann das Betriebssystem
+  nach einem Verzeichnis fragen (`POST /api/v1/setup/pick-folder`, immer nur ein
+  Dialog, 501 ohne Dialog-Toolkit, damit die Eingabe von Hand der Rückfallweg
+  bleibt)
+- ein Quellzweck nimmt mehrere Ordner auf; der erste wird der Standard des
+  Profils, und der Agent sieht alle in seinem Katalog. Beim erneuten Öffnen zeigt
+  die Einrichtung jede eingerichtete Quelle statt nur des Standards
+- die Einrichtung schreibt `calendar.json` und `calendar-accounts.json`, wenn der
+  Abschnitt eingeschaltet ist, über denselben Weg aus Bestätigen, Prüfen und
+  Ersetzen. Ein Outlook-Backend gibt es in dieser Fassung nicht, deshalb wird
+  keines angeboten, und `app serve` liest keine der beiden Dateien: das tun nur
+  die `calendar`-Befehle
+- fremdgehostete Modell-Provider `anthropic` und `openai`, mit denselben zwei
+  Freigaben wie Bedrock und `--openai-base-url` für einen kompatiblen Endpunkt.
+  Ein API-Schlüssel ist keine Einstellung: Er wird beim Bau des Modells aus
+  `ANTHROPIC_API_KEY` oder `OPENAI_API_KEY` gelesen und taucht in keinem Plan,
+  Status, Bericht und Log auf
+- die Einrichtung legt diese Schlüssel in einer `.env` neben `launch.json` ab,
+  nur für den Eigentümer lesbar, erhält jede andere Zeile dieser Datei und
+  hinterlässt keine Sicherung eines Schlüssels; der Zustand sagt nur, ob ein
+  Schlüssel hinterlegt ist. `app serve --launch-config` füllt diese zwei Namen in
+  die Umgebung, wenn sie dort noch nicht stehen
+- Modell-Presets in `launch.json` (`model_presets`, `model_preset`): mehrere
+  Modellwahlen speichern, eine aktivieren, eine löschen. Der Vorrang beim Start
+  ist ausdrücklich und getestet: Schalter vor flachem Feld vor aktivem Preset
+- ein statischer Test prüft, dass die Einrichtungsseite nur vorhandene IDs und
+  Textschlüssel anspricht und beide Sprachen dieselben Schlüssel führen; er fand
+  die Cloud-Karte, die mangels Übersetzung ihre eigenen Schlüsselnamen anzeigte
+- getrenntes Einrichtungsprogramm `folderhome setup serve`: Eine zweite
+  Loopback-Anwendung mit eigenem Port und eigenem Token ist der einzige Ort, der
+  FolderHome-Konfiguration schreibt. Die App-GUI behält keinen Schreibweg dorthin
+- die Einrichtung plant zuerst und schreibt nur gegen den Hash genau des Plans,
+  den sie angezeigt hat, und nur mit ausdrücklicher Bestätigung; Ordner werden
+  vorher auf Existenz, Symlinks und Lage im eigenen Benutzerordner geprüft
+- sie schreibt `resources.json` und `launch.json` atomar über eine temporäre
+  Datei, behält die Vorversion als `.bak-<Zeitstempel>` und lädt das
+  geschriebene Register über den bestehenden Vertrag zurück, bevor sie Erfolg
+  meldet
+- Provider-Felder werden geprüft, indem die echten `StrandsAgentSettings`
+  konstruiert werden, statt ein zweites Regelwerk zu pflegen; kein Passwort und
+  keine Postfach-Zugangsdaten werden je geschrieben
+- `app serve --launch-config <datei>` übernimmt diese Startwerte als Vorgaben.
+  Ein ausdrücklicher Schalter gewinnt immer, und die Gates stehen nicht auf der
+  Allowlist: Keine Datei kann Netzzugang, eine Datenweitergabefreigabe oder
+  einen Listener erteilen
+- die Cloud-Variante liefert Ergebnisdateien inline: Die Antwort der
+  AgentCore-Runtime trägt jetzt je Ergebnis `content`, `content_type` und
+  `content_encoding`, sodass der Browser einen Download anbieten kann, obwohl
+  diese Runtime nur `/ping` und `/invocations` kennt und keine Dateiroute. Kein
+  API Gateway und kein S3 kamen hinzu
+- zwei ehrliche Grenzen: Eine Datei über 262 144 Byte reist nur als Metadaten
+  (`inline: false`, Grund `size_limit`), und eine Datei, deren Text den
+  Arbeitsverzeichnispfad enthält, wird genauso zurückgehalten (Grund
+  `local_paths`), statt lokale Pfade an einen Browser zu schicken
+- der öffentliche Walkthrough baut den Download aus diesem Inline-Inhalt und
+  fällt auf die lokale Dateiroute zurück, wenn ein Ergebnis keinen trägt
+- lokaler Modell-Provider `ollama`: Der Master-Agent kann statt auf dem
+  deterministischen Fixture oder Amazon Bedrock auf einem Modell im eigenen
+  Zuhause laufen. Das Gate richtet sich nach dem Transportweg, nicht nach dem
+  Anbieter: Ein Loopback-Host braucht keine Freigabe, weil nichts den Rechner
+  verlässt, jeder andere Host dagegen dieselben zwei Freigaben wie Bedrock,
+  `--allow-network` und `--approve-sensitive-cloud-data`
+- neue CLI-Optionen `--model-provider ollama`, `--ollama-host` (Standard
+  `http://127.0.0.1:11434`) und `--ollama-model-id`; die Modell-ID ist immer
+  ausdrücklich und wird nie geraten
+- neue Einstellungseigenschaften `network_used` und `is_live_model` trennen die
+  Transportfrage von der Anbieterfrage; Agentenbericht, Live-Runden-Zähler und
+  Statusausgabe fragen jetzt sie, statt einen Anbieternamen mit `"bedrock"` zu
+  vergleichen
+- Status und GUI benennen ein lokales Modell als lokales Modell:
+  `model_inference_location` meldet `local_ollama_host` oder
+  `remote_ollama_host` statt `aws_cloud`, und die Oberfläche kündigt ein
+  laufendes Ollama-Modell nicht länger als konfiguriertes Amazon Bedrock an
+- optionales Extra `folderhome[ollama]`; der Provider wird nur geladen, wenn er
+  ausgewählt ist, und ein fehlendes Paket scheitert fail-closed mit dem
+  Installationsbefehl
+- MCP-Server `folderhome mcp serve`: Claude Code und die Codex-CLI können die
+  begrenzte FolderHome-Oberfläche über stdio als Werkzeug nutzen. Der Server
+  hält keinen eigenen Zustand, sondern spiegelt die Loopback-API eines
+  laufenden `app serve`; Editor-Agent und GUI teilen sich damit einen Prozess,
+  eine Unterhaltung und dieselben vorgeschlagenen Pläne
+- zehn MCP-Werkzeuge mit dem Präfix `folderhome_` für Status, Profile,
+  Fähigkeiten, Executoren, Ressourcen, Dokumentsuche, Themendossier, Chat,
+  Planfreigabe und Gesprächsreset; eine Ablehnung der lokalen API erreicht den
+  Editor wortgleich
+- `folderhome mcp plan` gibt den fertigen `claude mcp add`-Befehl und den
+  passenden Block `[mcp_servers.folderhome]` für `~/.codex/config.toml` aus,
+  ohne irgendetwas zu starten
+- der MCP-Proxy scheitert fail-closed vor dem Start: Nur `127.0.0.1` wird
+  akzeptiert, ein Sitzungstoken ist Pflicht, und `--approve-mcp-server` muss
+  gesetzt sein. stdout gehört dem Transport, deshalb gehen Diagnosen und Fehler
+  ausschließlich nach stderr
 - reiner Entwurfsendpunkt für Mail: ein vorbereitetes Schreiben wird hinter der
   getrennten Live-Effekt-Freigabe `--approve-mail-draft` an den Entwurfsordner
   des eigenen IMAP-Postfachs des Nutzers angehängt; es gibt keinen Versandweg,

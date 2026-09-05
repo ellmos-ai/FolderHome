@@ -1048,7 +1048,7 @@ def test_local_calendar_adapter_records_evidenced_appointment_without_connector(
 
 def _local_calendar_export_gateway(
     tmp_path: Path,
-) -> tuple[WorkflowExecutionGateway, Path, Path]:
+) -> tuple[WorkflowExecutionGateway, Path, Path, ResourceRegistry]:
     source = tmp_path / "private-appointment-documents"
     state = tmp_path / "private-calendar-state"
     export = tmp_path / "private-calendar-export"
@@ -1128,7 +1128,7 @@ def _local_calendar_export_gateway(
             ),
         )
     )
-    return gateway, state, export
+    return gateway, state, export, registry
 
 
 def _local_calendar_export_request(**overrides: object) -> dict[str, object]:
@@ -1150,7 +1150,7 @@ def _local_calendar_export_request(**overrides: object) -> dict[str, object]:
 def test_local_calendar_adapter_exports_recorded_appointments_as_one_ics(
     tmp_path: Path,
 ) -> None:
-    gateway, state, export = _local_calendar_export_gateway(tmp_path)
+    gateway, state, export, _registry = _local_calendar_export_gateway(tmp_path)
 
     envelope = gateway.prepare(
         workflow_id="calendar-handoff",
@@ -1192,7 +1192,7 @@ def test_local_calendar_adapter_exports_recorded_appointments_as_one_ics(
 def test_local_calendar_export_never_overwrites_and_rolls_back(
     tmp_path: Path,
 ) -> None:
-    gateway, state, export = _local_calendar_export_gateway(tmp_path)
+    gateway, state, export, _registry = _local_calendar_export_gateway(tmp_path)
     occupied = export / "Hyundai-i10-Termine.ics"
     occupied.write_text("BESTEHENDE DATEI", encoding="utf-8")
 
@@ -1214,7 +1214,7 @@ def test_local_calendar_export_never_overwrites_and_rolls_back(
 def test_local_calendar_export_requires_both_resource_and_name(
     tmp_path: Path,
 ) -> None:
-    gateway, _, _ = _local_calendar_export_gateway(tmp_path)
+    gateway, _, _, _ = _local_calendar_export_gateway(tmp_path)
 
     with pytest.raises(WorkflowExecutionError, match="gemeinsam"):
         gateway.prepare(
@@ -1227,7 +1227,7 @@ def test_local_calendar_export_requires_both_resource_and_name(
 def test_local_calendar_export_rejects_a_resource_without_the_export_purpose(
     tmp_path: Path,
 ) -> None:
-    gateway, _, _ = _local_calendar_export_gateway(tmp_path)
+    gateway, _, _, _ = _local_calendar_export_gateway(tmp_path)
 
     with pytest.raises(WorkflowExecutionError, match="Zweckbindung"):
         gateway.prepare(

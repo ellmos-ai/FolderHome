@@ -105,6 +105,7 @@ flowchart LR
   AC[Optionaler AgentCore-HTTP-Runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
+  A -. Loopback: kein Gate / anderer Host: dieselben zwei Gates .-> O[Lokales Ollama-Modell]
   A --> S[search_home_documents]
   A --> D[build_home_theme_dossier]
   A --> C[list_home_capabilities]
@@ -116,6 +117,8 @@ flowchart LR
   S --> L[FolderHome LocalApplication]
   D --> L
   L --> K[KnowledgeDigest read-only index]
+  MCP[Claude Code / Codex CLI] -- stdio --> PX[folderhome mcp serve]
+  PX -- Loopback-API + Token --> L
   UI --> W[Other gated domain workflows]
   P --> W
 ```
@@ -124,7 +127,9 @@ Der Fixture-Adapter durchläuft den echten Strands-Agenten und dessen
 sequentiellen Tool-Executor ohne Zugangsdaten. Bedrock verwendet denselben
 Agenten, verlangt aber Modell-ID, AWS-Region, `--allow-network` und die
 getrennte Freigabe `--approve-sensitive-cloud-data`; ein Bedrock-Live-Lauf
-wurde nicht behauptet.
+wurde nicht behauptet. Ein lokales Ollama-Modell ist der dritte Provider und
+wurde live verifiziert: Das Modell wählte und führte `list_home_capabilities`
+über dieselbe Agentenschleife aus.
 Die semantische Fachwahl gehört zum Modell. Endpoint-Auflösung, Plan-Hashes und
 Bestätigung bleiben deterministisch und blockieren im Zweifel; Personas ändern
 nur den Stil und erteilen niemals Kompetenzen. Ohne privates Ressourcenregister
@@ -170,6 +175,11 @@ Die GUI zeigt den Modellzustand direkt: deterministisches Fixture, konfigurierte
 aber noch nicht verifiziertes Bedrock oder Bedrock nach mindestens einem
 erfolgreichen Live-Modellturn im aktuellen Prozess. Eine Konfiguration allein
 gilt niemals als Beleg einer funktionierenden Modellverbindung.
+
+Weil diese Oberfläche keine Dateiroute kennt, gibt ein bestätigter Lauf seine
+Ergebnisdateien inline in der Antwort zurück, und der Browser baut den Download
+daraus. Dateien über 262 144 Byte und Dateien, deren Text den
+Arbeitsverzeichnispfad enthält, reisen nur als Metadaten und sagen warum.
 
 Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
 auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
@@ -254,6 +264,291 @@ getrennten Gate `--approve-mail-draft` bereit. Externe Kalenderconnectoren und
 Scheduler-Registrierung bleiben unverbunden und separat gegatet.
 Das vollständige Register weist 27 verbundene, einen direkt nur lesenden, drei
 rein planende und zwei unverbundene Endpunkte aus.
+
+## Lokales Modell über Ollama
+
+Der Master-Agent kann statt auf dem deterministischen Fixture oder Amazon
+Bedrock auf einem lokalen Ollama-Modell laufen. Die Gates richten sich nach dem
+Transportweg, nicht nach dem Anbieter: Ein Ollama-Host auf der
+Loopback-Schnittstelle braucht überhaupt kein Gate, weil nichts diesen Rechner
+verlässt. Jeder andere Host, auch einer im eigenen privaten Netz, braucht exakt
+dieselben zwei Freigaben wie Bedrock, `--allow-network` und
+`--approve-sensitive-cloud-data`.
+
+Das Wort „cloud“ im Namen dieses Schalters bedeutet hier „außerhalb dieses
+Betriebssystemkontos“, nicht „außerhalb deines Zuhauses“. FolderHome kann nicht
+wissen, ob der Rechner hinter einer Adresse dir gehört, und fragt deshalb in
+beiden Fällen einmal nach dem Netz und einmal nach den Daten.
+
+```powershell
+# Optionales Extra; der Provider wird nur geladen, wenn du ihn auswählst
+.venv\Scripts\pip.exe install -e ".[ollama]"
+
+# Modell auf diesem Rechner: kein Gate, weil nichts die Loopback-Schnittstelle verlässt
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-model-id qwen3.8:27b-mlx `
+  --profile-id lukas --prompt "Was kannst du?" --json
+
+# Modell auf einem anderen Rechner: beide Freigaben, genau wie bei Bedrock
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-host http://192.0.2.10:11434 `
+  --ollama-model-id qwen3.8:27b-mlx `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "Was kannst du?" --json
+```
+
+`--ollama-host` steht standardmäßig auf `http://127.0.0.1:11434`. Die Modell-ID
+ist immer Pflicht und wird nie geraten. Statusendpunkt und GUI melden ein
+lokales Modell als lokales Modell: `model_inference_location` wird
+`local_ollama_host` oder `remote_ollama_host` statt `aws_cloud`, und kein Lauf
+behauptet eine bestätigte Verbindung, bevor eine Live-Runde im selben Prozess
+erfolgreich war.
+
+
+## Modell-Provider
+
+Fünf Provider, geordnet danach, was sie an Privatheit kosten: `fixture`
+(deterministisch, gar kein Modell), `ollama` auf der Loopback-Schnittstelle (ein
+Modell auf diesem Rechner), `ollama` auf einem anderen Host, `bedrock`,
+`anthropic`, `openai`. Alles ab dem dritten verlässt diesen Rechner und braucht
+deshalb beide Freigaben, `--allow-network` und `--approve-sensitive-cloud-data`.
+
+```powershell
+# Optionale Extras; ein Provider wird nur geladen, wenn du ihn auswählst
+.venv\Scripts\pip.exe install -e ".[anthropic]"
+.venv\Scripts\pip.exe install -e ".[openai]"
+
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider anthropic --anthropic-model-id claude-sonnet-4-5-20250929 `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "Was kannst du?" --json
+```
+
+Ein API-Schlüssel ist nie eine Einstellung. Er wird beim Bau des Modells aus
+`ANTHROPIC_API_KEY` oder `OPENAI_API_KEY` gelesen und taucht in keinem Plan,
+Status, Bericht und Log auf. Das Einrichtungsprogramm legt ihn in einer
+`.env`-Datei neben `launch.json` ab; ein Start mit `--launch-config` liest von
+dort ausschließlich diese zwei Namen, und auch nur dann, wenn die Umgebung sie
+noch nicht trägt. `--openai-base-url` richtet den OpenAI-Provider auf einen
+kompatiblen Endpunkt, weshalb der Status diesen Ort `openai_compatible_api`
+nennt, statt OpenAI zu behaupten.
+
+Jeder Provider, der über HTTP spricht, teilt sich ein endliches Budget,
+`--model-timeout-seconds` (Vorgabe 120). Ein Modell, das darüber hinaus
+schweigt, scheitert mit genau dieser Zahl in der Meldung, statt zu hängen;
+Bedrock behält sein eigenes Paar aus Verbindungs- und Lesezeit.
+
+Gespeicherte Modell-Presets stehen in `launch.json` unter `model_presets`,
+`model_preset` nennt das aktive. Umschalten heißt: ein anderes Preset aktivieren
+und speichern; die App liest es beim nächsten Start. Vorrang beim Start: ein
+ausdrücklicher Schalter auf der Kommandozeile gewinnt über ein flaches Feld in
+der Datei, ein flaches Feld über das aktive Preset.
+
+## FolderHome aus Claude Code oder Codex nutzen (MCP)
+
+`folderhome mcp serve` veröffentlicht dieselbe begrenzte Oberfläche über das
+Model Context Protocol auf stdio. Ein Coding-Agent kann damit deine Dokumente
+durchsuchen, den Master-Agenten fragen und einen Plan freigeben. Der Server hält
+keinen eigenen Zustand: Er ist ein Proxy auf die Loopback-API eines laufenden
+`app serve`. Editor und GUI teilen sich deshalb einen Prozess, eine Unterhaltung
+und dieselben vorgeschlagenen Pläne.
+
+Zuerst die App starten und ihre Zugriffs-URL übernehmen; das Token ist bei jedem
+Start neu.
+
+```powershell
+# 1. Lokale App starten und die ausgegebene access_url notieren
+.venv\Scripts\python.exe -m folderhome app serve `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --port 8765 --approve-loopback-server --json
+
+# 2. Fertige Einbindung für beide Editoren ausgeben
+.venv\Scripts\python.exe -m folderhome mcp plan `
+  --access-url "http://127.0.0.1:8765/?token=<token>" --json
+```
+
+`mcp plan` gibt den exakten Befehl `claude mcp add folderhome -- ...` und den
+passenden Block `[mcp_servers.folderhome]` für `~/.codex/config.toml` aus. Die
+Adresse muss `127.0.0.1` sein; jeder andere Host wird vor dem Serverstart
+abgelehnt, ebenso ein fehlendes `--approve-mcp-server`. Elf Werkzeuge stehen
+bereit: `folderhome_status`, `_profiles`, `_capabilities`, `_executors`,
+`_resources`, `_results`, `_search_documents`, `_topic_dossier`, `_chat`,
+`_confirm_plan` und `_reset_conversation`.
+
+Ein Chat über MCP ist genauso wenig eine Freigabe wie ein Chat in der GUI. Ein
+vorgeschlagener Plan läuft nur über `folderhome_confirm_plan` mit seinem exakten
+Hash und den ausgewählten Schritt-IDs; ein falscher Hash wird abgelehnt, und die
+Ablehnung erreicht den Editor wortgleich.
+
+Weil das Token bei jedem Start von `app serve` neu ist, veraltet der
+Editor-Eintrag mit ihm: Nach jedem Neustart `mcp plan` erneut aufrufen und den
+hinterlegten Befehl ersetzen — oder die aktuelle URL als
+`FOLDERHOME_ACCESS_URL` exportieren und den Server ohne `--access-url`
+eintragen.
+
+Agenten: [`llms.txt`](./llms.txt) im Wurzelverzeichnis des Repositorys ist diese
+Anbindungsanleitung in einer Datei, geschrieben für maschinelle Leser.
+
+## Ergebnisse zum Abholen
+
+Alles, was ein freigegebener Plan erzeugt, bleibt in der GUI erreichbar — auch
+wenn der Lauf anderswo gestartet wurde. Das Panel **Ergebnisse** listet, was
+dieser Prozess für das gewählte Profil ausgeführt hat, das Neueste zuerst, mit
+Workflow, Status, Zeitpunkt und den geschriebenen Dateien. Ein Klick lädt eine
+Datei über die tokengeschützte API; der Browser sieht dabei nie einen Dateipfad,
+denn die Liste trägt nur Dateinamen, Größe und einen Index.
+
+Damit schließt sich die Lücke zwischen den drei Zugängen: Ein über die API oder
+über einen Editor per MCP freigegebener Plan erscheint im selben Panel wie einer
+aus der GUI, weil alle drei denselben Prozess bedienen.
+
+Angeboten werden ausschließlich Dateien innerhalb einer registrierten
+Ausgaberessource dieses Profils, und nur unter dem Namen, den der
+Ausführungsbericht selbst nennt. Läufe, die lediglich lokalen Zustand ändern,
+etwa eine bestätigte Medikamentengabe, erscheinen ohne Datei und sagen das auch.
+
+## FolderHome einrichten (lokales Einrichtungsprogramm)
+
+Die GUI von FolderHome schreibt niemals Konfiguration. Das tut ein getrenntes
+Einrichtungsprogramm, auf einem eigenen Loopback-Port, mit eigenem Token und
+hinter derselben ausdrücklichen Serverfreigabe. Genau diese Trennung ist der
+Zweck: Das Programm, mit dem du chattest, kann nicht ändern, wo es lesen und
+schreiben darf.
+
+```powershell
+# Zeigen, was eingerichtet würde, ohne einen Listener zu starten
+.venv\Scripts\python.exe -m folderhome setup plan `
+  --profiles-dir examples\profiles --json
+
+# Einrichtung starten und die ausgegebene access_url im Browser öffnen
+.venv\Scripts\python.exe -m folderhome setup serve `
+  --profiles-dir examples\profiles --port 8766 `
+  --approve-loopback-server --json
+```
+
+Die Seite führt durch sechs Schritte: Ordner, Modell-Presets, API-Schlüssel,
+Laufzeitwerte, Kalender und eine Zusammenfassung. Es wird nichts automatisch
+gespeichert. Geschrieben wird erst auf den Speichern-Knopf, und der Server nimmt
+ein Speichern nur zusammen mit dem Hash genau des Plans an, den er dir gezeigt
+hat. Ordner werden vorher geprüft: Sie müssen existieren, dürfen keine Symlinks
+sein, und einer außerhalb des eigenen Benutzerordners braucht ein
+ausdrückliches Häkchen.
+
+Neben jedem Ordnerfeld steht ein Knopf, der das Betriebssystem nach einem echten
+Verzeichnis fragt, weil ein Browser keinen absoluten Pfad übergeben kann; die
+Eingabe von Hand bleibt möglich und bleibt der Rückfallweg, wo kein
+Dialog-Toolkit installiert ist. Ein Quellzweck (`documents.source`,
+`insurance.source`) nimmt mehrere Ordner auf: Der erste wird der Standard des
+Profils, und der Agent sieht jeden davon in seinem Ressourcenkatalog.
+Ausgabezwecke (`documents.output`, `correspondence.output`,
+`calendar.export_output`) bleiben einzeln, weil ein Schreibvorgang genau ein
+Ziel braucht.
+
+Das Speichern schreibt zwei Dateien in dein Konfigurationsverzeichnis,
+standardmäßig `%LOCALAPPDATA%\FolderHome\`:
+
+| Datei | Inhalt |
+|---|---|
+| `resources.json` | das private Ressourcenregister, geprüft gegen denselben Vertrag, den die App lädt |
+| `launch.json` | die Startwerte für `app serve`: Profile, State-Ordner, Register, Modell, Presets, Port |
+| `.env` | die API-Schlüssel der fremdgehosteten Anbieter, nur hier geschrieben und nie in die Seite zurückgelesen |
+| `calendar.json` | Standard-Backend, Zeitzone und UpToday-ICS-Ordner, wenn du diesen Abschnitt einschaltest |
+| `calendar-accounts.json` | Kalender-Connectorkonten, sobald du eines anlegst |
+
+Eine vorhandene Datei bleibt als Kopie `.bak-<Zeitstempel>` erhalten, außer
+`.env`: Eine Sicherung eines Schlüssels ist eine zweite Kopie eines Schlüssels.
+Jede Datei wird zuerst als temporäre Datei geschrieben, über den Vertrag
+zurückgelesen, zu dem sie gehört, und erst dann an ihren Platz gelegt. Ein Plan,
+der sich als nicht ladbar erweist, lässt den Vorzustand exakt so, wie er war.
+Keine Datei außer `.env` enthält je ein Geheimnis: Das Entwurfspostfach und ein
+Kalenderkonto tragen beide einen Verweis auf eine lokale Zugangsdatendatei, nicht
+die Zugangsdaten selbst.
+
+Die Kalenderdateien liest nicht `app serve`, sondern die `calendar`-Befehle, und
+ein Outlook-Backend gibt es in dieser Fassung nicht. Das Einrichtungsprogramm
+sagt beides und bietet nur die vier vorhandenen Backends an.
+
+Das Speichern ersetzt `resources.json` vollständig, es führt nichts zusammen.
+Wer das Register von Hand erweitert hat, etwa um ein Entwurfspostfach oder einen
+Kalender-State-Ordner, verliert diese Einträge beim Speichern. Die Vorversion
+bleibt als `.bak-<Zeitstempel>` daneben liegen, sodass sich die Zusätze
+zurückkopieren lassen.
+
+Die App mit dem Geschriebenen starten:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome app serve `
+  --launch-config $env:LOCALAPPDATA\FolderHome\launch.json `
+  --approve-loopback-server --json
+```
+
+`--launch-config` liefert ausschließlich Vorgabewerte. Ein ausdrücklicher
+Schalter auf der Kommandozeile gewinnt immer, und die Gates stehen bewusst nicht
+in der Datei: `--allow-network`, `--approve-sensitive-cloud-data` und
+`--approve-loopback-server` bleiben Startschalter, damit keine Datei sie
+erteilen kann.
+
+In der AWS- oder Browser-Variante gibt es überhaupt keine lokalen
+Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg, und Dateien landen
+im Download-Ordner des Browsers.
+
+## Direkte HTTP-API
+
+Derselbe Loopback-Dienst, den die GUI nutzt, ist eine schlichte JSON-API.
+`app serve` gibt seine `access_url` aus; darin steckt das Sitzungstoken, das bei
+jedem Start wechselt. Browser-Routen lesen dieses Token aus der Query, jede
+`/api/`-Route dagegen aus dem Kopffeld `X-FolderHome-Token`.
+
+| Methode und Route | Zweck |
+|---|---|
+| `GET /api/v1/status` | Laufzeitgrenze und Modellverbindung |
+| `GET /api/v1/profiles` | organisatorische Profile |
+| `GET /api/v1/capabilities` | Fähigkeiten und ihre Oberfläche |
+| `GET /api/v1/agent/executors` | welche Workflows einen verbundenen Executor haben |
+| `GET /api/v1/resources?profile_id=…` | logische Ressourcen, ohne Pfade |
+| `GET /api/v1/agent/results?profile_id=…&limit=…` | was bereits lief, das Neueste zuerst |
+| `GET /api/v1/agent/results/<execution_id>/artifacts/<index>` | eine erzeugte Datei als Download |
+| `POST /api/v1/documents/search` | read-only Dokumentsuche |
+| `POST /api/v1/documents/dossier` | Themendossier mit verknüpften Belegen |
+| `POST /api/v1/agent/chat` | eine begrenzte Master-Agenten-Runde |
+| `POST /api/v1/agent/confirm` | exakte Schritte eines Plans freigeben |
+| `POST /api/v1/agent/conversation/reset` | neue prozesslokale Unterhaltung |
+
+Jeder POST-Rumpf folgt einem geschlossenen Schema: Unbekannte oder fehlende
+Felder werden abgelehnt statt ignoriert, und die Anfragegrenze liegt bei
+65 536 Byte.
+
+```bash
+TOKEN="<Token aus access_url>"
+BASE="http://127.0.0.1:8765"
+
+# Den Agenten fragen; die Antwort kann einen vorgeschlagenen Plan enthalten
+curl -s "$BASE/api/v1/agent/chat" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-chat-request.v1",
+       "profile_id":"lukas","message":"Was kannst du?"}'
+
+# Genau diesen Plan freigeben; ein Chat allein führt nie etwas aus
+curl -s "$BASE/api/v1/agent/confirm" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-confirmation-request.v1",
+       "plan_id":"<plan_id>","plan_sha256":"<plan_sha256>",
+       "step_ids":["<step_id>"]}'
+
+# Abholen, was dabei entstanden ist
+curl -s "$BASE/api/v1/agent/results?profile_id=lukas" \
+  -H "X-FolderHome-Token: $TOKEN"
+curl -s -OJ "$BASE/api/v1/agent/results/<execution_id>/artifacts/0" \
+  -H "X-FolderHome-Token: $TOKEN"
+```
+
+Der Dienst bindet ausschließlich an `127.0.0.1`, prüft das `Host`-Kopffeld gegen
+diese Bindung, weist einen fremden Browser-`Origin` ab und sendet keine
+CORS-Kopfzeilen. Er ist eine Schnittstelle für Programme auf diesem Rechner,
+kein Netzwerkdienst.
 
 ## Wichtige Befehle
 

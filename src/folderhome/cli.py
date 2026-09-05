@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from collections.abc import Sequence
@@ -334,6 +335,14 @@ from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
+from folderhome.setup_app import (
+    ENV_FILENAME,
+    LAUNCH_CONFIG_SCHEMA,
+    SetupAppError,
+    SetupApplication,
+    default_config_dir,
+    read_env_file,
+)
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 DEFAULT_MANIFEST_ROOT = REPOSITORY_ROOT / "manifests" / "components"
@@ -580,6 +589,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
         return _run_local_app_serve(args)
+    if args.command == "setup" and args.setup_command == "plan":
+        return _run_setup_plan(args)
+    if args.command == "setup" and args.setup_command == "serve":
+        return _run_setup_serve(args)
+    if args.command == "mcp" and args.mcp_command == "plan":
+        return _run_mcp_plan(args)
+    if args.command == "mcp" and args.mcp_command == "serve":
+        return _run_mcp_serve(args)
     if args.command == "folders" and args.folders_command == "snapshot":
         return _run_folders_snapshot(args)
     if args.command == "folders" and args.folders_command == "diff":
@@ -1273,6 +1290,26 @@ def _build_parser() -> argparse.ArgumentParser:
     app_serve.add_argument("--approve-loopback-server", action="store_true")
     app_serve.add_argument("--json", action="store_true", dest="as_json")
 
+    setup = commands.add_parser("setup")
+    setup_commands = setup.add_subparsers(dest="setup_command", required=True)
+    setup_plan = setup_commands.add_parser("plan")
+    setup_serve = setup_commands.add_parser("serve")
+    for parser_ in (setup_plan, setup_serve):
+        parser_.add_argument("--profiles-dir", type=Path, required=True)
+        parser_.add_argument("--config-dir", type=Path)
+        parser_.add_argument("--port", type=int, default=8766)
+        parser_.add_argument("--json", action="store_true", dest="as_json")
+    setup_serve.add_argument("--approve-loopback-server", action="store_true")
+
+    mcp = commands.add_parser("mcp")
+    mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
+    mcp_plan = mcp_commands.add_parser("plan")
+    mcp_plan.add_argument("--access-url")
+    mcp_plan.add_argument("--json", action="store_true", dest="as_json")
+    mcp_serve = mcp_commands.add_parser("serve")
+    mcp_serve.add_argument("--access-url")
+    mcp_serve.add_argument("--approve-mcp-server", action="store_true")
+
     folders = commands.add_parser("folders")
     folder_commands = folders.add_subparsers(dest="folders_command", required=True)
     folder_snapshot = folder_commands.add_parser("snapshot")
@@ -1496,9 +1533,12 @@ def _add_legal_change_arguments(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--profiles-dir", type=Path, required=True)
-    parser.add_argument("--state-dir", type=Path, required=True)
-    parser.add_argument("--resources-file", type=Path)
+    # Values a launch config may supply use SUPPRESS, so an explicit flag always
+    # wins: the attribute simply does not exist unless the caller passed it.
+    parser.add_argument("--launch-config", type=Path)
+    parser.add_argument("--profiles-dir", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--state-dir", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--resources-file", type=Path, default=argparse.SUPPRESS)
     parser.add_argument("--manifest-root", type=Path, default=DEFAULT_MANIFEST_ROOT)
     parser.add_argument(
         "--knowledge-digest-root",
@@ -1527,7 +1567,7 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--approve-mail-draft", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument("--port", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--max-body-bytes", type=int, default=65_536)
     parser.add_argument("--max-query-limit", type=int, default=50)
     parser.add_argument("--max-concurrent-requests", type=int, default=32)
@@ -1537,11 +1577,16 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--model-provider",
-        choices=("fixture", "bedrock"),
-        default="fixture",
+        choices=("fixture", "bedrock", "ollama", "anthropic", "openai"),
+        default=argparse.SUPPRESS,
     )
-    parser.add_argument("--bedrock-model-id")
-    parser.add_argument("--aws-region")
+    parser.add_argument("--bedrock-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--aws-region", default=argparse.SUPPRESS)
+    parser.add_argument("--ollama-host", default=argparse.SUPPRESS)
+    parser.add_argument("--ollama-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--anthropic-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--openai-model-id", default=argparse.SUPPRESS)
+    parser.add_argument("--openai-base-url", default=argparse.SUPPRESS)
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--approve-sensitive-cloud-data", action="store_true")
     parser.add_argument("--max-turns", type=int, default=4)
@@ -1551,6 +1596,7 @@ def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-tool-result-bytes", type=int, default=1_048_576)
     parser.add_argument("--max-output-tokens", type=int, default=4_096)
     parser.add_argument("--max-conversation-messages", type=int, default=24)
+    parser.add_argument("--model-timeout-seconds", type=int, default=120)
     parser.add_argument("--bedrock-connect-timeout-seconds", type=int, default=5)
     parser.add_argument("--bedrock-read-timeout-seconds", type=int, default=30)
     parser.add_argument(
@@ -4864,11 +4910,22 @@ def _run_accident_demo_site(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
+
+
 def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
+    ollama_host = args.ollama_host
+    if args.model_provider == "ollama" and ollama_host is None:
+        ollama_host = DEFAULT_OLLAMA_HOST
     return StrandsAgentSettings(
         model_provider=args.model_provider,
         bedrock_model_id=args.bedrock_model_id,
         aws_region=args.aws_region,
+        ollama_host=ollama_host,
+        ollama_model_id=args.ollama_model_id,
+        anthropic_model_id=args.anthropic_model_id,
+        openai_model_id=args.openai_model_id,
+        openai_base_url=args.openai_base_url,
         allow_network=args.allow_network,
         allow_sensitive_cloud_data=args.approve_sensitive_cloud_data,
         max_turns=args.max_turns,
@@ -4878,6 +4935,7 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         max_tool_result_bytes=args.max_tool_result_bytes,
         max_output_tokens=args.max_output_tokens,
         max_conversation_messages=args.max_conversation_messages,
+        model_timeout_seconds=args.model_timeout_seconds,
         bedrock_connect_timeout_seconds=args.bedrock_connect_timeout_seconds,
         bedrock_read_timeout_seconds=args.bedrock_read_timeout_seconds,
     )
@@ -4998,6 +5056,87 @@ def _run_local_app_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _build_setup_app(args: argparse.Namespace) -> SetupApplication:
+    config_dir = Path(args.config_dir or default_config_dir())
+    return SetupApplication(
+        settings=LocalAppSettings(
+            host="127.0.0.1",
+            port=args.port,
+            profiles_dir=args.profiles_dir,
+            state_dir=config_dir,
+        ),
+        profiles=load_profile_configuration(args.profiles_dir),
+        config_dir=config_dir,
+    )
+
+
+def _run_setup_plan(args: argparse.Namespace) -> int:
+    """Show what the installer would configure without starting a listener."""
+
+    try:
+        payload = _build_setup_app(args).state_payload()
+    except (*_LOCAL_APP_ERRORS, SetupAppError) as exc:
+        return _print_error(str(exc))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_setup_serve(args: argparse.Namespace) -> int:
+    """Serve the installer on its own loopback port with its own token."""
+
+    server = None
+    try:
+        application = _build_setup_app(args)
+        # The installer writes here, and the server insists on an existing state
+        # dir. Only after the gate, so a refused start leaves nothing behind.
+        if args.approve_loopback_server:
+            application.config_dir.mkdir(parents=True, exist_ok=True)
+        server = create_local_server(
+            application,
+            allow_loopback_server=args.approve_loopback_server,
+        )
+        print(json.dumps(server.to_public_dict(), ensure_ascii=False, sort_keys=True))
+        sys.stdout.flush()
+        server.serve_forever()
+    except KeyboardInterrupt:
+        return 0
+    except (*_LOCAL_APP_ERRORS, SetupAppError) as exc:
+        return _print_error(str(exc))
+    finally:
+        if server is not None:
+            server.server_close()
+    return 0
+
+
+def _run_mcp_plan(args: argparse.Namespace) -> int:
+    from folderhome.mcp_server import ACCESS_URL_ENV, integration_plan
+
+    payload = integration_plan(args.access_url or os.environ.get(ACCESS_URL_ENV))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_mcp_serve(args: argparse.Namespace) -> int:
+    """Run the stdio MCP proxy; stdout is the transport, so errors go to stderr."""
+
+    from folderhome.mcp_server import ACCESS_URL_ENV, McpServerError, serve_mcp_stdio
+
+    try:
+        serve_mcp_stdio(
+            access_url=args.access_url or os.environ.get(ACCESS_URL_ENV),
+            approve_mcp_server=args.approve_mcp_server,
+        )
+    except KeyboardInterrupt:
+        return 0
+    except McpServerError as exc:
+        print(
+            json.dumps({"valid": False, "error": str(exc)}, ensure_ascii=False),
+            file=sys.stderr,
+        )
+        return 2
+    return 0
+
+
 _LOCAL_APP_ERRORS = (
     LocalAppError,
     LocalServerError,
@@ -5011,7 +5150,129 @@ _LOCAL_APP_ERRORS = (
 )
 
 
+_LAUNCH_CONFIG_FIELDS = {
+    "profiles_dir": Path,
+    "state_dir": Path,
+    "resources_file": Path,
+    "port": int,
+    "model_provider": str,
+    "ollama_host": str,
+    "ollama_model_id": str,
+    "bedrock_model_id": str,
+    "aws_region": str,
+    "anthropic_model_id": str,
+    "openai_model_id": str,
+    "openai_base_url": str,
+}
+_LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
+    "resources_file": None,
+    "port": 8765,
+    "model_provider": "fixture",
+    "ollama_host": None,
+    "ollama_model_id": None,
+    "bedrock_model_id": None,
+    "aws_region": None,
+    "anthropic_model_id": None,
+    "openai_model_id": None,
+    "openai_base_url": None,
+}
+# Everything a preset may carry: the model choice, never a path, port or gate.
+_PRESET_FIELDS = tuple(
+    name
+    for name in _LAUNCH_CONFIG_FIELDS
+    if name not in {"profiles_dir", "state_dir", "resources_file", "port"}
+)
+
+
+def _active_preset(payload: dict[str, object]) -> dict[str, object]:
+    """Resolve the named model preset a launch config points at."""
+
+    name = payload.get("model_preset")
+    if name is None:
+        return {}
+    if not isinstance(name, str):
+        raise ValueError("Startkonfiguration braucht für model_preset einen Text.")
+    presets = payload.get("model_presets")
+    entry = presets.get(name) if isinstance(presets, dict) else None
+    if not isinstance(entry, dict):
+        raise ValueError(f"Startkonfiguration kennt kein Modell-Preset {name}.")
+    return {
+        field: entry[field]
+        for field in _PRESET_FIELDS
+        if entry.get(field) is not None
+    }
+
+
+def _apply_launch_config(args: argparse.Namespace) -> None:
+    """Fill start-up values from a launch config; explicit flags always win.
+
+    Gates stay start-up flags on purpose: they are not on the allowlist, so no
+    file can grant network access or a cloud data approval.
+    """
+
+    supplied: dict[str, object] = {}
+    launch_config = getattr(args, "launch_config", None)
+    if launch_config is not None:
+        try:
+            payload = json.loads(Path(launch_config).read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValueError(f"Startkonfiguration ist nicht lesbar: {exc}") from exc
+        if not isinstance(payload, dict) or payload.get("schema") != (
+            LAUNCH_CONFIG_SCHEMA
+        ):
+            raise ValueError("Startkonfiguration verwendet ein unbekanntes Schema.")
+        # The installer stores hosted-provider keys beside the launch file. Only
+        # names the environment does not already carry are filled, so an
+        # explicitly exported variable still wins, and no value is logged.
+        for name, value in read_env_file(
+            Path(launch_config).parent / ENV_FILENAME
+        ).items():
+            os.environ.setdefault(name, value)
+        preset = _active_preset(payload)
+        for name, kind in _LAUNCH_CONFIG_FIELDS.items():
+            # A flat field wins over the active preset, and an explicit flag
+            # over both: a hand-written file keeps working unchanged.
+            value = payload.get(name)
+            if value is None:
+                value = preset.get(name)
+            if value is None:
+                continue
+            if kind is int and (isinstance(value, bool) or not isinstance(value, int)):
+                raise ValueError(f"Startkonfiguration braucht für {name} eine Zahl.")
+            if kind is not int and not isinstance(value, str):
+                raise ValueError(f"Startkonfiguration braucht für {name} einen Text.")
+            supplied[name] = kind(value) if kind is not str else value
+    # A launch config describes one intended provider. If the caller picks a
+    # different one on the command line, the other provider's fields do not apply.
+    effective = getattr(args, "model_provider", supplied.get("model_provider", "fixture"))
+    if effective != "ollama":
+        supplied.pop("ollama_host", None)
+        supplied.pop("ollama_model_id", None)
+    if effective != "bedrock":
+        supplied.pop("bedrock_model_id", None)
+        supplied.pop("aws_region", None)
+    if effective != "anthropic":
+        supplied.pop("anthropic_model_id", None)
+    if effective != "openai":
+        supplied.pop("openai_model_id", None)
+        supplied.pop("openai_base_url", None)
+    for name in _LAUNCH_CONFIG_FIELDS:
+        if hasattr(args, name):
+            continue
+        if name in supplied:
+            setattr(args, name, supplied[name])
+        elif name in _LAUNCH_CONFIG_DEFAULTS:
+            setattr(args, name, _LAUNCH_CONFIG_DEFAULTS[name])
+    for name in ("profiles_dir", "state_dir"):
+        if getattr(args, name, None) is None:
+            flag = f"--{name.replace('_', '-')}"
+            raise ValueError(
+                f"{flag} fehlt; gib es an oder nenne es in --launch-config."
+            )
+
+
 def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
+    _apply_launch_config(args)
     settings = LocalAppSettings(
         host=args.host,
         port=args.port,
