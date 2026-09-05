@@ -516,7 +516,7 @@ def test_model_timeout_is_bounded_and_reported() -> None:
 
     assert settings.model_timeout_seconds == 90
     assert settings.to_dict()["model_timeout_seconds"] == 90
-    for invalid in (0, 601, True):
+    for invalid in (4, 901, True):
         with pytest.raises(ValueError, match="model_timeout_seconds"):
             StrandsAgentSettings(model_timeout_seconds=invalid)
 

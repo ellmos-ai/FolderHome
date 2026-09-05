@@ -90,7 +90,7 @@ class StrandsAgentSettings:
                 4,
                 64,
             ),
-            "model_timeout_seconds": (self.model_timeout_seconds, 1, 600),
+            "model_timeout_seconds": (self.model_timeout_seconds, 5, 900),
             "bedrock_connect_timeout_seconds": (
                 self.bedrock_connect_timeout_seconds,
                 1,
