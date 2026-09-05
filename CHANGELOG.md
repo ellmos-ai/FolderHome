@@ -26,6 +26,20 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- installer section "Subscriptions" between the model and the API keys: Claude
+  Code with a Claude subscription and the Codex CLI with a ChatGPT subscription
+  drive FolderHome as a tool, so the agent is the brain and FolderHome needs no
+  key of its own. Both editor entries are shown ready to copy, taken from the
+  same `integration_plan` that `mcp plan` prints instead of being written a
+  second time. The section is instructions only: it starts no server, writes no
+  file and touches no plan hash
+- `llms.txt` at the repository root and published under `site/`, in the shape of
+  llmstxt.org: attaching over MCP, calling the loopback HTTP API, what the safety
+  model refuses, which providers exist, and where the long documents are
+- a test reads every route, schema and tool name out of `llms.txt` and asserts
+  each one exists in the service, that the published copy is byte-identical, and
+  that no key, token or real path is in it
+
 - one finite HTTP budget for every provider that speaks HTTP:
   `model_timeout_seconds` (default 120, CLI `--model-timeout-seconds`) reaches
   the Ollama, Anthropic and OpenAI clients alike, and a timeout is reported as a

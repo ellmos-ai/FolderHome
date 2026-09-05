@@ -28,6 +28,22 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- Abschnitt „Abonnements" im Einrichtungsprogramm, zwischen Modell und
+  API-Schlüsseln: Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo
+  steuern FolderHome als Werkzeug, der Agent ist also das Gehirn und FolderHome
+  braucht keinen eigenen Schlüssel. Beide Editor-Einträge stehen fertig zum
+  Kopieren bereit und stammen aus demselben `integration_plan`, den `mcp plan`
+  ausgibt, statt ein zweites Mal geschrieben zu werden. Der Abschnitt ist reine
+  Anleitung: Er startet keinen Server, schreibt keine Datei und berührt keinen
+  Plan-Hash
+- `llms.txt` im Wurzelverzeichnis des Repositorys und veröffentlicht unter
+  `site/`, in der Form von llmstxt.org: Anbindung über MCP, Aufruf der
+  Loopback-HTTP-API, was das Sicherheitsmodell ablehnt, welche Provider es gibt
+  und wo die ausführlichen Dokumente liegen
+- ein Test liest jede Route, jeden Schema- und Werkzeugnamen aus `llms.txt` und
+  belegt, dass es sie im Dienst gibt, dass die veröffentlichte Kopie byte-gleich
+  ist und dass kein Schlüssel, Token oder echter Pfad darin steht
+
 - ein endliches HTTP-Budget für jeden Provider, der über HTTP spricht:
   `model_timeout_seconds` (Vorgabe 120, CLI `--model-timeout-seconds`) erreicht
   den Ollama-, Anthropic- und OpenAI-Client gleichermaßen, und eine
