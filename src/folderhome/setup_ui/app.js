@@ -7,8 +7,10 @@ const translations = {
     title: "Set up FolderHome",
     lead: "This program is the only place that writes FolderHome configuration. The app itself never changes it. Nothing is written before you confirm the exact plan.",
     foldersTitle: "1. Folders",
-    foldersHint: "Give each profile a folder per purpose. Source folders are read, output folders receive files. Leave a field empty to skip that purpose.",
+    foldersHint: "Give each profile a folder per purpose. Source folders are read, output folders receive files. Leave a field empty to skip that purpose. A source purpose may list several folders; the first one is the default.",
     chooseButton: "Choose folder",
+    addSource: "+ another source",
+    removeSource: "Remove",
     modelTitle: "2. Model",
     modelHint: "The provider is a start-up choice. Network and data approvals stay command-line flags and are never written to a file.",
     providerLabel: "Provider",
@@ -43,8 +45,10 @@ const translations = {
     title: "FolderHome einrichten",
     lead: "Dieses Programm ist der einzige Ort, der FolderHome-Konfiguration schreibt. Die App selbst ändert sie nie. Es wird nichts geschrieben, bevor du genau diesen Plan bestätigst.",
     foldersTitle: "1. Ordner",
-    foldersHint: "Gib jedem Profil je Zweck einen Ordner. Quellordner werden gelesen, Ausgabeordner nehmen Dateien auf. Ein leeres Feld lässt den Zweck aus.",
+    foldersHint: "Gib jedem Profil je Zweck einen Ordner. Quellordner werden gelesen, Ausgabeordner nehmen Dateien auf. Ein leeres Feld lässt den Zweck aus. Ein Quellzweck darf mehrere Ordner haben; der erste ist der Standard.",
     chooseButton: "Ordner wählen",
+    addSource: "+ weitere Quelle",
+    removeSource: "Entfernen",
     modelTitle: "2. Modell",
     modelHint: "Der Provider ist eine Startentscheidung. Netz- und Datenfreigaben bleiben Kommandozeilen-Schalter und werden nie in eine Datei geschrieben.",
     providerLabel: "Provider",
@@ -153,10 +157,7 @@ async function pickFolder(input) {
   invalidate();
 }
 
-function folderField(profileId, purpose, value) {
-  const label = document.createElement("label");
-  label.className = "field";
-  label.append(textElement("span", purpose));
+function folderRow(profileId, purpose, value, removable) {
   const row = document.createElement("div");
   row.className = "field-input";
   const input = document.createElement("input");
@@ -164,6 +165,7 @@ function folderField(profileId, purpose, value) {
   input.dataset.profileId = profileId;
   input.dataset.purpose = purpose;
   input.value = value;
+  input.setAttribute("aria-label", purpose);
   const choose = document.createElement("button");
   choose.type = "button";
   choose.className = "button compact";
@@ -171,25 +173,62 @@ function folderField(profileId, purpose, value) {
   choose.textContent = t("chooseButton");
   choose.addEventListener("click", () => pickFolder(input).catch(showError));
   row.append(input, choose);
-  label.append(row);
-  return label;
+  if (removable) {
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "button compact";
+    remove.dataset.i18n = "removeSource";
+    remove.textContent = t("removeSource");
+    remove.addEventListener("click", () => {
+      row.remove();
+      invalidate();
+    });
+    row.append(remove);
+  }
+  return row;
+}
+
+function purposeField(profileId, purpose, paths, repeatable) {
+  const group = document.createElement("div");
+  group.className = "field";
+  group.append(textElement("span", purpose));
+  const rows = document.createElement("div");
+  rows.className = "field-rows";
+  for (const path of paths) {
+    rows.append(folderRow(profileId, purpose, path, repeatable));
+  }
+  group.append(rows);
+  if (repeatable) {
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "button compact";
+    add.dataset.i18n = "addSource";
+    add.textContent = t("addSource");
+    add.addEventListener("click", () => {
+      rows.append(folderRow(profileId, purpose, "", true));
+      invalidate();
+    });
+    group.append(add);
+  }
+  return group;
 }
 
 function renderFolders() {
   folderGrid.replaceChildren();
-  const current = new Map(
-    (state.current_folders || []).map((item) => [`${item.profile_id}|${item.purpose}`, item.path]),
-  );
+  const current = new Map();
+  for (const item of state.current_folders || []) {
+    const key = `${item.profile_id}|${item.purpose}`;
+    if (!current.has(key)) current.set(key, []);
+    current.get(key).push(item.path);
+  }
+  const repeatable = new Set(state.repeatable_purposes || []);
   for (const profile of state.profiles) {
     const block = document.createElement("fieldset");
     block.append(textElement("legend", `${profile.display_name} (${profile.profile_id})`));
     for (const purpose of state.purposes) {
+      const paths = current.get(`${profile.profile_id}|${purpose}`) || [""];
       block.append(
-        folderField(
-          profile.profile_id,
-          purpose,
-          current.get(`${profile.profile_id}|${purpose}`) || "",
-        ),
+        purposeField(profile.profile_id, purpose, paths, repeatable.has(purpose)),
       );
     }
     folderGrid.append(block);

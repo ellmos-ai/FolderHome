@@ -626,3 +626,47 @@ def test_folder_dialog_refuses_a_second_window(tmp_path: Path) -> None:
         app._dialog_lock.release()
 
     assert response.status_code == 409
+
+
+def test_two_document_sources_become_two_resources_with_the_first_as_default(
+    tmp_path: Path,
+) -> None:
+    """A profile may read from several folders; only one of them is the default."""
+
+    first = tmp_path / "papers"
+    second = tmp_path / "scans"
+    for directory in (first, second):
+        directory.mkdir()
+    app = _app(tmp_path)
+    request = _request(
+        tmp_path,
+        folders=[
+            {"profile_id": "lukas", "purpose": "documents.source", "path": str(first)},
+            {"profile_id": "lukas", "purpose": "documents.source", "path": str(second)},
+        ],
+    )
+
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    registry = planned.payload["resources_json"]
+    paths = [item["locator"]["path"] for item in registry["resources"]]
+    assert paths == [str(first), str(second)]
+    default_id = registry["profile_defaults"]["lukas"]["documents.source"]
+    assert default_id == registry["resources"][0]["resource_id"]
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+    )
+    assert saved.status_code == 200, saved.payload
+
+    state = app.state_payload()
+    sources = [
+        item for item in state["current_folders"] if item["purpose"] == "documents.source"
+    ]
+    # Reopening the installer has to show both folders, not just the default one.
+    assert [item["path"] for item in sources] == [str(first), str(second)]
+    assert [item["is_default"] for item in sources] == [True, False]
+    assert "documents.source" in state["repeatable_purposes"]
+    assert "documents.output" not in state["repeatable_purposes"]

@@ -124,6 +124,9 @@ class SetupApplication:
                 )
             ],
             "purposes": list(SETUP_PURPOSES),
+            "repeatable_purposes": [
+                purpose for purpose in SETUP_PURPOSES if purpose not in _OUTPUT_PURPOSES
+            ],
             "model_providers": ["fixture", "ollama", "bedrock"],
             "config_dir": str(self.config_dir),
             "resources_file": str(self.resources_file),
@@ -300,19 +303,20 @@ class SetupApplication:
         except ResourceRegistryError:
             return []
         current = []
-        for profile_id, bindings in sorted(registry.profile_defaults.items()):
-            by_id = {item.resource_id: item for item in registry.resources}
-            for purpose, resource_id in sorted(bindings.items()):
-                resource = by_id.get(resource_id)
-                if resource is None or purpose not in SETUP_PURPOSES:
-                    continue
-                current.append(
-                    {
-                        "profile_id": profile_id,
-                        "purpose": purpose,
-                        "path": str(resource.local_path),
-                    }
-                )
+        for resource in registry.resources:
+            for profile_id in sorted(resource.profile_ids):
+                defaults = registry.profile_defaults.get(profile_id, {})
+                for purpose in sorted(resource.purposes):
+                    if purpose not in SETUP_PURPOSES:
+                        continue
+                    current.append(
+                        {
+                            "profile_id": profile_id,
+                            "purpose": purpose,
+                            "path": str(resource.local_path),
+                            "is_default": defaults.get(purpose) == resource.resource_id,
+                        }
+                    )
         return current
 
     # ------------------------------------------------------------------- HTTP
@@ -609,7 +613,9 @@ def _resources_document(
     resources = []
     defaults: dict[str, dict[str, str]] = {}
     counters: dict[str, int] = {}
-    for (profile_id, _path), record in sorted(grouped.items()):
+    # Form order, not path order: a purpose may appear several times and the first
+    # folder the user named is the one the app falls back to.
+    for (profile_id, _path), record in grouped.items():
         counters[profile_id] = counters.get(profile_id, 0) + 1
         resource_id = f"{profile_id}_resource_{counters[profile_id]}"
         purposes = sorted(record["purposes"])
@@ -631,7 +637,7 @@ def _resources_document(
         )
         bindings = defaults.setdefault(profile_id, {})
         for purpose in purposes:
-            bindings[purpose] = resource_id
+            bindings.setdefault(purpose, resource_id)
     return {
         "schema": "folderhome.resource-registry.v1",
         "os_account": os_account,

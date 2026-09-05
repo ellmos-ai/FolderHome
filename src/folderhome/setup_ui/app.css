@@ -328,6 +328,8 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
   border: 1px solid var(--field-border);
   border-radius: .2rem;
 }
+.field-rows { display: grid; gap: .35rem; }
+.field > button { justify-self: start; }
 .field-input { display: flex; gap: .4rem; align-items: stretch; }
 .field-input input { flex: 1; min-width: 0; }
 .button.compact { padding: .45rem .75rem; font-size: .8rem; white-space: nowrap; }
