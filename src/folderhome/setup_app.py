@@ -23,11 +23,20 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, urlsplit
 
+from folderhome.application.calendar_connectors import (
+    CalendarConnectorError,
+    load_calendar_connector_accounts,
+)
+from folderhome.application.calendar_handoff import (
+    CalendarWorkflowError,
+    load_calendar_configuration,
+)
 from folderhome.application.profile_rules import ProfileConfiguration
 from folderhome.application.resource_registry import (
     default_resource_registry_path,
     load_resource_registry,
 )
+from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
 from folderhome.contracts.resources import ResourceRegistryError
 from folderhome.contracts.strands_agent import StrandsAgentSettings
@@ -52,6 +61,16 @@ LAUNCH_CONFIG_SCHEMA = "folderhome.launch-config.v1"
 ENV_FILENAME = ".env"
 ENV_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")
 _PRESET_NAME = re.compile(r"[A-Za-z0-9_.-]{1,40}")
+# Outlook has no backend in this code base, so the installer does not offer one.
+CALENDAR_BACKENDS = tuple(item.value for item in CalendarBackend)
+CALENDAR_ACCOUNT_FIELDS = (
+    "account_id",
+    "display_name",
+    "provider_id",
+    "provider_revision",
+    "calendar_id",
+    "credential_ref",
+)
 _MODEL_FIELDS = (
     "ollama_host",
     "ollama_model_id",
@@ -129,6 +148,14 @@ class SetupApplication:
     def env_file(self) -> Path:
         return self.config_dir / ENV_FILENAME
 
+    @property
+    def calendar_file(self) -> Path:
+        return self.config_dir / "calendar.json"
+
+    @property
+    def calendar_accounts_file(self) -> Path:
+        return self.config_dir / "calendar-accounts.json"
+
     # ------------------------------------------------------------------ plans
     def state_payload(self) -> dict[str, Any]:
         """Describe what the installer can configure and what is configured now."""
@@ -145,6 +172,8 @@ class SetupApplication:
                 )
             ],
             "purposes": list(SETUP_PURPOSES),
+            "calendar_backends": list(CALENDAR_BACKENDS),
+            "calendar_read_by_app": False,
             "repeatable_purposes": [
                 purpose for purpose in SETUP_PURPOSES if purpose not in _OUTPUT_PURPOSES
             ],
@@ -158,6 +187,8 @@ class SetupApplication:
             "config_dir": str(self.config_dir),
             "resources_file": str(self.resources_file),
             "launch_file": str(self.launch_file),
+            "calendar_file": str(self.calendar_file),
+            "calendar_accounts_file": str(self.calendar_accounts_file),
             "home": str(Path.home().resolve()),
             "profiles_dir": str(self.settings.profiles_dir),
             "configured": self.resources_file.is_file(),
@@ -175,6 +206,9 @@ class SetupApplication:
         errors: list[dict[str, str]] = []
         folders = _folder_entries(request, self.profiles, errors)
         model, presets, preset_name = _model_settings(request, errors)
+        calendar_json, calendar_accounts_json = _calendar_documents(
+            request, self.profiles, errors
+        )
         port = _port(request, errors)
         state_dir = _directory(request.get("state_dir"), "state_dir", errors)
         profiles_dir = _directory(
@@ -218,9 +252,13 @@ class SetupApplication:
             "targets": {
                 "resources_file": str(self.resources_file),
                 "launch_file": str(self.launch_file),
+                "calendar_file": str(self.calendar_file),
+                "calendar_accounts_file": str(self.calendar_accounts_file),
             },
             "resources_json": resources_json,
             "launch_json": launch_json,
+            "calendar_json": calendar_json,
+            "calendar_accounts_json": calendar_accounts_json,
             "written": False,
             "side_effects": [],
         }
@@ -265,6 +303,23 @@ class SetupApplication:
                     (_stage_json(self.launch_file, plan["launch_json"]), self.launch_file)
                 )
                 self._verify_registry(staged[0][0])
+                for document, target, check in (
+                    (
+                        plan["calendar_json"],
+                        self.calendar_file,
+                        _verify_calendar_configuration,
+                    ),
+                    (
+                        plan["calendar_accounts_json"],
+                        self.calendar_accounts_file,
+                        _verify_calendar_accounts,
+                    ),
+                ):
+                    if document is None:
+                        continue
+                    temporary = _stage_json(target, document)
+                    staged.append((temporary, target))
+                    check(temporary)
             except BaseException:
                 for temporary, _target in staged:
                     temporary.unlink(missing_ok=True)
@@ -581,6 +636,97 @@ def write_env_file(target: Path, changes: dict[str, str | None]) -> None:
             temporary.unlink()
 
 
+def _calendar_documents(
+    request: dict[str, Any],
+    profiles: ProfileConfiguration,
+    errors: list[dict[str, str]],
+) -> tuple[dict[str, Any] | None, dict[str, Any] | None]:
+    """Build the calendar configuration and its accounts, or nothing at all."""
+
+    raw = request.get("calendar")
+    if not isinstance(raw, dict) or not raw:
+        return None, None
+    backend = raw.get("default_backend")
+    if backend not in CALENDAR_BACKENDS:
+        errors.append(
+            {"field": "calendar", "message": f"Unbekanntes Kalender-Backend: {backend}"}
+        )
+        return None, None
+    directory = _directory(raw.get("ics_directory"), "calendar.ics_directory", errors)
+    timezone = raw.get("timezone")
+    if not isinstance(timezone, str) or not timezone.strip():
+        errors.append({"field": "calendar.timezone", "message": "Zeitzone fehlt."})
+        timezone = None
+    configuration = (
+        None
+        if directory is None or timezone is None
+        else {
+            "schema": "folderhome.calendar-config.v1",
+            "default_backend": backend,
+            "default_timezone": timezone.strip(),
+            "uptoday_ics_directory": str(directory),
+        }
+    )
+    accounts = _calendar_accounts(raw.get("accounts"), profiles, errors)
+    if not accounts:
+        return configuration, None
+    return configuration, {
+        "schema": "folderhome.calendar-connector-accounts.v1",
+        "accounts": accounts,
+    }
+
+
+def _calendar_accounts(
+    raw: object,
+    profiles: ProfileConfiguration,
+    errors: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        errors.append(
+            {"field": "calendar.accounts", "message": "accounts muss eine Liste sein."}
+        )
+        return []
+    known = {item.profile_id for item in profiles.profiles}
+    accounts: list[dict[str, Any]] = []
+    for index, item in enumerate(raw):
+        field = f"calendar.accounts[{index}]"
+        if not isinstance(item, dict):
+            errors.append({"field": field, "message": "Eintrag muss ein Objekt sein."})
+            continue
+        if item.get("profile_id") not in known:
+            errors.append({"field": field, "message": "Unbekanntes Profil."})
+            continue
+        if item.get("backend") not in CALENDAR_BACKENDS:
+            errors.append({"field": field, "message": "Unbekanntes Kalender-Backend."})
+            continue
+        # The loader rejects a per-account schema field; only the file carries one.
+        account: dict[str, Any] = {
+            "profile_id": item["profile_id"],
+            "backend": item["backend"],
+        }
+        for name in CALENDAR_ACCOUNT_FIELDS:
+            value = item.get(name)
+            account[name] = value.strip() if isinstance(value, str) and value.strip() else None
+        accounts.append(account)
+    return accounts
+
+
+def _verify_calendar_configuration(path: Path) -> None:
+    try:
+        load_calendar_configuration(path)
+    except CalendarWorkflowError as exc:
+        raise SetupAppError(f"Geschriebene Kalenderkonfiguration ist nicht ladbar: {exc}") from exc
+
+
+def _verify_calendar_accounts(path: Path) -> None:
+    try:
+        load_calendar_connector_accounts(path)
+    except CalendarConnectorError as exc:
+        raise SetupAppError(f"Geschriebene Kalenderkonten sind nicht ladbar: {exc}") from exc
+
+
 def _security_headers() -> dict[str, str]:
     return {
         "Cache-Control": "no-store",
@@ -857,6 +1003,9 @@ def _plan_digest(payload: dict[str, Any]) -> str:
     material = {
         "resources_json": payload["resources_json"],
         "launch_json": payload["launch_json"],
+        # Every file the save may write belongs in the confirmed hash.
+        "calendar_json": payload["calendar_json"],
+        "calendar_accounts_json": payload["calendar_accounts_json"],
         "targets": payload["targets"],
     }
     return sha256(
@@ -893,6 +1042,7 @@ def _commit_staged(temporary: Path, target: Path) -> Path | None:
 
 
 __all__ = [
+    "CALENDAR_BACKENDS",
     "ENV_FILENAME",
     "ENV_KEYS",
     "LAUNCH_CONFIG_SCHEMA",

@@ -141,6 +141,40 @@
         </section>
 
         <section class="card">
+          <h2 data-i18n="calendarTitle">5. Calendar</h2>
+          <p class="hint" data-i18n="calendarHint">
+            This writes calendar.json and calendar-accounts.json. The calendar commands read
+            them; the app itself does not, and there is no Outlook backend in this build.
+            An account stores a reference to a secret, never the secret.
+          </p>
+          <label class="checkbox">
+            <input id="calendar-enabled" type="checkbox">
+            <span data-i18n="calendarEnable">Write calendar configuration</span>
+          </label>
+          <div id="calendar-fields" hidden>
+            <label class="field">
+              <span data-i18n="calendarBackend">Default backend</span>
+              <select id="calendar-backend"></select>
+            </label>
+            <label class="field">
+              <span data-i18n="calendarTimezone">Default time zone</span>
+              <input id="calendar-timezone" placeholder="Europe/Berlin" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="calendarDirectory">UpToday ICS folder</span>
+              <div class="field-input">
+                <input id="calendar-directory" spellcheck="false">
+                <button id="calendar-directory-choose" class="button compact" type="button"
+                        data-i18n="chooseButton">Choose folder</button>
+              </div>
+            </label>
+            <div id="calendar-accounts"></div>
+            <button id="calendar-account-add" class="button compact" type="button"
+                    data-i18n="calendarAddAccount">+ another account</button>
+          </div>
+        </section>
+
+        <section class="card">
           <h2 data-i18n="summaryTitle">6. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving replaces resources.json completely. Entries you added by hand are

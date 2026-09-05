@@ -55,6 +55,16 @@ const translations = {
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
+    calendarTitle: "5. Calendar",
+    calendarHint: "This writes calendar.json and calendar-accounts.json. The calendar commands read them; the app itself does not, and there is no Outlook backend in this build. An account stores a reference to a secret, never the secret.",
+    calendarEnable: "Write calendar configuration",
+    calendarBackend: "Default backend",
+    calendarTimezone: "Default time zone",
+    calendarDirectory: "UpToday ICS folder",
+    calendarAddAccount: "+ another account",
+    calendarAccount: "Account",
+    calendarProfile: "Profile",
+    calendarCredential: "Connector reference (google only)",
     cloudTitle: "Cloud variant",
     cloudHint: "In the AWS or browser variant there are no local output folders. There the results view is the delivery path: files are downloaded into the download folder of the browser.",
   },
@@ -112,6 +122,16 @@ const translations = {
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
+    calendarTitle: "5. Kalender",
+    calendarHint: "Dies schreibt calendar.json und calendar-accounts.json. Die Kalenderbefehle lesen sie; die App selbst nicht, und ein Outlook-Backend gibt es in dieser Fassung nicht. Ein Konto speichert einen Verweis auf ein Geheimnis, nie das Geheimnis selbst.",
+    calendarEnable: "Kalenderkonfiguration schreiben",
+    calendarBackend: "Standard-Backend",
+    calendarTimezone: "Standardzeitzone",
+    calendarDirectory: "UpToday-ICS-Ordner",
+    calendarAddAccount: "+ weiteres Konto",
+    calendarAccount: "Konto",
+    calendarProfile: "Profil",
+    calendarCredential: "Connector-Referenz (nur google)",
     cloudTitle: "Cloud-Variante",
     cloudHint: "In der AWS- oder Browser-Variante gibt es keine lokalen Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg: Dateien landen im Download-Ordner des Browsers.",
   },
@@ -132,6 +152,8 @@ const keyFields = document.querySelector("#key-fields");
 const keyRemovals = new Set();
 const presetList = document.querySelector("#preset-list");
 let presets = {};
+const calendarAccounts = document.querySelector("#calendar-accounts");
+const calendarEnabled = document.querySelector("#calendar-enabled");
 let activePreset = null;
 
 function t(key, replacements = {}) {
@@ -356,6 +378,95 @@ function savePreset() {
   invalidate();
 }
 
+function calendarAccountRow(account) {
+  const block = document.createElement("fieldset");
+  block.append(textElement("legend", t("calendarAccount")));
+  const profile = document.createElement("select");
+  profile.dataset.calendarField = "profile_id";
+  for (const item of state.profiles) {
+    const option = document.createElement("option");
+    option.value = item.profile_id;
+    option.textContent = `${item.display_name} (${item.profile_id})`;
+    profile.append(option);
+  }
+  block.append(labelled(t("calendarProfile"), profile));
+  const backend = document.createElement("select");
+  backend.dataset.calendarField = "backend";
+  for (const item of state.calendar_backends) {
+    const option = document.createElement("option");
+    option.value = item;
+    option.textContent = item;
+    backend.append(option);
+  }
+  block.append(labelled(t("calendarBackend"), backend));
+  const fields = [
+    ["account_id", "account_id"],
+    ["display_name", "display_name"],
+    ["provider_id", "provider_id"],
+    ["provider_revision", "provider_revision"],
+    ["calendar_id", "calendar_id"],
+  ];
+  for (const [name, caption] of fields) {
+    const input = document.createElement("input");
+    input.spellcheck = false;
+    input.dataset.calendarField = name;
+    input.value = (account && account[name]) || "";
+    block.append(labelled(caption, input));
+  }
+  const credential = document.createElement("input");
+  credential.spellcheck = false;
+  credential.dataset.calendarField = "credential_ref";
+  credential.placeholder = "connector://google-calendar/default";
+  block.append(labelled(t("calendarCredential"), credential));
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "button compact";
+  remove.dataset.i18n = "removeSource";
+  remove.textContent = t("removeSource");
+  remove.addEventListener("click", () => {
+    block.remove();
+    invalidate();
+  });
+  block.append(remove);
+  return block;
+}
+
+function labelled(caption, control) {
+  const label = document.createElement("label");
+  label.className = "field";
+  label.append(textElement("span", caption), control);
+  return label;
+}
+
+function buildCalendar() {
+  if (!calendarEnabled.checked) return null;
+  const accounts = [];
+  for (const block of calendarAccounts.querySelectorAll("fieldset")) {
+    const account = {};
+    for (const control of block.querySelectorAll("[data-calendar-field]")) {
+      account[control.dataset.calendarField] = control.value.trim() || null;
+    }
+    accounts.push(account);
+  }
+  return {
+    default_backend: document.querySelector("#calendar-backend").value,
+    timezone: document.querySelector("#calendar-timezone").value.trim(),
+    ics_directory: document.querySelector("#calendar-directory").value.trim(),
+    accounts,
+  };
+}
+
+function renderCalendar() {
+  const backend = document.querySelector("#calendar-backend");
+  backend.replaceChildren();
+  for (const item of state.calendar_backends || []) {
+    const option = document.createElement("option");
+    option.value = item;
+    option.textContent = item;
+    backend.append(option);
+  }
+}
+
 function renderKeys() {
   keyFields.replaceChildren();
   const stored = {
@@ -445,6 +556,7 @@ function buildRequest() {
     model: modelFromForm(),
     model_presets: presets,
     model_preset: activePreset,
+    calendar: buildCalendar(),
     port: Number(document.querySelector("#port").value) || 8765,
     state_dir: document.querySelector("#state-dir").value.trim(),
     profiles_dir: state.profiles_dir,
@@ -518,6 +630,17 @@ providerSelect.addEventListener("change", () => {
   invalidate();
 });
 document.querySelector("#preset-save").addEventListener("click", savePreset);
+calendarEnabled.addEventListener("change", () => {
+  document.querySelector("#calendar-fields").hidden = !calendarEnabled.checked;
+  invalidate();
+});
+document.querySelector("#calendar-account-add").addEventListener("click", () => {
+  calendarAccounts.append(calendarAccountRow(null));
+  invalidate();
+});
+document.querySelector("#calendar-directory-choose").addEventListener("click", () =>
+  pickFolder(document.querySelector("#calendar-directory")).catch(showError),
+);
 document.querySelector("#ollama-host").addEventListener("input", renderGateHint);
 document.querySelector("#check").addEventListener("click", () => check().catch(showError));
 document.querySelector("#save").addEventListener("click", () => save().catch(showError));
@@ -539,6 +662,7 @@ api("/api/v1/setup/state")
     renderFolders();
     renderKeys();
     renderPresets();
+    renderCalendar();
     applyTranslations();
   })
   .catch(showError);

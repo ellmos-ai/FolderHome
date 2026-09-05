@@ -919,3 +919,90 @@ def test_setup_ui_offers_every_provider_the_service_reports(tmp_path: Path) -> N
     offered = set(re.findall(r'<option value="([a-z]+)"', markup))
 
     assert offered == set(_app(tmp_path).state_payload()["model_providers"])
+
+
+def test_calendar_configuration_and_accounts_are_written_and_reloaded(
+    tmp_path: Path,
+) -> None:
+    """Both calendar files pass through the same confirm, verify and replace path."""
+
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _app(tmp_path)
+    request = _request(
+        tmp_path,
+        calendar={
+            "default_backend": "uptoday_ics",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "lukas",
+                    "backend": "google",
+                    "account_id": "google-lukas",
+                    "display_name": "Google Kalender",
+                    "provider_id": "skill:google-calendar",
+                    "provider_revision": "google-calendar-skill@1.2.5",
+                    "calendar_id": "primary",
+                    "credential_ref": "connector://google-calendar/default",
+                }
+            ],
+        },
+    )
+
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    assert planned.payload["calendar_json"]["default_backend"] == "uptoday_ics"
+    assert planned.payload["targets"]["calendar_file"].endswith("calendar.json")
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+    )
+
+    assert saved.status_code == 200, saved.payload
+    stored = json.loads(app.calendar_accounts_file.read_text(encoding="utf-8"))
+    assert stored["accounts"][0]["credential_ref"] == "connector://google-calendar/default"
+    # The reference points at a secret; it is never the secret itself.
+    assert app.calendar_file.is_file()
+
+
+def test_a_google_account_without_a_connector_reference_is_refused_before_writing(
+    tmp_path: Path,
+) -> None:
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _app(tmp_path)
+    request = _request(
+        tmp_path,
+        calendar={
+            "default_backend": "google",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "lukas",
+                    "backend": "google",
+                    "account_id": "google-lukas",
+                    "display_name": "Google Kalender",
+                    "provider_id": "skill:google-calendar",
+                    "provider_revision": "google-calendar-skill@1.2.5",
+                    "calendar_id": "primary",
+                    "credential_ref": None,
+                }
+            ],
+        },
+    )
+    planned = _post(app, "/api/v1/setup/validate", request)
+
+    refused = _post(
+        app,
+        "/api/v1/setup/save",
+        {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+    )
+
+    assert refused.status_code == 400
+    assert "Kalenderkonten" in refused.payload["message"]
+    assert not app.calendar_accounts_file.exists()
+    assert not app.resources_file.exists()
