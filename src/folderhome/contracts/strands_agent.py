@@ -63,6 +63,9 @@ class StrandsAgentSettings:
     max_tool_result_bytes: int = 1_048_576
     max_output_tokens: int = 4_096
     max_conversation_messages: int = 24
+    # One finite HTTP budget for ollama, anthropic and openai. Bedrock keeps its
+    # own connect and read timeouts, which botocore wants separately.
+    model_timeout_seconds: int = 120
     bedrock_connect_timeout_seconds: int = 5
     bedrock_read_timeout_seconds: int = 30
 
@@ -87,6 +90,7 @@ class StrandsAgentSettings:
                 4,
                 64,
             ),
+            "model_timeout_seconds": (self.model_timeout_seconds, 1, 600),
             "bedrock_connect_timeout_seconds": (
                 self.bedrock_connect_timeout_seconds,
                 1,
@@ -210,6 +214,7 @@ class StrandsAgentSettings:
             "max_tool_result_bytes": self.max_tool_result_bytes,
             "max_output_tokens": self.max_output_tokens,
             "max_conversation_messages": self.max_conversation_messages,
+            "model_timeout_seconds": self.model_timeout_seconds,
             "bedrock_connect_timeout_seconds": self.bedrock_connect_timeout_seconds,
             "bedrock_read_timeout_seconds": self.bedrock_read_timeout_seconds,
         }

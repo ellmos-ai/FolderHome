@@ -1596,6 +1596,7 @@ def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-tool-result-bytes", type=int, default=1_048_576)
     parser.add_argument("--max-output-tokens", type=int, default=4_096)
     parser.add_argument("--max-conversation-messages", type=int, default=24)
+    parser.add_argument("--model-timeout-seconds", type=int, default=120)
     parser.add_argument("--bedrock-connect-timeout-seconds", type=int, default=5)
     parser.add_argument("--bedrock-read-timeout-seconds", type=int, default=30)
     parser.add_argument(
@@ -4934,6 +4935,7 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         max_tool_result_bytes=args.max_tool_result_bytes,
         max_output_tokens=args.max_output_tokens,
         max_conversation_messages=args.max_conversation_messages,
+        model_timeout_seconds=args.model_timeout_seconds,
         bedrock_connect_timeout_seconds=args.bedrock_connect_timeout_seconds,
         bedrock_read_timeout_seconds=args.bedrock_read_timeout_seconds,
     )

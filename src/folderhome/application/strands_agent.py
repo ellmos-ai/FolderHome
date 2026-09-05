@@ -7,7 +7,9 @@ import os
 import re
 from collections.abc import AsyncIterable
 from copy import deepcopy
+from functools import cache
 from hashlib import sha256
+from importlib import import_module
 from importlib.metadata import PackageNotFoundError, version
 from typing import Any
 
@@ -372,13 +374,7 @@ def run_folderhome_agent_turn(
         name="FolderHome",
         description="Lokaler Dokument- und Assistenzservice-Agent.",
     )
-    result = agent(
-        prompt.strip(),
-        limits={
-            "turns": settings.max_turns,
-            "output_tokens": settings.max_output_tokens,
-        },
-    )
+    result = _call_agent(agent, prompt, settings)
     response_text = str(result).strip()
     if len(response_text) > settings.max_response_chars:
         raise FolderHomeAgentError("Agentenantwort überschreitet das Zeichenbudget.")
@@ -542,10 +538,7 @@ def consult_folderhome_specialist(
         name=expert.title_en,
         description=expert.description_en,
     )
-    result = agent(
-        request.strip(),
-        limits={"turns": settings.max_turns, "output_tokens": settings.max_output_tokens},
-    )
+    result = _call_agent(agent, request, settings)
     if len(plans) != 1:
         raise FolderHomeAgentError(
             "Fachagent hat keinen eindeutigen, geprüften Workflow-Plan erzeugt."
@@ -611,6 +604,41 @@ def plan_folderhome_agent(
     }
 
 
+@cache
+def _timeout_types() -> tuple[type[BaseException], ...]:
+    """Collect the timeout classes of whichever provider SDKs are installed."""
+
+    found: list[type[BaseException]] = []
+    for module_name, attribute in (
+        ("httpx", "TimeoutException"),
+        ("anthropic", "APITimeoutError"),
+        ("openai", "APITimeoutError"),
+    ):
+        try:
+            found.append(getattr(import_module(module_name), attribute))
+        except (ImportError, AttributeError):  # pragma: no cover - optional extra
+            continue
+    return tuple(found) or (TimeoutError,)
+
+
+def _call_agent(agent, prompt: str, settings: StrandsAgentSettings):
+    """Run one bounded turn and turn a silent hang into a stated failure."""
+
+    try:
+        return agent(
+            prompt.strip(),
+            limits={
+                "turns": settings.max_turns,
+                "output_tokens": settings.max_output_tokens,
+            },
+        )
+    except _timeout_types() as exc:
+        raise FolderHomeAgentError(
+            f"Das Modell hat innerhalb von {settings.model_timeout_seconds} "
+            "Sekunden nicht geantwortet."
+        ) from exc
+
+
 def _api_key(variable: str) -> str:
     """Read one hosted-provider key from the environment, never from a setting."""
 
@@ -641,6 +669,7 @@ def _build_model(
             ) from exc
         return OllamaModel(
             settings.ollama_host,
+            ollama_client_args={"timeout": settings.model_timeout_seconds},
             model_id=settings.ollama_model_id,
             max_tokens=settings.max_output_tokens,
         )
@@ -653,7 +682,10 @@ def _build_model(
                 "pip install 'folderhome[anthropic]'"
             ) from exc
         return AnthropicModel(
-            client_args={"api_key": _api_key("ANTHROPIC_API_KEY")},
+            client_args={
+                "api_key": _api_key("ANTHROPIC_API_KEY"),
+                "timeout": settings.model_timeout_seconds,
+            },
             model_id=settings.anthropic_model_id,
             max_tokens=settings.max_output_tokens,
         )
@@ -665,7 +697,10 @@ def _build_model(
                 "Strands-OpenAI-Provider ist nicht installiert: "
                 "pip install 'folderhome[openai]'"
             ) from exc
-        client_args: dict[str, object] = {"api_key": _api_key("OPENAI_API_KEY")}
+        client_args: dict[str, object] = {
+            "api_key": _api_key("OPENAI_API_KEY"),
+            "timeout": settings.model_timeout_seconds,
+        }
         if settings.openai_base_url is not None:
             client_args["base_url"] = settings.openai_base_url
         return OpenAIModel(

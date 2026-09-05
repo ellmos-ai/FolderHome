@@ -509,3 +509,69 @@ def test_openai_model_receives_key_model_id_base_url_and_output_budget(
     assert isinstance(model, openai_models.OpenAIModel)
     assert model.get_config()["model_id"] == "gpt-4o"
     assert model.get_config()["params"]["max_tokens"] == 2_048
+
+
+def test_model_timeout_is_bounded_and_reported() -> None:
+    settings = StrandsAgentSettings(model_timeout_seconds=90)
+
+    assert settings.model_timeout_seconds == 90
+    assert settings.to_dict()["model_timeout_seconds"] == 90
+    for invalid in (0, 601, True):
+        with pytest.raises(ValueError, match="model_timeout_seconds"):
+            StrandsAgentSettings(model_timeout_seconds=invalid)
+
+
+def test_every_http_provider_receives_the_same_finite_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model that never answers must fail, not hang; Bedrock keeps its own pair."""
+
+    pytest.importorskip("strands.models.ollama")
+    ollama = strands_module._build_model(
+        StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host="http://127.0.0.1:11434",
+            ollama_model_id="qwen3.8:27b-mlx",
+            model_timeout_seconds=45,
+        )
+    )
+    assert ollama.client_args["timeout"] == 45
+
+    gates = {"allow_network": True, "allow_sensitive_cloud_data": True}
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-a-real-secret")
+    monkeypatch.setenv("OPENAI_API_KEY", "test-key-not-a-real-secret")
+    pytest.importorskip("strands.models.anthropic")
+    anthropic_model = strands_module._build_model(
+        StrandsAgentSettings(
+            model_provider="anthropic",
+            anthropic_model_id="claude-sonnet-4-5-20250929",
+            model_timeout_seconds=45,
+            **gates,
+        )
+    )
+    assert anthropic_model.client.timeout == 45
+
+    pytest.importorskip("strands.models.openai")
+    openai_model = strands_module._build_model(
+        StrandsAgentSettings(
+            model_provider="openai",
+            openai_model_id="gpt-4o",
+            model_timeout_seconds=45,
+            **gates,
+        )
+    )
+    # OpenAIModel builds its client lazily, so the arguments are what exists here.
+    assert openai_model.client_args["timeout"] == 45
+
+
+def test_a_timed_out_model_becomes_a_stated_failure() -> None:
+    """The reported hang was a silent one; it now names the budget it exceeded."""
+
+    settings = StrandsAgentSettings(model_timeout_seconds=45)
+    timeout_type = strands_module._timeout_types()[0]
+
+    def _hang(*args: object, **kwargs: object) -> None:
+        raise timeout_type("read timed out")
+
+    with pytest.raises(strands_module.FolderHomeAgentError, match="45"):
+        strands_module._call_agent(_hang, "anything", settings)
