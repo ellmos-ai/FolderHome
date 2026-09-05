@@ -4463,3 +4463,48 @@ def test_ollama_cli_refuses_remote_host_without_both_gates(tmp_path: Path) -> No
     settings = json.loads(approved.stdout)["settings"]
     assert settings["network_used"] is True
     assert settings["ollama_host"] == "http://192.0.2.10:11434"
+
+
+def test_mcp_plan_cli_describes_both_editor_integrations_read_only() -> None:
+    planned = run_cli(
+        "mcp",
+        "plan",
+        "--access-url",
+        "http://127.0.0.1:8765/?token=cli-plan-token",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["schema"] == "folderhome.mcp-integration-plan.v1"
+    assert payload["transport"] == "stdio"
+    assert payload["network_scope"] == "loopback_only"
+    assert payload["own_application_instance"] is False
+    assert payload["server_started"] is False
+    assert payload["requires_running_app_serve"] is True
+    assert "claude mcp add folderhome" in payload["claude_code_command"]
+    assert "[mcp_servers.folderhome]" in payload["codex_config_toml"]
+    assert "folderhome_confirm_plan" in payload["tools"]
+
+
+def test_mcp_serve_cli_fails_closed_and_keeps_stdout_free_for_the_transport() -> None:
+    ungated = run_cli(
+        "mcp",
+        "serve",
+        "--access-url",
+        "http://127.0.0.1:8765/?token=cli-serve-token",
+    )
+    remote = run_cli(
+        "mcp",
+        "serve",
+        "--access-url",
+        "http://192.0.2.10:8765/?token=cli-serve-token",
+        "--approve-mcp-server",
+    )
+
+    assert ungated.returncode == 2
+    assert ungated.stdout == ""
+    assert "--approve-mcp-server" in json.loads(ungated.stderr)["error"]
+    assert remote.returncode == 2
+    assert remote.stdout == ""
+    assert "127.0.0.1" in json.loads(remote.stderr)["error"]

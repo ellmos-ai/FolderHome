@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import os
 import shutil
 import sys
 from collections.abc import Sequence
@@ -580,6 +581,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
         return _run_local_app_serve(args)
+    if args.command == "mcp" and args.mcp_command == "plan":
+        return _run_mcp_plan(args)
+    if args.command == "mcp" and args.mcp_command == "serve":
+        return _run_mcp_serve(args)
     if args.command == "folders" and args.folders_command == "snapshot":
         return _run_folders_snapshot(args)
     if args.command == "folders" and args.folders_command == "diff":
@@ -1272,6 +1277,15 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_strands_agent_arguments(app_serve)
     app_serve.add_argument("--approve-loopback-server", action="store_true")
     app_serve.add_argument("--json", action="store_true", dest="as_json")
+
+    mcp = commands.add_parser("mcp")
+    mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
+    mcp_plan = mcp_commands.add_parser("plan")
+    mcp_plan.add_argument("--access-url")
+    mcp_plan.add_argument("--json", action="store_true", dest="as_json")
+    mcp_serve = mcp_commands.add_parser("serve")
+    mcp_serve.add_argument("--access-url")
+    mcp_serve.add_argument("--approve-mcp-server", action="store_true")
 
     folders = commands.add_parser("folders")
     folder_commands = folders.add_subparsers(dest="folders_command", required=True)
@@ -5005,6 +5019,35 @@ def _run_local_app_serve(args: argparse.Namespace) -> int:
     finally:
         if server is not None:
             server.server_close()
+    return 0
+
+
+def _run_mcp_plan(args: argparse.Namespace) -> int:
+    from folderhome.mcp_server import ACCESS_URL_ENV, integration_plan
+
+    payload = integration_plan(args.access_url or os.environ.get(ACCESS_URL_ENV))
+    print(json.dumps(payload, ensure_ascii=False, sort_keys=True))
+    return 0
+
+
+def _run_mcp_serve(args: argparse.Namespace) -> int:
+    """Run the stdio MCP proxy; stdout is the transport, so errors go to stderr."""
+
+    from folderhome.mcp_server import ACCESS_URL_ENV, McpServerError, serve_mcp_stdio
+
+    try:
+        serve_mcp_stdio(
+            access_url=args.access_url or os.environ.get(ACCESS_URL_ENV),
+            approve_mcp_server=args.approve_mcp_server,
+        )
+    except KeyboardInterrupt:
+        return 0
+    except McpServerError as exc:
+        print(
+            json.dumps({"valid": False, "error": str(exc)}, ensure_ascii=False),
+            file=sys.stderr,
+        )
+        return 2
     return 0
 
 
