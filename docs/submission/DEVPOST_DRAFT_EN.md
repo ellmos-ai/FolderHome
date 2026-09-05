@@ -132,6 +132,16 @@ accepts several folders, and the calendar files are written through the same
 confirm-verify-replace path as everything else, though only the calendar
 commands read them and the running app does not.
 
+The installer also owns the profiles now, which turned out to be the difference
+between a demo and something a household can keep. It adds, renames and deletes
+them, edits their rules against the closed key set the contract accepts, and
+keeps its own profile folder instead of borrowing the examples in the
+repository. A deletion is the interesting case: folder bindings that would then
+belong to nobody fall away in the same plan, the calendar accounts of that
+profile leave their file, the preview names everything that goes, and the
+profile file itself is moved into a dated folder rather than deleted, because a
+profile file is the only place its rules live.
+
 A section called Subscriptions closes the loop for people who already pay for an
 agent. Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
 subscription drive FolderHome as a tool, which means the agent is the brain and

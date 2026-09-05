@@ -28,6 +28,28 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- Profile werden im Einrichtungsprogramm verwaltet: Abschnitt 1 listet sie,
+  legt eines an, benennt es um, bearbeitet seine Regeln und löscht es nach einer
+  Rückfrage. Bisher lautete die Antwort auf „Kann ich ein Beispielprofil löschen
+  und ein eigenes anlegen?" nein, der Browser konnte sie nur lesen
+- die Einrichtung besitzt einen eigenen Profilordner, standardmäßig
+  `<Konfigurationsordner>\profiles` statt des `examples\profiles` dieses
+  Repositorys, und startet auch dann, wenn dieser Ordner noch leer ist. Ein
+  erster Lauf bietet an, die mitgelieferten Beispiele zu übernehmen oder mit
+  einer leeren Liste zu beginnen; die Beispiele selbst bleiben eine Vorlage und
+  werden als Schreibziel abgelehnt
+- das Löschen eines Profils kaskadiert im selben Plan: Ordnerbindungen, die
+  danach zu niemandem mehr gehören, entfallen, seine Kalenderkonten verlassen
+  `calendar-accounts.json`, und die Vorschau nennt alles, was mitgeht.
+  Mindestens ein Profil muss bestehen bleiben, und die Datei selbst wandert in
+  einen datierten `.deleted-<Zeitstempel>`-Ordner, statt entfernt zu werden
+- Haushalts- und Profildokumente gehen denselben Weg aus Plan und Bestätigung:
+  Der Plan-Hash deckt sie ab, jedes wird temporär geschrieben, über
+  `parse_profile_configuration` zurückgelesen und erst dann an seinen Platz
+  gelegt; der Dateiname eines Profils folgt der geprüften ID, nie einer
+  Texteingabe
+- `--profiles-dir` ist für `setup plan` und `setup serve` optional
+
 - Abschnitt „Abonnements" im Einrichtungsprogramm, zwischen Modell und
   API-Schlüsseln: Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo
   steuern FolderHome als Werkzeug, der Agent ist also das Gehirn und FolderHome

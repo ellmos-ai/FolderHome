@@ -26,6 +26,26 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- profiles are managed in the installer: section 1 lists them, adds one, renames
+  one, edits its rules and deletes one behind a confirmation. Until now the
+  answer to "can I delete an example profile and add my own?" was no, the
+  browser could only read them
+- the installer owns a profile folder, by default `<configuration folder>\profiles`
+  instead of the `examples\profiles` of this repository, and starts even when
+  that folder is still empty. A first run offers to copy the shipped examples or
+  to begin with an empty list; the examples themselves stay a template and are
+  refused as a write target
+- deleting a profile cascades in the same plan: folder bindings that would then
+  belong to nobody fall away, its calendar accounts leave
+  `calendar-accounts.json`, and the preview names everything that goes. At least
+  one profile has to remain, and the file itself moves into a dated
+  `.deleted-<timestamp>` folder rather than being removed
+- household and profile documents travel the existing plan and confirm path: the
+  plan hash covers them, each is staged, read back through
+  `parse_profile_configuration` and only then put in place, and a profile file
+  name is derived from the validated id, never from typed text
+- `--profiles-dir` is optional for `setup plan` and `setup serve`
+
 - installer section "Subscriptions" between the model and the API keys: Claude
   Code with a Claude subscription and the Codex CLI with a ChatGPT subscription
   drive FolderHome as a tool, so the agent is the brain and FolderHome needs no

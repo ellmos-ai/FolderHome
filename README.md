@@ -394,21 +394,44 @@ is allowed to read and write.
 
 ```powershell
 # Show what the installer would configure, without starting a listener
-.venv\Scripts\python.exe -m folderhome setup plan `
-  --profiles-dir examples\profiles --json
+.venv\Scripts\python.exe -m folderhome setup plan --json
 
 # Start the installer and open the printed access_url in a browser
-.venv\Scripts\python.exe -m folderhome setup serve `
-  --profiles-dir examples\profiles --port 8766 `
+.venv\Scripts\python.exe -m folderhome setup serve --port 8766 `
   --approve-loopback-server --json
 ```
 
-The page walks through six steps: folders, model presets, API keys, runtime
-values, calendar, and a summary. Nothing is stored automatically. Nothing is
+`--profiles-dir` is optional and names an existing profile folder; without it
+the installer uses its own, beside the rest of the configuration. It starts even
+when that folder is still empty, because creating one is what this program is
+for.
+
+The page walks through eight steps: profiles, folders, model presets,
+subscriptions, API keys, runtime values, calendar, and a summary. Nothing is
+stored automatically. Nothing is
 written until you press Save, and the server accepts a save only together with
 the hash of exactly the plan it showed you. Folders are checked before that:
 they must exist, must not be symbolic links, and one outside your own user
 folder needs an explicit tick.
+
+Section 1 owns the profiles. A profile organises documents inside one operating
+system account; it is not an access boundary. You add one there, rename it, edit
+its rules and delete it, and the profile folder itself is a field: by default
+`<configuration folder>\profiles`, not the `examples\profiles` of this
+repository. Those examples stay a template and are refused as a write target; a
+first run offers to copy them into your own folder or to start with an empty
+list. A household written for the first time takes the name of the running
+operating system account, while an existing one keeps the account label it
+already carries.
+
+Deleting a profile takes its bindings with it in the same plan: folder bindings
+that would then belong to nobody fall away, and its calendar accounts leave
+`calendar-accounts.json`. The preview names everything that goes, at least one
+profile has to remain, and the profile file itself moves into a dated
+`.deleted-<timestamp>` folder rather than being removed. A rule is a key from
+the closed set the contract accepts, a value, and a scope: the whole profile, or
+one area of it. The rules everyone shares live in `household.json` and are
+edited in the same section; a profile rule with the same key wins over them.
 
 Each folder field has a Choose folder button that asks the operating system for
 a real directory, because a browser cannot hand over an absolute path; typing
@@ -419,11 +442,12 @@ every one of them in its resource catalogue. Output purposes
 (`documents.output`, `correspondence.output`, `calendar.export_output`) stay
 single, because a write needs one destination.
 
-Saving writes two files into your configuration folder, by default
-`%LOCALAPPDATA%\FolderHome\`:
+Saving writes these files, by default under `%LOCALAPPDATA%\FolderHome\`:
 
 | File | Content |
 |---|---|
+| `profiles\household.json` | the rules every profile shares, plus the operating system account label |
+| `profiles\<id>.json` | one file per profile: display name and its own rules |
 | `resources.json` | the private resource registry, validated against the same contract the app loads |
 | `launch.json` | the start-up values for `app serve`: profiles, state folder, registry, model, presets, port |
 | `.env` | the hosted-provider API keys, written only here and never read back into the page |
@@ -442,10 +466,11 @@ The calendar files are read by the `calendar` commands, not by `app serve`, and
 this build has no Outlook backend. The installer says both, and offers only the
 four backends that exist.
 
-Saving replaces `resources.json` completely rather than merging into it. If you
-extended the registry by hand, for example with a drafts mailbox or a calendar
-state folder, those entries are lost on save. The previous version stays next to
-it as `.bak-<timestamp>`, so you can copy the additions back.
+Saving replaces `resources.json` and the profile files completely rather than
+merging into them. If you extended the registry by hand, for example with a
+drafts mailbox or a calendar state folder, those entries are lost on save. The
+previous version stays next to it as `.bak-<timestamp>`, so you can copy the
+additions back.
 
 Start the app with what was written:
 

@@ -420,22 +420,47 @@ schreiben darf.
 
 ```powershell
 # Zeigen, was eingerichtet würde, ohne einen Listener zu starten
-.venv\Scripts\python.exe -m folderhome setup plan `
-  --profiles-dir examples\profiles --json
+.venv\Scripts\python.exe -m folderhome setup plan --json
 
 # Einrichtung starten und die ausgegebene access_url im Browser öffnen
-.venv\Scripts\python.exe -m folderhome setup serve `
-  --profiles-dir examples\profiles --port 8766 `
+.venv\Scripts\python.exe -m folderhome setup serve --port 8766 `
   --approve-loopback-server --json
 ```
 
-Die Seite führt durch sechs Schritte: Ordner, Modell-Presets, API-Schlüssel,
-Laufzeitwerte, Kalender und eine Zusammenfassung. Es wird nichts automatisch
+`--profiles-dir` ist optional und benennt einen vorhandenen Profilordner; ohne
+die Angabe nutzt die Einrichtung ihren eigenen, neben der übrigen Konfiguration.
+Sie startet auch dann, wenn dieser Ordner noch leer ist, denn einen anzulegen ist
+der Zweck dieses Programms.
+
+Die Seite führt durch acht Schritte: Profile, Ordner, Modell-Presets,
+Abonnements, API-Schlüssel, Laufzeitwerte, Kalender und eine Zusammenfassung. Es
+wird nichts automatisch
 gespeichert. Geschrieben wird erst auf den Speichern-Knopf, und der Server nimmt
 ein Speichern nur zusammen mit dem Hash genau des Plans an, den er dir gezeigt
 hat. Ordner werden vorher geprüft: Sie müssen existieren, dürfen keine Symlinks
 sein, und einer außerhalb des eigenen Benutzerordners braucht ein
 ausdrückliches Häkchen.
+
+Abschnitt 1 gehört den Profilen. Ein Profil organisiert Dokumente innerhalb
+eines Betriebssystemkontos; es ist keine Zugriffsgrenze. Dort legst du eines an,
+benennst es um, bearbeitest seine Regeln und löschst es, und der Profilordner
+selbst ist ein Feld: standardmäßig `<Konfigurationsordner>\profiles`, nicht das
+`examples\profiles` dieses Repositorys. Diese Beispiele bleiben eine Vorlage und
+werden als Schreibziel abgelehnt; ein erster Lauf bietet an, sie in den eigenen
+Ordner zu kopieren oder mit einer leeren Liste zu beginnen. Ein erstmals
+geschriebener Haushalt übernimmt den Namen des laufenden Betriebssystemkontos,
+ein bestehender behält das Kontolabel, das er bereits trägt.
+
+Das Löschen eines Profils nimmt seine Bindungen im selben Plan mit: Ordnerbindungen,
+die danach zu niemandem mehr gehören, entfallen, und seine Kalenderkonten
+verlassen `calendar-accounts.json`. Die Vorschau nennt alles, was mitgeht,
+mindestens ein Profil muss bestehen bleiben, und die Profildatei selbst wandert
+in einen datierten `.deleted-<Zeitstempel>`-Ordner, statt entfernt zu werden.
+Eine Regel besteht aus einem Schlüssel aus der geschlossenen Menge, die der
+Vertrag annimmt, einem Wert und einer Reichweite: das ganze Profil oder einer
+seiner Bereiche. Die Regeln, die alle teilen, stehen in `household.json` und
+werden im selben Abschnitt bearbeitet; eine Profilregel mit demselben Schlüssel
+gewinnt gegen sie.
 
 Neben jedem Ordnerfeld steht ein Knopf, der das Betriebssystem nach einem echten
 Verzeichnis fragt, weil ein Browser keinen absoluten Pfad übergeben kann; die
@@ -447,11 +472,13 @@ Ausgabezwecke (`documents.output`, `correspondence.output`,
 `calendar.export_output`) bleiben einzeln, weil ein Schreibvorgang genau ein
 Ziel braucht.
 
-Das Speichern schreibt zwei Dateien in dein Konfigurationsverzeichnis,
-standardmäßig `%LOCALAPPDATA%\FolderHome\`:
+Das Speichern schreibt diese Dateien, standardmäßig unter
+`%LOCALAPPDATA%\FolderHome\`:
 
 | Datei | Inhalt |
 |---|---|
+| `profiles\household.json` | die Regeln, die alle Profile teilen, dazu das Kontolabel des Betriebssystems |
+| `profiles\<id>.json` | eine Datei je Profil: Anzeigename und eigene Regeln |
 | `resources.json` | das private Ressourcenregister, geprüft gegen denselben Vertrag, den die App lädt |
 | `launch.json` | die Startwerte für `app serve`: Profile, State-Ordner, Register, Modell, Presets, Port |
 | `.env` | die API-Schlüssel der fremdgehosteten Anbieter, nur hier geschrieben und nie in die Seite zurückgelesen |
@@ -471,11 +498,11 @@ Die Kalenderdateien liest nicht `app serve`, sondern die `calendar`-Befehle, und
 ein Outlook-Backend gibt es in dieser Fassung nicht. Das Einrichtungsprogramm
 sagt beides und bietet nur die vier vorhandenen Backends an.
 
-Das Speichern ersetzt `resources.json` vollständig, es führt nichts zusammen.
-Wer das Register von Hand erweitert hat, etwa um ein Entwurfspostfach oder einen
-Kalender-State-Ordner, verliert diese Einträge beim Speichern. Die Vorversion
-bleibt als `.bak-<Zeitstempel>` daneben liegen, sodass sich die Zusätze
-zurückkopieren lassen.
+Das Speichern ersetzt `resources.json` und die Profildateien vollständig, es
+führt nichts zusammen. Wer das Register von Hand erweitert hat, etwa um ein
+Entwurfspostfach oder einen Kalender-State-Ordner, verliert diese Einträge beim
+Speichern. Die Vorversion bleibt als `.bak-<Zeitstempel>` daneben liegen, sodass
+sich die Zusätze zurückkopieren lassen.
 
 Die App mit dem Geschriebenen starten:
 
