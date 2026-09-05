@@ -24,7 +24,8 @@ const translations = {
     outsideHome: "I confirm folders outside my user folder",
     summaryTitle: "4. Summary and save",
     checkButton: "Check",
-    saveButton: "Write these two files",
+    saveButton: "Save",
+    saveNote: "Nothing is saved automatically. Check first, then save; saving writes resources.json and launch.json.",
     accountLine: "Operating system account {account} · configuration in {dir}",
     checkOk: "The plan is valid. These two files will be written:",
     checkFailed: "Please correct this first:",
@@ -58,7 +59,8 @@ const translations = {
     outsideHome: "Ich bestätige Ordner außerhalb meines Benutzerordners",
     summaryTitle: "4. Zusammenfassung und Speichern",
     checkButton: "Prüfen",
-    saveButton: "Diese zwei Dateien schreiben",
+    saveButton: "Speichern",
+    saveNote: "Es wird nichts automatisch gespeichert. Erst Prüfen, dann Speichern; das Speichern schreibt resources.json und launch.json.",
     accountLine: "Betriebssystemkonto {account} · Konfiguration in {dir}",
     checkOk: "Der Plan ist gültig. Diese zwei Dateien werden geschrieben:",
     checkFailed: "Bitte zuerst korrigieren:",
@@ -80,6 +82,7 @@ const summary = document.querySelector("#summary");
 const providerSelect = document.querySelector("#provider");
 const saveButton = document.querySelector("#save");
 const gateHint = document.querySelector("#gate-hint");
+const saveNote = document.querySelector("#save-note");
 
 function t(key, replacements = {}) {
   let value = translations[language][key] || translations.en[key] || key;
@@ -212,6 +215,7 @@ async function check() {
   });
   checkedPlan = plan.valid ? plan : null;
   saveButton.disabled = !plan.valid;
+  saveNote.hidden = false;
   renderPlan(plan);
 }
 
@@ -231,6 +235,7 @@ async function save() {
     summary.append(textElement("p", t("backupNote"), "hint"));
   }
   saveButton.disabled = true;
+  saveNote.hidden = true;
   checkedPlan = null;
 }
 
