@@ -10,9 +10,10 @@ from pathlib import Path
 import pytest
 
 from folderhome.application.profile_rules import load_profile_configuration
+from folderhome.application.resource_registry import parse_resource_registry
 from folderhome.contracts import LocalAppSettings
 from folderhome.contracts.resources import ResourceRegistryError
-from folderhome.setup_app import SetupAppError, SetupApplication
+from folderhome.setup_app import SETUP_PURPOSES, SetupAppError, SetupApplication
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
 TOKEN = "setup-app-test-token-with-sufficient-entropy-12345678"
@@ -483,30 +484,37 @@ def test_launch_command_names_every_gate_the_file_cannot_grant(
     assert "allow_network" not in planned.payload["launch_json"]
 
 
-def test_calendar_export_folder_is_a_writable_output_that_never_leaves_the_machine(
+@pytest.mark.parametrize("purpose", SETUP_PURPOSES)
+def test_each_purpose_alone_produces_a_registry_the_real_loader_accepts(
     tmp_path: Path,
+    purpose: str,
 ) -> None:
-    """The one purpose that does not end in `.output` still is one."""
+    """One purpose per folder is the case a mixed folder hid: check every one."""
 
-    export = tmp_path / "calendar-export"
-    export.mkdir()
+    folder = tmp_path / "single"
+    folder.mkdir()
     app = _app(tmp_path)
     request = _request(
         tmp_path,
-        folders=[
-            {
-                "profile_id": "lukas",
-                "purpose": "calendar.export_output",
-                "path": str(export),
-            }
-        ],
+        folders=[{"profile_id": "lukas", "purpose": purpose, "path": str(folder)}],
     )
 
     planned = _post(app, "/api/v1/setup/validate", request)
     assert planned.payload["valid"] is True, planned.payload["errors"]
     resource = planned.payload["resources_json"]["resources"][0]
-    assert resource["operations"] == ["create"]
-    assert resource["cloud_context"] == "deny"
+    assert resource["operations"], "a purpose without operations is unloadable"
+    writes = "create" in resource["operations"]
+    # A folder we write into is a folder that stays here.
+    assert resource["cloud_context"] == ("deny" if writes else "minimized_with_approval")
+
+    # The contract, not our own idea of it, has the last word.
+    parse_resource_registry(
+        planned.payload["resources_json"],
+        expected_os_account=app.profiles.os_account,
+        known_profile_ids=frozenset(
+            item.profile_id for item in app.profiles.profiles
+        ),
+    )
 
     saved = _post(
         app,
@@ -996,6 +1004,13 @@ def test_a_google_account_without_a_connector_reference_is_refused_before_writin
     )
     planned = _post(app, "/api/v1/setup/validate", request)
 
+    # The check says so; the save button never lights up for a plan that fails.
+    assert planned.payload["valid"] is False
+    assert any(
+        item["field"] == "calendar.accounts" and "Connector-Referenz" in item["message"]
+        for item in planned.payload["errors"]
+    ), planned.payload["errors"]
+
     refused = _post(
         app,
         "/api/v1/setup/save",
@@ -1003,6 +1018,23 @@ def test_a_google_account_without_a_connector_reference_is_refused_before_writin
     )
 
     assert refused.status_code == 400
-    assert "Kalenderkonten" in refused.payload["message"]
     assert not app.calendar_accounts_file.exists()
     assert not app.resources_file.exists()
+
+
+def test_a_registry_that_does_not_load_is_not_reported_as_configured(
+    tmp_path: Path,
+) -> None:
+    """`configured` answers whether the app can start, not whether a file exists."""
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    app = _app(tmp_path, config_dir=config_dir)
+    assert app.state_payload()["configured"] is False
+
+    (config_dir / "resources.json").write_text("{}", encoding="utf-8")
+    state = app.state_payload()
+
+    assert app.resources_file.is_file()
+    assert state["configured"] is False
+    assert state["current_folders"] == []

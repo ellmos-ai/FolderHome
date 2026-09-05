@@ -38,6 +38,21 @@ def load_resource_registry(
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise ResourceRegistryError(f"Ressourcenregister ist nicht lesbar: {exc}") from exc
+    return parse_resource_registry(
+        payload,
+        expected_os_account=expected_os_account,
+        known_profile_ids=known_profile_ids,
+    )
+
+
+def parse_resource_registry(
+    payload: object,
+    *,
+    expected_os_account: str,
+    known_profile_ids: frozenset[str],
+) -> ResourceRegistry:
+    """Apply the same checks to a document that is not on disk yet."""
+
     if not isinstance(payload, dict):
         raise ResourceRegistryError("Ressourcenregister muss ein JSON-Objekt sein.")
     expected_fields = {"schema", "os_account", "resources", "profile_defaults"}

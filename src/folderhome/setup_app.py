@@ -26,19 +26,22 @@ from urllib.parse import parse_qs, quote, urlsplit
 from folderhome.application.calendar_connectors import (
     CalendarConnectorError,
     load_calendar_connector_accounts,
+    parse_calendar_connector_accounts,
 )
 from folderhome.application.calendar_handoff import (
     CalendarWorkflowError,
     load_calendar_configuration,
+    parse_calendar_configuration,
 )
 from folderhome.application.profile_rules import ProfileConfiguration
 from folderhome.application.resource_registry import (
     default_resource_registry_path,
     load_resource_registry,
+    parse_resource_registry,
 )
 from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
-from folderhome.contracts.resources import ResourceRegistryError
+from folderhome.contracts.resources import ResourceRegistry, ResourceRegistryError
 from folderhome.contracts.strands_agent import StrandsAgentSettings
 
 # One explicit table instead of guessing from name suffixes: `calendar.export_output`
@@ -162,6 +165,7 @@ class SetupApplication:
 
         stored_keys = read_env_file(self.env_file)
         launch = self._current_launch()
+        registry = self._load_registry()
         return {
             "schema": "folderhome.setup-state.v1",
             "os_account": self.profiles.os_account,
@@ -191,10 +195,10 @@ class SetupApplication:
             "calendar_accounts_file": str(self.calendar_accounts_file),
             "home": str(Path.home().resolve()),
             "profiles_dir": str(self.settings.profiles_dir),
-            "configured": self.resources_file.is_file(),
+            "configured": registry is not None,
             "has_anthropic_key": "ANTHROPIC_API_KEY" in stored_keys,
             "has_openai_key": "OPENAI_API_KEY" in stored_keys,
-            "current_folders": self._current_folders(),
+            "current_folders": _configured_folders(registry),
             "model_presets": launch.get("model_presets") or {},
             "model_preset": launch.get("model_preset"),
             "writes_credentials": False,
@@ -267,9 +271,42 @@ class SetupApplication:
                 {"field": "folders", "message": "Mindestens ein Ordner wird benötigt."}
             ]
             payload["valid"] = False
+        if payload["valid"]:
+            # The reload check belongs here, not only in save: a plan the loader
+            # would reject must never light up the save button.
+            payload["errors"] = self._document_errors(payload)
+            payload["valid"] = not payload["errors"]
         payload["launch_command"] = _launch_command(self.launch_file, model)
         payload["plan_sha256"] = _plan_digest(payload)
         return payload
+
+    def _document_errors(self, payload: dict[str, Any]) -> list[dict[str, str]]:
+        """Run each written document through the contract that will load it."""
+
+        errors: list[dict[str, str]] = []
+        try:
+            parse_resource_registry(
+                payload["resources_json"],
+                expected_os_account=self.profiles.os_account,
+                known_profile_ids=frozenset(
+                    item.profile_id for item in self.profiles.profiles
+                ),
+            )
+        except ResourceRegistryError as exc:
+            errors.append({"field": "folders", "message": str(exc)})
+        if payload["calendar_json"] is not None:
+            try:
+                parse_calendar_configuration(
+                    payload["calendar_json"], config_path=self.calendar_file
+                )
+            except CalendarWorkflowError as exc:
+                errors.append({"field": "calendar", "message": str(exc)})
+        if payload["calendar_accounts_json"] is not None:
+            try:
+                parse_calendar_connector_accounts(payload["calendar_accounts_json"])
+            except CalendarConnectorError as exc:
+                errors.append({"field": "calendar.accounts", "message": str(exc)})
+        return errors
 
     def save(self, request: dict[str, Any]) -> dict[str, Any]:
         """Write both files atomically after an exact, confirmed plan."""
@@ -395,11 +432,13 @@ class SetupApplication:
             return {}
         return payload
 
-    def _current_folders(self) -> list[dict[str, str]]:
+    def _load_registry(self) -> ResourceRegistry | None:
+        """Return the configured registry, or nothing when it does not load."""
+
         if not self.resources_file.is_file():
-            return []
+            return None
         try:
-            registry = load_resource_registry(
+            return load_resource_registry(
                 self.resources_file,
                 expected_os_account=self.profiles.os_account,
                 known_profile_ids=frozenset(
@@ -407,23 +446,7 @@ class SetupApplication:
                 ),
             )
         except ResourceRegistryError:
-            return []
-        current = []
-        for resource in registry.resources:
-            for profile_id in sorted(resource.profile_ids):
-                defaults = registry.profile_defaults.get(profile_id, {})
-                for purpose in sorted(resource.purposes):
-                    if purpose not in SETUP_PURPOSES:
-                        continue
-                    current.append(
-                        {
-                            "profile_id": profile_id,
-                            "purpose": purpose,
-                            "path": str(resource.local_path),
-                            "is_default": defaults.get(purpose) == resource.resource_id,
-                        }
-                    )
-        return current
+            return None
 
     # ------------------------------------------------------------------- HTTP
     def handle(
@@ -725,6 +748,29 @@ def _verify_calendar_accounts(path: Path) -> None:
         load_calendar_connector_accounts(path)
     except CalendarConnectorError as exc:
         raise SetupAppError(f"Geschriebene Kalenderkonten sind nicht ladbar: {exc}") from exc
+
+
+def _configured_folders(registry: ResourceRegistry | None) -> list[dict[str, Any]]:
+    """List every configured folder, marking the default of each purpose."""
+
+    if registry is None:
+        return []
+    current = []
+    for resource in registry.resources:
+        for profile_id in sorted(resource.profile_ids):
+            defaults = registry.profile_defaults.get(profile_id, {})
+            for purpose in sorted(resource.purposes):
+                if purpose not in SETUP_PURPOSES:
+                    continue
+                current.append(
+                    {
+                        "profile_id": profile_id,
+                        "purpose": purpose,
+                        "path": str(resource.local_path),
+                        "is_default": defaults.get(purpose) == resource.resource_id,
+                    }
+                )
+    return current
 
 
 def _security_headers() -> dict[str, str]:

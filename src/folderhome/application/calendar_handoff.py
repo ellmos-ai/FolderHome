@@ -94,6 +94,17 @@ def load_calendar_configuration(path: Path) -> CalendarConfiguration:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         raise CalendarWorkflowError(f"Kalenderkonfiguration ist nicht lesbar: {exc}") from exc
+    return parse_calendar_configuration(payload, config_path=path)
+
+
+def parse_calendar_configuration(
+    payload: object,
+    *,
+    config_path: Path,
+) -> CalendarConfiguration:
+    """Apply the same checks to a document that is not on disk yet."""
+
+    path = config_path
     if not isinstance(payload, dict) or payload.get("schema") != CalendarConfiguration.SCHEMA:
         raise CalendarWorkflowError("Kalenderkonfiguration verwendet ein unbekanntes Schema.")
     try:
