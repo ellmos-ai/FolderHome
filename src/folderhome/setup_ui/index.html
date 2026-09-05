@@ -49,15 +49,25 @@
         <section class="card">
           <h2 data-i18n="modelTitle">2. Model</h2>
           <p class="hint" data-i18n="modelHint">
-            The provider is a start-up choice. Network and data approvals stay command-line
-            flags and are never written to a file.
+            The provider is a start-up choice: the app reads the active preset when it
+            starts. Network and data approvals stay command-line flags and are never
+            written to a file.
           </p>
+          <div id="preset-list"></div>
+          <fieldset>
+            <legend data-i18n="presetFormTitle">New or edited preset</legend>
+            <label class="field">
+              <span data-i18n="presetName">Preset name (optional)</span>
+              <input id="preset-name" placeholder="local" spellcheck="false">
+            </label>
           <label class="field">
             <span data-i18n="providerLabel">Provider</span>
             <select id="provider">
               <option value="fixture">fixture</option>
               <option value="ollama">ollama</option>
               <option value="bedrock">bedrock</option>
+              <option value="anthropic">anthropic</option>
+              <option value="openai">openai</option>
             </select>
           </label>
           <div id="ollama-fields" hidden>
@@ -80,6 +90,27 @@
               <input id="aws-region" placeholder="eu-central-1" spellcheck="false">
             </label>
           </div>
+          <div id="anthropic-fields" hidden>
+            <label class="field">
+              <span data-i18n="anthropicModel">Anthropic model id</span>
+              <input id="anthropic-model-id" placeholder="claude-sonnet-4-5-20250929"
+                     spellcheck="false">
+            </label>
+          </div>
+          <div id="openai-fields" hidden>
+            <label class="field">
+              <span data-i18n="openaiModel">OpenAI model id</span>
+              <input id="openai-model-id" placeholder="gpt-4o" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="openaiBaseUrl">OpenAI base URL (optional)</span>
+              <input id="openai-base-url" placeholder="https://api.openai.com/v1"
+                     spellcheck="false">
+            </label>
+          </div>
+            <button id="preset-save" class="button compact" type="button"
+                    data-i18n="presetSave">Save as preset</button>
+          </fieldset>
           <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
         </section>
 
@@ -129,8 +160,8 @@
           <h2 data-i18n="cloudTitle">Cloud variant</h2>
           <p class="hint" data-i18n="cloudHint">
             In the AWS or browser variant there are no local output folders. There the
-            results view is the delivery path: files are downloaded into the browser's own
-            download folder.
+            results view is the delivery path: files are downloaded into the download folder
+            of the browser.
           </p>
         </section>
       </main>

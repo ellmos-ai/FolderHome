@@ -11,6 +11,7 @@ from __future__ import annotations
 import hmac
 import json
 import os
+import re
 import secrets
 import subprocess
 import sys
@@ -50,6 +51,16 @@ LAUNCH_CONFIG_SCHEMA = "folderhome.launch-config.v1"
 # A closed list means a config folder cannot quietly redefine PATH or a proxy.
 ENV_FILENAME = ".env"
 ENV_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")
+_PRESET_NAME = re.compile(r"[A-Za-z0-9_.-]{1,40}")
+_MODEL_FIELDS = (
+    "ollama_host",
+    "ollama_model_id",
+    "bedrock_model_id",
+    "aws_region",
+    "anthropic_model_id",
+    "openai_model_id",
+    "openai_base_url",
+)
 
 
 class SetupAppError(RuntimeError):
@@ -123,6 +134,7 @@ class SetupApplication:
         """Describe what the installer can configure and what is configured now."""
 
         stored_keys = read_env_file(self.env_file)
+        launch = self._current_launch()
         return {
             "schema": "folderhome.setup-state.v1",
             "os_account": self.profiles.os_account,
@@ -136,7 +148,13 @@ class SetupApplication:
             "repeatable_purposes": [
                 purpose for purpose in SETUP_PURPOSES if purpose not in _OUTPUT_PURPOSES
             ],
-            "model_providers": ["fixture", "ollama", "bedrock"],
+            "model_providers": [
+                "fixture",
+                "ollama",
+                "bedrock",
+                "anthropic",
+                "openai",
+            ],
             "config_dir": str(self.config_dir),
             "resources_file": str(self.resources_file),
             "launch_file": str(self.launch_file),
@@ -146,6 +164,8 @@ class SetupApplication:
             "has_anthropic_key": "ANTHROPIC_API_KEY" in stored_keys,
             "has_openai_key": "OPENAI_API_KEY" in stored_keys,
             "current_folders": self._current_folders(),
+            "model_presets": launch.get("model_presets") or {},
+            "model_preset": launch.get("model_preset"),
             "writes_credentials": False,
         }
 
@@ -154,7 +174,7 @@ class SetupApplication:
 
         errors: list[dict[str, str]] = []
         folders = _folder_entries(request, self.profiles, errors)
-        model = _model_settings(request, errors)
+        model, presets, preset_name = _model_settings(request, errors)
         port = _port(request, errors)
         state_dir = _directory(request.get("state_dir"), "state_dir", errors)
         profiles_dir = _directory(
@@ -186,6 +206,8 @@ class SetupApplication:
                 state_dir=state_dir,
                 resources_file=self.resources_file if folders else None,
                 model=model,
+                presets=presets,
+                preset_name=preset_name,
                 port=port,
             )
         )
@@ -304,6 +326,19 @@ class SetupApplication:
             raise SetupAppError(
                 f"Geschriebenes Register ist nicht ladbar: {exc}"
             ) from exc
+
+    def _current_launch(self) -> dict[str, Any]:
+        """Read the written launch file so saved presets survive a reopen."""
+
+        try:
+            payload = json.loads(self.launch_file.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+        if not isinstance(payload, dict) or payload.get("schema") != (
+            LAUNCH_CONFIG_SCHEMA
+        ):
+            return {}
+        return payload
 
     def _current_folders(self) -> list[dict[str, str]]:
         if not self.resources_file.is_file():
@@ -630,39 +665,74 @@ def _check_folder(entry: dict[str, Any], errors: list[dict[str, str]]) -> None:
         )
 
 
-def _model_settings(
-    request: dict[str, Any],
+def _model_values(
+    raw: object,
+    field: str,
     errors: list[dict[str, str]],
 ) -> dict[str, Any]:
-    raw = request.get("model")
+    """Check one model choice against the real contract, not a second rule set."""
+
     model = raw if isinstance(raw, dict) else {}
     provider = model.get("provider", "fixture")
-    values = {
-        "provider": provider,
-        "ollama_host": model.get("ollama_host") or None,
-        "ollama_model_id": model.get("ollama_model_id") or None,
-        "bedrock_model_id": model.get("bedrock_model_id") or None,
-        "aws_region": model.get("aws_region") or None,
-        "network_used": False,
-    }
+    values: dict[str, Any] = {"provider": provider, "network_used": False}
+    for name in _MODEL_FIELDS:
+        values[name] = model.get(name) or None
     try:
-        # Reuse the real contract instead of a second rule set. The gates are shown
-        # in the UI and stay start-up flags; they are never written to a file.
         settings = StrandsAgentSettings(
             model_provider=str(provider),
-            ollama_host=values["ollama_host"],
-            ollama_model_id=values["ollama_model_id"],
-            bedrock_model_id=values["bedrock_model_id"],
-            aws_region=values["aws_region"],
+            # The gates are shown in the UI and stay start-up flags; a file never
+            # grants them, so they are assumed here only to reach the verdict.
             allow_network=provider != "fixture",
             allow_sensitive_cloud_data=provider != "fixture",
+            **{name: values[name] for name in _MODEL_FIELDS},
         )
     except ValueError as exc:
-        errors.append({"field": "model", "message": str(exc)})
+        errors.append({"field": field, "message": str(exc)})
     else:
         # The same verdict the app uses, so the printed command matches the gates.
         values["network_used"] = settings.network_used
     return values
+
+
+def _model_settings(
+    request: dict[str, Any],
+    errors: list[dict[str, str]],
+) -> tuple[dict[str, Any], dict[str, dict[str, Any]], str | None]:
+    """Return the active model, every saved preset, and the active preset's name."""
+
+    raw_presets = request.get("model_presets")
+    if raw_presets is not None and not isinstance(raw_presets, dict):
+        errors.append(
+            {"field": "model_presets", "message": "model_presets muss ein Objekt sein."}
+        )
+        raw_presets = None
+    presets: dict[str, dict[str, Any]] = {}
+    for name, entry in (raw_presets or {}).items():
+        if not isinstance(name, str) or _PRESET_NAME.fullmatch(name) is None:
+            errors.append(
+                {
+                    "field": "model_presets",
+                    "message": (
+                        f"Preset-Name {name} darf nur Buchstaben, Ziffern, _ . - "
+                        "enthalten (1 bis 40 Zeichen)."
+                    ),
+                }
+            )
+            continue
+        # Inactive presets are checked as well: storing an unusable one helps nobody.
+        presets[name] = _model_values(entry, f"model_presets[{name}]", errors)
+    active = request.get("model_preset")
+    if active is not None and not isinstance(active, str):
+        errors.append({"field": "model_preset", "message": "model_preset muss Text sein."})
+        active = None
+    if isinstance(active, str) and active not in presets:
+        errors.append(
+            {"field": "model_preset", "message": f"Unbekanntes Modell-Preset: {active}"}
+        )
+        active = None
+    if active is not None:
+        return presets[active], presets, active
+    return _model_values(request.get("model"), "model", errors), presets, None
 
 
 def _port(request: dict[str, Any], errors: list[dict[str, str]]) -> int:
@@ -744,6 +814,8 @@ def _launch_document(
     state_dir: Path | None,
     resources_file: Path | None,
     model: dict[str, Any],
+    presets: dict[str, dict[str, Any]],
+    preset_name: str | None,
     port: int,
 ) -> dict[str, Any]:
     document: dict[str, Any] = {
@@ -752,12 +824,20 @@ def _launch_document(
         "state_dir": str(state_dir) if state_dir else None,
         "resources_file": str(resources_file) if resources_file else None,
         "port": port,
+        # The flat fields describe the choice; the preset name says where it came
+        # from, so switching models later means changing one line, not seven.
         "model_provider": model["provider"],
-        "ollama_host": model["ollama_host"],
-        "ollama_model_id": model["ollama_model_id"],
-        "bedrock_model_id": model["bedrock_model_id"],
-        "aws_region": model["aws_region"],
+        "model_preset": preset_name,
+        "model_presets": {
+            name: {
+                "model_provider": entry["provider"],
+                **{field: entry[field] for field in _MODEL_FIELDS},
+            }
+            for name, entry in sorted(presets.items())
+        },
     }
+    for field in _MODEL_FIELDS:
+        document[field] = model[field]
     return document
 
 

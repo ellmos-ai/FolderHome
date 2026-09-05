@@ -5174,6 +5174,31 @@ _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "openai_model_id": None,
     "openai_base_url": None,
 }
+# Everything a preset may carry: the model choice, never a path, port or gate.
+_PRESET_FIELDS = tuple(
+    name
+    for name in _LAUNCH_CONFIG_FIELDS
+    if name not in {"profiles_dir", "state_dir", "resources_file", "port"}
+)
+
+
+def _active_preset(payload: dict[str, object]) -> dict[str, object]:
+    """Resolve the named model preset a launch config points at."""
+
+    name = payload.get("model_preset")
+    if name is None:
+        return {}
+    if not isinstance(name, str):
+        raise ValueError("Startkonfiguration braucht für model_preset einen Text.")
+    presets = payload.get("model_presets")
+    entry = presets.get(name) if isinstance(presets, dict) else None
+    if not isinstance(entry, dict):
+        raise ValueError(f"Startkonfiguration kennt kein Modell-Preset {name}.")
+    return {
+        field: entry[field]
+        for field in _PRESET_FIELDS
+        if entry.get(field) is not None
+    }
 
 
 def _apply_launch_config(args: argparse.Namespace) -> None:
@@ -5201,8 +5226,13 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
             Path(launch_config).parent / ENV_FILENAME
         ).items():
             os.environ.setdefault(name, value)
+        preset = _active_preset(payload)
         for name, kind in _LAUNCH_CONFIG_FIELDS.items():
+            # A flat field wins over the active preset, and an explicit flag
+            # over both: a hand-written file keeps working unchanged.
             value = payload.get(name)
+            if value is None:
+                value = preset.get(name)
             if value is None:
                 continue
             if kind is int and (isinstance(value, bool) or not isinstance(value, int)):

@@ -12,7 +12,18 @@ const translations = {
     addSource: "+ another source",
     removeSource: "Remove",
     modelTitle: "2. Model",
-    modelHint: "The provider is a start-up choice. Network and data approvals stay command-line flags and are never written to a file.",
+    modelHint: "The provider is a start-up choice: the app reads the active preset when it starts. Network and data approvals stay command-line flags and are never written to a file.",
+    presetFormTitle: "New or edited preset",
+    presetName: "Preset name (optional)",
+    presetSave: "Save as preset",
+    presetActivate: "Activate",
+    presetDelete: "Delete",
+    presetActive: "active",
+    presetNone: "No presets saved yet. The form below is used as it stands.",
+    presetNameInvalid: "A preset name uses letters, digits, _ . - and at most 40 characters.",
+    anthropicModel: "Anthropic model id",
+    openaiModel: "OpenAI model id",
+    openaiBaseUrl: "OpenAI base URL (optional)",
     providerLabel: "Provider",
     ollamaHost: "Ollama host",
     ollamaModel: "Ollama model id",
@@ -44,6 +55,8 @@ const translations = {
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
+    cloudTitle: "Cloud variant",
+    cloudHint: "In the AWS or browser variant there are no local output folders. There the results view is the delivery path: files are downloaded into the download folder of the browser.",
   },
   de: {
     subtitle: "Lokale Einrichtung",
@@ -56,7 +69,18 @@ const translations = {
     addSource: "+ weitere Quelle",
     removeSource: "Entfernen",
     modelTitle: "2. Modell",
-    modelHint: "Der Provider ist eine Startentscheidung. Netz- und Datenfreigaben bleiben Kommandozeilen-Schalter und werden nie in eine Datei geschrieben.",
+    modelHint: "Der Provider ist eine Startentscheidung: Die App liest beim Start das aktive Preset. Netz- und Datenfreigaben bleiben Kommandozeilen-Schalter und werden nie in eine Datei geschrieben.",
+    presetFormTitle: "Neues oder bearbeitetes Preset",
+    presetName: "Preset-Name (optional)",
+    presetSave: "Als Preset speichern",
+    presetActivate: "Aktivieren",
+    presetDelete: "Löschen",
+    presetActive: "aktiv",
+    presetNone: "Noch keine Presets gespeichert. Es gilt das Formular darunter.",
+    presetNameInvalid: "Ein Preset-Name besteht aus Buchstaben, Ziffern, _ . - und höchstens 40 Zeichen.",
+    anthropicModel: "Anthropic-Modell-ID",
+    openaiModel: "OpenAI-Modell-ID",
+    openaiBaseUrl: "OpenAI-Basis-URL (optional)",
     providerLabel: "Provider",
     ollamaHost: "Ollama-Host",
     ollamaModel: "Ollama-Modell-ID",
@@ -88,6 +112,8 @@ const translations = {
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
+    cloudTitle: "Cloud-Variante",
+    cloudHint: "In der AWS- oder Browser-Variante gibt es keine lokalen Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg: Dateien landen im Download-Ordner des Browsers.",
   },
 };
 
@@ -104,6 +130,9 @@ const saveNote = document.querySelector("#save-note");
 const keyFields = document.querySelector("#key-fields");
 // Names only; a value lives in the field until save and never in this object.
 const keyRemovals = new Set();
+const presetList = document.querySelector("#preset-list");
+let presets = {};
+let activePreset = null;
 
 function t(key, replacements = {}) {
   let value = translations[language][key] || translations.en[key] || key;
@@ -228,6 +257,105 @@ function purposeField(profileId, purpose, paths, repeatable) {
   return group;
 }
 
+const PRESET_NAME = /^[A-Za-z0-9_.-]{1,40}$/;
+
+function modelFromForm() {
+  return {
+    provider: providerSelect.value,
+    ollama_host: document.querySelector("#ollama-host").value.trim() || null,
+    ollama_model_id: document.querySelector("#ollama-model-id").value.trim() || null,
+    bedrock_model_id: document.querySelector("#bedrock-model-id").value.trim() || null,
+    aws_region: document.querySelector("#aws-region").value.trim() || null,
+    anthropic_model_id:
+      document.querySelector("#anthropic-model-id").value.trim() || null,
+    openai_model_id: document.querySelector("#openai-model-id").value.trim() || null,
+    openai_base_url: document.querySelector("#openai-base-url").value.trim() || null,
+  };
+}
+
+function fillForm(model) {
+  providerSelect.value = model.provider || model.model_provider || "fixture";
+  const values = {
+    "#ollama-host": model.ollama_host,
+    "#ollama-model-id": model.ollama_model_id,
+    "#bedrock-model-id": model.bedrock_model_id,
+    "#aws-region": model.aws_region,
+    "#anthropic-model-id": model.anthropic_model_id,
+    "#openai-model-id": model.openai_model_id,
+    "#openai-base-url": model.openai_base_url,
+  };
+  for (const [selector, value] of Object.entries(values)) {
+    document.querySelector(selector).value = value || "";
+  }
+  showProviderFields();
+}
+
+function showProviderFields() {
+  for (const name of ["ollama", "bedrock", "anthropic", "openai"]) {
+    document.querySelector(`#${name}-fields`).hidden = providerSelect.value !== name;
+  }
+  renderGateHint();
+}
+
+function renderPresets() {
+  presetList.replaceChildren();
+  const names = Object.keys(presets).sort();
+  if (!names.length) {
+    presetList.append(textElement("p", t("presetNone"), "hint"));
+    return;
+  }
+  for (const name of names) {
+    const entry = presets[name];
+    const row = document.createElement("div");
+    row.className = "field-input";
+    const model =
+      entry.ollama_model_id
+      || entry.bedrock_model_id
+      || entry.anthropic_model_id
+      || entry.openai_model_id
+      || "-";
+    const label = `${name} · ${entry.provider} · ${model}`;
+    row.append(
+      textElement("span", name === activePreset ? `${label} (${t("presetActive")})` : label),
+    );
+    const activate = document.createElement("button");
+    activate.type = "button";
+    activate.className = "button compact";
+    activate.textContent = t("presetActivate");
+    activate.disabled = name === activePreset;
+    activate.addEventListener("click", () => {
+      activePreset = name;
+      fillForm(entry);
+      renderPresets();
+      invalidate();
+    });
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "button compact";
+    remove.textContent = t("presetDelete");
+    remove.addEventListener("click", () => {
+      delete presets[name];
+      if (activePreset === name) activePreset = null;
+      renderPresets();
+      invalidate();
+    });
+    row.append(activate, remove);
+    presetList.append(row);
+  }
+}
+
+function savePreset() {
+  const name = document.querySelector("#preset-name").value.trim();
+  if (!PRESET_NAME.test(name)) {
+    showError(new Error(t("presetNameInvalid")));
+    return;
+  }
+  presets[name] = modelFromForm();
+  activePreset = name;
+  renderPresets();
+  invalidate();
+}
+
 function renderKeys() {
   keyFields.replaceChildren();
   const stored = {
@@ -313,13 +441,10 @@ function buildRequest() {
   return {
     schema: "folderhome.setup-plan-request.v1",
     folders,
-    model: {
-      provider: providerSelect.value,
-      ollama_host: document.querySelector("#ollama-host").value.trim() || null,
-      ollama_model_id: document.querySelector("#ollama-model-id").value.trim() || null,
-      bedrock_model_id: document.querySelector("#bedrock-model-id").value.trim() || null,
-      aws_region: document.querySelector("#aws-region").value.trim() || null,
-    },
+    // Without a preset the form counts as it stands; with one the preset wins.
+    model: modelFromForm(),
+    model_presets: presets,
+    model_preset: activePreset,
     port: Number(document.querySelector("#port").value) || 8765,
     state_dir: document.querySelector("#state-dir").value.trim(),
     profiles_dir: state.profiles_dir,
@@ -389,11 +514,10 @@ function showError(error) {
 }
 
 providerSelect.addEventListener("change", () => {
-  document.querySelector("#ollama-fields").hidden = providerSelect.value !== "ollama";
-  document.querySelector("#bedrock-fields").hidden = providerSelect.value !== "bedrock";
+  showProviderFields();
   invalidate();
-  renderGateHint();
 });
+document.querySelector("#preset-save").addEventListener("click", savePreset);
 document.querySelector("#ollama-host").addEventListener("input", renderGateHint);
 document.querySelector("#check").addEventListener("click", () => check().catch(showError));
 document.querySelector("#save").addEventListener("click", () => save().catch(showError));
@@ -409,8 +533,12 @@ api("/api/v1/setup/state")
   .then((payload) => {
     state = payload;
     document.querySelector("#state-dir").value = payload.config_dir;
+    presets = payload.model_presets || {};
+    activePreset = payload.model_preset || null;
+    if (activePreset && presets[activePreset]) fillForm(presets[activePreset]);
     renderFolders();
     renderKeys();
+    renderPresets();
     applyTranslations();
   })
   .catch(showError);

@@ -4683,3 +4683,57 @@ def test_launch_config_loads_stored_keys_without_overriding_the_environment(
     assert os.environ["OPENAI_API_KEY"] == "already-exported"
     # Unknown names in the file are ignored outright, not merely skipped.
     assert os.environ["PATH"] == before_path
+
+
+def test_launch_config_resolves_the_active_preset_but_yields_to_flat_fields_and_flags(
+    tmp_path: Path,
+) -> None:
+    """Precedence: explicit command line, then flat fields, then the active preset."""
+
+    import argparse
+
+    from folderhome import cli
+
+    def _config(**extra: object) -> Path:
+        target = tmp_path / f"launch-{len(list(tmp_path.iterdir()))}.json"
+        target.write_text(
+            json.dumps(
+                {
+                    "schema": "folderhome.launch-config.v1",
+                    "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                    "state_dir": str(tmp_path),
+                    "model_preset": "local",
+                    "model_presets": {
+                        "local": {
+                            "model_provider": "ollama",
+                            "ollama_host": "http://127.0.0.1:11434",
+                            "ollama_model_id": "qwen3.8:27b-mlx",
+                        }
+                    },
+                    **extra,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return target
+
+    from_preset = argparse.Namespace(launch_config=str(_config()))
+    cli._apply_launch_config(from_preset)
+    assert from_preset.model_provider == "ollama"
+    assert from_preset.ollama_model_id == "qwen3.8:27b-mlx"
+
+    flat_wins = argparse.Namespace(
+        launch_config=str(_config(model_provider="fixture")),
+    )
+    cli._apply_launch_config(flat_wins)
+    assert flat_wins.model_provider == "fixture"
+    # A fixture start must not inherit the preset's ollama fields.
+    assert flat_wins.ollama_model_id is None
+
+    flag_wins = argparse.Namespace(
+        launch_config=str(_config()),
+        model_provider="fixture",
+    )
+    cli._apply_launch_config(flag_wins)
+    assert flag_wins.model_provider == "fixture"
+    assert flag_wins.ollama_host is None

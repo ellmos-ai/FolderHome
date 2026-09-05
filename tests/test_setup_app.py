@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -757,3 +758,164 @@ def test_an_unknown_environment_name_is_refused(tmp_path: Path) -> None:
     assert refused.status_code == 400
     assert "PATH" in refused.payload["message"]
     assert not (app.config_dir / ".env").exists()
+
+
+_PRESETS = {
+    "local": {
+        "provider": "ollama",
+        "ollama_host": "http://127.0.0.1:11434",
+        "ollama_model_id": "qwen3.8:27b-mlx",
+    },
+    "work": {
+        "provider": "bedrock",
+        "bedrock_model_id": "eu.amazon.nova-micro-v1:0",
+        "aws_region": "eu-central-1",
+    },
+}
+
+
+def test_model_presets_are_saved_and_the_active_one_drives_the_start_command(
+    tmp_path: Path,
+) -> None:
+    """Switching models is picking another saved preset, not retyping fields."""
+
+    app = _app(tmp_path)
+    request = _request(tmp_path, model_presets=_PRESETS, model_preset="local")
+
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    launch = planned.payload["launch_json"]
+    assert sorted(launch["model_presets"]) == ["local", "work"]
+    assert launch["model_preset"] == "local"
+    # A loopback model needs no approval, so the command must not ask for one.
+    assert "--allow-network" not in planned.payload["launch_command"]
+
+    switched = _post(
+        app,
+        "/api/v1/setup/validate",
+        {**request, "model_preset": "work"},
+    )
+    assert switched.payload["launch_json"]["model_preset"] == "work"
+    assert "--allow-network" in switched.payload["launch_command"]
+    assert "--approve-sensitive-cloud-data" in switched.payload["launch_command"]
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {
+            **request,
+            "model_preset": "work",
+            "confirm": True,
+            "plan_sha256": switched.payload["plan_sha256"],
+        },
+    )
+    assert saved.status_code == 200, saved.payload
+    stored = json.loads(app.launch_file.read_text(encoding="utf-8"))
+    assert stored["model_preset"] == "work"
+    assert stored["model_presets"]["local"]["ollama_model_id"] == "qwen3.8:27b-mlx"
+
+    # Reopening the installer has to find the saved presets, or the next save
+    # would quietly delete them.
+    state = app.state_payload()
+    assert sorted(state["model_presets"]) == ["local", "work"]
+    assert state["model_preset"] == "work"
+
+
+def test_deleting_a_preset_removes_it_from_the_written_file(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    full = _request(tmp_path, model_presets=_PRESETS, model_preset="local")
+    first = _post(app, "/api/v1/setup/validate", full)
+    _post(
+        app,
+        "/api/v1/setup/save",
+        {**full, "confirm": True, "plan_sha256": first.payload["plan_sha256"]},
+    )
+
+    remaining = {"local": _PRESETS["local"]}
+    reduced = _request(tmp_path, model_presets=remaining, model_preset="local")
+    planned = _post(app, "/api/v1/setup/validate", reduced)
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {**reduced, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+    )
+
+    assert saved.status_code == 200, saved.payload
+    stored = json.loads(app.launch_file.read_text(encoding="utf-8"))
+    assert sorted(stored["model_presets"]) == ["local"]
+
+
+def test_a_broken_or_badly_named_preset_is_refused_before_anything_is_written(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+
+    unnamed = _post(
+        app,
+        "/api/v1/setup/validate",
+        _request(
+            tmp_path,
+            model_presets={"has spaces": _PRESETS["local"]},
+            model_preset="has spaces",
+        ),
+    )
+    assert unnamed.payload["valid"] is False
+    assert any("has spaces" in item["message"] for item in unnamed.payload["errors"])
+
+    # An inactive preset is checked too: saving an unusable one helps nobody.
+    incomplete = _post(
+        app,
+        "/api/v1/setup/validate",
+        _request(
+            tmp_path,
+            model_presets={"local": _PRESETS["local"], "broken": {"provider": "ollama"}},
+            model_preset="local",
+        ),
+    )
+    assert incomplete.payload["valid"] is False
+    assert any("broken" in item["field"] for item in incomplete.payload["errors"])
+
+    missing = _post(
+        app,
+        "/api/v1/setup/validate",
+        _request(tmp_path, model_presets=_PRESETS, model_preset="gone"),
+    )
+    assert missing.payload["valid"] is False
+
+
+SETUP_UI = Path(__file__).parents[1] / "src" / "folderhome" / "setup_ui"
+
+
+def _translation_keys(script: str, language: str) -> set[str]:
+    start = script.index(f"  {language}: {{")
+    end = script.index("\n  },", start)
+    return set(re.findall(r"^    ([A-Za-z0-9_]+):", script[start:end], re.M))
+
+
+def test_setup_ui_only_references_ids_and_texts_that_exist() -> None:
+    """A typo in an id or a text key breaks the installer silently in the browser."""
+
+    script = (SETUP_UI / "app.js").read_text(encoding="utf-8")
+    markup = (SETUP_UI / "index.html").read_text(encoding="utf-8")
+
+    english = _translation_keys(script, "en")
+    german = _translation_keys(script, "de")
+    assert english == german, sorted(english ^ german)
+
+    used = set(re.findall(r'\bt\("([A-Za-z0-9_]+)"', script))
+    used |= set(re.findall(r'dataset\.i18n = "([A-Za-z0-9_]+)"', script))
+    used |= set(re.findall(r'data-i18n="([A-Za-z0-9_]+)"', markup))
+    assert not used - english, sorted(used - english)
+
+    # Every id the script reaches for must exist in the markup or be built by it.
+    declared = set(re.findall(r'\bid="([A-Za-z0-9_-]+)"', markup))
+    declared |= set(re.findall(r'\.id = "([A-Za-z0-9_-]+)"', script))
+    queried = set(re.findall(r'querySelector\("#([A-Za-z0-9_-]+)"\)', script))
+    assert not queried - declared, sorted(queried - declared)
+
+
+def test_setup_ui_offers_every_provider_the_service_reports(tmp_path: Path) -> None:
+    markup = (SETUP_UI / "index.html").read_text(encoding="utf-8")
+    offered = set(re.findall(r'<option value="([a-z]+)"', markup))
+
+    assert offered == set(_app(tmp_path).state_payload()["model_providers"])
