@@ -336,6 +336,11 @@ noch nicht trägt. `--openai-base-url` richtet den OpenAI-Provider auf einen
 kompatiblen Endpunkt, weshalb der Status diesen Ort `openai_compatible_api`
 nennt, statt OpenAI zu behaupten.
 
+Jeder Provider, der über HTTP spricht, teilt sich ein endliches Budget,
+`--model-timeout-seconds` (Vorgabe 120). Ein Modell, das darüber hinaus
+schweigt, scheitert mit genau dieser Zahl in der Meldung, statt zu hängen;
+Bedrock behält sein eigenes Paar aus Verbindungs- und Lesezeit.
+
 Gespeicherte Modell-Presets stehen in `launch.json` unter `model_presets`,
 `model_preset` nennt das aktive. Umschalten heißt: ein anderes Preset aktivieren
 und speichern; die App liest es beim nächsten Start. Vorrang beim Start: ein

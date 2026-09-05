@@ -26,6 +26,16 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- one finite HTTP budget for every provider that speaks HTTP:
+  `model_timeout_seconds` (default 120, CLI `--model-timeout-seconds`) reaches
+  the Ollama, Anthropic and OpenAI clients alike, and a timeout is reported as a
+  stated failure naming the budget instead of a hang. Bedrock keeps its own
+  connect and read pair
+- the installer refuses a plan the loader would reject during the check, not
+  only when saving: reading and checking are separate in all three loaders, so
+  the real contracts run over the documents while they are still in memory and
+  the error appears at its own field
+- `configured` now means that the registry loads, not that a file exists
 - installer fix: `calendar.export_output` ends in `_output`, not `.output`, so the
   suffix guess left it without operations. The written registry no longer loaded,
   the save answered 400, and both files were already on disk without a backup on

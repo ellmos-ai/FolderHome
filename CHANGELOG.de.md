@@ -28,6 +28,17 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- ein endliches HTTP-Budget für jeden Provider, der über HTTP spricht:
+  `model_timeout_seconds` (Vorgabe 120, CLI `--model-timeout-seconds`) erreicht
+  den Ollama-, Anthropic- und OpenAI-Client gleichermaßen, und eine
+  Zeitüberschreitung wird als benannter Fehler gemeldet statt als Hänger.
+  Bedrock behält sein eigenes Paar aus Verbindungs- und Lesezeit
+- das Einrichtungsprogramm lehnt einen Plan, den der Loader ablehnen würde,
+  schon beim Prüfen ab und nicht erst beim Speichern: Lesen und Prüfen sind in
+  allen drei Loadern getrennt, sodass die echten Verträge über die noch im
+  Speicher liegenden Dokumente laufen und der Fehler an seinem Feld erscheint
+- `configured` bedeutet jetzt, dass das Register lädt, nicht dass eine Datei
+  existiert
 - Fehler im Einrichtungsprogramm behoben: `calendar.export_output` endet auf
   `_output`, nicht auf `.output`, weshalb die Suffix-Raterei ihm keine
   Operationen gab. Das geschriebene Register war nicht mehr ladbar, das Speichern

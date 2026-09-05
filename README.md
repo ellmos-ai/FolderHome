@@ -315,6 +315,11 @@ only when the environment does not already carry them. `--openai-base-url` point
 the OpenAI provider at a compatible endpoint, which is why the status calls that
 location `openai_compatible_api` rather than claiming OpenAI.
 
+Every provider that speaks HTTP shares one finite budget,
+`--model-timeout-seconds` (default 120). A model that stays silent past it
+fails with that number in the message instead of hanging; Bedrock keeps its own
+connect and read pair.
+
 Saved model presets live in `launch.json` under `model_presets`, with
 `model_preset` naming the active one. Switching models is activating another
 preset and saving; the app reads it at the next start. Precedence when starting:
