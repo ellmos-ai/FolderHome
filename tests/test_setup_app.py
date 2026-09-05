@@ -670,3 +670,90 @@ def test_two_document_sources_become_two_resources_with_the_first_as_default(
     assert [item["is_default"] for item in sources] == [True, False]
     assert "documents.source" in state["repeatable_purposes"]
     assert "documents.output" not in state["repeatable_purposes"]
+
+
+def test_api_keys_are_written_to_env_and_never_reported_back(tmp_path: Path) -> None:
+    """The installer stores the key; nothing reads it back out through the API."""
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text(
+        "# kept by the user\nSOMETHING_ELSE=stays\n", encoding="utf-8"
+    )
+    app = _app(tmp_path, config_dir=config_dir)
+    request = _request(tmp_path, model={"provider": "fixture"})
+
+    planned = _post(app, "/api/v1/setup/validate", request)
+    with_key = {
+        **request,
+        "confirm": True,
+        "plan_sha256": planned.payload["plan_sha256"],
+        "api_keys": {"ANTHROPIC_API_KEY": "test-key-not-a-real-secret"},
+    }
+    saved = _post(app, "/api/v1/setup/save", with_key)
+
+    # The key is not part of the confirmed plan, so the hash still matches.
+    assert saved.status_code == 200, saved.payload
+    body = json.dumps(saved.payload, ensure_ascii=False)
+    assert "test-key-not-a-real-secret" not in body
+
+    env_text = (config_dir / ".env").read_text(encoding="utf-8")
+    assert "SOMETHING_ELSE=stays" in env_text
+    assert "# kept by the user" in env_text
+    assert "ANTHROPIC_API_KEY=test-key-not-a-real-secret" in env_text
+
+    state = app.state_payload()
+    assert state["has_anthropic_key"] is True
+    assert state["has_openai_key"] is False
+    assert "test-key-not-a-real-secret" not in json.dumps(state, ensure_ascii=False)
+
+
+def test_removing_an_api_key_drops_only_that_line(tmp_path: Path) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text(
+        "ANTHROPIC_API_KEY=old\nOPENAI_API_KEY=other\nSOMETHING_ELSE=stays\n",
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, config_dir=config_dir)
+    request = _request(tmp_path)
+    planned = _post(app, "/api/v1/setup/validate", request)
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {
+            **request,
+            "confirm": True,
+            "plan_sha256": planned.payload["plan_sha256"],
+            "api_keys": {"ANTHROPIC_API_KEY": None},
+        },
+    )
+
+    assert saved.status_code == 200, saved.payload
+    env_text = (config_dir / ".env").read_text(encoding="utf-8")
+    assert "ANTHROPIC_API_KEY" not in env_text
+    assert "OPENAI_API_KEY=other" in env_text
+    assert "SOMETHING_ELSE=stays" in env_text
+    assert app.state_payload()["has_openai_key"] is True
+
+
+def test_an_unknown_environment_name_is_refused(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    planned = _post(app, "/api/v1/setup/validate", request)
+
+    refused = _post(
+        app,
+        "/api/v1/setup/save",
+        {
+            **request,
+            "confirm": True,
+            "plan_sha256": planned.payload["plan_sha256"],
+            "api_keys": {"PATH": "C:\\evil"},
+        },
+    )
+
+    assert refused.status_code == 400
+    assert "PATH" in refused.payload["message"]
+    assert not (app.config_dir / ".env").exists()

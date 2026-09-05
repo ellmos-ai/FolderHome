@@ -4645,3 +4645,41 @@ def test_app_plan_reports_the_model_id_and_location_of_hosted_providers(
         assert connection["model_id"] == model_id
         assert connection["model_inference_location"] == location
         assert connection["live_model_configured"] is True
+
+
+def test_launch_config_loads_stored_keys_without_overriding_the_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The installer's .env fills gaps in the environment; it never overwrites."""
+
+    import argparse
+
+    from folderhome import cli
+
+    launch = tmp_path / "launch.json"
+    launch.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "profiles_dir": str(REPO_ROOT / "examples" / "profiles"),
+                "state_dir": str(tmp_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text(
+        "ANTHROPIC_API_KEY=from-file\nOPENAI_API_KEY=from-file\nPATH=hijacked\n",
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "already-exported")
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+    before_path = os.environ["PATH"]
+
+    cli._apply_launch_config(argparse.Namespace(launch_config=str(launch)))
+
+    assert os.environ["ANTHROPIC_API_KEY"] == "from-file"
+    assert os.environ["OPENAI_API_KEY"] == "already-exported"
+    # Unknown names in the file are ignored outright, not merely skipped.
+    assert os.environ["PATH"] == before_path

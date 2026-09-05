@@ -84,7 +84,17 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="runtimeTitle">3. Runtime</h2>
+          <h2 data-i18n="keysTitle">3. API keys</h2>
+          <p class="hint" data-i18n="keysHint">
+            Hosted providers need a key. The installer stores it in a .env file next to
+            launch.json and never shows it again; on Windows only your user account
+            protects that file. Leave a field empty to keep the stored key.
+          </p>
+          <div id="key-fields"></div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="runtimeTitle">4. Runtime</h2>
           <label class="field">
             <span data-i18n="stateDir">App state folder</span>
             <input id="state-dir" spellcheck="false">
@@ -100,7 +110,7 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="summaryTitle">4. Summary and save</h2>
+          <h2 data-i18n="summaryTitle">6. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving replaces resources.json completely. Entries you added by hand are
             lost; the previous version stays next to it as .bak-&lt;timestamp&gt;.

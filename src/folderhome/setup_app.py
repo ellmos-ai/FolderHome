@@ -46,6 +46,10 @@ _OUTPUT_PURPOSES = frozenset(
     purpose for purpose, operations in _PURPOSE_OPERATIONS.items() if "create" in operations
 )
 LAUNCH_CONFIG_SCHEMA = "folderhome.launch-config.v1"
+# The only environment names the installer writes and the app reads back.
+# A closed list means a config folder cannot quietly redefine PATH or a proxy.
+ENV_FILENAME = ".env"
+ENV_KEYS = ("ANTHROPIC_API_KEY", "OPENAI_API_KEY")
 
 
 class SetupAppError(RuntimeError):
@@ -110,10 +114,15 @@ class SetupApplication:
     def launch_file(self) -> Path:
         return self.config_dir / "launch.json"
 
+    @property
+    def env_file(self) -> Path:
+        return self.config_dir / ENV_FILENAME
+
     # ------------------------------------------------------------------ plans
     def state_payload(self) -> dict[str, Any]:
         """Describe what the installer can configure and what is configured now."""
 
+        stored_keys = read_env_file(self.env_file)
         return {
             "schema": "folderhome.setup-state.v1",
             "os_account": self.profiles.os_account,
@@ -134,6 +143,8 @@ class SetupApplication:
             "home": str(Path.home().resolve()),
             "profiles_dir": str(self.settings.profiles_dir),
             "configured": self.resources_file.is_file(),
+            "has_anthropic_key": "ANTHROPIC_API_KEY" in stored_keys,
+            "has_openai_key": "OPENAI_API_KEY" in stored_keys,
             "current_folders": self._current_folders(),
             "writes_credentials": False,
         }
@@ -208,6 +219,9 @@ class SetupApplication:
         supplied = request.get("plan_sha256")
         if not isinstance(supplied, str) or len(supplied) != 64:
             raise SetupAppError("Speichern benötigt den Hash des geprüften Plans.")
+        # Keys travel outside the plan on purpose: they must not reach the hash,
+        # the preview or any response. They are checked before anything is written.
+        api_keys = _api_key_changes(request)
         plan = self.plan(request)
         if not plan["valid"]:
             raise SetupAppError("Plan ist nicht gültig; erst die Fehler beheben.")
@@ -234,6 +248,8 @@ class SetupApplication:
                     temporary.unlink(missing_ok=True)
                 raise
             written = [_commit_staged(temporary, target) for temporary, target in staged]
+            if api_keys:
+                write_env_file(self.env_file, api_keys)
         plan["written"] = True
         plan["backups"] = [str(item) for item in written if item is not None]
         plan["side_effects"] = ["file.create", "file.update"]
@@ -452,6 +468,82 @@ class SetupApplication:
             },
             status_code=status_code,
         )
+
+
+def _api_key_changes(request: dict[str, Any]) -> dict[str, str | None]:
+    """Read the key changes a save carries, without ever echoing a value."""
+
+    raw = request.get("api_keys")
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise SetupAppError("api_keys muss ein Objekt sein.")
+    changes: dict[str, str | None] = {}
+    for name, value in raw.items():
+        if name not in ENV_KEYS:
+            raise SetupAppError(f"Unbekannter Umgebungsname: {name}")
+        if value is None:
+            changes[name] = None
+            continue
+        if not isinstance(value, str) or not value.strip():
+            raise SetupAppError(f"Wert für {name} fehlt.")
+        if len(value) > 4_096 or any(item in value for item in "\r\n"):
+            raise SetupAppError(f"Wert für {name} ist keine einzelne Textzeile.")
+        changes[name] = value.strip()
+    return changes
+
+
+def read_env_file(target: Path) -> dict[str, str]:
+    """Return the known keys stored in one .env file; unknown names are ignored."""
+
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError:
+        return {}
+    values: dict[str, str] = {}
+    for line in text.splitlines():
+        name, separator, value = line.partition("=")
+        name = name.strip()
+        if not separator or name not in ENV_KEYS:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            value = value[1:-1]
+        if value:
+            values[name] = value
+    return values
+
+
+def write_env_file(target: Path, changes: dict[str, str | None]) -> None:
+    """Set or drop single keys, keep every other line, and never leave a backup."""
+
+    existing = target.read_text(encoding="utf-8").splitlines() if target.is_file() else []
+    pending = dict(changes)
+    lines: list[str] = []
+    for line in existing:
+        name = line.partition("=")[0].strip()
+        if name in pending:
+            value = pending.pop(name)
+            if value is not None:
+                lines.append(f"{name}={value}")
+            continue
+        lines.append(line)
+    for name, value in pending.items():
+        if value is not None:
+            lines.append(f"{name}={value}")
+    temporary = target.with_name(f"{target.name}.tmp-{secrets.token_hex(6)}")
+    try:
+        with temporary.open("wb") as handle:
+            handle.write(("\n".join(lines) + "\n").encode("utf-8"))
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Owner-only where the platform enforces it. On Windows the user account
+        # boundary is what protects the file, which the installer says out loud.
+        os.chmod(temporary, 0o600)
+        os.replace(temporary, target)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
 
 
 def _security_headers() -> dict[str, str]:
@@ -721,9 +813,13 @@ def _commit_staged(temporary: Path, target: Path) -> Path | None:
 
 
 __all__ = [
+    "ENV_FILENAME",
+    "ENV_KEYS",
     "LAUNCH_CONFIG_SCHEMA",
     "SETUP_PURPOSES",
     "SetupAppError",
     "SetupApplication",
     "default_config_dir",
+    "read_env_file",
+    "write_env_file",
 ]

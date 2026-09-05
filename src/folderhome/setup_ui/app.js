@@ -21,11 +21,17 @@ const translations = {
     gateHintFixture: "The deterministic fixture needs no approval and no network.",
     gateHintLoopback: "A model on this machine needs no approval, because nothing leaves the loopback interface.",
     gateHintRemote: "Start the app with --allow-network and --approve-sensitive-cloud-data for this provider.",
-    runtimeTitle: "3. Runtime",
+    keysTitle: "3. API keys",
+    keysHint: "Hosted providers need a key. The installer stores it in a .env file next to launch.json and never shows it again; on Windows only your user account protects that file. Leave a field empty to keep the stored key.",
+    keyStored: "A key is stored.",
+    keyMissing: "No key stored.",
+    keyRemove: "Remove key",
+    keyPendingRemoval: "Will be removed when you save.",
+    runtimeTitle: "4. Runtime",
     stateDir: "App state folder",
     portLabel: "Port",
     outsideHome: "I confirm folders outside my user folder",
-    summaryTitle: "4. Summary and save",
+    summaryTitle: "6. Summary and save",
     checkButton: "Check",
     saveButton: "Save",
     saveNote: "Nothing is saved automatically. Check first, then save; saving writes resources.json and launch.json.",
@@ -59,11 +65,17 @@ const translations = {
     gateHintFixture: "Das deterministische Fixture braucht keine Freigabe und kein Netz.",
     gateHintLoopback: "Ein Modell auf diesem Rechner braucht keine Freigabe, weil nichts die Loopback-Schnittstelle verlässt.",
     gateHintRemote: "Starte die App für diesen Provider mit --allow-network und --approve-sensitive-cloud-data.",
-    runtimeTitle: "3. Laufzeit",
+    keysTitle: "3. API-Schlüssel",
+    keysHint: "Fremdgehostete Anbieter brauchen einen Schlüssel. Die Einrichtung legt ihn in einer .env-Datei neben launch.json ab und zeigt ihn nie wieder; unter Windows schützt ihn allein dein Benutzerkonto. Ein leeres Feld behält den hinterlegten Schlüssel.",
+    keyStored: "Ein Schlüssel ist hinterlegt.",
+    keyMissing: "Kein Schlüssel hinterlegt.",
+    keyRemove: "Schlüssel entfernen",
+    keyPendingRemoval: "Wird beim Speichern entfernt.",
+    runtimeTitle: "4. Laufzeit",
     stateDir: "App-State-Ordner",
     portLabel: "Port",
     outsideHome: "Ich bestätige Ordner außerhalb meines Benutzerordners",
-    summaryTitle: "4. Zusammenfassung und Speichern",
+    summaryTitle: "6. Zusammenfassung und Speichern",
     checkButton: "Prüfen",
     saveButton: "Speichern",
     saveNote: "Es wird nichts automatisch gespeichert. Erst Prüfen, dann Speichern; das Speichern schreibt resources.json und launch.json.",
@@ -89,6 +101,9 @@ const providerSelect = document.querySelector("#provider");
 const saveButton = document.querySelector("#save");
 const gateHint = document.querySelector("#gate-hint");
 const saveNote = document.querySelector("#save-note");
+const keyFields = document.querySelector("#key-fields");
+// Names only; a value lives in the field until save and never in this object.
+const keyRemovals = new Set();
 
 function t(key, replacements = {}) {
   let value = translations[language][key] || translations.en[key] || key;
@@ -213,6 +228,57 @@ function purposeField(profileId, purpose, paths, repeatable) {
   return group;
 }
 
+function renderKeys() {
+  keyFields.replaceChildren();
+  const stored = {
+    ANTHROPIC_API_KEY: state.has_anthropic_key,
+    OPENAI_API_KEY: state.has_openai_key,
+  };
+  for (const [name, present] of Object.entries(stored)) {
+    const label = document.createElement("label");
+    label.className = "field";
+    label.append(textElement("span", name));
+    const row = document.createElement("div");
+    row.className = "field-input";
+    const input = document.createElement("input");
+    input.type = "password";
+    input.dataset.envName = name;
+    input.autocomplete = "off";
+    input.spellcheck = false;
+    input.addEventListener("input", invalidate);
+    row.append(input);
+    const status = textElement("p", t(present ? "keyStored" : "keyMissing"), "hint");
+    if (present) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "button compact";
+      remove.dataset.i18n = "keyRemove";
+      remove.textContent = t("keyRemove");
+      remove.addEventListener("click", () => {
+        keyRemovals.add(name);
+        remove.disabled = true;
+        input.value = "";
+        input.disabled = true;
+        status.textContent = t("keyPendingRemoval");
+        invalidate();
+      });
+      row.append(remove);
+    }
+    label.append(row);
+    label.append(status);
+    keyFields.append(label);
+  }
+}
+
+function buildKeyChanges() {
+  const changes = {};
+  for (const name of keyRemovals) changes[name] = null;
+  for (const input of keyFields.querySelectorAll("input")) {
+    if (input.value) changes[input.dataset.envName] = input.value;
+  }
+  return changes;
+}
+
 function renderFolders() {
   folderGrid.replaceChildren();
   const current = new Map();
@@ -296,6 +362,9 @@ async function save() {
   const request = buildRequest();
   request.confirm = true;
   request.plan_sha256 = checkedPlan.plan_sha256;
+  // Keys ride along with the save alone: never with a check, never in the hash.
+  const keyChanges = buildKeyChanges();
+  if (Object.keys(keyChanges).length) request.api_keys = keyChanges;
   const saved = await api("/api/v1/setup/save", {
     method: "POST",
     body: JSON.stringify(request),
@@ -309,6 +378,10 @@ async function save() {
   saveButton.disabled = true;
   saveNote.hidden = true;
   checkedPlan = null;
+  keyRemovals.clear();
+  // Ask the service what is stored now instead of guessing from the form.
+  state = await api("/api/v1/setup/state");
+  renderKeys();
 }
 
 function showError(error) {
@@ -337,6 +410,7 @@ api("/api/v1/setup/state")
     state = payload;
     document.querySelector("#state-dir").value = payload.config_dir;
     renderFolders();
+    renderKeys();
     applyTranslations();
   })
   .catch(showError);

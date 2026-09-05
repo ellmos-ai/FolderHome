@@ -336,10 +336,12 @@ from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
 from folderhome.setup_app import (
+    ENV_FILENAME,
     LAUNCH_CONFIG_SCHEMA,
     SetupAppError,
     SetupApplication,
     default_config_dir,
+    read_env_file,
 )
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
@@ -5192,6 +5194,13 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
             LAUNCH_CONFIG_SCHEMA
         ):
             raise ValueError("Startkonfiguration verwendet ein unbekanntes Schema.")
+        # The installer stores hosted-provider keys beside the launch file. Only
+        # names the environment does not already carry are filled, so an
+        # explicitly exported variable still wins, and no value is logged.
+        for name, value in read_env_file(
+            Path(launch_config).parent / ENV_FILENAME
+        ).items():
+            os.environ.setdefault(name, value)
         for name, kind in _LAUNCH_CONFIG_FIELDS.items():
             value = payload.get(name)
             if value is None:
