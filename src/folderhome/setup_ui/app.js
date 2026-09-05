@@ -28,6 +28,9 @@ const translations = {
     accountLine: "Operating system account {account} · configuration in {dir}",
     checkOk: "The plan is valid. These two files will be written:",
     checkFailed: "Please correct this first:",
+    overwriteHint:
+      "Saving replaces resources.json completely. Entries you added by hand are "
+      + "lost; the previous version stays next to it as .bak-<timestamp>.",
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
@@ -59,6 +62,9 @@ const translations = {
     accountLine: "Betriebssystemkonto {account} · Konfiguration in {dir}",
     checkOk: "Der Plan ist gültig. Diese zwei Dateien werden geschrieben:",
     checkFailed: "Bitte zuerst korrigieren:",
+    overwriteHint:
+      "Das Speichern ersetzt resources.json vollständig. Von Hand ergänzte "
+      + "Einträge gehen verloren; die Vorversion bleibt als .bak-<Zeitstempel> daneben.",
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",

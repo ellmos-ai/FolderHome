@@ -164,6 +164,7 @@ class SetupApplication:
                 {"field": "folders", "message": "Mindestens ein Ordner wird benötigt."}
             ]
             payload["valid"] = False
+        payload["launch_command"] = _launch_command(self.launch_file, model)
         payload["plan_sha256"] = _plan_digest(payload)
         return payload
 
@@ -190,10 +191,6 @@ class SetupApplication:
         plan["written"] = True
         plan["backups"] = [str(item) for item in written if item is not None]
         plan["side_effects"] = ["file.create", "file.update"]
-        plan["launch_command"] = (
-            f'"{sys.executable}" -m folderhome app serve '
-            f'--launch-config "{self.launch_file}" --approve-loopback-server --json'
-        )
         return plan
 
     def _verify_registry(self) -> None:
@@ -468,11 +465,12 @@ def _model_settings(
         "ollama_model_id": model.get("ollama_model_id") or None,
         "bedrock_model_id": model.get("bedrock_model_id") or None,
         "aws_region": model.get("aws_region") or None,
+        "network_used": False,
     }
     try:
         # Reuse the real contract instead of a second rule set. The gates are shown
         # in the UI and stay start-up flags; they are never written to a file.
-        StrandsAgentSettings(
+        settings = StrandsAgentSettings(
             model_provider=str(provider),
             ollama_host=values["ollama_host"],
             ollama_model_id=values["ollama_model_id"],
@@ -483,6 +481,9 @@ def _model_settings(
         )
     except ValueError as exc:
         errors.append({"field": "model", "message": str(exc)})
+    else:
+        # The same verdict the app uses, so the printed command matches the gates.
+        values["network_used"] = settings.network_used
     return values
 
 
@@ -579,6 +580,18 @@ def _launch_document(
         "aws_region": model["aws_region"],
     }
     return document
+
+
+def _launch_command(launch_file: Path, model: dict[str, Any]) -> str:
+    """Spell out the gates, because a launch file is deliberately not allowed to."""
+
+    gates = ["--approve-loopback-server"]
+    if model.get("network_used"):
+        gates[:0] = ["--allow-network", "--approve-sensitive-cloud-data"]
+    return (
+        f'"{sys.executable}" -m folderhome app serve '
+        f'--launch-config "{launch_file}" {" ".join(gates)} --json'
+    )
 
 
 def _plan_digest(payload: dict[str, Any]) -> str:

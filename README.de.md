@@ -408,6 +408,12 @@ halbes Register hinterlässt. Keine der beiden Dateien enthält je ein Passwort:
 Das Entwurfspostfach bleibt ein Verweis auf seine eigene lokale
 Zugangsdatendatei.
 
+Das Speichern ersetzt `resources.json` vollständig, es führt nichts zusammen.
+Wer das Register von Hand erweitert hat, etwa um ein Entwurfspostfach oder einen
+Kalender-State-Ordner, verliert diese Einträge beim Speichern. Die Vorversion
+bleibt als `.bak-<Zeitstempel>` daneben liegen, sodass sich die Zusätze
+zurückkopieren lassen.
+
 Die App mit dem Geschriebenen starten:
 
 ```powershell

@@ -381,6 +381,11 @@ through a temporary file so a crash cannot leave half a registry behind. Neither
 file ever holds a password: the drafts mailbox stays a reference to its own local
 credentials file.
 
+Saving replaces `resources.json` completely rather than merging into it. If you
+extended the registry by hand, for example with a drafts mailbox or a calendar
+state folder, those entries are lost on save. The previous version stays next to
+it as `.bak-<timestamp>`, so you can copy the additions back.
+
 Start the app with what was written:
 
 ```powershell

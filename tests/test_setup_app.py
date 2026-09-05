@@ -428,3 +428,54 @@ def test_saved_launch_config_drives_the_app_plan_command(tmp_path: Path) -> None
     assert payload["settings"]["port"] == 8791
     assert payload["logical_resources_configured"] is True
     assert payload["agent"]["model_provider"] == "fixture"
+
+
+@pytest.mark.parametrize(
+    ("model", "expects_network_gates"),
+    [
+        ({"provider": "fixture"}, False),
+        (
+            {
+                "provider": "ollama",
+                "ollama_host": "http://127.0.0.1:11434",
+                "ollama_model_id": "qwen3.8:27b-mlx",
+            },
+            False,
+        ),
+        (
+            {
+                "provider": "ollama",
+                "ollama_host": "http://100.119.69.90:11434",
+                "ollama_model_id": "qwen3.8:27b-mlx",
+            },
+            True,
+        ),
+        (
+            {
+                "provider": "bedrock",
+                "bedrock_model_id": "eu.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                "aws_region": "eu-central-1",
+            },
+            True,
+        ),
+    ],
+)
+def test_launch_command_names_every_gate_the_file_cannot_grant(
+    tmp_path: Path,
+    model: dict[str, str],
+    expects_network_gates: bool,
+) -> None:
+    app = _app(tmp_path)
+
+    planned = _post(app, "/api/v1/setup/validate", _request(tmp_path, model=model))
+    command = planned.payload["launch_command"]
+
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    # The listener gate is never optional, and neither is machine-readable output.
+    assert "--approve-loopback-server" in command
+    assert command.endswith("--json")
+    assert ("--allow-network" in command) is expects_network_gates
+    assert ("--approve-sensitive-cloud-data" in command) is expects_network_gates
+    # Gates stay start-up flags: nothing about them travels in the file.
+    assert "network_used" not in planned.payload["launch_json"]
+    assert "allow_network" not in planned.payload["launch_json"]

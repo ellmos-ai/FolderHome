@@ -63,6 +63,10 @@ FolderHome is a local document and assistance service agent. The new competition
 | FindCall | Locally implemented | Generic serial offer/appointment scheduling with time, price and stop limits; fixture provider only |
 | Strands agent | Locally implemented | Real `strands.Agent` loop with two read‑only tools for search and topic dossier |
 | Amazon Bedrock | Handoff | The same agent supports `BedrockModel`, but only with model ID, region and separate network/data transfer gates; not live tested |
+| Local model (Ollama) | Locally implemented | `OllamaModel` provider on the same agent loop; a loopback host needs no gate, a remote one needs the same two gates as Bedrock. Smoke-tested against a remote Ollama host; the loopback smoke is still open and the client has no HTTP timeout |
+| MCP adapter | Locally implemented | `mcp serve` hands eleven read-only and confirm tools over stdio to a running `app serve`; any non-loopback address is refused and stdout carries protocol only |
+| Results view | Locally implemented | Executed reports stay in one bounded ring buffer and are listed per profile; artifacts are fetched by index, never by a path parameter, capped at 25 MB |
+| Setup program | Locally implemented | A separate loopback installer is the only place that writes configuration; saving rewrites `resources.json` completely, so hand-added entries are lost and only the `.bak-<timestamp>` copy preserves them |
 | API/GUI/CLI | Locally implemented | Shared application service, Loopback API, responsive local GUI and comprehensive CLI |
 | OS account separation | Locally implemented | Operating system account and file permissions are the security boundary; no pseudo‑security between profiles |
 
@@ -89,11 +93,11 @@ The exact revisions and provenance classes are listed in
 |---|:---:|---|
 | Feature set | 4 | All desired areas have at least an honest local core or clear handoff; live providers remain separate |
 | Agentic | 4 | Real, finitely bounded Strands loop; for competition acceptance deliberately only two read‑only tools |
-| UI/UX | 4 | Responsive Loopback GUI and CLI on the same service; no native desktop installer yet |
+| UI/UX | 4 | Responsive Loopback GUI and CLI on the same service, plus a separate browser-based installer; no native desktop installer yet |
 | Stability | 5 | Success, abuse, gate, rollback and never‑overwrite paths are broadly automatedly checked |
 | Documentation | 5 | Architecture, decisions, provenance, security, current status and submission package are documented separately |
 | Privacy/Security | 5 | Local‑first, OS account boundary, default deny, resource budgets, provenance and explicit outward‑effect gates |
-| Live integration | 2 | Deliberately conservative: no cloud, phone, mail, calendar or portal effect without separate approval |
+| Live integration | 2 | Deliberately conservative: no cloud, phone, mail, calendar or portal effect without separate approval. A real local model over the network is the one live path that has been exercised |
 
 ## What remains after the local full build‑out
 
