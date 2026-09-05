@@ -286,6 +286,41 @@ as a local model: `model_inference_location` becomes `local_ollama_host` or
 `remote_ollama_host` instead of `aws_cloud`, and no run claims a verified
 connection before one successful live turn in the same process.
 
+
+## Model providers
+
+Five providers, in the order they cost you privacy: `fixture` (deterministic, no
+model at all), `ollama` on the loopback interface (a model on this machine),
+`ollama` on another host, `bedrock`, `anthropic`, `openai`. Everything from the
+third onwards leaves this machine and therefore needs both approvals,
+`--allow-network` and `--approve-sensitive-cloud-data`.
+
+```powershell
+# Optional extras; a provider is not imported unless you select it
+.venv\Scripts\pip.exe install -e ".[anthropic]"
+.venv\Scripts\pip.exe install -e ".[openai]"
+
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider anthropic --anthropic-model-id claude-sonnet-4-5-20250929 `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "What can you do?" --json
+```
+
+An API key is never a setting. It is read from `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY` when the model is built, and it appears in no plan, status,
+report or log. The installer stores it in a `.env` file beside `launch.json`,
+which starting with `--launch-config` reads back for those two names only, and
+only when the environment does not already carry them. `--openai-base-url` points
+the OpenAI provider at a compatible endpoint, which is why the status calls that
+location `openai_compatible_api` rather than claiming OpenAI.
+
+Saved model presets live in `launch.json` under `model_presets`, with
+`model_preset` naming the active one. Switching models is activating another
+preset and saving; the app reads it at the next start. Precedence when starting:
+an explicit command-line flag beats a flat field in the file, and a flat field
+beats the active preset.
+
 ## Use FolderHome from Claude Code or Codex (MCP)
 
 `folderhome mcp serve` publishes the same bounded surface over the Model Context
@@ -360,13 +395,21 @@ is allowed to read and write.
   --approve-loopback-server --json
 ```
 
-The page walks through four steps: the folder per profile and purpose
-(`documents.source`, `insurance.source`, `documents.output`,
-`correspondence.output`, `calendar.export_output`), the model provider, the
-runtime values, and a summary. Nothing is written until you press the save
-button, and the server accepts a save only together with the hash of exactly the
-plan it showed you. Folders are checked before that: they must exist, must not
-be symbolic links, and one outside your own user folder needs an explicit tick.
+The page walks through six steps: folders, model presets, API keys, runtime
+values, calendar, and a summary. Nothing is stored automatically. Nothing is
+written until you press Save, and the server accepts a save only together with
+the hash of exactly the plan it showed you. Folders are checked before that:
+they must exist, must not be symbolic links, and one outside your own user
+folder needs an explicit tick.
+
+Each folder field has a Choose folder button that asks the operating system for
+a real directory, because a browser cannot hand over an absolute path; typing
+the path stays possible, and stays the fallback where no dialog toolkit is
+installed. A source purpose (`documents.source`, `insurance.source`) takes
+several folders: the first one becomes the profile default, and the agent sees
+every one of them in its resource catalogue. Output purposes
+(`documents.output`, `correspondence.output`, `calendar.export_output`) stay
+single, because a write needs one destination.
 
 Saving writes two files into your configuration folder, by default
 `%LOCALAPPDATA%\FolderHome\`:
@@ -374,12 +417,22 @@ Saving writes two files into your configuration folder, by default
 | File | Content |
 |---|---|
 | `resources.json` | the private resource registry, validated against the same contract the app loads |
-| `launch.json` | the start-up values for `app serve`: profiles, state folder, registry, model, port |
+| `launch.json` | the start-up values for `app serve`: profiles, state folder, registry, model, presets, port |
+| `.env` | the hosted-provider API keys, written only here and never read back into the page |
+| `calendar.json` | default calendar backend, time zone and UpToday ICS folder, when you enable that section |
+| `calendar-accounts.json` | calendar connector accounts, when you add one |
 
-An existing file is kept as a `.bak-<timestamp>` copy, and both files are written
-through a temporary file so a crash cannot leave half a registry behind. Neither
-file ever holds a password: the drafts mailbox stays a reference to its own local
-credentials file.
+An existing file is kept as a `.bak-<timestamp>` copy, except `.env`, which
+never leaves a backup because a backup of a key is a second copy of a key. Every
+file is staged in a temporary file, loaded back through the contract it belongs
+to, and only then put in place: a plan that turns out unloadable leaves the
+previous state exactly as it was. No file besides `.env` ever holds a secret:
+the drafts mailbox and a calendar account both keep a reference to a local
+credentials file, not the credentials.
+
+The calendar files are read by the `calendar` commands, not by `app serve`, and
+this build has no Outlook backend. The installer says both, and offers only the
+four backends that exist.
 
 Saving replaces `resources.json` completely rather than merging into it. If you
 extended the registry by hand, for example with a drafts mailbox or a calendar

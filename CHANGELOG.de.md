@@ -28,6 +28,44 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- Fehler im Einrichtungsprogramm behoben: `calendar.export_output` endet auf
+  `_output`, nicht auf `.output`, weshalb die Suffix-Raterei ihm keine
+  Operationen gab. Das geschriebene Register war nicht mehr ladbar, das Speichern
+  antwortete mit 400, und beide Dateien lagen bereits auf der Platte, bei einer
+  Ersteinrichtung ohne Sicherung. Eine ausdrückliche Tabelle Zweck zu Operationen
+  ersetzt das Raten; der Exportordner bekommt `create` und `cloud_context: deny`
+- die Einrichtung legt jede zu schreibende Datei zuerst temporär an, lädt sie
+  über ihren eigenen Vertrag zurück und ersetzt die echten Dateien erst danach;
+  ein Plan, der sich als nicht ladbar erweist, lässt den Vorzustand unverändert
+- Bedienbarkeit: Der Knopf heißt Speichern, und eine Zeile darunter sagt, dass
+  nichts automatisch gespeichert wird. Jedes Ordnerfeld kann das Betriebssystem
+  nach einem Verzeichnis fragen (`POST /api/v1/setup/pick-folder`, immer nur ein
+  Dialog, 501 ohne Dialog-Toolkit, damit die Eingabe von Hand der Rückfallweg
+  bleibt)
+- ein Quellzweck nimmt mehrere Ordner auf; der erste wird der Standard des
+  Profils, und der Agent sieht alle in seinem Katalog. Beim erneuten Öffnen zeigt
+  die Einrichtung jede eingerichtete Quelle statt nur des Standards
+- die Einrichtung schreibt `calendar.json` und `calendar-accounts.json`, wenn der
+  Abschnitt eingeschaltet ist, über denselben Weg aus Bestätigen, Prüfen und
+  Ersetzen. Ein Outlook-Backend gibt es in dieser Fassung nicht, deshalb wird
+  keines angeboten, und `app serve` liest keine der beiden Dateien: das tun nur
+  die `calendar`-Befehle
+- fremdgehostete Modell-Provider `anthropic` und `openai`, mit denselben zwei
+  Freigaben wie Bedrock und `--openai-base-url` für einen kompatiblen Endpunkt.
+  Ein API-Schlüssel ist keine Einstellung: Er wird beim Bau des Modells aus
+  `ANTHROPIC_API_KEY` oder `OPENAI_API_KEY` gelesen und taucht in keinem Plan,
+  Status, Bericht und Log auf
+- die Einrichtung legt diese Schlüssel in einer `.env` neben `launch.json` ab,
+  nur für den Eigentümer lesbar, erhält jede andere Zeile dieser Datei und
+  hinterlässt keine Sicherung eines Schlüssels; der Zustand sagt nur, ob ein
+  Schlüssel hinterlegt ist. `app serve --launch-config` füllt diese zwei Namen in
+  die Umgebung, wenn sie dort noch nicht stehen
+- Modell-Presets in `launch.json` (`model_presets`, `model_preset`): mehrere
+  Modellwahlen speichern, eine aktivieren, eine löschen. Der Vorrang beim Start
+  ist ausdrücklich und getestet: Schalter vor flachem Feld vor aktivem Preset
+- ein statischer Test prüft, dass die Einrichtungsseite nur vorhandene IDs und
+  Textschlüssel anspricht und beide Sprachen dieselben Schlüssel führen; er fand
+  die Cloud-Karte, die mangels Übersetzung ihre eigenen Schlüsselnamen anzeigte
 - getrenntes Einrichtungsprogramm `folderhome setup serve`: Eine zweite
   Loopback-Anwendung mit eigenem Port und eigenem Token ist der einzige Ort, der
   FolderHome-Konfiguration schreibt. Die App-GUI behält keinen Schreibweg dorthin

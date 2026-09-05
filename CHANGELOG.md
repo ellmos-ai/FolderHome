@@ -26,6 +26,39 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- installer fix: `calendar.export_output` ends in `_output`, not `.output`, so the
+  suffix guess left it without operations. The written registry no longer loaded,
+  the save answered 400, and both files were already on disk without a backup on
+  a first install. An explicit purpose-to-operations table replaces the guess,
+  and the export folder gets `create` plus `cloud_context: deny`
+- the installer now stages every file it is about to write, loads each one back
+  through its own contract, and replaces the live files only afterwards; a plan
+  that turns out unloadable leaves the previous state exactly as it was
+- installer usability: the save button is called Save and one line under it says
+  that nothing is stored automatically. Every folder field can ask the operating
+  system for a directory (`POST /api/v1/setup/pick-folder`, one dialog at a time,
+  501 without a dialog toolkit, so typing a path stays the fallback)
+- a source purpose takes several folders; the first one becomes the profile
+  default and the agent sees all of them in its catalogue. Reopening the
+  installer lists every configured source instead of the default alone
+- installer writes `calendar.json` and `calendar-accounts.json` when that section
+  is enabled, through the same confirm, verify and replace path. There is no
+  Outlook backend in this build, so none is offered, and `app serve` reads
+  neither file: only the `calendar` commands do
+- hosted model providers `anthropic` and `openai`, with the same two approvals as
+  Bedrock and `--openai-base-url` for a compatible endpoint. An API key is not a
+  setting: it is read from `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` at model build
+  time and appears in no plan, status, report or log
+- the installer stores those keys in a `.env` beside `launch.json`, owner-only,
+  keeping every other line of that file and leaving no backup of a key; the state
+  answers only whether a key is stored. `app serve --launch-config` fills those
+  two names into the environment when they are not already set
+- model presets in `launch.json` (`model_presets`, `model_preset`): save several
+  model choices, activate one, delete one. Start-up precedence is explicit and
+  tested, an explicit flag over a flat field over the active preset
+- a static test checks that the installer page references only ids and text keys
+  that exist and that both languages carry the same keys; it found the cloud card
+  printing its own key names for want of a translation
 - separate installer `folderhome setup serve`: a second loopback application on
   its own port and token is the only place that writes FolderHome configuration.
   The app GUI keeps no write path to it

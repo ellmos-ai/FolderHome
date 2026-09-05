@@ -306,6 +306,42 @@ lokales Modell als lokales Modell: `model_inference_location` wird
 behauptet eine bestätigte Verbindung, bevor eine Live-Runde im selben Prozess
 erfolgreich war.
 
+
+## Modell-Provider
+
+Fünf Provider, geordnet danach, was sie an Privatheit kosten: `fixture`
+(deterministisch, gar kein Modell), `ollama` auf der Loopback-Schnittstelle (ein
+Modell auf diesem Rechner), `ollama` auf einem anderen Host, `bedrock`,
+`anthropic`, `openai`. Alles ab dem dritten verlässt diesen Rechner und braucht
+deshalb beide Freigaben, `--allow-network` und `--approve-sensitive-cloud-data`.
+
+```powershell
+# Optionale Extras; ein Provider wird nur geladen, wenn du ihn auswählst
+.venv\Scripts\pip.exe install -e ".[anthropic]"
+.venv\Scripts\pip.exe install -e ".[openai]"
+
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider anthropic --anthropic-model-id claude-sonnet-4-5-20250929 `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "Was kannst du?" --json
+```
+
+Ein API-Schlüssel ist nie eine Einstellung. Er wird beim Bau des Modells aus
+`ANTHROPIC_API_KEY` oder `OPENAI_API_KEY` gelesen und taucht in keinem Plan,
+Status, Bericht und Log auf. Das Einrichtungsprogramm legt ihn in einer
+`.env`-Datei neben `launch.json` ab; ein Start mit `--launch-config` liest von
+dort ausschließlich diese zwei Namen, und auch nur dann, wenn die Umgebung sie
+noch nicht trägt. `--openai-base-url` richtet den OpenAI-Provider auf einen
+kompatiblen Endpunkt, weshalb der Status diesen Ort `openai_compatible_api`
+nennt, statt OpenAI zu behaupten.
+
+Gespeicherte Modell-Presets stehen in `launch.json` unter `model_presets`,
+`model_preset` nennt das aktive. Umschalten heißt: ein anderes Preset aktivieren
+und speichern; die App liest es beim nächsten Start. Vorrang beim Start: ein
+ausdrücklicher Schalter auf der Kommandozeile gewinnt über ein flaches Feld in
+der Datei, ein flaches Feld über das aktive Preset.
+
 ## FolderHome aus Claude Code oder Codex nutzen (MCP)
 
 `folderhome mcp serve` veröffentlicht dieselbe begrenzte Oberfläche über das
@@ -385,14 +421,23 @@ schreiben darf.
   --approve-loopback-server --json
 ```
 
-Die Seite führt durch vier Schritte: den Ordner je Profil und Zweck
-(`documents.source`, `insurance.source`, `documents.output`,
-`correspondence.output`, `calendar.export_output`), den Modell-Provider, die
-Laufzeitwerte und eine Zusammenfassung. Geschrieben wird erst auf den
-Speichern-Knopf, und der Server nimmt ein Speichern nur zusammen mit dem Hash
-genau des Plans an, den er dir gezeigt hat. Ordner werden vorher geprüft: Sie
-müssen existieren, dürfen keine Symlinks sein, und einer außerhalb des eigenen
-Benutzerordners braucht ein ausdrückliches Häkchen.
+Die Seite führt durch sechs Schritte: Ordner, Modell-Presets, API-Schlüssel,
+Laufzeitwerte, Kalender und eine Zusammenfassung. Es wird nichts automatisch
+gespeichert. Geschrieben wird erst auf den Speichern-Knopf, und der Server nimmt
+ein Speichern nur zusammen mit dem Hash genau des Plans an, den er dir gezeigt
+hat. Ordner werden vorher geprüft: Sie müssen existieren, dürfen keine Symlinks
+sein, und einer außerhalb des eigenen Benutzerordners braucht ein
+ausdrückliches Häkchen.
+
+Neben jedem Ordnerfeld steht ein Knopf, der das Betriebssystem nach einem echten
+Verzeichnis fragt, weil ein Browser keinen absoluten Pfad übergeben kann; die
+Eingabe von Hand bleibt möglich und bleibt der Rückfallweg, wo kein
+Dialog-Toolkit installiert ist. Ein Quellzweck (`documents.source`,
+`insurance.source`) nimmt mehrere Ordner auf: Der erste wird der Standard des
+Profils, und der Agent sieht jeden davon in seinem Ressourcenkatalog.
+Ausgabezwecke (`documents.output`, `correspondence.output`,
+`calendar.export_output`) bleiben einzeln, weil ein Schreibvorgang genau ein
+Ziel braucht.
 
 Das Speichern schreibt zwei Dateien in dein Konfigurationsverzeichnis,
 standardmäßig `%LOCALAPPDATA%\FolderHome\`:
@@ -400,13 +445,23 @@ standardmäßig `%LOCALAPPDATA%\FolderHome\`:
 | Datei | Inhalt |
 |---|---|
 | `resources.json` | das private Ressourcenregister, geprüft gegen denselben Vertrag, den die App lädt |
-| `launch.json` | die Startwerte für `app serve`: Profile, State-Ordner, Register, Modell, Port |
+| `launch.json` | die Startwerte für `app serve`: Profile, State-Ordner, Register, Modell, Presets, Port |
+| `.env` | die API-Schlüssel der fremdgehosteten Anbieter, nur hier geschrieben und nie in die Seite zurückgelesen |
+| `calendar.json` | Standard-Backend, Zeitzone und UpToday-ICS-Ordner, wenn du diesen Abschnitt einschaltest |
+| `calendar-accounts.json` | Kalender-Connectorkonten, sobald du eines anlegst |
 
-Eine vorhandene Datei bleibt als Kopie `.bak-<Zeitstempel>` erhalten, und beide
-Dateien werden über eine temporäre Datei geschrieben, damit ein Absturz kein
-halbes Register hinterlässt. Keine der beiden Dateien enthält je ein Passwort:
-Das Entwurfspostfach bleibt ein Verweis auf seine eigene lokale
-Zugangsdatendatei.
+Eine vorhandene Datei bleibt als Kopie `.bak-<Zeitstempel>` erhalten, außer
+`.env`: Eine Sicherung eines Schlüssels ist eine zweite Kopie eines Schlüssels.
+Jede Datei wird zuerst als temporäre Datei geschrieben, über den Vertrag
+zurückgelesen, zu dem sie gehört, und erst dann an ihren Platz gelegt. Ein Plan,
+der sich als nicht ladbar erweist, lässt den Vorzustand exakt so, wie er war.
+Keine Datei außer `.env` enthält je ein Geheimnis: Das Entwurfspostfach und ein
+Kalenderkonto tragen beide einen Verweis auf eine lokale Zugangsdatendatei, nicht
+die Zugangsdaten selbst.
+
+Die Kalenderdateien liest nicht `app serve`, sondern die `calendar`-Befehle, und
+ein Outlook-Backend gibt es in dieser Fassung nicht. Das Einrichtungsprogramm
+sagt beides und bietet nur die vier vorhandenen Backends an.
 
 Das Speichern ersetzt `resources.json` vollständig, es führt nichts zusammen.
 Wer das Register von Hand erweitert hat, etwa um ein Entwurfspostfach oder einen
