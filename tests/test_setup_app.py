@@ -10,6 +10,7 @@ import pytest
 
 from folderhome.application.profile_rules import load_profile_configuration
 from folderhome.contracts import LocalAppSettings
+from folderhome.contracts.resources import ResourceRegistryError
 from folderhome.setup_app import SetupAppError, SetupApplication
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
@@ -479,3 +480,64 @@ def test_launch_command_names_every_gate_the_file_cannot_grant(
     # Gates stay start-up flags: nothing about them travels in the file.
     assert "network_used" not in planned.payload["launch_json"]
     assert "allow_network" not in planned.payload["launch_json"]
+
+
+def test_calendar_export_folder_is_a_writable_output_that_never_leaves_the_machine(
+    tmp_path: Path,
+) -> None:
+    """The one purpose that does not end in `.output` still is one."""
+
+    export = tmp_path / "calendar-export"
+    export.mkdir()
+    app = _app(tmp_path)
+    request = _request(
+        tmp_path,
+        folders=[
+            {
+                "profile_id": "lukas",
+                "purpose": "calendar.export_output",
+                "path": str(export),
+            }
+        ],
+    )
+
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    resource = planned.payload["resources_json"]["resources"][0]
+    assert resource["operations"] == ["create"]
+    assert resource["cloud_context"] == "deny"
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+    )
+    assert saved.status_code == 200, saved.payload
+
+
+def test_save_leaves_the_previous_state_untouched_when_the_registry_does_not_load(
+    tmp_path: Path,
+) -> None:
+    """The reload test is a gate, not a report after the fact."""
+
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    planned = _post(app, "/api/v1/setup/validate", request)
+
+    def _refuse(*args: object, **kwargs: object) -> None:
+        raise ResourceRegistryError("Testfehler beim Rückladen.")
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("folderhome.setup_app.load_resource_registry", _refuse)
+        refused = _post(
+            app,
+            "/api/v1/setup/save",
+            {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
+        )
+
+    assert refused.status_code == 400
+    assert "nicht ladbar" in refused.payload["message"]
+    assert not app.resources_file.exists()
+    assert not app.launch_file.exists()
+    # No half-written scratch files are left behind either.
+    assert sorted(item.name for item in app.config_dir.iterdir()) == []

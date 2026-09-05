@@ -29,16 +29,21 @@ from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
 from folderhome.contracts.resources import ResourceRegistryError
 from folderhome.contracts.strands_agent import StrandsAgentSettings
 
-SETUP_PURPOSES = (
-    "documents.source",
-    "insurance.source",
-    "documents.output",
-    "correspondence.output",
-    "calendar.export_output",
+# One explicit table instead of guessing from name suffixes: `calendar.export_output`
+# ends in `_output`, not `.output`, and silently got no operations at all.
+_PURPOSE_OPERATIONS: dict[str, tuple[str, ...]] = {
+    "documents.source": ("list", "read"),
+    "insurance.source": ("list", "read"),
+    "documents.output": ("create",),
+    "correspondence.output": ("create",),
+    "calendar.export_output": ("create",),
+}
+SETUP_PURPOSES = tuple(_PURPOSE_OPERATIONS)
+# A folder we write into is a folder that stays here.
+_OUTPUT_PURPOSES = frozenset(
+    purpose for purpose, operations in _PURPOSE_OPERATIONS.items() if "create" in operations
 )
 LAUNCH_CONFIG_SCHEMA = "folderhome.launch-config.v1"
-_SOURCE_OPERATIONS = ("list", "read")
-_OUTPUT_OPERATIONS = ("create",)
 
 
 class SetupAppError(RuntimeError):
@@ -183,20 +188,34 @@ class SetupApplication:
             raise SetupAppError("Plan-Hash stimmt nicht mit der geprüften Fassung überein.")
         with self._lock:
             self.config_dir.mkdir(parents=True, exist_ok=True)
-            written = [
-                _atomic_write_json(self.resources_file, plan["resources_json"]),
-                _atomic_write_json(self.launch_file, plan["launch_json"]),
-            ]
-            self._verify_registry()
+            # Stage both files, load the staged registry, and only then replace the
+            # live ones. A refused plan leaves the previous state exactly as it was.
+            staged: list[tuple[Path, Path]] = []
+            try:
+                staged.append(
+                    (
+                        _stage_json(self.resources_file, plan["resources_json"]),
+                        self.resources_file,
+                    )
+                )
+                staged.append(
+                    (_stage_json(self.launch_file, plan["launch_json"]), self.launch_file)
+                )
+                self._verify_registry(staged[0][0])
+            except BaseException:
+                for temporary, _target in staged:
+                    temporary.unlink(missing_ok=True)
+                raise
+            written = [_commit_staged(temporary, target) for temporary, target in staged]
         plan["written"] = True
         plan["backups"] = [str(item) for item in written if item is not None]
         plan["side_effects"] = ["file.create", "file.update"]
         return plan
 
-    def _verify_registry(self) -> None:
+    def _verify_registry(self, path: Path) -> None:
         try:
             load_resource_registry(
-                self.resources_file,
+                path,
                 expected_os_account=self.profiles.os_account,
                 known_profile_ids=frozenset(
                     item.profile_id for item in self.profiles.profiles
@@ -531,10 +550,9 @@ def _resources_document(
         counters[profile_id] = counters.get(profile_id, 0) + 1
         resource_id = f"{profile_id}_resource_{counters[profile_id]}"
         purposes = sorted(record["purposes"])
-        is_output = any(item.endswith(".output") for item in purposes)
+        is_output = any(item in _OUTPUT_PURPOSES for item in purposes)
         operations = sorted(
-            set(_OUTPUT_OPERATIONS if is_output else ())
-            | set(_SOURCE_OPERATIONS if any(item.endswith(".source") for item in purposes) else ())
+            {operation for item in purposes for operation in _PURPOSE_OPERATIONS[item]}
         )
         resources.append(
             {
@@ -607,27 +625,29 @@ def _plan_digest(payload: dict[str, Any]) -> str:
     ).hexdigest()
 
 
-def _atomic_write_json(target: Path, document: dict[str, Any]) -> Path | None:
-    """Write encoded bytes through a temporary file; keep the previous version."""
+def _stage_json(target: Path, document: dict[str, Any]) -> Path:
+    """Write encoded bytes to a temporary file beside the target, nothing more."""
 
     content = (json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
         "utf-8"
     )
+    temporary = target.with_name(f"{target.name}.tmp-{secrets.token_hex(6)}")
+    with temporary.open("wb") as handle:
+        handle.write(content)
+        handle.flush()
+        os.fsync(handle.fileno())
+    return temporary
+
+
+def _commit_staged(temporary: Path, target: Path) -> Path | None:
+    """Replace the target with the staged file; keep the previous version."""
+
     backup: Path | None = None
     if target.is_file():
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         backup = target.with_name(f"{target.name}.bak-{stamp}")
         backup.write_bytes(target.read_bytes())
-    temporary = target.with_name(f"{target.name}.tmp-{secrets.token_hex(6)}")
-    try:
-        with temporary.open("wb") as handle:
-            handle.write(content)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(temporary, target)
-    finally:
-        if temporary.exists():
-            temporary.unlink()
+    os.replace(temporary, target)
     return backup
 
 
