@@ -395,7 +395,7 @@ def run_folderhome_agent_turn(
         stop_reason=str(result.stop_reason),
         model_turns=int(result.metrics.cycle_count),
         tool_events=tuple(events),
-        network_used=settings.model_provider == "bedrock",
+        network_used=settings.network_used,
         sensitive_cloud_data_authorized=settings.allow_sensitive_cloud_data,
         delegation_events=tuple(delegations),
         proposed_plans=tuple(proposed_plans),
@@ -618,6 +618,18 @@ def _build_model(
     if settings.model_provider == "fixture":
         return _fixture_model_class()(
             specialist_workflow_id=specialist_workflow_id
+        )
+    if settings.model_provider == "ollama":
+        try:
+            from strands.models.ollama import OllamaModel
+        except ImportError as exc:  # pragma: no cover - dependency contract
+            raise FolderHomeAgentError(
+                "Strands-Ollama-Provider ist nicht installiert: pip install 'folderhome[ollama]'"
+            ) from exc
+        return OllamaModel(
+            settings.ollama_host,
+            model_id=settings.ollama_model_id,
+            max_tokens=settings.max_output_tokens,
         )
     try:
         from botocore.config import Config as BotocoreConfig

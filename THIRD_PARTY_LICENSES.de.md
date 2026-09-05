@@ -2,9 +2,9 @@
 
 [English](./THIRD_PARTY_LICENSES.md) | **Deutsch**
 
-**Version:** 0.16
-**Aktualisiert:** 2026-08-23
-**Grund:** Abhängigkeiten des öffentlichen Showcases und des optionalen AgentCore-Builds erfasst
+**Version:** 0.17
+**Aktualisiert:** 2026-09-05
+**Grund:** Optionaler lokaler Modell-Provider (Ollama) erfasst
 **Zweck:** Dokumentiert externe oder vorbestehende Komponenten mit genauer Revision.
 
 | Komponente | Repository | Revision | Lizenz | Einbindung |
@@ -37,6 +37,7 @@
 | project-docs | Lokales internes project-docs-Template | Stand 2026-08-21 | Projektinterner Bestand | Doku-Grundgerüst |
 | ellmos mail-connector | Lokales Modul `.MODULES/.CONNECTORS/mail-connector` | Designreferenz, bewusst nicht gepinnt | MIT | Verbindungslebenszyklus, Modified-UTF-7-Ordnernamen und zweiwegige Passwortauflösung als Muster übernommen; kein Code importiert und keine Revision gepinnt, daher kann kein Checkout wegdriften |
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Verpflichtender Agentenloop; Fixture standardmäßig ohne Netzwerk, Bedrock nur nach Gate |
+| ollama | PyPI-Paket `ollama` | `>=0.4`, geprüft mit `0.6.2` | MIT | Optionales Extra `folderhome[ollama]`; HTTP-Client für den lokalen Ollama-Provider, wird nur bei `--model-provider ollama` geladen |
 | tzdata | PyPI-Paket `tzdata` | `==2026.3` auf Windows | Apache-2.0 | IANA-Zeitzonendaten für reproduzierbare Kalender-, Medikamenten- und Scheduler-Verträge auf Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-gepinnte Action für den Pages-Build |
 | actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-gepinnte Action für die Pages-Konfiguration |

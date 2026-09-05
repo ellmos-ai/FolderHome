@@ -293,3 +293,108 @@ def test_bedrock_model_uses_explicit_timeouts_and_one_sdk_attempt(
     assert config.read_timeout == 20
     assert config.retries["total_max_attempts"] == 1
     assert captured["max_tokens"] == settings.max_output_tokens
+
+
+def test_loopback_ollama_needs_no_network_or_cloud_data_gate() -> None:
+    settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen3.8:27b-mlx",
+    )
+
+    assert settings.network_used is False
+    assert settings.is_live_model is True
+    assert settings.allow_network is False
+    assert settings.allow_sensitive_cloud_data is False
+    payload = settings.to_dict()
+    assert payload["schema"] == "folderhome.strands-agent-settings.v1"
+    assert payload["ollama_host"] == "http://127.0.0.1:11434"
+    assert payload["ollama_model_id"] == "qwen3.8:27b-mlx"
+    assert payload["network_used"] is False
+
+
+def test_ollama_outside_loopback_requires_both_explicit_gates() -> None:
+    common = {
+        "model_provider": "ollama",
+        "ollama_host": "http://100.119.69.90:11434",
+        "ollama_model_id": "qwen3.8:27b-mlx",
+    }
+
+    with pytest.raises(ValueError, match="Netzwerkfreigabe"):
+        StrandsAgentSettings(**common)
+    with pytest.raises(ValueError, match="Datenweitergabefreigabe"):
+        StrandsAgentSettings(**common, allow_network=True)
+
+    settings = StrandsAgentSettings(
+        **common,
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    assert settings.network_used is True
+    assert settings.to_dict()["network_used"] is True
+
+
+def test_ollama_settings_reject_missing_model_id_and_foreign_provider_fields() -> None:
+    with pytest.raises(ValueError, match="Modell-ID"):
+        StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host="http://127.0.0.1:11434",
+        )
+    with pytest.raises(ValueError, match="Host"):
+        StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host="127.0.0.1:11434",
+            ollama_model_id="qwen3.8:27b-mlx",
+        )
+    with pytest.raises(ValueError, match="Ollama-Modus"):
+        StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host="http://127.0.0.1:11434",
+            ollama_model_id="qwen3.8:27b-mlx",
+            aws_region="eu-central-1",
+        )
+    with pytest.raises(ValueError, match="Fixture-Modus"):
+        StrandsAgentSettings(
+            model_provider="fixture",
+            ollama_host="http://127.0.0.1:11434",
+        )
+    with pytest.raises(ValueError, match="Bedrock-Modus"):
+        StrandsAgentSettings(
+            model_provider="bedrock",
+            bedrock_model_id="eu.amazon.nova-micro-v1:0",
+            aws_region="eu-central-1",
+            allow_network=True,
+            allow_sensitive_cloud_data=True,
+            ollama_model_id="qwen3.8:27b-mlx",
+        )
+
+
+def test_network_used_and_is_live_model_separate_provider_from_transport() -> None:
+    fixture = StrandsAgentSettings(model_provider="fixture")
+    bedrock = StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id="eu.amazon.nova-micro-v1:0",
+        aws_region="eu-central-1",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+
+    assert (fixture.network_used, fixture.is_live_model) == (False, False)
+    assert (bedrock.network_used, bedrock.is_live_model) == (True, True)
+
+
+def test_ollama_model_receives_host_model_id_and_output_budget() -> None:
+    ollama_models = pytest.importorskip("strands.models.ollama")
+    settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen3.8:27b-mlx",
+        max_output_tokens=2_048,
+    )
+
+    model = strands_module._build_model(settings)
+
+    assert isinstance(model, ollama_models.OllamaModel)
+    assert model.host == "http://127.0.0.1:11434"
+    assert model.get_config()["model_id"] == "qwen3.8:27b-mlx"
+    assert model.get_config()["max_tokens"] == 2_048

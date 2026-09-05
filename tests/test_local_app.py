@@ -334,6 +334,7 @@ def test_status_and_profiles_expose_organizational_boundary(tmp_path: Path) -> N
         "semantic_routing_mode": "deterministic_fixture",
         "model_id": None,
         "aws_region": None,
+        "ollama_host": None,
         "network_authorized": False,
         "sensitive_cloud_data_authorized": False,
         "status_probe_performed": False,
@@ -1396,3 +1397,38 @@ def test_loopback_server_bounds_slow_connections_before_token_dispatch(
         server.shutdown()
         thread.join(timeout=5)
         server.server_close()
+
+
+def test_loopback_ollama_status_reports_local_inference_without_cloud_claims(
+    tmp_path: Path,
+) -> None:
+    app = LocalApplication(
+        settings=_settings(tmp_path),
+        profiles=load_profile_configuration(PROFILE_DIR),
+        searcher=StubSearcher(),
+        session_token="ollama-status-test-token-with-sufficient-entropy-1234",
+        agent_settings=StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host="http://127.0.0.1:11434",
+            ollama_model_id="qwen3.8:27b-mlx",
+        ),
+    )
+    port = 8765
+
+    status = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(port, app.session_token),
+        body=b"",
+        server_port=port,
+    )
+
+    connection = status.payload["model_connection"]
+    assert connection["provider"] == "ollama"
+    assert connection["live_model_configured"] is True
+    assert connection["model_inference_location"] == "local_ollama_host"
+    assert connection["model_id"] == "qwen3.8:27b-mlx"
+    assert connection["ollama_host"] == "http://127.0.0.1:11434"
+    assert connection["aws_region"] is None
+    assert connection["connection_status"] == "configured_not_verified"
+    assert connection["network_authorized"] is False

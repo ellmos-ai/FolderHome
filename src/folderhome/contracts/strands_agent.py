@@ -4,11 +4,24 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from urllib.parse import SplitResult, urlsplit
 
 from folderhome.contracts.master_agent import MasterAgentPlan
 
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{2,254}")
 _AWS_REGION = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+
+
+def _parsed_model_host(value: str | None) -> SplitResult | None:
+    """Return the parsed host only when it is an explicit http(s) endpoint."""
+
+    if not isinstance(value, str):
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+        return None
+    return parsed
 
 
 @dataclass(frozen=True, slots=True)
@@ -18,6 +31,8 @@ class StrandsAgentSettings:
     model_provider: str = "fixture"
     bedrock_model_id: str | None = None
     aws_region: str | None = None
+    ollama_host: str | None = None
+    ollama_model_id: str | None = None
     allow_network: bool = False
     allow_sensitive_cloud_data: bool = False
     max_turns: int = 4
@@ -33,8 +48,8 @@ class StrandsAgentSettings:
     SCHEMA = "folderhome.strands-agent-settings.v1"
 
     def __post_init__(self) -> None:
-        if self.model_provider not in {"fixture", "bedrock"}:
-            raise ValueError("model_provider muss fixture oder bedrock sein.")
+        if self.model_provider not in {"fixture", "bedrock", "ollama"}:
+            raise ValueError("model_provider muss fixture, bedrock oder ollama sein.")
         limits = {
             "max_turns": (self.max_turns, 1, 8),
             "max_tool_calls": (self.max_tool_calls, 1, 8),
@@ -71,9 +86,40 @@ class StrandsAgentSettings:
                 or self.allow_sensitive_cloud_data
                 or self.bedrock_model_id is not None
                 or self.aws_region is not None
+                or self.ollama_host is not None
+                or self.ollama_model_id is not None
             ):
-                raise ValueError("Fixture-Modus darf keine Netzwerk- oder Bedrock-Angaben tragen.")
+                raise ValueError(
+                    "Fixture-Modus darf keine Netzwerk-, Bedrock- oder Ollama-Angaben tragen."
+                )
             return
+        if self.model_provider == "ollama":
+            if self.bedrock_model_id is not None or self.aws_region is not None:
+                raise ValueError("Ollama-Modus darf keine Bedrock-Angaben tragen.")
+            if (
+                self.ollama_model_id is None
+                or _MODEL_ID.fullmatch(self.ollama_model_id) is None
+            ):
+                raise ValueError("Ollama benötigt eine gültige explizite Modell-ID.")
+            if _parsed_model_host(self.ollama_host) is None:
+                raise ValueError(
+                    "Ollama benötigt einen expliziten Host mit http:// oder https://."
+                )
+            if not self.network_used:
+                return
+            if not self.allow_network:
+                raise ValueError(
+                    "Ollama außerhalb der Loopback-Adresse benötigt eine ausdrückliche "
+                    "Netzwerkfreigabe."
+                )
+            if not self.allow_sensitive_cloud_data:
+                raise ValueError(
+                    "Ollama außerhalb der Loopback-Adresse benötigt eine getrennte "
+                    "ausdrückliche Datenweitergabefreigabe."
+                )
+            return
+        if self.ollama_host is not None or self.ollama_model_id is not None:
+            raise ValueError("Bedrock-Modus darf keine Ollama-Angaben tragen.")
         if not self.allow_network:
             raise ValueError("Bedrock benötigt eine ausdrückliche Netzwerkfreigabe.")
         if not self.allow_sensitive_cloud_data:
@@ -85,12 +131,32 @@ class StrandsAgentSettings:
         if self.aws_region is None or _AWS_REGION.fullmatch(self.aws_region) is None:
             raise ValueError("Bedrock benötigt eine gültige explizite AWS-Region.")
 
+    @property
+    def network_used(self) -> bool:
+        """Report whether this provider leaves the loopback interface."""
+
+        if self.model_provider == "bedrock":
+            return True
+        if self.model_provider != "ollama":
+            return False
+        parsed = _parsed_model_host(self.ollama_host)
+        return parsed is None or parsed.hostname.lower() not in _LOOPBACK_HOSTS
+
+    @property
+    def is_live_model(self) -> bool:
+        """Report whether a real model answers instead of the deterministic fixture."""
+
+        return self.model_provider != "fixture"
+
     def to_dict(self) -> dict[str, object]:
         return {
             "schema": self.SCHEMA,
             "model_provider": self.model_provider,
             "bedrock_model_id": self.bedrock_model_id,
             "aws_region": self.aws_region,
+            "ollama_host": self.ollama_host,
+            "ollama_model_id": self.ollama_model_id,
+            "network_used": self.network_used,
             "allow_network": self.allow_network,
             "allow_sensitive_cloud_data": self.allow_sensitive_cloud_data,
             "max_turns": self.max_turns,

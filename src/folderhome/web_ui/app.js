@@ -35,6 +35,10 @@ const translations = {
     modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in {region}. No successful live chat has been verified in this process yet.",
     modelVerified: "Amazon Bedrock active",
     modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in {region}. {count} successful live model turn(s) in this process.",
+    modelLocalConfigured: "Local model configured (Ollama)",
+    modelLocalConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} at {host}. No successful live chat has been verified in this process yet.",
+    modelLocalVerified: "Local model active (Ollama)",
+    modelLocalVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} at {host}. {count} successful live model turn(s) in this process.",
     welcomeMessage: "Tell me what you want to find, understand, organize, or prepare. I will use a safe tool directly or propose a bounded workflow.",
     chatPlaceholder: "Find my latest Hyundai i10 insurance and show me what changed …",
     sendButton: "Send",
@@ -116,6 +120,10 @@ const translations = {
     modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelVerified: "Amazon Bedrock aktiv",
     modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelLocalConfigured: "Lokales Modell konfiguriert (Ollama)",
+    modelLocalConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelLocalVerified: "Lokales Modell aktiv (Ollama)",
+    modelLocalVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} auf {host}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
     welcomeMessage: "Sag mir, was du finden, verstehen, ordnen oder vorbereiten möchtest. Ich nutze direkt ein sicheres Werkzeug oder schlage einen begrenzten Workflow vor.",
     chatPlaceholder: "Finde meine neueste Hyundai-i10-Versicherung und zeige mir die Änderungen …",
     sendButton: "Senden",
@@ -370,17 +378,19 @@ function renderModelStatus() {
     modelStatusDetail.textContent = t("modelFixtureDetail");
     return;
   }
+  const isOllama = modelConnection.provider === "ollama";
   const values = {
-    model: modelConnection.model_id || "Bedrock model",
+    model: modelConnection.model_id || (isOllama ? "Ollama model" : "Bedrock model"),
     region: modelConnection.aws_region || "AWS region",
+    host: modelConnection.ollama_host || "the configured Ollama host",
     count: modelConnection.successful_live_model_turns || 0,
   };
   const verified = modelConnection.connection_status === "verified_in_process";
-  modelStatusTitle.textContent = t(verified ? "modelVerified" : "modelConfigured");
-  modelStatusDetail.textContent = t(
-    verified ? "modelVerifiedDetail" : "modelConfiguredDetail",
-    values,
-  );
+  const titleKey = isOllama
+    ? (verified ? "modelLocalVerified" : "modelLocalConfigured")
+    : (verified ? "modelVerified" : "modelConfigured");
+  modelStatusTitle.textContent = t(titleKey);
+  modelStatusDetail.textContent = t(`${titleKey}Detail`, values);
 }
 
 function renderCapabilities() {

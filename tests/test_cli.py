@@ -4387,3 +4387,79 @@ def test_mail_cli_inventories_providers_and_plans_without_provider_call() -> Non
     assert payload["provider_id"] == "folderhome.synthetic-mail"
     assert payload["mailbox_mutations"] == []
     assert payload["provider_invoked"] is False
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_ollama_cli_plans_loopback_provider_without_gates_or_model_call(
+    tmp_path: Path,
+) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+
+    planned = run_cli(
+        "agent",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "ollama",
+        "--ollama-model-id",
+        "qwen3.8:27b-mlx",
+        "--json",
+    )
+
+    assert planned.returncode == 0, planned.stderr
+    payload = json.loads(planned.stdout)
+    assert payload["model_call_performed"] is False
+    assert payload["settings"]["model_provider"] == "ollama"
+    assert payload["settings"]["ollama_host"] == "http://127.0.0.1:11434"
+    assert payload["settings"]["ollama_model_id"] == "qwen3.8:27b-mlx"
+    assert payload["settings"]["network_used"] is False
+    assert payload["settings"]["allow_network"] is False
+
+
+@pytest.mark.skipif(
+    not KNOWLEDGE_DIGEST_ROOT.is_dir(),
+    reason="pinned KnowledgeDigest checkout unavailable",
+)
+def test_ollama_cli_refuses_remote_host_without_both_gates(tmp_path: Path) -> None:
+    state_dir = tmp_path / "state"
+    state_dir.mkdir()
+    arguments = (
+        "agent",
+        "plan",
+        "--profiles-dir",
+        str(REPO_ROOT / "examples" / "profiles"),
+        "--state-dir",
+        str(state_dir),
+        "--knowledge-digest-root",
+        str(KNOWLEDGE_DIGEST_ROOT),
+        "--model-provider",
+        "ollama",
+        "--ollama-host",
+        "http://192.0.2.10:11434",
+        "--ollama-model-id",
+        "qwen3.8:27b-mlx",
+    )
+
+    blocked = run_cli(*arguments, "--json")
+    approved = run_cli(
+        *arguments,
+        "--allow-network",
+        "--approve-sensitive-cloud-data",
+        "--json",
+    )
+
+    assert blocked.returncode == 2
+    assert "Netzwerkfreigabe" in json.loads(blocked.stdout)["error"]
+    assert approved.returncode == 0, approved.stderr
+    settings = json.loads(approved.stdout)["settings"]
+    assert settings["network_used"] is True
+    assert settings["ollama_host"] == "http://192.0.2.10:11434"

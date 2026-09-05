@@ -1537,11 +1537,13 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
 def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--model-provider",
-        choices=("fixture", "bedrock"),
+        choices=("fixture", "bedrock", "ollama"),
         default="fixture",
     )
     parser.add_argument("--bedrock-model-id")
     parser.add_argument("--aws-region")
+    parser.add_argument("--ollama-host")
+    parser.add_argument("--ollama-model-id")
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--approve-sensitive-cloud-data", action="store_true")
     parser.add_argument("--max-turns", type=int, default=4)
@@ -4864,11 +4866,19 @@ def _run_accident_demo_site(args: argparse.Namespace) -> int:
     return 0
 
 
+DEFAULT_OLLAMA_HOST = "http://127.0.0.1:11434"
+
+
 def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
+    ollama_host = args.ollama_host
+    if args.model_provider == "ollama" and ollama_host is None:
+        ollama_host = DEFAULT_OLLAMA_HOST
     return StrandsAgentSettings(
         model_provider=args.model_provider,
         bedrock_model_id=args.bedrock_model_id,
         aws_region=args.aws_region,
+        ollama_host=ollama_host,
+        ollama_model_id=args.ollama_model_id,
         allow_network=args.allow_network,
         allow_sensitive_cloud_data=args.approve_sensitive_cloud_data,
         max_turns=args.max_turns,

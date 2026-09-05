@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./THIRD_PARTY_LICENSES.de.md)
 
-**Version:** 0.16  
-**Updated:** 2026-08-23  
-**Reason:** Public showcase and optional AgentCore build dependencies recorded  
+**Version:** 0.17  
+**Updated:** 2026-09-05  
+**Reason:** Optional local model provider (Ollama) recorded  
 **Purpose:** Documents external or pre‑existing components with exact revision.
 
 | Component | Repository | Revision | License | Integration |
@@ -37,6 +37,7 @@
 | project-docs | Local internal project-docs template | Status 2026-08-21 | Project‑internal asset | Documentation base skeleton |
 | ellmos mail-connector | Local module `.MODULES/.CONNECTORS/mail-connector` | Design reference, deliberately not pinned | MIT | Connection lifecycle, modified UTF-7 mailbox names and two-way credential lookup reused as patterns; no code imported and no revision pinned, so no checkout can drift |
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Mandatory agent loop; fixture by default without network, Bedrock only after gate |
+| ollama | PyPI package `ollama` | `>=0.4`, checked with `0.6.2` | MIT | Optional extra `folderhome[ollama]`; HTTP client for the local Ollama provider, loaded only for `--model-provider ollama` |
 | tzdata | PyPI package `tzdata` | `==2026.3` on Windows | Apache-2.0 | IANA time‑zone data for reproducible calendar, medication, and scheduler contracts on Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-pinned Pages build action |
 | actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-pinned Pages configuration action |

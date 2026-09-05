@@ -172,7 +172,7 @@ class LocalApplication:
                 settings=self.agent_settings,
                 prior_messages=self._agent_conversation_messages[request["profile_id"]],
             )
-            if self.agent_settings.model_provider == "bedrock":
+            if self.agent_settings.is_live_model:
                 with self._model_status_lock:
                     self._successful_live_model_turns += 1
             self._agent_conversation_messages[request["profile_id"]] = retained_messages
@@ -504,7 +504,18 @@ class LocalApplication:
     def _model_connection_payload(self) -> dict[str, object]:
         with self._model_status_lock:
             successful_turns = self._successful_live_model_turns
-        is_live_provider = self.agent_settings.model_provider == "bedrock"
+        is_live_provider = self.agent_settings.is_live_model
+        provider = self.agent_settings.model_provider
+        if provider == "bedrock":
+            inference_location = "aws_cloud"
+        elif provider == "ollama":
+            inference_location = (
+                "remote_ollama_host"
+                if self.agent_settings.network_used
+                else "local_ollama_host"
+            )
+        else:
+            inference_location = "local_fixture"
         return {
             "schema": "folderhome.model-connection-status.v1",
             "provider": self.agent_settings.model_provider,
@@ -514,9 +525,7 @@ class LocalApplication:
             ),
             "application_runtime": "local_loopback",
             "document_runtime": "local_state",
-            "model_inference_location": (
-                "aws_cloud" if is_live_provider else "local_fixture"
-            ),
+            "model_inference_location": inference_location,
             "connection_status": (
                 "verified_in_process"
                 if successful_turns > 0
@@ -530,8 +539,12 @@ class LocalApplication:
             "semantic_routing_mode": (
                 "live_model" if is_live_provider else "deterministic_fixture"
             ),
-            "model_id": self.agent_settings.bedrock_model_id,
+            "model_id": (
+                self.agent_settings.bedrock_model_id
+                or self.agent_settings.ollama_model_id
+            ),
             "aws_region": self.agent_settings.aws_region,
+            "ollama_host": self.agent_settings.ollama_host,
             "network_authorized": self.agent_settings.allow_network,
             "sensitive_cloud_data_authorized": (
                 self.agent_settings.allow_sensitive_cloud_data
