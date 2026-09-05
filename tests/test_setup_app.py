@@ -3,17 +3,28 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from folderhome.application.profile_rules import load_profile_configuration
+from folderhome.application.profile_rules import (
+    ProfileConfigurationError,
+    load_profile_configuration,
+)
 from folderhome.application.resource_registry import parse_resource_registry
 from folderhome.contracts import LocalAppSettings
 from folderhome.contracts.resources import ResourceRegistryError
-from folderhome.setup_app import SETUP_PURPOSES, SetupAppError, SetupApplication
+from folderhome.setup_app import (
+    HOUSEHOLD_FILENAME,
+    RULE_KEYS,
+    SETUP_PURPOSES,
+    SetupAppError,
+    SetupApplication,
+    profile_templates,
+)
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
 TOKEN = "setup-app-test-token-with-sufficient-entropy-12345678"
@@ -1056,3 +1067,675 @@ def test_state_carries_the_editor_integration_without_touching_anything(
     assert "[mcp_servers.folderhome]" in integrations["codex_config_toml"]
     # A read of the state must not create the config the installer would write.
     assert not (tmp_path / "config" / "resources.json").exists()
+
+
+# --------------------------------------------------------------- profiles 9a
+def _empty_profile_app(tmp_path: Path) -> SetupApplication:
+    """An installer on a first run: config folder there, profile folder empty."""
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    profiles_dir = config_dir / "profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    state_dir = tmp_path / "state"
+    state_dir.mkdir(exist_ok=True)
+    return SetupApplication(
+        settings=LocalAppSettings(
+            host="127.0.0.1",
+            port=0,
+            profiles_dir=profiles_dir,
+            state_dir=state_dir,
+        ),
+        profiles=None,
+        config_dir=config_dir,
+        session_token=TOKEN,
+    )
+
+
+def _profile_rows(documents: dict[str, dict[str, object]]) -> list[dict[str, object]]:
+    """Turn template documents into the rows the form sends back."""
+
+    return [
+        {
+            "profile_id": name.casefold(),
+            "display_name": document["display_name"],
+            "rules": [
+                {
+                    "key": rule["key"],
+                    "value": rule["value"],
+                    "scope": rule["scope"],
+                    "area": rule.get("area"),
+                }
+                for rule in document["rules"]
+            ],
+        }
+        for name, document in sorted(documents.items())
+    ]
+
+
+def _household_rows(household: dict[str, object]) -> list[dict[str, object]]:
+    return [
+        {
+            "key": rule["key"],
+            "value": rule["value"],
+            "scope": rule["scope"],
+            "area": rule.get("area"),
+        }
+        for rule in household["rules"]
+    ]
+
+
+def _profile_request(tmp_path: Path, app: SetupApplication, **overrides: object):
+    templates = profile_templates()
+    request = _request(
+        tmp_path,
+        profiles=_profile_rows(templates["profiles"]),
+        household_rules=_household_rows(templates["household"]),
+        profiles_dir=str(app.profiles_dir),
+    )
+    request.update(overrides)
+    return request
+
+
+def _save(app: SetupApplication, request: dict[str, object]) -> dict[str, object]:
+    plan = app.plan(request)
+    assert plan["valid"], plan["errors"]
+    return app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+
+def _reopened(tmp_path: Path, app: SetupApplication) -> SetupApplication:
+    """Open the installer again on what the previous save left on disk."""
+
+    return SetupApplication(
+        settings=app.settings,
+        profiles=load_profile_configuration(app.profiles_dir),
+        config_dir=app.config_dir,
+        session_token=TOKEN,
+    )
+
+
+def test_first_run_reports_no_profiles_and_offers_the_examples(tmp_path: Path) -> None:
+    """Without a household file the installer still starts; it exists to create one."""
+
+    state = _empty_profile_app(tmp_path).state_payload()
+
+    assert state["profiles_configured"] is False
+    assert state["profiles"] == []
+    # The account label is real even before any file carries it.
+    assert state["os_account"].strip()
+    assert sorted(state["profile_templates"]["profiles"]) == ["Hanna", "Lukas", "Simon"]
+    assert state["profile_templates"]["household"]["schema"] == (
+        "folderhome.household-rules.v1"
+    )
+    assert set(state["rule_keys"]) == set(RULE_KEYS)
+    assert state["integer_rule_keys"] == [
+        "archive.after_days",
+        "delete.after_days",
+        "scan.interval_minutes",
+    ]
+
+
+def test_taking_the_examples_writes_a_household_that_loads(tmp_path: Path) -> None:
+    """The written set has to pass the loader the app itself uses, not a copy of it."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+
+    saved = _save(app, request)
+
+    assert saved["written"] is True
+    written = load_profile_configuration(app.profiles_dir)
+    assert [item.profile_id for item in written.profiles] == ["hanna", "lukas", "simon"]
+    # The examples carry a synthetic account; a new household takes the real one.
+    assert written.os_account == app.profiles.os_account
+    assert written.os_account != "synthetic-family-account"
+    assert (app.profiles_dir / HOUSEHOLD_FILENAME).is_file()
+    # File names come from the validated id, never from the typed display name.
+    assert sorted(item.name for item in app.profiles_dir.glob("*.json")) == [
+        "hanna.json",
+        "household.json",
+        "lukas.json",
+        "simon.json",
+    ]
+
+
+def test_starting_empty_still_needs_one_profile(tmp_path: Path) -> None:
+    """Beginning without the examples is allowed; saving no profile at all is not."""
+
+    app = _empty_profile_app(tmp_path)
+    templates = profile_templates()
+    empty = _profile_request(
+        tmp_path,
+        app,
+        profiles=[],
+        household_rules=[
+            rule
+            for rule in _household_rows(templates["household"])
+            if rule["scope"] == "global"
+        ],
+    )
+
+    plan = app.plan(empty)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles" for item in plan["errors"])
+    assert not list(app.profiles_dir.glob("*.json"))
+
+
+def test_a_new_profile_can_be_added_and_renamed(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    _save(app, request)
+
+    request["profiles"] = [
+        *request["profiles"],
+        {
+            "profile_id": "mika",
+            "display_name": "Mika",
+            "rules": [
+                {
+                    "key": "archive.after_days",
+                    "value": 400,
+                    "scope": "profile",
+                    "area": None,
+                }
+            ],
+        },
+    ]
+    _save(app, request)
+    assert [item.profile_id for item in load_profile_configuration(app.profiles_dir).profiles] == [
+        "hanna",
+        "lukas",
+        "mika",
+        "simon",
+    ]
+
+    for row in request["profiles"]:
+        if row["profile_id"] == "mika":
+            row["display_name"] = "Mika Neu"
+    _save(app, request)
+    renamed = {
+        item.profile_id: item.display_name
+        for item in load_profile_configuration(app.profiles_dir).profiles
+    }
+    assert renamed["mika"] == "Mika Neu"
+
+
+def test_deleting_a_profile_moves_its_file_aside(tmp_path: Path) -> None:
+    """A profile file is the only place its rules live, so it is retired, not deleted."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    _save(app, request)
+
+    request["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    plan = app.plan(request)
+    assert plan["removed_profile_ids"] == ["simon"]
+
+    saved = _save(app, request)
+
+    assert not (app.profiles_dir / "simon.json").exists()
+    assert len(saved["retired_profiles"]) == 1
+    retired = Path(saved["retired_profiles"][0])
+    assert retired.name == "simon.json"
+    assert retired.parent.name.startswith(".deleted-")
+    assert json.loads(retired.read_text(encoding="utf-8"))["profile_id"] == "simon"
+    # The retired copy must not be picked up as a profile again.
+    assert [item.profile_id for item in load_profile_configuration(app.profiles_dir).profiles] == [
+        "hanna",
+        "lukas",
+    ]
+
+
+def test_the_last_profile_cannot_be_deleted(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    _save(app, request)
+
+    plan = app.plan({**request, "profiles": []})
+
+    assert plan["valid"] is False
+    assert any(
+        item["field"] == "profiles" and "Profil" in item["message"]
+        for item in plan["errors"]
+    )
+    assert (app.profiles_dir / "lukas.json").is_file()
+
+
+@pytest.mark.parametrize(
+    "profile_id",
+    ["Lukas", "1lukas", "l", "../escape", "lukas.json", "lu kas"],
+)
+def test_an_unusable_profile_id_is_refused(tmp_path: Path, profile_id: str) -> None:
+    """The file name is derived from the id, so a bad id never reaches the disk."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        profiles=[{"profile_id": profile_id, "display_name": "Test"}],
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"].startswith("profiles[") for item in plan["errors"])
+    assert not list(app.profiles_dir.glob("*.json"))
+
+
+def test_an_unknown_rule_key_is_refused_at_its_row(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        profiles=[
+            {
+                "profile_id": "lukas",
+                "display_name": "Lukas",
+                "rules": [
+                    {"key": "naming.invented", "value": "x", "scope": "profile"}
+                ],
+            }
+        ],
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles[0].rules[0]" for item in plan["errors"])
+
+
+def test_a_household_rule_may_not_carry_a_profile_scope(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        household_rules=[
+            {"key": "naming.template", "value": "{name}", "scope": "profile"}
+        ],
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"].startswith("household_rules") for item in plan["errors"])
+
+
+def test_the_plan_hash_covers_the_profile_documents(tmp_path: Path) -> None:
+    """A changed display name must invalidate a hash the browser already confirmed."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    first = app.plan(request)
+
+    request["profiles"][0]["display_name"] = "Anders"
+    second = app.plan(request)
+    assert first["plan_sha256"] != second["plan_sha256"]
+
+    with pytest.raises(SetupAppError):
+        app.save({**request, "confirm": True, "plan_sha256": first["plan_sha256"]})
+    assert not list(app.profiles_dir.glob("*.json"))
+
+
+def test_a_request_without_profiles_leaves_the_profile_folder_alone(
+    tmp_path: Path,
+) -> None:
+    """The example folder is a template, not working data: nothing writes into it."""
+
+    app = _app(tmp_path)
+    plan = app.plan(_request(tmp_path))
+
+    assert plan["valid"] is True
+    assert plan["profiles_json"] is None
+    assert plan["household_json"] is None
+    assert plan["removed_profile_ids"] == []
+
+    before = {
+        path.name: path.read_bytes() for path in sorted(PROFILE_DIR.glob("*.json"))
+    }
+    app.save({**_request(tmp_path), "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    after = {path.name: path.read_bytes() for path in sorted(PROFILE_DIR.glob("*.json"))}
+    assert before == after
+
+
+def test_a_refused_profile_set_leaves_the_previous_one_in_place(tmp_path: Path) -> None:
+    """The reload check runs on the staged bytes, before anything is replaced."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    _save(app, request)
+    before = (app.profiles_dir / "lukas.json").read_bytes()
+
+    # Two profiles claiming the same id never reach a file.
+    broken = {**request, "profiles": [*request["profiles"], request["profiles"][1]]}
+    plan = app.plan(broken)
+
+    assert plan["valid"] is False
+    assert (app.profiles_dir / "lukas.json").read_bytes() == before
+    assert not list(app.profiles_dir.glob("*.tmp-*"))
+
+
+def test_a_first_run_without_a_profile_set_says_so(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+
+    plan = app.plan(_request(tmp_path))
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles" for item in plan["errors"])
+
+
+def test_the_profile_folder_is_created_by_the_save(tmp_path: Path) -> None:
+    """The installer owns this folder, so it may plan for one that is not there yet."""
+
+    app = _empty_profile_app(tmp_path)
+    target = tmp_path / "config" / "fresh-profiles"
+    request = _profile_request(tmp_path, app, profiles_dir=str(target))
+
+    saved = _save(app, request)
+
+    assert saved["written"] is True
+    assert (target / HOUSEHOLD_FILENAME).is_file()
+    assert load_profile_configuration(target).profiles
+
+
+def test_a_profile_folder_below_a_missing_parent_is_refused(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path, app, profiles_dir=str(tmp_path / "nowhere" / "profiles")
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles_dir" for item in plan["errors"])
+
+
+def test_profile_documents_are_checked_before_they_are_written(tmp_path: Path) -> None:
+    """parse and load must agree; otherwise validate lights up a save that fails."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        profiles=[
+            {
+                "profile_id": "lukas",
+                "display_name": "Lukas",
+                # scan.interval_minutes needs an integer of at least 1.
+                "rules": [
+                    {"key": "scan.interval_minutes", "value": 0, "scope": "profile"}
+                ],
+            }
+        ],
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles" for item in plan["errors"])
+    with pytest.raises(ProfileConfigurationError):
+        load_profile_configuration(app.profiles_dir)
+
+
+# --------------------------------------------------------------- profiles 9b
+def test_deleting_a_profile_takes_its_calendar_account_with_it(tmp_path: Path) -> None:
+    """A stale account would keep the app from starting, so it cannot stay behind."""
+
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        calendar={
+            "default_backend": "uptoday_ics",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "simon",
+                    "backend": "folderhome_local",
+                    "account_id": "local-simon",
+                    "display_name": "Simon lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "simon",
+                },
+                {
+                    "profile_id": "lukas",
+                    "backend": "folderhome_local",
+                    "account_id": "local-lukas",
+                    "display_name": "Lukas lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "lukas",
+                },
+            ],
+        },
+    )
+    _save(app, request)
+    assert app.calendar_accounts_file.is_file()
+
+    # The next round drops Simon and does not touch the calendar section at all.
+    reloaded = _reopened(tmp_path, app)
+    without_simon = {
+        key: value for key, value in request.items() if key != "calendar"
+    }
+    without_simon["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(without_simon)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert plan["cascade"]["calendar_account_ids"] == ["local-simon"]
+
+    reloaded.save({**without_simon, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    remaining = json.loads(app.calendar_accounts_file.read_text(encoding="utf-8"))
+    assert [item["account_id"] for item in remaining["accounts"]] == ["local-lukas"]
+
+
+def test_the_last_calendar_account_of_a_deleted_profile_retires_the_file(
+    tmp_path: Path,
+) -> None:
+    """An empty account list is not a valid document, so the file is moved aside."""
+
+    ics = tmp_path / "ics"
+    ics.mkdir()
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(
+        tmp_path,
+        app,
+        calendar={
+            "default_backend": "uptoday_ics",
+            "timezone": "Europe/Berlin",
+            "ics_directory": str(ics),
+            "accounts": [
+                {
+                    "profile_id": "simon",
+                    "backend": "folderhome_local",
+                    "account_id": "local-simon",
+                    "display_name": "Simon lokal",
+                    "provider_id": "folderhome",
+                    "provider_revision": "folderhome@1",
+                    "calendar_id": "simon",
+                }
+            ],
+        },
+    )
+    _save(app, request)
+
+    reloaded = _reopened(tmp_path, app)
+    without_simon = {
+        key: value for key, value in request.items() if key != "calendar"
+    }
+    without_simon["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(without_simon)
+    assert plan["cascade"]["retired_files"] == [str(app.calendar_accounts_file)]
+
+    saved = reloaded.save(
+        {**without_simon, "confirm": True, "plan_sha256": plan["plan_sha256"]}
+    )
+
+    assert not app.calendar_accounts_file.exists()
+    assert any(
+        Path(item).name.startswith("calendar-accounts.json.bak-")
+        for item in saved["retired_profiles"]
+    )
+
+
+def test_a_deleted_profile_drops_its_folder_bindings(tmp_path: Path) -> None:
+    app = _empty_profile_app(tmp_path)
+    documents = tmp_path / "documents"
+    request = _profile_request(tmp_path, app)
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "simon",
+            "purpose": "documents.source",
+            "path": str(documents),
+        },
+    ]
+    _save(app, request)
+    registry = json.loads((tmp_path / "config" / "resources.json").read_text("utf-8"))
+    assert "simon" in registry["profile_defaults"]
+
+    reloaded = _reopened(tmp_path, app)
+    request["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    request["folders"] = [
+        row for row in request["folders"] if row["profile_id"] != "simon"
+    ]
+    plan = reloaded.plan(request)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert plan["cascade"]["resource_ids"] == ["simon_resource_1"]
+    reloaded.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    after = json.loads((tmp_path / "config" / "resources.json").read_text("utf-8"))
+    assert "simon" not in after["profile_defaults"]
+
+
+def test_a_folder_for_a_profile_that_is_gone_is_refused(tmp_path: Path) -> None:
+    """Bindings follow the planned profiles, so a leftover row is caught, not written."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    request["profiles"] = [
+        row for row in request["profiles"] if row["profile_id"] != "simon"
+    ]
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "simon",
+            "purpose": "documents.source",
+            "path": str(tmp_path / "documents"),
+        },
+    ]
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"].startswith("folders[") for item in plan["errors"])
+
+
+def test_a_folder_for_a_profile_added_in_the_same_plan_is_accepted(
+    tmp_path: Path,
+) -> None:
+    """A new profile has to be able to get a folder without saving twice."""
+
+    app = _empty_profile_app(tmp_path)
+    request = _profile_request(tmp_path, app)
+    request["profiles"] = [
+        *request["profiles"],
+        {"profile_id": "mika", "display_name": "Mika", "rules": []},
+    ]
+    request["folders"] = [
+        *request["folders"],
+        {
+            "profile_id": "mika",
+            "purpose": "documents.source",
+            "path": str(tmp_path / "documents"),
+        },
+    ]
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is True, plan["errors"]
+    assert "mika" in plan["resources_json"]["profile_defaults"]
+
+
+def test_the_example_folder_is_never_written_into(tmp_path: Path) -> None:
+    """The shipped profiles are a template; a write is refused at the field."""
+
+    app = _app(tmp_path)
+    templates = profile_templates()
+    request = _request(
+        tmp_path,
+        profiles=_profile_rows(templates["profiles"]),
+        household_rules=_household_rows(templates["household"]),
+        profiles_dir=str(PROFILE_DIR),
+    )
+
+    plan = app.plan(request)
+
+    assert plan["valid"] is False
+    assert any(item["field"] == "profiles_dir" for item in plan["errors"])
+
+
+def test_setup_script_parses(tmp_path: Path) -> None:
+    """A syntax error in the installer script is invisible until the browser loads it."""
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("node is not available")
+    result = subprocess.run(
+        [node, "--check", str(SETUP_UI / "app.js")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_setup_ui_sections_are_numbered_once_and_without_gaps() -> None:
+    """A new section renumbers the rest; three places have to agree on the result."""
+
+    markup = (SETUP_UI / "index.html").read_text(encoding="utf-8")
+    script = (SETUP_UI / "app.js").read_text(encoding="utf-8")
+
+    headings = re.findall(r'<h2 data-i18n="([A-Za-z]+)">(\d+)\. ', markup)
+    numbers = [int(number) for _key, number in headings]
+    assert numbers == list(range(1, len(numbers) + 1)), numbers
+
+    for key, number in headings:
+        for language in ("en", "de"):
+            start = script.index(f"  {language}: {{")
+            end = script.index("\n  },", start)
+            match = re.search(rf'^    {key}: "(\d+)\. ', script[start:end], re.M)
+            assert match is not None, f"{key} missing in {language}"
+            assert match.group(1) == number, f"{key} is {match.group(1)} in {language}"
+
+
+def test_setup_ui_reads_every_state_field_the_service_reports(tmp_path: Path) -> None:
+    """The profile section is driven by the service, not by a second copy of the rules."""
+
+    script = (SETUP_UI / "app.js").read_text(encoding="utf-8")
+    state = _empty_profile_app(tmp_path).state_payload()
+
+    for field in (
+        "profile_forms",
+        "household_rules",
+        "profile_templates",
+        "rule_keys",
+        "integer_rule_keys",
+        "profile_rule_scopes",
+        "household_rule_scopes",
+        "profiles_dir_is_template",
+        "default_profiles_dir",
+    ):
+        assert field in state
+        assert field in script, field

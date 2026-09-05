@@ -1295,7 +1295,8 @@ def _build_parser() -> argparse.ArgumentParser:
     setup_plan = setup_commands.add_parser("plan")
     setup_serve = setup_commands.add_parser("serve")
     for parser_ in (setup_plan, setup_serve):
-        parser_.add_argument("--profiles-dir", type=Path, required=True)
+        # Optional on purpose: the installer is the program that creates the folder.
+        parser_.add_argument("--profiles-dir", type=Path)
         parser_.add_argument("--config-dir", type=Path)
         parser_.add_argument("--port", type=int, default=8766)
         parser_.add_argument("--json", action="store_true", dest="as_json")
@@ -5058,14 +5059,22 @@ def _run_local_app_serve(args: argparse.Namespace) -> int:
 
 def _build_setup_app(args: argparse.Namespace) -> SetupApplication:
     config_dir = Path(args.config_dir or default_config_dir())
+    profiles_dir = Path(args.profiles_dir or config_dir / "profiles")
+    try:
+        profiles = load_profile_configuration(profiles_dir)
+    except ProfileConfigurationError:
+        # A missing or unreadable profile folder is the first run this program exists
+        # for, not a reason to refuse to start. The browser then offers to fill it.
+        profiles = None
     return SetupApplication(
         settings=LocalAppSettings(
             host="127.0.0.1",
             port=args.port,
-            profiles_dir=args.profiles_dir,
-            state_dir=config_dir,
+            profiles_dir=profiles_dir,
+            # The installer does not use this path; it only must not overlap.
+            state_dir=config_dir / "state",
         ),
-        profiles=load_profile_configuration(args.profiles_dir),
+        profiles=profiles,
         config_dir=config_dir,
     )
 
@@ -5091,6 +5100,8 @@ def _run_setup_serve(args: argparse.Namespace) -> int:
         # dir. Only after the gate, so a refused start leaves nothing behind.
         if args.approve_loopback_server:
             application.config_dir.mkdir(parents=True, exist_ok=True)
+            application.profiles_dir.mkdir(parents=True, exist_ok=True)
+            application.settings.state_dir.mkdir(parents=True, exist_ok=True)
         server = create_local_server(
             application,
             allow_loopback_server=args.approve_loopback_server,

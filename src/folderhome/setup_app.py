@@ -33,7 +33,12 @@ from folderhome.application.calendar_handoff import (
     load_calendar_configuration,
     parse_calendar_configuration,
 )
-from folderhome.application.profile_rules import ProfileConfiguration
+from folderhome.application.local_app import capture_os_identity
+from folderhome.application.profile_rules import (
+    ProfileConfiguration,
+    ProfileConfigurationError,
+    parse_profile_configuration,
+)
 from folderhome.application.resource_registry import (
     default_resource_registry_path,
     load_resource_registry,
@@ -41,6 +46,7 @@ from folderhome.application.resource_registry import (
 )
 from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
+from folderhome.contracts.profiles import INTEGER_RULE_KEYS, RuleKey, RuleScope
 from folderhome.contracts.resources import ResourceRegistry, ResourceRegistryError
 from folderhome.contracts.strands_agent import StrandsAgentSettings
 from folderhome.mcp_server import integration_plan
@@ -74,6 +80,20 @@ CALENDAR_ACCOUNT_FIELDS = (
     "provider_revision",
     "calendar_id",
     "credential_ref",
+)
+HOUSEHOLD_FILENAME = "household.json"
+PROFILE_SCHEMA = "folderhome.user-profile.v1"
+HOUSEHOLD_SCHEMA = "folderhome.household-rules.v1"
+# The closed key set of the rule contract, so the browser offers exactly what loads.
+RULE_KEYS = tuple(item.value for item in RuleKey)
+INTEGER_RULE_KEY_VALUES = tuple(sorted(item.value for item in INTEGER_RULE_KEYS))
+PROFILE_RULE_SCOPES = (RuleScope.PROFILE.value, RuleScope.PROFILE_AREA.value)
+HOUSEHOLD_RULE_SCOPES = (RuleScope.GLOBAL.value, RuleScope.AREA.value)
+# The file name always comes from the validated id, never from typed text.
+_PROFILE_ID = re.compile(r"[a-z][a-z0-9_-]{1,63}")
+_TEMPLATE_DIRECTORIES = (
+    Path(__file__).parents[2] / "examples" / "profiles",
+    Path(__file__).parent / "demo_data" / "profiles",
 )
 _MODEL_FIELDS = (
     "ollama_host",
@@ -117,6 +137,12 @@ def default_config_dir(*, environ: dict[str, str] | None = None) -> Path:
     return default_resource_registry_path(environ=environ).parent
 
 
+def default_profiles_dir(*, environ: dict[str, str] | None = None) -> Path:
+    """Return the profile folder the installer owns, beside the other config."""
+
+    return default_config_dir(environ=environ) / "profiles"
+
+
 class SetupApplication:
     """Plan and write `resources.json` and `launch.json` for one OS account."""
 
@@ -124,7 +150,7 @@ class SetupApplication:
         self,
         *,
         settings: LocalAppSettings,
-        profiles: ProfileConfiguration,
+        profiles: ProfileConfiguration | None,
         config_dir: Path,
         session_token: str | None = None,
     ) -> None:
@@ -132,7 +158,10 @@ class SetupApplication:
         if len(token) < 32:
             raise SetupAppError("Lokales Sitzungstoken ist zu kurz.")
         self.settings = settings
-        self.profiles = profiles
+        # No profile folder yet is a first run, not an error: the installer is the
+        # program that creates one, so it has to start without it.
+        self.profiles = profiles if profiles is not None else empty_profile_configuration()
+        self.profiles_configured = profiles is not None
         self.config_dir = config_dir.resolve()
         self.session_token = token
         self._lock = threading.RLock()
@@ -160,6 +189,10 @@ class SetupApplication:
     def calendar_accounts_file(self) -> Path:
         return self.config_dir / "calendar-accounts.json"
 
+    @property
+    def profiles_dir(self) -> Path:
+        return self.settings.profiles_dir
+
     # ------------------------------------------------------------------ plans
     def state_payload(self) -> dict[str, Any]:
         """Describe what the installer can configure and what is configured now."""
@@ -177,6 +210,16 @@ class SetupApplication:
                 )
             ],
             "purposes": list(SETUP_PURPOSES),
+            "profiles_configured": self.profiles_configured,
+            "profiles_dir_is_template": is_template_directory(self.profiles_dir),
+            "default_profiles_dir": str(self.config_dir / "profiles"),
+            "household_rules": _household_form(self.profiles),
+            "profile_forms": _profile_form(self.profiles),
+            "profile_templates": profile_templates(),
+            "rule_keys": list(RULE_KEYS),
+            "integer_rule_keys": list(INTEGER_RULE_KEY_VALUES),
+            "profile_rule_scopes": list(PROFILE_RULE_SCOPES),
+            "household_rule_scopes": list(HOUSEHOLD_RULE_SCOPES),
             "calendar_backends": list(CALENDAR_BACKENDS),
             "calendar_read_by_app": False,
             "repeatable_purposes": [
@@ -194,8 +237,11 @@ class SetupApplication:
             "launch_file": str(self.launch_file),
             "calendar_file": str(self.calendar_file),
             "calendar_accounts_file": str(self.calendar_accounts_file),
+            "household_file": str(self.profiles_dir / HOUSEHOLD_FILENAME),
             "home": str(Path.home().resolve()),
-            "profiles_dir": str(self.settings.profiles_dir),
+            "profiles_dir": str(self.profiles_dir),
+            # The written file wins, so a reopen keeps the folder the app uses.
+            "state_dir": launch.get("state_dir") or str(self.config_dir / "state"),
             "configured": registry is not None,
             "has_anthropic_key": "ANTHROPIC_API_KEY" in stored_keys,
             "has_openai_key": "OPENAI_API_KEY" in stored_keys,
@@ -211,18 +257,45 @@ class SetupApplication:
         """Build both file contents and their hash without touching the disk."""
 
         errors: list[dict[str, str]] = []
-        folders = _folder_entries(request, self.profiles, errors)
+        household_json, profiles_json = _profile_documents(
+            request, self.profiles, configured=self.profiles_configured, errors=errors
+        )
+        # Folders and calendar accounts bind to the profiles this plan will write,
+        # not to the ones on disk: otherwise a new profile could never get a folder.
+        planned = self._planned_profiles(household_json, profiles_json, errors)
+        removed = [
+            profile_id
+            for profile_id in _existing_profile_ids(self.profiles_dir)
+            if profiles_json is not None and profile_id not in profiles_json
+        ]
+        folders = _folder_entries(request, planned, errors)
         model, presets, preset_name = _model_settings(request, errors)
         calendar_json, calendar_accounts_json = _calendar_documents(
-            request, self.profiles, errors
+            request, planned, errors
         )
+        cascade, calendar_accounts_json = self._cascade(removed, calendar_accounts_json)
         port = _port(request, errors)
         state_dir = _directory(request.get("state_dir"), "state_dir", errors)
-        profiles_dir = _directory(
-            request.get("profiles_dir") or str(self.settings.profiles_dir),
+        profiles_dir = _writable_directory(
+            request.get("profiles_dir") or str(self.profiles_dir),
             "profiles_dir",
             errors,
         )
+        if (
+            profiles_json is not None
+            and profiles_dir is not None
+            and is_template_directory(profiles_dir)
+        ):
+            errors.append(
+                {
+                    "field": "profiles_dir",
+                    "message": (
+                        "Der Beispielordner ist eine Vorlage und wird nicht "
+                        "beschrieben; wähle einen eigenen Profilordner, etwa "
+                        f"{self.config_dir / 'profiles'}."
+                    ),
+                }
+            )
         for entry in folders:
             _check_folder(entry, errors)
         if not errors and state_dir is not None and profiles_dir is not None:
@@ -237,7 +310,7 @@ class SetupApplication:
             except ValueError as exc:
                 errors.append({"field": "state_dir", "message": str(exc)})
         resources_json = (
-            _resources_document(self.profiles.os_account, folders) if folders else None
+            _resources_document(planned.os_account, folders) if folders else None
         )
         launch_json = (
             None
@@ -261,11 +334,19 @@ class SetupApplication:
                 "launch_file": str(self.launch_file),
                 "calendar_file": str(self.calendar_file),
                 "calendar_accounts_file": str(self.calendar_accounts_file),
+                "profiles_dir": str(profiles_dir) if profiles_dir else None,
+                "household_file": (
+                    str(profiles_dir / HOUSEHOLD_FILENAME) if profiles_dir else None
+                ),
             },
             "resources_json": resources_json,
             "launch_json": launch_json,
             "calendar_json": calendar_json,
             "calendar_accounts_json": calendar_accounts_json,
+            "household_json": household_json,
+            "profiles_json": profiles_json,
+            "removed_profile_ids": removed,
+            "cascade": cascade,
             "written": False,
             "side_effects": [],
         }
@@ -279,20 +360,97 @@ class SetupApplication:
             # would reject must never light up the save button.
             payload["errors"] = self._document_errors(payload)
             payload["valid"] = not payload["errors"]
+        if payload["valid"] and profiles_json is not None and profiles_dir is None:
+            payload["errors"] = [
+                {"field": "profiles_dir", "message": "Profilordner fehlt."}
+            ]
+            payload["valid"] = False
         payload["launch_command"] = _launch_command(self.launch_file, model)
         payload["plan_sha256"] = _plan_digest(payload)
         return payload
+
+    def _planned_profiles(
+        self,
+        household_json: dict[str, Any] | None,
+        profiles_json: dict[str, dict[str, Any]] | None,
+        errors: list[dict[str, str]],
+    ) -> ProfileConfiguration:
+        """Return the profile set this plan describes, checked by its own contract."""
+
+        if household_json is None or profiles_json is None:
+            return self.profiles
+        try:
+            return parse_profile_configuration(
+                household_json,
+                {_profile_filename(key): value for key, value in profiles_json.items()},
+            )
+        except (ProfileConfigurationError, SetupAppError) as exc:
+            errors.append({"field": "profiles", "message": str(exc)})
+            return self.profiles
+
+    def _cascade(
+        self,
+        removed: list[str],
+        calendar_accounts_json: dict[str, Any] | None,
+    ) -> tuple[dict[str, Any], dict[str, Any] | None]:
+        """Say what a deleted profile takes with it, and take it in the same plan.
+
+        A folder binding or a calendar account of a profile that no longer exists
+        would keep the app from starting, so it cannot be left behind.
+        """
+
+        cascade: dict[str, Any] = {
+            "resource_ids": [],
+            "calendar_account_ids": [],
+            "retired_files": [],
+        }
+        if not removed:
+            return cascade, calendar_accounts_json
+        gone = set(removed)
+        registry = self._load_registry()
+        if registry is not None:
+            cascade["resource_ids"] = sorted(
+                resource.resource_id
+                for resource in registry.resources
+                if resource.profile_ids.issubset(gone)
+            )
+        stored = _stored_calendar_accounts(self.calendar_accounts_file)
+        orphaned = [
+            account
+            for account in stored
+            if isinstance(account, dict) and account.get("profile_id") in gone
+        ]
+        if not orphaned:
+            return cascade, calendar_accounts_json
+        cascade["calendar_account_ids"] = sorted(
+            str(account.get("account_id")) for account in orphaned
+        )
+        if calendar_accounts_json is not None:
+            # The request rewrites the file anyway; it already left them out.
+            return cascade, calendar_accounts_json
+        remaining = [account for account in stored if account not in orphaned]
+        if remaining:
+            return cascade, {
+                "schema": "folderhome.calendar-connector-accounts.v1",
+                "accounts": remaining,
+            }
+        # An empty account list is not a valid document, so the file is retired.
+        cascade["retired_files"] = [str(self.calendar_accounts_file)]
+        return cascade, None
 
     def _document_errors(self, payload: dict[str, Any]) -> list[dict[str, str]]:
         """Run each written document through the contract that will load it."""
 
         errors: list[dict[str, str]] = []
+        planned = self._planned_profiles(
+            payload["household_json"], payload["profiles_json"], errors
+        )
         try:
             parse_resource_registry(
                 payload["resources_json"],
-                expected_os_account=self.profiles.os_account,
+                expected_os_account=planned.os_account,
                 known_profile_ids=frozenset(
-                    item.profile_id for item in self.profiles.profiles
+                    item.profile_id for item in planned.profiles
                 ),
             )
         except ResourceRegistryError as exc:
@@ -327,12 +485,34 @@ class SetupApplication:
             raise SetupAppError("Plan ist nicht gültig; erst die Fehler beheben.")
         if not hmac.compare_digest(supplied, str(plan["plan_sha256"])):
             raise SetupAppError("Plan-Hash stimmt nicht mit der geprüften Fassung überein.")
+        planned = self._planned_profiles(
+            plan["household_json"], plan["profiles_json"], []
+        )
+        profiles_dir = (
+            Path(plan["targets"]["profiles_dir"])
+            if plan["profiles_json"] is not None
+            else None
+        )
         with self._lock:
             self.config_dir.mkdir(parents=True, exist_ok=True)
-            # Stage both files, load the staged registry, and only then replace the
+            if profiles_dir is not None:
+                profiles_dir.mkdir(parents=True, exist_ok=True)
+            # Stage every file, load the staged documents, and only then replace the
             # live ones. A refused plan leaves the previous state exactly as it was.
             staged: list[tuple[Path, Path]] = []
             try:
+                if profiles_dir is not None:
+                    profile_files: list[tuple[Path, Path]] = []
+                    for profile_id, document in sorted(plan["profiles_json"].items()):
+                        target = profiles_dir / _profile_filename(profile_id)
+                        profile_files.append((_stage_json(target, document), target))
+                    staged.extend(profile_files)
+                    household_target = profiles_dir / HOUSEHOLD_FILENAME
+                    household_staged = _stage_json(
+                        household_target, plan["household_json"]
+                    )
+                    staged.append((household_staged, household_target))
+                    _verify_profiles(household_staged, profile_files)
                 staged.append(
                     (
                         _stage_json(self.resources_file, plan["resources_json"]),
@@ -342,7 +522,7 @@ class SetupApplication:
                 staged.append(
                     (_stage_json(self.launch_file, plan["launch_json"]), self.launch_file)
                 )
-                self._verify_registry(staged[0][0])
+                self._verify_registry(staged[-2][0], planned)
                 for document, target, check in (
                     (
                         plan["calendar_json"],
@@ -365,10 +545,22 @@ class SetupApplication:
                     temporary.unlink(missing_ok=True)
                 raise
             written = [_commit_staged(temporary, target) for temporary, target in staged]
+            # Deleted profiles are moved aside, never removed: a profile file is the
+            # only place its rules live.
+            retired = (
+                _retire_profiles(profiles_dir, plan["removed_profile_ids"])
+                if profiles_dir is not None
+                else []
+            )
+            retired += [
+                _retire_file(Path(item)) for item in plan["cascade"]["retired_files"]
+            ]
+            retired = [item for item in retired if item is not None]
             if api_keys:
                 write_env_file(self.env_file, api_keys)
         plan["written"] = True
         plan["backups"] = [str(item) for item in written if item is not None]
+        plan["retired_profiles"] = [str(item) for item in retired]
         plan["side_effects"] = ["file.create", "file.update"]
         return plan
 
@@ -408,13 +600,13 @@ class SetupApplication:
         chosen = lines[-1].strip() if lines else ""
         return {"schema": "folderhome.setup-folder-pick.v1", "path": chosen or None}
 
-    def _verify_registry(self, path: Path) -> None:
+    def _verify_registry(self, path: Path, planned: ProfileConfiguration) -> None:
         try:
             load_resource_registry(
                 path,
-                expected_os_account=self.profiles.os_account,
+                expected_os_account=planned.os_account,
                 known_profile_ids=frozenset(
-                    item.profile_id for item in self.profiles.profiles
+                    item.profile_id for item in planned.profiles
                 ),
             )
         except ResourceRegistryError as exc:
@@ -586,6 +778,235 @@ class SetupApplication:
         )
 
 
+def empty_profile_configuration() -> ProfileConfiguration:
+    """Stand in for a household that does not exist yet on a first run.
+
+    The account label is real even when no file carries it, so a household the
+    installer writes later already belongs to the right operating system account.
+    """
+
+    return ProfileConfiguration(
+        os_account=capture_os_identity().account_name,
+        common_rules=(),
+        profiles=(),
+    )
+
+
+def is_template_directory(directory: Path) -> bool:
+    """Say whether a folder is one of the shipped examples, which stay read-only."""
+
+    resolved = directory.resolve()
+    return any(item.resolve() == resolved for item in _TEMPLATE_DIRECTORIES if item.exists())
+
+
+def profile_templates() -> dict[str, Any]:
+    """Return the shipped example household and profiles as plain documents."""
+
+    for directory in _TEMPLATE_DIRECTORIES:
+        household = directory / HOUSEHOLD_FILENAME
+        if not household.is_file():
+            continue
+        try:
+            documents = {
+                path.stem: json.loads(path.read_text(encoding="utf-8"))
+                for path in sorted(
+                    directory.glob("*.json"), key=lambda item: item.name.casefold()
+                )
+                if path.name.casefold() != HOUSEHOLD_FILENAME
+            }
+            return {
+                "household": json.loads(household.read_text(encoding="utf-8")),
+                "profiles": documents,
+            }
+        except (OSError, json.JSONDecodeError):
+            continue
+    return {"household": None, "profiles": {}}
+
+
+def _profile_form(configuration: ProfileConfiguration) -> list[dict[str, Any]]:
+    """Describe the configured profiles the way the form edits them."""
+
+    return [
+        {
+            "profile_id": profile.profile_id,
+            "display_name": profile.display_name,
+            "organizational_only": profile.organizational_only,
+            "rules": [
+                {
+                    "key": rule.key.value,
+                    "value": rule.value,
+                    "scope": rule.scope.value,
+                    "area": rule.area,
+                }
+                for rule in profile.rules
+            ],
+        }
+        for profile in sorted(configuration.profiles, key=lambda item: item.profile_id)
+    ]
+
+
+def _household_form(configuration: ProfileConfiguration) -> list[dict[str, Any]]:
+    return [
+        {
+            "key": rule.key.value,
+            "value": rule.value,
+            "scope": rule.scope.value,
+            "area": rule.area,
+        }
+        for rule in configuration.common_rules
+    ]
+
+
+def _rule_documents(
+    raw: object,
+    *,
+    prefix: str,
+    allowed_scopes: tuple[str, ...],
+    field: str,
+    errors: list[dict[str, str]],
+) -> list[dict[str, Any]]:
+    """Turn typed rule rows into documents; ids are generated, never supplied."""
+
+    if raw is None:
+        return []
+    if not isinstance(raw, list):
+        errors.append({"field": field, "message": "Regeln müssen eine Liste sein."})
+        return []
+    rules: list[dict[str, Any]] = []
+    for index, item in enumerate(raw):
+        where = f"{field}[{index}]"
+        if not isinstance(item, dict):
+            errors.append({"field": where, "message": "Regel muss ein Objekt sein."})
+            continue
+        key = item.get("key")
+        if key not in RULE_KEYS:
+            errors.append({"field": where, "message": f"Unbekannter Regelschlüssel: {key}"})
+            continue
+        scope = item.get("scope")
+        if scope not in allowed_scopes:
+            errors.append({"field": where, "message": f"Unzulässige Reichweite: {scope}"})
+            continue
+        area = item.get("area")
+        if isinstance(area, str):
+            area = area.strip() or None
+        elif area is not None:
+            errors.append({"field": where, "message": "Bereich muss Text sein."})
+            continue
+        value = item.get("value")
+        if isinstance(value, str):
+            value = value.strip()
+        rules.append(
+            {
+                "rule_id": f"rule_{prefix}_{index + 1}",
+                "key": key,
+                "value": value,
+                "scope": scope,
+                "area": area,
+            }
+        )
+    return rules
+
+
+def _profile_documents(
+    request: dict[str, Any],
+    current: ProfileConfiguration,
+    *,
+    configured: bool,
+    errors: list[dict[str, str]],
+) -> tuple[dict[str, Any] | None, dict[str, dict[str, Any]] | None]:
+    """Build household.json and one document per profile, or leave both alone."""
+
+    raw = request.get("profiles")
+    if raw is None:
+        if not configured:
+            errors.append({"field": "profiles", "message": "Es ist noch kein Profil angelegt."})
+        # An unchanged profile set is the normal case: nothing to write.
+        return None, None
+    if not isinstance(raw, list):
+        errors.append({"field": "profiles", "message": "profiles muss eine Liste sein."})
+        return None, None
+    if not raw:
+        errors.append(
+            {"field": "profiles", "message": "Mindestens ein Profil muss bestehen bleiben."}
+        )
+        return None, None
+
+    # The configured account wins; only a first run takes the running one.
+    os_account = current.os_account
+    documents: dict[str, dict[str, Any]] = {}
+    for index, item in enumerate(raw):
+        where = f"profiles[{index}]"
+        if not isinstance(item, dict):
+            errors.append({"field": where, "message": "Profil muss ein Objekt sein."})
+            continue
+        profile_id = item.get("profile_id")
+        if not isinstance(profile_id, str) or _PROFILE_ID.fullmatch(profile_id) is None:
+            errors.append(
+                {
+                    "field": where,
+                    "message": (
+                        "Profil-ID muss mit einem Kleinbuchstaben beginnen und darf "
+                        "Kleinbuchstaben, Ziffern, _ und - enthalten (2 bis 64 Zeichen)."
+                    ),
+                }
+            )
+            continue
+        if profile_id in documents:
+            errors.append({"field": where, "message": f"Profil-ID doppelt: {profile_id}"})
+            continue
+        display_name = item.get("display_name")
+        if not isinstance(display_name, str) or not display_name.strip():
+            errors.append({"field": where, "message": "Anzeigename fehlt."})
+            continue
+        documents[profile_id] = {
+            "schema": PROFILE_SCHEMA,
+            "profile_id": profile_id,
+            "display_name": display_name.strip(),
+            "os_account": os_account,
+            # The example profiles declare this, and the contract insists on it.
+            "organizational_only": True,
+            "rules": _rule_documents(
+                item.get("rules"),
+                prefix=profile_id,
+                allowed_scopes=PROFILE_RULE_SCOPES,
+                field=f"{where}.rules",
+                errors=errors,
+            ),
+        }
+    household = {
+        "schema": HOUSEHOLD_SCHEMA,
+        "os_account": os_account,
+        "rules": _rule_documents(
+            request.get("household_rules"),
+            prefix="household",
+            allowed_scopes=HOUSEHOLD_RULE_SCOPES,
+            field="household_rules",
+            errors=errors,
+        ),
+    }
+    return household, documents
+
+
+def _profile_filename(profile_id: str) -> str:
+    """Derive the file name from the validated id, never from typed text."""
+
+    if _PROFILE_ID.fullmatch(profile_id) is None:
+        raise SetupAppError(f"Unzulässige Profil-ID: {profile_id}")
+    return f"{profile_id}.json"
+
+
+def _existing_profile_ids(directory: Path) -> list[str]:
+    """List the profile ids currently on disk, ignoring the household file."""
+
+    if not directory.is_dir():
+        return []
+    return sorted(
+        path.stem
+        for path in directory.glob("*.json")
+        if path.name.casefold() != HOUSEHOLD_FILENAME
+    )
+
+
 def _api_key_changes(request: dict[str, Any]) -> dict[str, str | None]:
     """Read the key changes a save carries, without ever echoing a value."""
 
@@ -737,6 +1158,62 @@ def _calendar_accounts(
             account[name] = value.strip() if isinstance(value, str) and value.strip() else None
         accounts.append(account)
     return accounts
+
+
+def _verify_profiles(household: Path, staged: list[tuple[Path, Path]]) -> None:
+    """Read the staged bytes back through the profile contract before replacing."""
+
+    try:
+        documents = {
+            target.name: json.loads(temporary.read_text(encoding="utf-8"))
+            for temporary, target in staged
+        }
+        parse_profile_configuration(
+            json.loads(household.read_text(encoding="utf-8")), documents
+        )
+    except (OSError, json.JSONDecodeError, ProfileConfigurationError) as exc:
+        raise SetupAppError(f"Geschriebene Profile sind nicht ladbar: {exc}") from exc
+
+
+def _stored_calendar_accounts(path: Path) -> list[Any]:
+    """Read the account rows on disk; an unreadable file simply has none."""
+
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    accounts = payload.get("accounts") if isinstance(payload, dict) else None
+    return accounts if isinstance(accounts, list) else []
+
+
+def _retire_file(target: Path) -> Path | None:
+    """Move a file out of the way under a dated name, keeping its content."""
+
+    if not target.is_file():
+        return None
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    destination = target.with_name(f"{target.name}.bak-{stamp}")
+    os.replace(target, destination)
+    return destination
+
+
+def _retire_profiles(directory: Path, profile_ids: list[str]) -> list[Path]:
+    """Move deleted profile files into a dated folder instead of deleting them."""
+
+    if not profile_ids:
+        return []
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    attic = directory / f".deleted-{stamp}"
+    attic.mkdir(parents=True, exist_ok=True)
+    retired = []
+    for profile_id in sorted(profile_ids):
+        source = directory / _profile_filename(profile_id)
+        if not source.is_file():
+            continue
+        destination = attic / source.name
+        os.replace(source, destination)
+        retired.append(destination)
+    return retired
 
 
 def _verify_calendar_configuration(path: Path) -> None:
@@ -953,6 +1430,28 @@ def _directory(value: object, field: str, errors: list[dict[str, str]]) -> Path 
     return resolved
 
 
+def _writable_directory(value: object, field: str, errors: list[dict[str, str]]) -> Path | None:
+    """Accept a folder the save will create, but never a path that cannot be one."""
+
+    if not isinstance(value, str) or not value.strip():
+        errors.append({"field": field, "message": f"{field} fehlt."})
+        return None
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        errors.append({"field": field, "message": f"{field} muss absolut sein."})
+        return None
+    resolved = path.resolve()
+    if resolved.exists() and not resolved.is_dir():
+        errors.append({"field": field, "message": f"{resolved} ist kein Verzeichnis."})
+        return None
+    if not resolved.exists() and not resolved.parent.is_dir():
+        errors.append(
+            {"field": field, "message": f"Übergeordnetes Verzeichnis fehlt: {resolved.parent}"}
+        )
+        return None
+    return resolved
+
+
 def _resources_document(
     os_account: str,
     folders: list[dict[str, Any]],
@@ -1055,6 +1554,10 @@ def _plan_digest(payload: dict[str, Any]) -> str:
         # Every file the save may write belongs in the confirmed hash.
         "calendar_json": payload["calendar_json"],
         "calendar_accounts_json": payload["calendar_accounts_json"],
+        "household_json": payload["household_json"],
+        "profiles_json": payload["profiles_json"],
+        "removed_profile_ids": payload["removed_profile_ids"],
+        "cascade": payload["cascade"],
         "targets": payload["targets"],
     }
     return sha256(
@@ -1094,11 +1597,19 @@ __all__ = [
     "CALENDAR_BACKENDS",
     "ENV_FILENAME",
     "ENV_KEYS",
+    "HOUSEHOLD_FILENAME",
+    "HOUSEHOLD_RULE_SCOPES",
     "LAUNCH_CONFIG_SCHEMA",
+    "PROFILE_RULE_SCOPES",
+    "RULE_KEYS",
     "SETUP_PURPOSES",
     "SetupAppError",
     "SetupApplication",
     "default_config_dir",
+    "default_profiles_dir",
+    "is_template_directory",
+    "empty_profile_configuration",
+    "profile_templates",
     "read_env_file",
     "write_env_file",
 ]
