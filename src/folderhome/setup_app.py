@@ -12,10 +12,12 @@ import hmac
 import json
 import os
 import secrets
+import subprocess
 import sys
 import threading
 from datetime import UTC, datetime
 from hashlib import sha256
+from importlib.util import find_spec
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, urlsplit
@@ -49,6 +51,27 @@ LAUNCH_CONFIG_SCHEMA = "folderhome.launch-config.v1"
 class SetupAppError(RuntimeError):
     """Raised when the installer boundary cannot be established safely."""
 
+    def __init__(self, message: str, *, status_code: int = 400) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+# The browser deliberately cannot hand over an absolute path, so the folder is
+# chosen by the operating system itself, in a short-lived child process.
+_PICK_FOLDER_TIMEOUT_SECONDS = 300
+_PICK_FOLDER_SCRIPT = """
+import sys
+import tkinter
+import tkinter.filedialog
+
+root = tkinter.Tk()
+root.withdraw()
+root.attributes("-topmost", True)
+chosen = tkinter.filedialog.askdirectory(initialdir=sys.argv[1], mustexist=True)
+root.destroy()
+print(chosen or "")
+"""
+
 
 def default_config_dir(*, environ: dict[str, str] | None = None) -> Path:
     """Return the per-OS-account FolderHome configuration directory."""
@@ -75,6 +98,7 @@ class SetupApplication:
         self.config_dir = config_dir.resolve()
         self.session_token = token
         self._lock = threading.RLock()
+        self._dialog_lock = threading.Lock()
         self._asset_root = Path(__file__).parent / "setup_ui"
 
     # ------------------------------------------------------------------ paths
@@ -212,6 +236,42 @@ class SetupApplication:
         plan["side_effects"] = ["file.create", "file.update"]
         return plan
 
+    def pick_folder(self) -> dict[str, Any]:
+        """Let the operating system name one folder; typing a path stays possible."""
+
+        if find_spec("tkinter") is None:
+            raise SetupAppError(
+                "Der Verzeichnisdialog braucht tkinter; bitte den Pfad von Hand eingeben.",
+                status_code=501,
+            )
+        if not self._dialog_lock.acquire(blocking=False):
+            raise SetupAppError(
+                "Es ist bereits ein Verzeichnisdialog offen.", status_code=409
+            )
+        try:
+            completed = subprocess.run(
+                [sys.executable, "-c", _PICK_FOLDER_SCRIPT, str(Path.home())],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=_PICK_FOLDER_TIMEOUT_SECONDS,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise SetupAppError(
+                "Der Verzeichnisdialog wurde nicht beantwortet.", status_code=504
+            ) from exc
+        finally:
+            self._dialog_lock.release()
+        if completed.returncode != 0:
+            detail = (completed.stderr or "").strip().splitlines()[-1:] or [""]
+            raise SetupAppError(
+                f"Der Verzeichnisdialog ist fehlgeschlagen: {detail[0]}", status_code=500
+            )
+        lines = (completed.stdout or "").strip().splitlines()
+        chosen = lines[-1].strip() if lines else ""
+        return {"schema": "folderhome.setup-folder-pick.v1", "path": chosen or None}
+
     def _verify_registry(self, path: Path) -> None:
         try:
             load_resource_registry(
@@ -274,7 +334,7 @@ class SetupApplication:
                 server_port=server_port,
             )
         except SetupAppError as exc:
-            return self._error(400, str(exc))
+            return self._error(exc.status_code, str(exc))
         except ValueError as exc:
             return self._error(422, f"Einrichtung konnte die Anfrage nicht ausführen: {exc}")
         except OSError as exc:
@@ -319,10 +379,13 @@ class SetupApplication:
             return self._json_response(self.plan(self._json_request(headers, body)))
         if method == "POST" and parsed.path == "/api/v1/setup/save":
             return self._json_response(self.save(self._json_request(headers, body)))
+        if method == "POST" and parsed.path == "/api/v1/setup/pick-folder":
+            return self._json_response(self.pick_folder())
         if parsed.path in {
             "/api/v1/setup/state",
             "/api/v1/setup/validate",
             "/api/v1/setup/save",
+            "/api/v1/setup/pick-folder",
         }:
             return self._error(405, "Einrichtungsendpunkt erwartet eine andere Methode.")
         return self._error(404, "Unbekannter Einrichtungsendpunkt.")

@@ -541,3 +541,88 @@ def test_save_leaves_the_previous_state_untouched_when_the_registry_does_not_loa
     assert not app.launch_file.exists()
     # No half-written scratch files are left behind either.
     assert sorted(item.name for item in app.config_dir.iterdir()) == []
+
+
+def _pick(app: SetupApplication, port: int = 8766):
+    return app.handle(
+        method="POST",
+        target="/api/v1/setup/pick-folder",
+        headers=_headers(port),
+        body=b"",
+        server_port=port,
+    )
+
+
+def test_folder_dialog_returns_the_chosen_path(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    chosen = tmp_path / "picked"
+    chosen.mkdir()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            "folderhome.setup_app.subprocess.run",
+            lambda *args, **kwargs: subprocess.CompletedProcess(
+                args, 0, stdout=f"{chosen}\n", stderr=""
+            ),
+        )
+        response = _pick(app)
+
+    assert response.status_code == 200
+    assert response.payload["path"] == str(chosen)
+
+
+def test_folder_dialog_reports_a_cancelled_choice_as_no_path(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            "folderhome.setup_app.subprocess.run",
+            lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout="\n", stderr=""),
+        )
+        response = _pick(app)
+
+    assert response.status_code == 200
+    assert response.payload["path"] is None
+
+
+def test_folder_dialog_says_so_when_the_toolkit_is_missing(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("folderhome.setup_app.find_spec", lambda name: None)
+        response = _pick(app)
+
+    assert response.status_code == 501
+    # Typing the path by hand has to stay an option, so the message says so.
+    assert "von Hand" in response.payload["message"]
+
+
+def test_folder_dialog_gives_up_instead_of_waiting_forever(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+
+    def _hang(*args: object, **kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd="dialog", timeout=300)
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("folderhome.setup_app.subprocess.run", _hang)
+        response = _pick(app)
+
+    assert response.status_code == 504
+    # A timed-out dialog must not keep the lock: the next attempt still runs.
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            "folderhome.setup_app.subprocess.run",
+            lambda *args, **kwargs: subprocess.CompletedProcess(args, 0, stdout="\n", stderr=""),
+        )
+        assert _pick(app).status_code == 200
+
+
+def test_folder_dialog_refuses_a_second_window(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    app._dialog_lock.acquire()
+    try:
+        response = _pick(app)
+    finally:
+        app._dialog_lock.release()
+
+    assert response.status_code == 409

@@ -8,6 +8,7 @@ const translations = {
     lead: "This program is the only place that writes FolderHome configuration. The app itself never changes it. Nothing is written before you confirm the exact plan.",
     foldersTitle: "1. Folders",
     foldersHint: "Give each profile a folder per purpose. Source folders are read, output folders receive files. Leave a field empty to skip that purpose.",
+    chooseButton: "Choose folder",
     modelTitle: "2. Model",
     modelHint: "The provider is a start-up choice. Network and data approvals stay command-line flags and are never written to a file.",
     providerLabel: "Provider",
@@ -43,6 +44,7 @@ const translations = {
     lead: "Dieses Programm ist der einzige Ort, der FolderHome-Konfiguration schreibt. Die App selbst ändert sie nie. Es wird nichts geschrieben, bevor du genau diesen Plan bestätigst.",
     foldersTitle: "1. Ordner",
     foldersHint: "Gib jedem Profil je Zweck einen Ordner. Quellordner werden gelesen, Ausgabeordner nehmen Dateien auf. Ein leeres Feld lässt den Zweck aus.",
+    chooseButton: "Ordner wählen",
     modelTitle: "2. Modell",
     modelHint: "Der Provider ist eine Startentscheidung. Netz- und Datenfreigaben bleiben Kommandozeilen-Schalter und werden nie in eine Datei geschrieben.",
     providerLabel: "Provider",
@@ -139,6 +141,40 @@ function renderGateHint() {
   gateHint.textContent = loopback ? t("gateHintLoopback") : t("gateHintRemote");
 }
 
+function invalidate() {
+  saveButton.disabled = true;
+  checkedPlan = null;
+}
+
+async function pickFolder(input) {
+  const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
+  if (!chosen.path) return;
+  input.value = chosen.path;
+  invalidate();
+}
+
+function folderField(profileId, purpose, value) {
+  const label = document.createElement("label");
+  label.className = "field";
+  label.append(textElement("span", purpose));
+  const row = document.createElement("div");
+  row.className = "field-input";
+  const input = document.createElement("input");
+  input.spellcheck = false;
+  input.dataset.profileId = profileId;
+  input.dataset.purpose = purpose;
+  input.value = value;
+  const choose = document.createElement("button");
+  choose.type = "button";
+  choose.className = "button compact";
+  choose.dataset.i18n = "chooseButton";
+  choose.textContent = t("chooseButton");
+  choose.addEventListener("click", () => pickFolder(input).catch(showError));
+  row.append(input, choose);
+  label.append(row);
+  return label;
+}
+
 function renderFolders() {
   folderGrid.replaceChildren();
   const current = new Map(
@@ -148,16 +184,13 @@ function renderFolders() {
     const block = document.createElement("fieldset");
     block.append(textElement("legend", `${profile.display_name} (${profile.profile_id})`));
     for (const purpose of state.purposes) {
-      const label = document.createElement("label");
-      label.className = "field";
-      label.append(textElement("span", purpose));
-      const input = document.createElement("input");
-      input.spellcheck = false;
-      input.dataset.profileId = profile.profile_id;
-      input.dataset.purpose = purpose;
-      input.value = current.get(`${profile.profile_id}|${purpose}`) || "";
-      label.append(input);
-      block.append(label);
+      block.append(
+        folderField(
+          profile.profile_id,
+          purpose,
+          current.get(`${profile.profile_id}|${purpose}`) || "",
+        ),
+      );
     }
     folderGrid.append(block);
   }
@@ -246,8 +279,7 @@ function showError(error) {
 providerSelect.addEventListener("change", () => {
   document.querySelector("#ollama-fields").hidden = providerSelect.value !== "ollama";
   document.querySelector("#bedrock-fields").hidden = providerSelect.value !== "bedrock";
-  saveButton.disabled = true;
-  checkedPlan = null;
+  invalidate();
   renderGateHint();
 });
 document.querySelector("#ollama-host").addEventListener("input", renderGateHint);
