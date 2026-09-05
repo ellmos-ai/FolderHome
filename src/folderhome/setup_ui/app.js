@@ -32,17 +32,26 @@ const translations = {
     gateHintFixture: "The deterministic fixture needs no approval and no network.",
     gateHintLoopback: "A model on this machine needs no approval, because nothing leaves the loopback interface.",
     gateHintRemote: "Start the app with --allow-network and --approve-sensitive-cloud-data for this provider.",
-    keysTitle: "3. API keys",
+    subscriptionsTitle: "3. Subscriptions",
+    subscriptionsHint: "Claude Code with a Claude subscription and the Codex CLI with a ChatGPT subscription can drive FolderHome as a tool: the agent is the brain, FolderHome is the tool. FolderHome needs no key of its own for this, and the provider above may stay fixture. Nothing here reads, stores or checks a subscription.",
+    subscriptionsStep1: "Start the app with the command shown in section 7 after saving.",
+    subscriptionsStep2: "Take the access URL from its start output and put it in place of the placeholder below.",
+    subscriptionsStep3: "Run the command in Claude Code, or paste the block into ~/.codex/config.toml for Codex.",
+    subscriptionsToken: "The token changes on every app start, so a stored editor entry goes stale with it. After a restart, put the new access URL in again.",
+    copyButton: "Copy",
+    copyDone: "Copied.",
+    copyFallback: "Selected — copy it with Ctrl+C.",
+    keysTitle: "4. API keys",
     keysHint: "Hosted providers need a key. The installer stores it in a .env file next to launch.json and never shows it again; on Windows only your user account protects that file. Leave a field empty to keep the stored key.",
     keyStored: "A key is stored.",
     keyMissing: "No key stored.",
     keyRemove: "Remove key",
     keyPendingRemoval: "Will be removed when you save.",
-    runtimeTitle: "4. Runtime",
+    runtimeTitle: "5. Runtime",
     stateDir: "App state folder",
     portLabel: "Port",
     outsideHome: "I confirm folders outside my user folder",
-    summaryTitle: "6. Summary and save",
+    summaryTitle: "7. Summary and save",
     checkButton: "Check",
     saveButton: "Save",
     saveNote: "Nothing is saved automatically. Check first, then save; saving writes resources.json and launch.json.",
@@ -55,7 +64,7 @@ const translations = {
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
-    calendarTitle: "5. Calendar",
+    calendarTitle: "6. Calendar",
     calendarHint: "This writes calendar.json and calendar-accounts.json. The calendar commands read them; the app itself does not, and there is no Outlook backend in this build. An account stores a reference to a secret, never the secret.",
     calendarEnable: "Write calendar configuration",
     calendarBackend: "Default backend",
@@ -99,17 +108,26 @@ const translations = {
     gateHintFixture: "Das deterministische Fixture braucht keine Freigabe und kein Netz.",
     gateHintLoopback: "Ein Modell auf diesem Rechner braucht keine Freigabe, weil nichts die Loopback-Schnittstelle verlässt.",
     gateHintRemote: "Starte die App für diesen Provider mit --allow-network und --approve-sensitive-cloud-data.",
-    keysTitle: "3. API-Schlüssel",
+    subscriptionsTitle: "3. Abonnements",
+    subscriptionsHint: "Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo können FolderHome als Werkzeug steuern: Der Agent ist das Gehirn, FolderHome ist das Werkzeug. FolderHome braucht dafür keinen eigenen Schlüssel, und der Provider oben darf fixture bleiben. Hier wird kein Abo gelesen, gespeichert oder geprüft.",
+    subscriptionsStep1: "Starte die App mit dem Befehl, den Abschnitt 7 nach dem Speichern anzeigt.",
+    subscriptionsStep2: "Nimm die Zugriffs-URL aus der Startausgabe und setze sie anstelle des Platzhalters unten ein.",
+    subscriptionsStep3: "Führe den Befehl in Claude Code aus oder trage den Block für Codex in ~/.codex/config.toml ein.",
+    subscriptionsToken: "Das Token wechselt bei jedem App-Start, ein hinterlegter Editor-Eintrag veraltet also mit ihm. Nach einem Neustart die neue Zugriffs-URL erneut eintragen.",
+    copyButton: "Kopieren",
+    copyDone: "Kopiert.",
+    copyFallback: "Markiert — mit Strg+C kopieren.",
+    keysTitle: "4. API-Schlüssel",
     keysHint: "Fremdgehostete Anbieter brauchen einen Schlüssel. Die Einrichtung legt ihn in einer .env-Datei neben launch.json ab und zeigt ihn nie wieder; unter Windows schützt ihn allein dein Benutzerkonto. Ein leeres Feld behält den hinterlegten Schlüssel.",
     keyStored: "Ein Schlüssel ist hinterlegt.",
     keyMissing: "Kein Schlüssel hinterlegt.",
     keyRemove: "Schlüssel entfernen",
     keyPendingRemoval: "Wird beim Speichern entfernt.",
-    runtimeTitle: "4. Laufzeit",
+    runtimeTitle: "5. Laufzeit",
     stateDir: "App-State-Ordner",
     portLabel: "Port",
     outsideHome: "Ich bestätige Ordner außerhalb meines Benutzerordners",
-    summaryTitle: "6. Zusammenfassung und Speichern",
+    summaryTitle: "7. Zusammenfassung und Speichern",
     checkButton: "Prüfen",
     saveButton: "Speichern",
     saveNote: "Es wird nichts automatisch gespeichert. Erst Prüfen, dann Speichern; das Speichern schreibt resources.json und launch.json.",
@@ -122,7 +140,7 @@ const translations = {
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
-    calendarTitle: "5. Kalender",
+    calendarTitle: "6. Kalender",
     calendarHint: "Dies schreibt calendar.json und calendar-accounts.json. Die Kalenderbefehle lesen sie; die App selbst nicht, und ein Outlook-Backend gibt es in dieser Fassung nicht. Ein Konto speichert einen Verweis auf ein Geheimnis, nie das Geheimnis selbst.",
     calendarEnable: "Kalenderkonfiguration schreiben",
     calendarBackend: "Standard-Backend",
@@ -540,6 +558,46 @@ function renderFolders() {
   }
 }
 
+function copyBlock(text, block, note) {
+  const select = () => {
+    const range = document.createRange();
+    range.selectNodeContents(block);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    note.textContent = t("copyFallback");
+  };
+  if (!navigator.clipboard || !navigator.clipboard.writeText) return select();
+  navigator.clipboard.writeText(text).then(() => {
+    note.textContent = t("copyDone");
+  }, select);
+}
+
+function integrationCard(title, text) {
+  const card = document.createElement("fieldset");
+  card.append(textElement("legend", title));
+  const block = textElement("pre", text);
+  const note = textElement("p", "", "hint");
+  const copy = document.createElement("button");
+  copy.type = "button";
+  copy.className = "button compact";
+  copy.dataset.i18n = "copyButton";
+  copy.textContent = t("copyButton");
+  copy.addEventListener("click", () => copyBlock(text, block, note));
+  card.append(block, copy, note);
+  return card;
+}
+
+// Instructions only: the service hands over the same plan `mcp plan` prints.
+function renderIntegrations() {
+  const target = document.querySelector("#subscriptions");
+  const plan = state.integrations || {};
+  target.replaceChildren(
+    integrationCard("Claude Code", plan.claude_code_command || ""),
+    integrationCard("Codex CLI", plan.codex_config_toml || ""),
+  );
+}
+
 function buildRequest() {
   const folders = [...folderGrid.querySelectorAll("input")]
     .filter((input) => input.value.trim())
@@ -662,6 +720,7 @@ api("/api/v1/setup/state")
     renderFolders();
     renderKeys();
     renderPresets();
+    renderIntegrations();
     renderCalendar();
     applyTranslations();
   })

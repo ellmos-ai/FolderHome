@@ -1038,3 +1038,21 @@ def test_a_registry_that_does_not_load_is_not_reported_as_configured(
     assert app.resources_file.is_file()
     assert state["configured"] is False
     assert state["current_folders"] == []
+
+
+def test_state_carries_the_editor_integration_without_touching_anything(
+    tmp_path: Path,
+) -> None:
+    """The subscriptions section is instructions only: read-only, no plan, no file."""
+
+    app = _app(tmp_path)
+    integrations = app.state_payload()["integrations"]
+
+    assert integrations["schema"] == "folderhome.mcp-integration-plan.v1"
+    assert integrations["server_started"] is False
+    assert integrations["side_effects"] == []
+    assert integrations["token_rotates_per_serve"] is True
+    assert "claude mcp add folderhome" in integrations["claude_code_command"]
+    assert "[mcp_servers.folderhome]" in integrations["codex_config_toml"]
+    # A read of the state must not create the config the installer would write.
+    assert not (tmp_path / "config" / "resources.json").exists()

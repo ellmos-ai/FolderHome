@@ -43,6 +43,7 @@ from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
 from folderhome.contracts.resources import ResourceRegistry, ResourceRegistryError
 from folderhome.contracts.strands_agent import StrandsAgentSettings
+from folderhome.mcp_server import integration_plan
 
 # One explicit table instead of guessing from name suffixes: `calendar.export_output`
 # ends in `_output`, not `.output`, and silently got no operations at all.
@@ -201,6 +202,8 @@ class SetupApplication:
             "current_folders": _configured_folders(registry),
             "model_presets": launch.get("model_presets") or {},
             "model_preset": launch.get("model_preset"),
+            # Instructions only: the same plan `mcp plan` prints, no server started.
+            "integrations": integration_plan(None),
             "writes_credentials": False,
         }
 

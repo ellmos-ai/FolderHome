@@ -336,7 +336,8 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
 .checkbox { display: flex; gap: .5rem; align-items: center; margin-top: .8rem; color: var(--muted); }
 fieldset { margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .2rem; }
 legend { padding: 0 .4rem; font-family: Bahnschrift, "Aptos Display", sans-serif; }
-#summary pre {
+#summary pre,
+#subscriptions pre {
   overflow-x: auto;
   max-height: 22rem;
   padding: .8rem;
