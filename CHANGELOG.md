@@ -26,6 +26,16 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- cloud variant delivers result files inline: the AgentCore runtime answer now
+  carries `content`, `content_type` and `content_encoding` per result, so the
+  browser can offer a download although that runtime exposes only `/ping` and
+  `/invocations` and no file route. No API Gateway and no S3 were added
+- two honest limits: a file above 262 144 bytes travels as metadata only
+  (`inline: false`, reason `size_limit`), and a file whose text contains the
+  workspace path is withheld the same way (reason `local_paths`) rather than
+  shipping local paths to a browser
+- the public walkthrough builds the download from that inline content and falls
+  back to the local file route when a result carries none
 - local model provider `ollama`: the master agent can run on a model in the
   user's own home instead of the deterministic fixture or Amazon Bedrock. The
   gate follows the transport, not the vendor: a loopback host needs no approval

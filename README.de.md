@@ -176,6 +176,11 @@ aber noch nicht verifiziertes Bedrock oder Bedrock nach mindestens einem
 erfolgreichen Live-Modellturn im aktuellen Prozess. Eine Konfiguration allein
 gilt niemals als Beleg einer funktionierenden Modellverbindung.
 
+Weil diese Oberfläche keine Dateiroute kennt, gibt ein bestätigter Lauf seine
+Ergebnisdateien inline in der Antwort zurück, und der Browser baut den Download
+daraus. Dateien über 262 144 Byte und Dateien, deren Text den
+Arbeitsverzeichnispfad enthält, reisen nur als Metadaten und sagen warum.
+
 Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
 auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
 synthetische Fixture-Prompts, trennt den Zustand nach AgentCore-Runtime-Sitzung

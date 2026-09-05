@@ -168,6 +168,11 @@ configured but not yet verified Bedrock, or Bedrock verified by at least one
 successful live model turn in the current process. Configuration alone never
 claims a working model connection.
 
+Because that surface exposes no file route, a confirmed run returns its result
+files inline in the answer, and the browser builds the download from it. Files
+above 262 144 bytes, and files whose text contains the workspace path, travel as
+metadata only and say why.
+
 The optional AgentCore surface implements the current AWS HTTP contract on
 ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
 fixture prompts, isolates state by AgentCore runtime session, and cannot ingest

@@ -274,10 +274,27 @@ function renderResults(items) {
     view.dataset.i18n = "openResult";
     view.textContent = t("openResult");
     const download = document.createElement("a");
-    download.href = tokenizedUrl(item.download_url);
     download.download = item.filename;
     download.dataset.i18n = "downloadResult";
     download.textContent = t("downloadResult");
+    if (item.content === undefined) {
+      download.href = tokenizedUrl(item.download_url);
+    } else {
+      // No file route in the cloud variant: build the download from the inline answer.
+      download.href = "#";
+      download.addEventListener("click", (event) => {
+        event.preventDefault();
+        const bytes = item.content_encoding === "base64"
+          ? Uint8Array.from(atob(item.content), (character) => character.charCodeAt(0))
+          : new TextEncoder().encode(item.content);
+        const url = URL.createObjectURL(new Blob([bytes], { type: item.content_type }));
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = item.filename;
+        anchor.click();
+        URL.revokeObjectURL(url);
+      });
+    }
     actions.append(view, download);
     row.append(label, actions);
     return row;

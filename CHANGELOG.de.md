@@ -28,6 +28,17 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- die Cloud-Variante liefert Ergebnisdateien inline: Die Antwort der
+  AgentCore-Runtime trägt jetzt je Ergebnis `content`, `content_type` und
+  `content_encoding`, sodass der Browser einen Download anbieten kann, obwohl
+  diese Runtime nur `/ping` und `/invocations` kennt und keine Dateiroute. Kein
+  API Gateway und kein S3 kamen hinzu
+- zwei ehrliche Grenzen: Eine Datei über 262 144 Byte reist nur als Metadaten
+  (`inline: false`, Grund `size_limit`), und eine Datei, deren Text den
+  Arbeitsverzeichnispfad enthält, wird genauso zurückgehalten (Grund
+  `local_paths`), statt lokale Pfade an einen Browser zu schicken
+- der öffentliche Walkthrough baut den Download aus diesem Inline-Inhalt und
+  fällt auf die lokale Dateiroute zurück, wenn ein Ergebnis keinen trägt
 - lokaler Modell-Provider `ollama`: Der Master-Agent kann statt auf dem
   deterministischen Fixture oder Amazon Bedrock auf einem Modell im eigenen
   Zuhause laufen. Das Gate richtet sich nach dem Transportweg, nicht nach dem
