@@ -50,6 +50,28 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
   Suchergebnisse. Jeder Modellaufruf verwendet begrenzte Verbindungs- und
   Lese-Timeouts sowie insgesamt genau einen SDK-Versuch.
+- Jeder Provider, der über HTTP spricht, teilt sich ein endliches Budget:
+  `model_timeout_seconds` (Standard 120, zulässiger Bereich 5 bis 900). Ein
+  Modell, das darin nicht antwortet, erzeugt einen benannten Fehlschlag mit
+  Nennung des Budgets statt einer hängenden Anfrage. Bedrock behält sein eigenes
+  Paar aus Verbindungs- und Lese-Timeout.
+- Ein API-Schlüssel ist nie eine Einstellung. Gelesen und geschrieben werden
+  ausschließlich die zwei Namen `ANTHROPIC_API_KEY` und `OPENAI_API_KEY`, in
+  einer `.env`-Datei neben `launch.json`; jede andere Zeile dieser Datei bleibt
+  unangetastet und wird nie ausgewertet. Der Schlüssel reist außerhalb des
+  Plans, kommt also in keinen Plan-Hash, keine Vorschau, keinen Status, keinen
+  Bericht und kein Log, und der Zustand meldet ausschließlich, ob einer
+  hinterlegt ist. Die Datei wird atomar mit Modus `0o600` und ohne Sicherung
+  geschrieben, denn die Sicherung eines Schlüssels wäre eine zweite Kopie eines
+  Schlüssels. Dieser Modus greift dort, wo die Plattform ihn durchsetzt; unter
+  Windows schützt die Datei die Grenze des Benutzerkontos.
+- Der Ordnerdialog des Einrichtungsprogramms läuft in einem Kindprozess, ist auf
+  einen offenen Dialog serialisiert und gibt nach fünf Minuten auf, damit ein
+  abgebrochener Dialog nicht der letzte bleibt. Erreichbar ist er nur über die
+  tokengeprüfte Loopback-Route des Einrichtungsprogramms, nie aus der App. Er
+  antwortet absichtlich mit dem gewählten Pfad: Ordner zu benennen ist der Zweck
+  des Einrichtungsprogramms. Die Regel, dass physische Adressen aus Nutzdaten
+  heraushalten, gilt der Anwendungs-API, die nie einen Pfad zurückgibt.
 - Der optionale AgentCore-Adapter akzeptiert ausschließlich JSON-Prompts,
   verweigert Uploads, beliebige lokale Pfade, doppelte JSON-Schlüssel und
   nichtsynthetische Anfragen und gibt weder Hostpfade noch Secrets zurück.

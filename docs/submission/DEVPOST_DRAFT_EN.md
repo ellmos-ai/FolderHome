@@ -119,6 +119,29 @@ path travels in the API. Configuration itself is written by a separate
 installer on its own port and token, and the app GUI keeps no write path to it
 at all.
 
+That installer became the place where the model lives too. Five providers are
+selectable: the deterministic fixture, Ollama on this machine or on another
+host, Bedrock, Anthropic and OpenAI. Everything from the third onwards leaves
+the machine and therefore carries both the network and the sensitive-data gate.
+Named presets in `launch.json` turn switching models into an activation rather
+than an edit. An API key is never a setting: it goes into a `.env` file beside
+that config under one of two known names, and it appears in no plan hash, no
+status, no report and no log. A native folder dialog runs in a child process so
+a household can point at a folder instead of typing a path, a source purpose
+accepts several folders, and the calendar files are written through the same
+confirm-verify-replace path as everything else, though only the calendar
+commands read them and the running app does not.
+
+A section called Subscriptions closes the loop for people who already pay for an
+agent. Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
+subscription drive FolderHome as a tool, which means the agent is the brain and
+FolderHome needs no key of its own. The installer shows both editor entries
+ready to copy, generated from the same integration plan the CLI prints. And
+because an agent may arrive without a human reading a README first, `llms.txt`
+states the MCP and HTTP entry points, the safety model and the providers in one
+file at the repository root; a test asserts that every route, schema and tool it
+names really exists in the service.
+
 An isolated HTTP adapter maps the same application contract to AgentCore. The
 quota-bounded direct-code Runtime is deployed and `READY`; a synthetic fixture
 roundtrip reached `confirmation_required`. The public CloudFront configuration

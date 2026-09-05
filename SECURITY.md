@@ -39,6 +39,24 @@ Security fixes are maintained on the current competition state on branch
   model ID, region, separate explicit approvals for network access and sharing
   potentially sensitive local search results, bounded connect/read timeouts,
   and exactly one total SDK attempt per model call.
+- Every provider that speaks HTTP shares one finite budget,
+  `model_timeout_seconds` (default 120, accepted range 5 to 900). A model that
+  does not answer within it produces a stated failure naming the budget rather
+  than a hanging request. Bedrock keeps its own connect and read pair.
+- An API key is never a setting. Only the two names `ANTHROPIC_API_KEY` and
+  `OPENAI_API_KEY` are read or written, in a `.env` file beside `launch.json`;
+  any other line in that file is kept untouched and never interpreted. The key
+  travels outside the plan, so it enters no plan hash, no preview, no status, no
+  report and no log, and the state reports only whether one is stored. The file
+  is written atomically with mode `0o600` and no backup copy, because a backup
+  of a key is a second copy of a key. That mode is enforced where the platform
+  enforces it; on Windows the user account boundary is what protects the file.
+- The installer's folder dialog runs in a child process, is serialized to one
+  open dialog, and gives up after five minutes so that a cancelled dialog is not
+  the last one. It is reached only through the token-checked loopback route of
+  the installer, never from the app. It answers with the chosen path on purpose:
+  naming folders is what the installer is for. The rule that physical locators
+  stay out of payloads belongs to the application API, which never returns one.
 - The optional AgentCore adapter accepts JSON prompts only, rejects uploads,
   arbitrary local paths, duplicate JSON keys and non-synthetic requests, and
   returns no host paths or secrets. Runtime sessions, concurrent invocations,
