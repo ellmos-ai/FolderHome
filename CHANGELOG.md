@@ -12,24 +12,9 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 _Nothing yet._
 
-## [0.2.0] - 2026-09-05
+## [0.3.0] - 2026-09-05
 
 ### Added
-- results view: what a confirmed plan really executed stays retrievable in the
-  local GUI, including runs started through the HTTP API or an editor over MCP,
-  because all three drive the same process. New panel with a refresh button,
-  reloaded automatically after an own confirmation
-- new read-only routes `GET /api/v1/agent/results` and
-  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; the list carries
-  basename, size and index but never a path, and the file is served as an
-  attachment addressed only by that index
-- executed reports are kept in a bounded in-process ring buffer; artifacts are
-  resolved once at execution time and only inside a registered output resource
-  of that profile, under the name the report itself declares
-- MCP tool `folderhome_results` proxies the same list for editor agents
-- the GUI downloads through the token-protected API and builds the file from a
-  blob, so no token ever appears in a URL or in browser history
-
 - profiles are managed in the installer: section 1 lists them, adds one, renames
   one, edits its rules and deletes one behind a confirmation. Until now the
   answer to "can I delete an example profile and add my own?" was no, the
@@ -49,6 +34,24 @@ _Nothing yet._
   `parse_profile_configuration` and only then put in place, and a profile file
   name is derived from the validated id, never from typed text
 - `--profiles-dir` is optional for `setup plan` and `setup serve`
+
+## [0.2.0] - 2026-09-05
+
+### Added
+- results view: what a confirmed plan really executed stays retrievable in the
+  local GUI, including runs started through the HTTP API or an editor over MCP,
+  because all three drive the same process. New panel with a refresh button,
+  reloaded automatically after an own confirmation
+- new read-only routes `GET /api/v1/agent/results` and
+  `GET /api/v1/agent/results/<execution_id>/artifacts/<index>`; the list carries
+  basename, size and index but never a path, and the file is served as an
+  attachment addressed only by that index
+- executed reports are kept in a bounded in-process ring buffer; artifacts are
+  resolved once at execution time and only inside a registered output resource
+  of that profile, under the name the report itself declares
+- MCP tool `folderhome_results` proxies the same list for editor agents
+- the GUI downloads through the token-protected API and builds the file from a
+  blob, so no token ever appears in a URL or in browser history
 
 - installer section "Subscriptions" between the model and the API keys: Claude
   Code with a Claude subscription and the Codex CLI with a ChatGPT subscription
