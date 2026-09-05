@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -37,21 +38,39 @@ class ProfileConfiguration:
 
 
 def load_profile_configuration(directory: Path) -> ProfileConfiguration:
-    """Load one household rule file and all individual JSON profiles."""
+    """Read one household rule file and all individual JSON profiles from disk."""
 
     directory = directory.resolve()
     household_path = directory / "household.json"
     if not household_path.is_file():
         raise ProfileConfigurationError(f"household.json fehlt: {household_path}")
-    household = _read_json(household_path)
+    profiles = {
+        path.name: _read_json(path)
+        for path in sorted(directory.glob("*.json"), key=lambda item: item.name.casefold())
+        if path.name.casefold() != "household.json"
+    }
+    return parse_profile_configuration(_read_json(household_path), profiles)
+
+
+def parse_profile_configuration(
+    household: object,
+    profile_documents: Mapping[str, object],
+) -> ProfileConfiguration:
+    """Apply the same checks to documents that are not on disk yet.
+
+    The installer validates a planned profile set before it writes anything, so the
+    contract has to run on documents, not only on files.
+    """
+
+    household = _as_object(household, "household.json")
     if household.get("schema") != "folderhome.household-rules.v1":
         raise ProfileConfigurationError("household.json verwendet ein unbekanntes Schema.")
     os_account = household.get("os_account")
     if not isinstance(os_account, str) or not os_account.strip():
         raise ProfileConfigurationError("household.json enthält kein gültiges OS-Konto.")
     common_rules = tuple(
-        _parse_rule(item, profile_id=None, origin=household_path)
-        for item in _rule_items(household, household_path)
+        _parse_rule(item, profile_id=None, origin="household.json")
+        for item in _rule_items(household, "household.json")
     )
     if any(rule.scope not in {RuleScope.GLOBAL, RuleScope.AREA} for rule in common_rules):
         raise ProfileConfigurationError(
@@ -59,25 +78,23 @@ def load_profile_configuration(directory: Path) -> ProfileConfiguration:
         )
 
     profiles = []
-    for path in sorted(directory.glob("*.json"), key=lambda item: item.name.casefold()):
-        if path.name.casefold() == "household.json":
-            continue
-        payload = _read_json(path)
+    for name in sorted(profile_documents, key=str.casefold):
+        payload = _as_object(profile_documents[name], name)
         if payload.get("schema") != "folderhome.user-profile.v1":
-            raise ProfileConfigurationError(f"Unbekanntes Profilschema in {path.name}.")
+            raise ProfileConfigurationError(f"Unbekanntes Profilschema in {name}.")
         profile_id = payload.get("profile_id")
         if not isinstance(profile_id, str):
-            raise ProfileConfigurationError(f"profile_id fehlt in {path.name}.")
+            raise ProfileConfigurationError(f"profile_id fehlt in {name}.")
         rules = tuple(
-            _parse_rule(item, profile_id=profile_id, origin=path)
-            for item in _rule_items(payload, path)
+            _parse_rule(item, profile_id=profile_id, origin=name)
+            for item in _rule_items(payload, name)
         )
         if any(
             rule.scope not in {RuleScope.PROFILE, RuleScope.PROFILE_AREA}
             for rule in rules
         ):
             raise ProfileConfigurationError(
-                f"{path.name} darf nur Profil- oder Profilbereichsregeln enthalten."
+                f"{name} darf nur Profil- oder Profilbereichsregeln enthalten."
             )
         try:
             profile = UserProfile(
@@ -88,7 +105,7 @@ def load_profile_configuration(directory: Path) -> ProfileConfiguration:
                 rules=rules,
             )
         except ValueError as exc:
-            raise ProfileConfigurationError(f"Ungültiges Profil {path.name}: {exc}") from exc
+            raise ProfileConfigurationError(f"Ungültiges Profil {name}: {exc}") from exc
         if profile.os_account != os_account:
             raise ProfileConfigurationError(
                 f"Profil {profile.profile_id} gehört nicht zum gemeinsamen OS-Konto."
@@ -192,10 +209,16 @@ def _read_json(path: Path) -> dict[str, object]:
     return payload
 
 
-def _rule_items(payload: dict[str, object], path: Path) -> list[object]:
+def _as_object(payload: object, name: str) -> dict[str, object]:
+    if not isinstance(payload, dict):
+        raise ProfileConfigurationError(f"{name} muss ein JSON-Objekt enthalten.")
+    return payload
+
+
+def _rule_items(payload: dict[str, object], name: str) -> list[object]:
     items = payload.get("rules")
     if not isinstance(items, list):
-        raise ProfileConfigurationError(f"{path.name} enthält keine Regelliste.")
+        raise ProfileConfigurationError(f"{name} enthält keine Regelliste.")
     return items
 
 
@@ -203,10 +226,10 @@ def _parse_rule(
     payload: object,
     *,
     profile_id: str | None,
-    origin: Path,
+    origin: str,
 ) -> ProfileRule:
     if not isinstance(payload, dict):
-        raise ProfileConfigurationError(f"Ungültiger Regeleintrag in {origin.name}.")
+        raise ProfileConfigurationError(f"Ungültiger Regeleintrag in {origin}.")
     try:
         scope = RuleScope(str(payload["scope"]))
         return ProfileRule(
@@ -223,5 +246,5 @@ def _parse_rule(
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ProfileConfigurationError(
-            f"Ungültige Regel in {origin.name}: {exc}"
+            f"Ungültige Regel in {origin}: {exc}"
         ) from exc

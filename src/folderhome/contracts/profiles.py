@@ -35,6 +35,15 @@ class RuleKey(StrEnum):
 
 
 RuleValue = str | int | bool
+# The keys whose value is a count, named once so a form can offer a number field
+# instead of guessing from the value it is handed.
+INTEGER_RULE_KEYS = frozenset(
+    {
+        RuleKey.ARCHIVE_AFTER_DAYS,
+        RuleKey.DELETE_AFTER_DAYS,
+        RuleKey.SCAN_INTERVAL_MINUTES,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,11 +167,7 @@ def _validate_id(value: str, field: str) -> None:
 
 
 def _validate_rule_value(key: RuleKey, value: RuleValue) -> None:
-    if key in {
-        RuleKey.ARCHIVE_AFTER_DAYS,
-        RuleKey.DELETE_AFTER_DAYS,
-        RuleKey.SCAN_INTERVAL_MINUTES,
-    }:
+    if key in INTEGER_RULE_KEYS:
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             raise ValueError(f"{key.value} benötigt eine nichtnegative Ganzzahl")
         if key is RuleKey.SCAN_INTERVAL_MINUTES and value < 1:
