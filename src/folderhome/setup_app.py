@@ -23,6 +23,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, quote, urlsplit
 
+from folderhome.application.app_calendar_configuration import (
+    read_app_calendar_configuration,
+    read_calendar_document,
+)
 from folderhome.application.calendar_connectors import (
     CalendarConnectorError,
     load_calendar_connector_accounts,
@@ -56,6 +60,7 @@ from folderhome.mcp_server import integration_plan
 _PURPOSE_OPERATIONS: dict[str, tuple[str, ...]] = {
     "documents.source": ("list", "read"),
     "insurance.source": ("list", "read"),
+    "calendar.source": ("list", "read"),
     "documents.output": ("create",),
     "correspondence.output": ("create",),
     "calendar.export_output": ("create",),
@@ -200,6 +205,7 @@ class SetupApplication:
         stored_keys = read_env_file(self.env_file)
         launch = self._current_launch()
         registry = self._load_registry()
+        current_calendar, calendar_load_error, external_calendar = self._current_calendar(launch)
         return {
             "schema": "folderhome.setup-state.v1",
             "os_account": self.profiles.os_account,
@@ -221,7 +227,10 @@ class SetupApplication:
             "profile_rule_scopes": list(PROFILE_RULE_SCOPES),
             "household_rule_scopes": list(HOUSEHOLD_RULE_SCOPES),
             "calendar_backends": list(CALENDAR_BACKENDS),
-            "calendar_read_by_app": False,
+            "calendar_read_by_app": True,
+            "current_calendar": current_calendar,
+            "calendar_load_error": calendar_load_error,
+            "calendar_external_configuration": external_calendar,
             "repeatable_purposes": [
                 purpose for purpose in SETUP_PURPOSES if purpose not in _OUTPUT_PURPOSES
             ],
@@ -273,7 +282,13 @@ class SetupApplication:
         calendar_json, calendar_accounts_json = _calendar_documents(
             request, planned, errors
         )
-        cascade, calendar_accounts_json = self._cascade(removed, calendar_accounts_json)
+        raw_calendar = request.get("calendar")
+        clear_calendar_accounts = (
+            isinstance(raw_calendar, dict) and raw_calendar.get("accounts") == []
+        )
+        cascade, calendar_accounts_json = self._cascade(
+            removed, calendar_accounts_json, errors=errors, clear_accounts=clear_calendar_accounts,
+        )
         port = _port(request, errors)
         state_dir = _directory(request.get("state_dir"), "state_dir", errors)
         profiles_dir = _writable_directory(
@@ -327,6 +342,25 @@ class SetupApplication:
                 port=port,
             )
         )
+        if launch_json is not None:
+            current_launch = self._current_launch()
+            for field, path, document in (
+                ("calendar_config", self.calendar_file, calendar_json),
+                ("connector_accounts", self.calendar_accounts_file, calendar_accounts_json),
+            ):
+                if field == "connector_accounts" and (
+                    clear_calendar_accounts or cascade.get("calendar_accounts_unbound")
+                ):
+                    continue
+                if str(path) in cascade["retired_files"]:
+                    continue
+                if document is not None:
+                    launch_json[field] = str(path)
+                elif current_launch.get(field) is not None:
+                    launch_json[field] = current_launch[field]
+                elif path.is_file():
+                    # Adopt a pre-existing setup file without moving or rewriting it.
+                    launch_json[field] = str(path)
         payload: dict[str, Any] = {
             "schema": "folderhome.setup-plan.v1",
             "valid": not errors and resources_json is not None,
@@ -422,6 +456,9 @@ class SetupApplication:
         self,
         removed: list[str],
         calendar_accounts_json: dict[str, Any] | None,
+        *,
+        errors: list[dict[str, str]],
+        clear_accounts: bool = False,
     ) -> tuple[dict[str, Any], dict[str, Any] | None]:
         """Say what a deleted profile takes with it, and take it in the same plan.
 
@@ -434,7 +471,7 @@ class SetupApplication:
             "calendar_account_ids": [],
             "retired_files": [],
         }
-        if not removed:
+        if not removed and not clear_accounts:
             return cascade, calendar_accounts_json
         gone = set(removed)
         registry = self._load_registry()
@@ -444,7 +481,37 @@ class SetupApplication:
                 for resource in registry.resources
                 if resource.profile_ids.issubset(gone)
             )
-        stored = _stored_calendar_accounts(self.calendar_accounts_file)
+        launch = self._current_launch()
+        try:
+            value = launch.get("connector_accounts", str(self.calendar_accounts_file))
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError("Ungültiger Kontenpfad.")
+            accounts_path = Path(value)
+            stored = (
+                [
+                    {key: value for key, value in account.to_dict().items() if key != "schema"}
+                    for account in parse_calendar_connector_accounts(
+                        read_calendar_document(accounts_path)
+                    )
+                ]
+                if "connector_accounts" in launch or accounts_path.exists() else []
+            )
+        except (OSError, ValueError, RuntimeError):
+            errors.append({
+                "field": "calendar.accounts",
+                "message": (
+                    "Aktive Kalenderkonten sind nicht lesbar; vor der Profiländerung prüfen."
+                ),
+            })
+            return cascade, calendar_accounts_json
+        if clear_accounts:
+            cascade["calendar_account_ids"] = sorted(
+                str(account.get("account_id")) for account in stored
+                if isinstance(account, dict)
+            )
+            if self.calendar_accounts_file.exists():
+                cascade["retired_files"] = [str(self.calendar_accounts_file)]
+            return cascade, None
         orphaned = [
             account
             for account in stored
@@ -465,7 +532,9 @@ class SetupApplication:
                 "accounts": remaining,
             }
         # An empty account list is not a valid document, so the file is retired.
-        cascade["retired_files"] = [str(self.calendar_accounts_file)]
+        cascade["calendar_accounts_unbound"] = True
+        if self.calendar_accounts_file.exists():
+            cascade["retired_files"] = [str(self.calendar_accounts_file)]
         return cascade, None
 
     def _document_errors(self, payload: dict[str, Any]) -> list[dict[str, str]]:
@@ -494,7 +563,13 @@ class SetupApplication:
                 errors.append({"field": "calendar", "message": str(exc)})
         if payload["calendar_accounts_json"] is not None:
             try:
-                parse_calendar_connector_accounts(payload["calendar_accounts_json"])
+                accounts = parse_calendar_connector_accounts(payload["calendar_accounts_json"])
+                known_profiles = {item.profile_id for item in planned.profiles}
+                if any(account.profile_id not in known_profiles for account in accounts):
+                    errors.append({
+                        "field": "calendar.accounts",
+                        "message": "Kalenderkonten müssen zu den geplanten Profilen gehören.",
+                    })
             except CalendarConnectorError as exc:
                 errors.append({"field": "calendar.accounts", "message": str(exc)})
         return errors
@@ -669,6 +744,50 @@ class SetupApplication:
             raise SetupAppError(
                 f"Geschriebenes Register ist nicht ladbar: {exc}"
             ) from exc
+
+    def _current_calendar(
+        self, launch: dict[str, Any],
+    ) -> tuple[dict[str, Any] | None, bool, bool]:
+        """Read active launch paths without silently falling back from invalid files."""
+
+        external = False
+        try:
+            paths = []
+            for field, owned in (
+                ("calendar_config", self.calendar_file),
+                ("connector_accounts", self.calendar_accounts_file),
+            ):
+                if field in launch:
+                    value = launch[field]
+                    if not isinstance(value, str) or not value.strip():
+                        raise ValueError("Ungültiger Kalenderpfad.")
+                    path = Path(value)
+                    external = external or path.resolve() != owned.resolve()
+                else:
+                    path = owned if owned.exists() else None
+                paths.append(path)
+            config_path, accounts_path = paths
+            if config_path is None:
+                return None, accounts_path is not None, external
+            configuration = read_app_calendar_configuration(config_path)
+            accounts = (
+                parse_calendar_connector_accounts(read_calendar_document(accounts_path))
+                if accounts_path is not None else ()
+            )
+            known_profiles = {item.profile_id for item in self.profiles.profiles}
+            if any(account.profile_id not in known_profiles for account in accounts):
+                raise ValueError("Kalenderkonto verweist auf ein unbekanntes Profil.")
+            return {
+                "default_backend": configuration.default_backend.value,
+                "timezone": configuration.default_timezone,
+                "ics_directory": str(configuration.uptoday_ics_directory),
+                "accounts": [
+                    {key: value for key, value in account.to_dict().items() if key != "schema"}
+                    for account in accounts
+                ],
+            }, False, external
+        except (OSError, ValueError, RuntimeError):
+            return None, True, external
 
     def _current_launch(self) -> dict[str, Any]:
         """Read the written launch file so saved presets survive a reopen."""
@@ -1229,17 +1348,6 @@ def _verify_profiles(household: Path, staged: list[tuple[Path, Path]]) -> None:
         )
     except (OSError, json.JSONDecodeError, ProfileConfigurationError) as exc:
         raise SetupAppError(f"Geschriebene Profile sind nicht ladbar: {exc}") from exc
-
-
-def _stored_calendar_accounts(path: Path) -> list[Any]:
-    """Read the account rows on disk; an unreadable file simply has none."""
-
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return []
-    accounts = payload.get("accounts") if isinstance(payload, dict) else None
-    return accounts if isinstance(accounts, list) else []
 
 
 def _retire_file(target: Path) -> Path | None:

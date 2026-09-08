@@ -507,15 +507,35 @@ Keine Datei außer `.env` enthält je ein Geheimnis: Das Entwurfspostfach und ei
 Kalenderkonto tragen beide einen Verweis auf eine lokale Zugangsdatendatei, nicht
 die Zugangsdaten selbst.
 
-Die Kalenderdateien liest nicht `app serve`, sondern die `calendar`-Befehle, und
-ein Outlook-Backend gibt es in dieser Fassung nicht. Das Einrichtungsprogramm
-sagt beides und bietet nur die vier vorhandenen Backends an.
+Die App lädt jetzt Kalenderdateien aus den Feldern `calendar_config` und
+`connector_accounts` in `launch.json`. Explizite Optionen `--calendar-config` und
+`--connector-accounts` haben Vorrang; Modellpresets dürfen diese Pfade nicht ändern
+oder Freigaben erteilen. Wähle im Setup ausdrücklich einen `calendar.source`-Ordner.
+Beim Start werden fehlende Kalenderkonfigurations-, State- und Konten-Defaults
+als private logische Ressourcen im Speicher ergänzt. Bestehende Bindungen und
+ihre Rechte haben Vorrang; die App schreibt das Ressourcenregister nicht um.
 
-Das Speichern ersetzt `resources.json` und die Profildateien vollständig, es
-führt nichts zusammen. Wer das Register von Hand erweitert hat, etwa um ein
-Entwurfspostfach oder einen Kalender-State-Ordner, verliert diese Einträge beim
-Speichern. Die Vorversion bleibt als `.bak-<Zeitstempel>-<Zusatz>` daneben liegen, sodass
-sich die Zusätze zurückkopieren lassen.
+Der aktuelle App-Executor schreibt nach Planbestätigung in den **lokalen Kalender**,
+optional mit ICS-Export. Das Laden eines externen Kontos aktiviert **keinen
+Live-Connector**. Ungültige explizite Kalenderdateien oder unbekannte Kontoprofile
+blockieren den Start. Ein Outlook-Backend gibt es nicht. Beim Wiederöffnen zeigt
+das Setup die Kalenderfelder und Konten aus den aktiven Launch-Pfaden.
+**Unveränderte Kalenderfelder lösen keinen Schreibvorgang aus**, auch beim
+Speichern anderer Einstellungen. Änderungen schreiben Setup-eigene Kopien und
+aktualisieren die in der Vorschau gezeigten Verweise; benutzerdefinierte
+Quelldateien bleiben unangetastet. Unbekannte Felder oder ungültige Dateien
+erzeugen eine Ladefehlermeldung, statt still verworfen zu werden. Werden alle
+Kontenzeilen entfernt, wird der Kontenverweis gelöst und eine vorhandene
+Setup-eigene Kopie mit Backup aus der Konfiguration genommen; ein ausgelassenes
+Kontenfeld lässt sie unverändert. Eine Profillöschung entfernt nur dessen Konten;
+bei einer externen Quelle werden verbleibende Konten in eine Setup-eigene Kopie
+übernommen, ohne die Quelle zu verändern.
+
+Das Speichern führt unterstützte Ordnerbindungen in `resources.json` zusammen
+und erhält eigene Ressourcen, stabile IDs und strengere Rechte. Beim Entfernen
+eines organisatorischen Profils entfallen auch dessen Bindungen. Scheitert ein
+Mehrdatei-Save, werden vorherige Dateiinhalte und Metadaten wiederhergestellt;
+eine atomare Wiederherstellung nach Stromausfall ist damit nicht zugesichert.
 
 Die App mit dem Geschriebenen starten:
 

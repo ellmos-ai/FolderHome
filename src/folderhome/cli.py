@@ -18,6 +18,7 @@ from folderhome.application.administrative_drafts import (
     load_administrative_draft_request,
     write_administrative_draft,
 )
+from folderhome.application.app_calendar_configuration import bind_app_calendar_resources
 from folderhome.application.archive_fcsa_plan import (
     ArchivePlanValidationError,
     validate_archive_proposals,
@@ -1541,6 +1542,8 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--profiles-dir", type=Path, default=argparse.SUPPRESS)
     parser.add_argument("--state-dir", type=Path, default=argparse.SUPPRESS)
     parser.add_argument("--resources-file", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--calendar-config", type=Path, default=argparse.SUPPRESS)
+    parser.add_argument("--connector-accounts", type=Path, default=argparse.SUPPRESS)
     parser.add_argument("--manifest-root", type=Path, default=DEFAULT_MANIFEST_ROOT)
     parser.add_argument(
         "--knowledge-digest-root",
@@ -5166,6 +5169,8 @@ _LAUNCH_CONFIG_FIELDS = {
     "profiles_dir": Path,
     "state_dir": Path,
     "resources_file": Path,
+    "calendar_config": Path,
+    "connector_accounts": Path,
     "port": int,
     "model_provider": str,
     "ollama_host": str,
@@ -5178,6 +5183,8 @@ _LAUNCH_CONFIG_FIELDS = {
 }
 _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "resources_file": None,
+    "calendar_config": None,
+    "connector_accounts": None,
     "port": 8765,
     "model_provider": "fixture",
     "ollama_host": None,
@@ -5192,7 +5199,10 @@ _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
 _PRESET_FIELDS = tuple(
     name
     for name in _LAUNCH_CONFIG_FIELDS
-    if name not in {"profiles_dir", "state_dir", "resources_file", "port"}
+    if name not in {
+        "profiles_dir", "state_dir", "resources_file", "port",
+        "calendar_config", "connector_accounts",
+    }
 )
 
 
@@ -5312,6 +5322,14 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                 profile.profile_id for profile in profiles.profiles
             ),
         )
+    resource_registry = bind_app_calendar_resources(
+        resource_registry,
+        calendar_config=args.calendar_config,
+        connector_accounts=args.connector_accounts,
+        state_dir=settings.state_dir,
+        os_account=profiles.os_account,
+        profile_ids=frozenset(profile.profile_id for profile in profiles.profiles),
+    )
     document_plugins = _document_plugins(args.manifest_root)
     plugin = document_plugins["KnowledgeDigest"]
     verify_checkout_revision(args.knowledge_digest_root, plugin.source_revision)

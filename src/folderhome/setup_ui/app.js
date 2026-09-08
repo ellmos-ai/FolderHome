@@ -88,8 +88,9 @@ const translations = {
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
     calendarTitle: "7. Calendar",
-    calendarHint: "This writes calendar.json and calendar-accounts.json. The calendar commands read them; the app itself does not, and there is no Outlook backend in this build. An account stores a reference to a secret, never the secret.",
+    calendarHint: "The app loads these files through launch.json as private, profile-bound resources. Select a calendar.source folder explicitly. The current app executor supports the local calendar and optional ICS export; external accounts do not enable a live connector. There is no Outlook backend. An account stores a secret reference, never the secret. Unchanged fields preserve existing file references. Editing this section writes setup-owned copies, shown in the preview; custom source files stay untouched.",
     calendarEnable: "Write calendar configuration",
+    calendarLoadError: "The saved calendar configuration could not be loaded. Check its files before replacing it.",
     calendarBackend: "Default backend",
     calendarTimezone: "Default time zone",
     calendarDirectory: "UpToday ICS folder",
@@ -187,8 +188,9 @@ const translations = {
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
     calendarTitle: "7. Kalender",
-    calendarHint: "Dies schreibt calendar.json und calendar-accounts.json. Die Kalenderbefehle lesen sie; die App selbst nicht, und ein Outlook-Backend gibt es in dieser Fassung nicht. Ein Konto speichert einen Verweis auf ein Geheimnis, nie das Geheimnis selbst.",
+    calendarHint: "Die App lädt diese Dateien über launch.json als private, profilgebundene Ressourcen. Wähle ausdrücklich einen calendar.source-Ordner. Der aktuelle App-Executor unterstützt den lokalen Kalender mit optionalem ICS-Export; externe Konten aktivieren keinen Live-Connector. Ein Outlook-Backend gibt es nicht. Ein Konto speichert einen Geheimnisverweis, nie das Geheimnis selbst. Unveränderte Felder erhalten bestehende Dateiverweise. Änderungen in diesem Abschnitt schreiben Setup-eigene Kopien, die die Vorschau zeigt; benutzerdefinierte Quelldateien bleiben unangetastet.",
     calendarEnable: "Kalenderkonfiguration schreiben",
+    calendarLoadError: "Die gespeicherte Kalenderkonfiguration konnte nicht geladen werden. Prüfe ihre Dateien, bevor du sie ersetzt.",
     calendarBackend: "Standard-Backend",
     calendarTimezone: "Standardzeitzone",
     calendarDirectory: "UpToday-ICS-Ordner",
@@ -222,6 +224,7 @@ const profilesDir = document.querySelector("#profiles-dir");
 let knownProfileIds = new Set();
 const calendarAccounts = document.querySelector("#calendar-accounts");
 const calendarEnabled = document.querySelector("#calendar-enabled");
+let calendarDirty = false;
 let activePreset = null;
 
 function t(key, replacements = {}) {
@@ -457,6 +460,7 @@ function calendarAccountRow(account) {
     option.textContent = `${item.display_name} (${item.profile_id})`;
     profile.append(option);
   }
+  if (account) profile.value = account.profile_id;
   block.append(labelled(t("calendarProfile"), profile));
   const backend = document.createElement("select");
   backend.dataset.calendarField = "backend";
@@ -466,6 +470,7 @@ function calendarAccountRow(account) {
     option.textContent = item;
     backend.append(option);
   }
+  if (account) backend.value = account.backend;
   block.append(labelled(t("calendarBackend"), backend));
   const fields = [
     ["account_id", "account_id"],
@@ -485,6 +490,7 @@ function calendarAccountRow(account) {
   credential.spellcheck = false;
   credential.dataset.calendarField = "credential_ref";
   credential.placeholder = "connector://google-calendar/default";
+  credential.value = (account && account.credential_ref) || "";
   block.append(labelled(t("calendarCredential"), credential));
   const remove = document.createElement("button");
   remove.type = "button";
@@ -493,6 +499,7 @@ function calendarAccountRow(account) {
   remove.textContent = t("removeSource");
   remove.addEventListener("click", () => {
     block.remove();
+    calendarDirty = true;
     invalidate();
   });
   block.append(remove);
@@ -507,7 +514,7 @@ function labelled(caption, control) {
 }
 
 function buildCalendar() {
-  if (!calendarEnabled.checked) return null;
+  if (!calendarEnabled.checked || !calendarDirty) return null;
   const accounts = [];
   for (const block of calendarAccounts.querySelectorAll("fieldset")) {
     const account = {};
@@ -533,6 +540,20 @@ function renderCalendar() {
     option.textContent = item;
     backend.append(option);
   }
+  calendarAccounts.replaceChildren();
+  const saved = state.current_calendar;
+  calendarEnabled.checked = Boolean(saved);
+  document.querySelector("#calendar-fields").hidden = !saved;
+  if (saved) {
+    backend.value = saved.default_backend;
+    document.querySelector("#calendar-timezone").value = saved.timezone;
+    document.querySelector("#calendar-directory").value = saved.ics_directory;
+    for (const account of saved.accounts || []) {
+      calendarAccounts.append(calendarAccountRow(account));
+    }
+  }
+  if (state.calendar_load_error) showError(new Error(t("calendarLoadError")));
+  calendarDirty = false;
 }
 
 // ------------------------------------------------------------------ profiles
@@ -950,6 +971,7 @@ async function save() {
   // Ask the service what is stored now instead of guessing from the form.
   state = await api("/api/v1/setup/state");
   renderKeys();
+  renderCalendar();
 }
 
 function showError(error) {
@@ -984,15 +1006,30 @@ document.querySelector("#profiles-dir-choose").addEventListener("click", () =>
 profilesDir.addEventListener("input", invalidate);
 calendarEnabled.addEventListener("change", () => {
   document.querySelector("#calendar-fields").hidden = !calendarEnabled.checked;
+  calendarDirty = true;
   invalidate();
 });
+for (const event of ["input", "change"]) {
+  document.querySelector("#calendar-fields").addEventListener(event, () => {
+    calendarDirty = true;
+    invalidate();
+  });
+}
 document.querySelector("#calendar-account-add").addEventListener("click", () => {
   calendarAccounts.append(calendarAccountRow(null));
+  calendarDirty = true;
   invalidate();
 });
-document.querySelector("#calendar-directory-choose").addEventListener("click", () =>
-  pickFolder(document.querySelector("#calendar-directory")).catch(showError),
-);
+document.querySelector("#calendar-directory-choose").addEventListener("click", async () => {
+  const input = document.querySelector("#calendar-directory");
+  const previous = input.value;
+  try {
+    await pickFolder(input);
+    if (input.value !== previous) calendarDirty = true;
+  } catch (error) {
+    showError(error);
+  }
+});
 document.querySelector("#ollama-host").addEventListener("input", renderGateHint);
 document.querySelector("#check").addEventListener("click", () => check().catch(showError));
 document.querySelector("#save").addEventListener("click", () => save().catch(showError));

@@ -474,15 +474,32 @@ previous state exactly as it was. No file besides `.env` ever holds a secret:
 the drafts mailbox and a calendar account both keep a reference to a local
 credentials file, not the credentials.
 
-The calendar files are read by the `calendar` commands, not by `app serve`, and
-this build has no Outlook backend. The installer says both, and offers only the
-four backends that exist.
+The app now loads calendar files named by `calendar_config` and
+`connector_accounts` in `launch.json`. Explicit `--calendar-config` and
+`--connector-accounts` flags override those paths; model presets cannot change
+them or grant permissions. Select a `calendar.source` folder explicitly in setup.
+At startup, missing calendar configuration/state/account defaults become private
+logical resources in memory. Existing resource bindings and their permissions
+take precedence; the registry file is not rewritten by the app.
 
-Saving replaces `resources.json` and the profile files completely rather than
-merging into them. If you extended the registry by hand, for example with a
-drafts mailbox or a calendar state folder, those entries are lost on save. The
-previous version stays next to it as `.bak-<timestamp>-<suffix>`, so you can copy the
-additions back.
+The current app executor writes the **local calendar**, with optional ICS export,
+only after plan confirmation. Loading an external account does **not** enable a
+live connector. Invalid explicit calendar files or unknown account profiles block
+startup. There is no Outlook backend. Reopening setup restores saved calendar
+fields and accounts from the active launch paths. **Unchanged calendar fields do
+not trigger a write**, even when saving other settings. Editing them writes
+setup-owned copies and updates the references shown in the preview; custom
+source files remain untouched. Unknown fields or invalid files produce a reload
+warning instead of being silently discarded. Removing all account rows unbinds
+the account file and retires an existing setup-owned copy with a backup;
+omitting the accounts field leaves it unchanged. Profile deletion removes only
+its accounts; when the active source is external, remaining accounts move into
+a setup-owned copy without editing the source.
+
+Saving merges supported folder bindings into `resources.json`, preserving custom
+resources, stable IDs and stricter permissions. Removing an organizational profile
+also removes its bindings. Multi-file save failures restore previous file content
+and metadata; this is not a guarantee of atomic recovery after power loss.
 
 Start the app with what was written:
 

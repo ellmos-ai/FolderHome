@@ -209,9 +209,12 @@
         <section class="card">
           <h2 data-i18n="calendarTitle">7. Calendar</h2>
           <p class="hint" data-i18n="calendarHint">
-            This writes calendar.json and calendar-accounts.json. The calendar commands read
-            them; the app itself does not, and there is no Outlook backend in this build.
-            An account stores a reference to a secret, never the secret.
+            The app loads these files through launch.json as private, profile-bound resources.
+            Select a calendar.source folder explicitly. The executor supports the local calendar
+            and optional ICS export; external accounts do not enable a live connector.
+            There is no Outlook backend. An account stores a secret reference, never the secret.
+            Unchanged fields preserve existing file references. Editing this section writes
+            setup-owned copies, shown in the preview; custom source files stay untouched.
           </p>
           <label class="checkbox">
             <input id="calendar-enabled" type="checkbox">
