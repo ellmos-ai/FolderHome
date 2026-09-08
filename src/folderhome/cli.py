@@ -334,7 +334,7 @@ from folderhome.contracts import (
 from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
-from folderhome.plugin_host import ManifestValidationError, load_manifests
+from folderhome.plugin_host import ManifestValidationError, default_manifest_root, load_manifests
 from folderhome.provider_locations import default_provider_root
 from folderhome.setup_app import (
     ENV_FILENAME,
@@ -346,7 +346,7 @@ from folderhome.setup_app import (
 )
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
-DEFAULT_MANIFEST_ROOT = REPOSITORY_ROOT / "manifests" / "components"
+DEFAULT_MANIFEST_ROOT = default_manifest_root()
 DEFAULT_FCSA_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "file-collect-sort-action")
 DEFAULT_DOC_SERVICES_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "doc-services")
 DEFAULT_KNOWLEDGE_DIGEST_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "KnowledgeDigest"

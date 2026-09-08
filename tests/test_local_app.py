@@ -1335,7 +1335,8 @@ def test_real_loopback_server_requires_gate_and_serves_authenticated_api(
 
         with pytest.raises(urllib.error.HTTPError) as unauthorized:
             urllib.request.urlopen(f"{server.base_url}/api/v1/status", timeout=5)
-        assert unauthorized.value.code == 401
+        with unauthorized.value:
+            assert unauthorized.value.code == 401
     finally:
         server.shutdown()
         thread.join(timeout=5)

@@ -42,6 +42,9 @@ folderhome = "folderhome.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/folderhome"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"manifests/components" = "folderhome/component_manifests"
+
 [tool.pytest.ini_options]
 addopts = "-ra"
 pythonpath = ["src"]

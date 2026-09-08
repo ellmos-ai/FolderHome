@@ -11,12 +11,27 @@ class ManifestValidationError(ValueError):
     """Raised when a plugin manifest cannot be trusted."""
 
 
+def default_manifest_root(package_root: Path | None = None) -> Path:
+    """Use canonical checkout data or the manifests included in an installed wheel."""
+
+    package = package_root if package_root is not None else Path(__file__).parents[1]
+    repository = package.parent.parent
+    if package.parent.name == "src" and (repository / "pyproject.toml").is_file():
+        return repository / "manifests" / "components"
+    return package / "component_manifests"
+
+
 def load_manifests(directory: Path) -> tuple[PluginDescriptor, ...]:
     """Load component manifests in deterministic filename order."""
 
+    if not directory.is_dir():
+        raise ManifestValidationError(f"Component manifest directory not found: {directory}")
+    paths = sorted(directory.glob("*.toml"))
+    if not paths:
+        raise ManifestValidationError(f"No component manifests found in {directory}")
     plugins: list[PluginDescriptor] = []
     plugin_ids: set[str] = set()
-    for path in sorted(directory.glob("*.toml")):
+    for path in paths:
         plugin = _load_manifest(path)
         if plugin.plugin_id in plugin_ids:
             raise ManifestValidationError(f"Duplicate plugin id {plugin.plugin_id}")

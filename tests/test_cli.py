@@ -4,6 +4,7 @@ import re
 import subprocess
 import sys
 import zipfile
+from contextlib import suppress
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -37,6 +38,16 @@ TAX_ASSISTANT_ROOT = REPO_ROOT.parent / "steuer-assistent"
 LAW_CHECKER_ROOT = default_provider_root(REPO_ROOT, "law-checker")
 
 
+def _close_process(process: subprocess.Popen[str]) -> None:
+    if process.poll() is None:
+        process.kill()
+    process.wait(timeout=10)
+    for stream in (process.stdin, process.stdout, process.stderr):
+        if stream is not None:
+            with suppress(BrokenPipeError):
+                stream.close()
+
+
 def run_cli(
     *args: str,
     input_text: str | None = None,
@@ -53,6 +64,21 @@ def run_cli(
         encoding="utf-8",
         check=False,
     )
+
+
+@pytest.mark.parametrize("kind", ["missing", "empty", "file"])
+def test_plugin_validation_rejects_absent_inventory(tmp_path: Path, kind: str) -> None:
+    root = tmp_path / "manifests"
+    if kind == "empty":
+        root.mkdir()
+    elif kind == "file":
+        root.write_text("not a directory", encoding="utf-8")
+
+    result = run_cli("plugins", "validate", "--manifest-root", str(root), "--json")
+
+    assert result.returncode == 2
+    assert json.loads(result.stdout)["valid"] is False
+    assert "Traceback" not in result.stderr
 
 
 def _seed_cli_medication_schedule(tmp_path: Path, state_dir: Path) -> str:
@@ -1124,8 +1150,7 @@ def test_agent_session_requires_explicit_plan_id_then_executes_note_once(
         returncode = process.wait(timeout=30)
         stderr = process.stderr.read()
     finally:
-        if process.poll() is None:
-            process.kill()
+        _close_process(process)
 
     assert returncode == 0, stderr
     assert ready["event"] == "ready"
@@ -1246,8 +1271,7 @@ def test_agent_session_confirms_findcall_fixture_without_live_call(
         returncode = process.wait(timeout=30)
         stderr = process.stderr.read()
     finally:
-        if process.poll() is None:
-            process.kill()
+        _close_process(process)
 
     assert returncode == 0, stderr
     assert ready["event"] == "ready"
@@ -1342,8 +1366,7 @@ def test_agent_session_confirms_existing_medication_intake_once(
         returncode = process.wait(timeout=30)
         stderr = process.stderr.read()
     finally:
-        if process.poll() is None:
-            process.kill()
+        _close_process(process)
 
     assert returncode == 0, stderr
     assert ready["event"] == "ready"
@@ -1433,8 +1456,7 @@ def test_accident_demo_site_cli_starts_only_after_explicit_gate(tmp_path: Path) 
         with urlopen(status_url, timeout=5) as response:  # noqa: S310 - loopback only
             status = json.loads(response.read().decode("utf-8"))
     finally:
-        process.terminate()
-        process.wait(timeout=10)
+        _close_process(process)
 
     assert ready["status"] == "ready"
     assert ready["demo"] == "synthetic_accident"

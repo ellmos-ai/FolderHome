@@ -7,6 +7,42 @@ from folderhome import plugin_host
 MANIFEST_ROOT = Path(__file__).parents[1] / "manifests" / "components"
 
 
+@pytest.mark.parametrize("kind", ["missing", "empty", "file"])
+def test_absent_manifest_inventory_is_not_valid(tmp_path: Path, kind: str) -> None:
+    root = tmp_path / "manifests"
+    if kind == "empty":
+        root.mkdir()
+    elif kind == "file":
+        root.write_text("not a directory", encoding="utf-8")
+
+    with pytest.raises(plugin_host.ManifestValidationError, match="manifest"):
+        plugin_host.load_manifests(root)
+
+
+def test_source_checkout_uses_the_canonical_manifests(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "folderhome"
+    package.mkdir(parents=True)
+    (tmp_path / "pyproject.toml").touch()
+
+    assert plugin_host.default_manifest_root(package) == tmp_path / "manifests" / "components"
+
+
+def test_installed_package_uses_its_bundled_manifests(tmp_path: Path) -> None:
+    package = tmp_path / "Lib" / "site-packages" / "folderhome"
+    package.mkdir(parents=True)
+    unrelated = tmp_path / "Lib" / "manifests" / "components"
+    unrelated.mkdir(parents=True)
+
+    assert plugin_host.default_manifest_root(package) == package / "component_manifests"
+
+
+def test_src_named_install_directory_is_not_itself_a_checkout(tmp_path: Path) -> None:
+    package = tmp_path / "src" / "folderhome"
+    package.mkdir(parents=True)
+
+    assert plugin_host.default_manifest_root(package) == package / "component_manifests"
+
+
 def test_repository_manifests_pin_the_reused_components() -> None:
     plugins = plugin_host.load_manifests(MANIFEST_ROOT)
 
