@@ -1427,6 +1427,8 @@ def test_loopback_ollama_status_reports_local_inference_without_cloud_claims(
     assert connection["provider"] == "ollama"
     assert connection["live_model_configured"] is True
     assert connection["model_inference_location"] == "local_ollama_host"
+    assert connection["mode"] == "local_model"
+    assert connection["runtime_topology"] == "local_only_model"
     assert connection["model_id"] == "qwen3.8:27b-mlx"
     assert connection["ollama_host"] == "http://127.0.0.1:11434"
     assert connection["aws_region"] is None

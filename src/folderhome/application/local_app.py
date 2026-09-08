@@ -709,6 +709,7 @@ class LocalApplication:
             successful_turns = self._successful_live_model_turns
         is_live_provider = self.agent_settings.is_live_model
         provider = self.agent_settings.model_provider
+        is_local_model = provider == "ollama" and not self.agent_settings.network_used
         inference_location = {
             "bedrock": "aws_cloud",
             "anthropic": "anthropic_api",
@@ -723,9 +724,13 @@ class LocalApplication:
         return {
             "schema": "folderhome.model-connection-status.v1",
             "provider": self.agent_settings.model_provider,
-            "mode": "network_model" if is_live_provider else "deterministic_fixture",
+            "mode": (
+                "local_model" if is_local_model
+                else "network_model" if is_live_provider else "deterministic_fixture"
+            ),
             "runtime_topology": (
-                "local_first_hybrid" if is_live_provider else "local_only_fixture"
+                "local_only_model" if is_local_model
+                else "local_first_hybrid" if is_live_provider else "local_only_fixture"
             ),
             "application_runtime": "local_loopback",
             "document_runtime": "local_state",
