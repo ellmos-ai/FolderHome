@@ -72,6 +72,7 @@ const translations = {
     keyPendingRemoval: "Will be removed when you save.",
     runtimeTitle: "6. Runtime",
     stateDir: "App state folder",
+    stateDirHelp: "Without a saved launch.json, setup suggests a separate state subfolder of the configuration folder. A saved launch path is kept. Changing this path does not move or copy existing data: the app uses the selected folder on its next start. To keep existing state, select its current folder; profile and state folders must not overlap. Back up existing data before a manual move.",
     portLabel: "Port",
     outsideHome: "I confirm folders outside my user folder",
     summaryTitle: "8. Summary and save",
@@ -82,8 +83,8 @@ const translations = {
     checkOk: "The plan is valid. These files will be written:",
     checkFailed: "Please correct this first:",
     overwriteHint:
-      "Saving replaces resources.json completely. Entries you added by hand are "
-      + "lost; the previous version stays next to it as .bak-<timestamp>.",
+      "Saving merges folder bindings and preserves custom resources and stricter "
+      + "permissions. Changed files keep their previous version as a dated backup.",
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
@@ -172,6 +173,7 @@ const translations = {
     keyPendingRemoval: "Wird beim Speichern entfernt.",
     runtimeTitle: "6. Laufzeit",
     stateDir: "App-State-Ordner",
+    stateDirHelp: "Ohne gespeicherte launch.json schlägt das Setup einen separaten Unterordner state im Konfigurationsordner vor. Ein gespeicherter Launch-Pfad bleibt erhalten. Eine Pfadänderung verschiebt oder kopiert keine vorhandenen Daten: Die App verwendet den gewählten Ordner beim nächsten Start. Wähle für den bisherigen Datenbestand dessen aktuellen Ordner; Profil- und State-Ordner dürfen sich nicht überlappen. Sichere vorhandene Daten vor einem manuellen Umzug.",
     portLabel: "Port",
     outsideHome: "Ich bestätige Ordner außerhalb meines Benutzerordners",
     summaryTitle: "8. Zusammenfassung und Speichern",
@@ -182,8 +184,8 @@ const translations = {
     checkOk: "Der Plan ist gültig. Diese Dateien werden geschrieben:",
     checkFailed: "Bitte zuerst korrigieren:",
     overwriteHint:
-      "Das Speichern ersetzt resources.json vollständig. Von Hand ergänzte "
-      + "Einträge gehen verloren; die Vorversion bleibt als .bak-<Zeitstempel> daneben.",
+      "Das Speichern führt Ordnerbindungen zusammen und erhält eigene Ressourcen "
+      + "und strengere Rechte. Geänderte Dateien behalten ihre Vorversion als datiertes Backup.",
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",

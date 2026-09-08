@@ -496,6 +496,13 @@ omitting the accounts field leaves it unchanged. Profile deletion removes only
 its accounts; when the active source is external, remaining accounts move into
 a setup-owned copy without editing the source.
 
+**The state-folder setting does not migrate data.** Without a saved launch file,
+setup suggests `<config-dir>/state`, separate from `<config-dir>/profiles`.
+A stored launch path takes precedence. If you select a different state folder,
+the next app start uses that folder; existing data stays at its old location.
+Keep the existing path to continue using those records, or back them up before
+a deliberate manual move. State and profile folders must not overlap.
+
 Saving merges supported folder bindings into `resources.json`, preserving custom
 resources, stable IDs and stricter permissions. Removing an organizational profile
 also removes its bindings. Multi-file save failures restore previous file content

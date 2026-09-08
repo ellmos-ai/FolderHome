@@ -194,8 +194,15 @@
           <h2 data-i18n="runtimeTitle">6. Runtime</h2>
           <label class="field">
             <span data-i18n="stateDir">App state folder</span>
-            <input id="state-dir" spellcheck="false">
+            <input id="state-dir" spellcheck="false" aria-describedby="state-dir-help">
           </label>
+          <p id="state-dir-help" class="hint" data-i18n="stateDirHelp">
+            Without a saved launch.json, setup suggests a separate state subfolder of
+            the configuration folder. A saved launch path is kept. Changing this path
+            does not move or copy existing data: the app uses the selected folder on
+            its next start. To keep existing state, select its current folder; profile
+            and state folders must not overlap. Back up existing data before a manual move.
+          </p>
           <label class="field">
             <span data-i18n="portLabel">Port</span>
             <input id="port" type="number" min="1" max="65535" value="8765">
@@ -246,8 +253,8 @@
         <section class="card">
           <h2 data-i18n="summaryTitle">8. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
-            Saving replaces resources.json completely. Entries you added by hand are
-            lost; the previous version stays next to it as .bak-&lt;timestamp&gt;.
+            Saving merges the setup bindings with existing resources. Custom entries
+            and stricter permissions are preserved; changed files receive dated backups.
           </p>
           <button id="check" class="button" type="button" data-i18n="checkButton">Check</button>
           <button id="save" class="button primary" type="button" disabled

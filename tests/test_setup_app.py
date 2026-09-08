@@ -2188,3 +2188,41 @@ def test_setup_ui_reads_every_state_field_the_service_reports(tmp_path: Path) ->
     ):
         assert field in state
         assert field in script, field
+
+
+def test_state_directory_control_exposes_persistent_migration_help() -> None:
+    """The path warning must belong to the input and remain visible before checking."""
+    from html.parser import HTMLParser
+
+    class Controls(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.by_id = {}
+
+        def handle_starttag(self, tag, attrs):
+            values = dict(attrs)
+            if "id" in values:
+                self.by_id[values["id"]] = values
+
+    controls = Controls()
+    controls.feed((SETUP_UI / "index.html").read_text(encoding="utf-8"))
+    description_id = controls.by_id["state-dir"].get("aria-describedby")
+    assert description_id in controls.by_id
+    description = controls.by_id[description_id]
+    assert "hidden" not in description
+    assert description.get("data-i18n")
+
+
+def test_setup_preserves_selected_state_directory_without_moving_existing_data(tmp_path: Path):
+    app = _app(tmp_path)
+    existing = app.config_dir / "existing-state.sqlite"
+    existing.write_bytes(b"synthetic existing state; do not migrate")
+    first = app.state_payload()
+    assert first["state_dir"] == str(app.config_dir / "state")
+    chosen = tmp_path / "custom-state"
+    chosen.mkdir()
+    request = _request(tmp_path, state_dir=str(chosen))
+    _save(app, request)
+    assert app.state_payload()["state_dir"] == str(chosen)
+    assert existing.read_bytes() == b"synthetic existing state; do not migrate"
+    assert list(chosen.iterdir()) == []

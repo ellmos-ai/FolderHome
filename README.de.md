@@ -531,6 +531,14 @@ Kontenfeld lässt sie unverändert. Eine Profillöschung entfernt nur dessen Kon
 bei einer externen Quelle werden verbleibende Konten in eine Setup-eigene Kopie
 übernommen, ohne die Quelle zu verändern.
 
+**Die State-Ordner-Einstellung führt keinen Datenumzug aus.** Ohne gespeicherte
+Launch-Datei schlägt das Setup `<config-dir>/state` vor, getrennt von
+`<config-dir>/profiles`. Ein gespeicherter Launch-Pfad hat Vorrang. Wählst du
+einen anderen State-Ordner, verwendet der nächste App-Start diesen Ordner;
+vorhandene Daten bleiben am bisherigen Ort. Behalte den bisherigen Pfad, um
+diese Daten weiterzuverwenden, oder sichere sie vor einem bewussten manuellen
+Umzug. State- und Profilordner dürfen sich nicht überlappen.
+
 Das Speichern führt unterstützte Ordnerbindungen in `resources.json` zusammen
 und erhält eigene Ressourcen, stabile IDs und strengere Rechte. Beim Entfernen
 eines organisatorischen Profils entfallen auch dessen Bindungen. Scheitert ein
