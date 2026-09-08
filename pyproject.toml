@@ -12,6 +12,7 @@ license = { text = "MIT" }
 authors = [{ name = "Lukas Geiger" }]
 dependencies = [
   "strands-agents==1.53.0",
+  "mcp>=1.29,<2",
   "tzdata==2026.3; platform_system == 'Windows'",
 ]
 

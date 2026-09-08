@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import subprocess
+import sys
 import threading
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -24,6 +26,20 @@ from folderhome.mcp_server import (
 )
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
+
+
+def test_mcp_construction_has_no_unresolved_settings_warning_in_fresh_process() -> None:
+    result = subprocess.run(
+        [
+            sys.executable, "-W", "error", "-c",
+            "from folderhome.mcp_server import FolderHomeApiClient, build_mcp_server; "
+            "build_mcp_server(FolderHomeApiClient('http://127.0.0.1:8765/?token=synthetic'))",
+        ],
+        capture_output=True, text=True, encoding="utf-8", timeout=30, check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
 
 
 class StubSearcher:

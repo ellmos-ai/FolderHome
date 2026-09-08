@@ -97,6 +97,12 @@ def build_mcp_server(client: FolderHomeApiClient):
     """Register the bounded FolderHome tool surface on one FastMCP server."""
 
     from mcp.server.fastmcp import FastMCP
+    from mcp.server.fastmcp.server import Settings
+
+    # v1.29 defines Settings before FastMCP, leaving its lifespan unresolved.
+    # Rebuild after import rather than hiding the resulting validation warning.
+    # https://github.com/modelcontextprotocol/python-sdk/issues/3294
+    Settings.model_rebuild()
 
     mcp = FastMCP(
         "folderhome",
