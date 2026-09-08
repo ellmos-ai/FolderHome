@@ -335,6 +335,7 @@ from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import ManifestValidationError, load_manifests
+from folderhome.provider_locations import default_provider_root
 from folderhome.setup_app import (
     ENV_FILENAME,
     LAUNCH_CONFIG_SCHEMA,
@@ -346,8 +347,8 @@ from folderhome.setup_app import (
 
 REPOSITORY_ROOT = Path(__file__).parents[2]
 DEFAULT_MANIFEST_ROOT = REPOSITORY_ROOT / "manifests" / "components"
-DEFAULT_FCSA_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "file-collect-sort-action"
-DEFAULT_DOC_SERVICES_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "doc-services"
+DEFAULT_FCSA_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "file-collect-sort-action")
+DEFAULT_DOC_SERVICES_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "doc-services")
 DEFAULT_KNOWLEDGE_DIGEST_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "KnowledgeDigest"
 DEFAULT_HUNGRYCALL_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "hungrycall"
 DEFAULT_RINGEDINGEDING_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "ringedingeding"
@@ -356,7 +357,7 @@ DEFAULT_DOCS_GRABBER_ROOT = REPOSITORY_ROOT.parent / "UniversalDocsGrabber"
 DEFAULT_UPTODAY_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "UpToday"
 DEFAULT_LLM_NOTE_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "llm-note"
 DEFAULT_TAX_ASSISTANT_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "steuer-assistent"
-DEFAULT_LAW_CHECKER_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "law-checker"
+DEFAULT_LAW_CHECKER_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "law-checker")
 REPORT_FORGE_REVISION = "355acb5ff1abe41b384a0d1e3a00925e6ac86215"
 REPORT_FORGE_DISTRIBUTION_VERSION = "1.1.4"
 REPORT_FORGE_RUNTIME_VERSION = "1.1.0"

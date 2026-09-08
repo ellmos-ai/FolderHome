@@ -7,9 +7,10 @@ import pytest
 from folderhome.bridges.doc_services import DocServicesBridge
 from folderhome.contracts import ContentFormat, IndexStatus, PrivacyStatus
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
-PROVIDER_ROOT = REPO_ROOT.parent / "doc-services"
+PROVIDER_ROOT = default_provider_root(REPO_ROOT, "doc-services")
 MANIFEST_ROOT = REPO_ROOT / "manifests" / "components"
 
 

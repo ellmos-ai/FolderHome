@@ -17,9 +17,10 @@ from folderhome.bridges.fcsa import (
     FcsaPlanStep,
 )
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
-FCSA_ROOT = REPO_ROOT.parent / "file-collect-sort-action"
+FCSA_ROOT = default_provider_root(REPO_ROOT, "file-collect-sort-action")
 MANIFEST_ROOT = REPO_ROOT / "manifests" / "components"
 
 

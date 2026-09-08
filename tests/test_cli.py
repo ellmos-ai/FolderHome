@@ -26,14 +26,15 @@ from folderhome.contracts import (
     MedicationPlanAnalysisItem,
     MedicationScheduleCandidate,
 )
+from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
-FCSA_ROOT = REPO_ROOT.parent / "file-collect-sort-action"
-DOC_SERVICES_ROOT = REPO_ROOT.parent / "doc-services"
+FCSA_ROOT = default_provider_root(REPO_ROOT, "file-collect-sort-action")
+DOC_SERVICES_ROOT = default_provider_root(REPO_ROOT, "doc-services")
 KNOWLEDGE_DIGEST_ROOT = REPO_ROOT.parent / "KnowledgeDigest"
 LLM_NOTE_ROOT = REPO_ROOT.parent / "llm-note"
 TAX_ASSISTANT_ROOT = REPO_ROOT.parent / "steuer-assistent"
-LAW_CHECKER_ROOT = REPO_ROOT.parent / "law-checker"
+LAW_CHECKER_ROOT = default_provider_root(REPO_ROOT, "law-checker")
 
 
 def run_cli(

@@ -16,9 +16,10 @@ from folderhome.bridges.knowledge_digest import KnowledgeDigestBridge
 from folderhome.capabilities.resource_budget import DEFAULT_RESOURCE_POLICY
 from folderhome.contracts import IndexStatus
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
-DOC_SERVICES_ROOT = REPO_ROOT.parent / "doc-services"
+DOC_SERVICES_ROOT = default_provider_root(REPO_ROOT, "doc-services")
 KNOWLEDGE_DIGEST_ROOT = REPO_ROOT.parent / "KnowledgeDigest"
 MANIFEST_ROOT = REPO_ROOT / "manifests" / "components"
 

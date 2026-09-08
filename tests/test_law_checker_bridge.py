@@ -6,8 +6,9 @@ import pytest
 
 from folderhome.bridges.law_checker import LawCheckerBridge, LawCheckerBridgeError
 from folderhome.contracts import PluginDescriptor
+from folderhome.provider_locations import default_provider_root
 
-PROVIDER_ROOT = Path(__file__).parents[2] / "law-checker"
+PROVIDER_ROOT = default_provider_root(Path(__file__).parents[1], "law-checker")
 REVISION = "a5b0cd51bc3666962f2fae8017c855dea0a712a2"
 
 

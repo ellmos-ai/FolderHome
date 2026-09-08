@@ -44,6 +44,10 @@ Light-/Sovereign-Rebranding ist nicht Teil dieses Builds.
 
 ## Schnelltest für Jurorinnen und Juroren
 
+Die folgenden synthetischen Demos benötigen keinen privaten Provider-Checkout.
+Für echte Dokumentextraktion und Provider-Integrationstests siehe
+[optionale Provider-Checkouts](./docs/provider-checkouts.de.md).
+
 Windows PowerShell:
 
 ```powershell

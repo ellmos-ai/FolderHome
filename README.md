@@ -40,6 +40,10 @@ is not part of this build.
 
 ## Quick test for jurors
 
+The synthetic demos below need no private provider checkout. For real document
+extraction and provider integration tests, see
+[optional provider checkouts](./docs/provider-checkouts.md).
+
 Windows PowerShell:
 
 ```powershell
