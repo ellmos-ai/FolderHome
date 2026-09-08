@@ -1192,8 +1192,8 @@ def _retire_file(target: Path) -> Path | None:
     if not target.is_file():
         return None
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    destination = target.with_name(f"{target.name}.bak-{stamp}")
-    os.replace(target, destination)
+    destination = target.with_name(f"{target.name}.bak-{stamp}-{secrets.token_hex(6)}")
+    os.rename(target, destination)
     return destination
 
 
@@ -1203,8 +1203,8 @@ def _retire_profiles(directory: Path, profile_ids: list[str]) -> list[Path]:
     if not profile_ids:
         return []
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-    attic = directory / f".deleted-{stamp}"
-    attic.mkdir(parents=True, exist_ok=True)
+    attic = directory / f".deleted-{stamp}-{secrets.token_hex(6)}"
+    attic.mkdir(parents=True, exist_ok=False)
     retired = []
     for profile_id in sorted(profile_ids):
         source = directory / _profile_filename(profile_id)
@@ -1582,13 +1582,20 @@ def _stage_json(target: Path, document: dict[str, Any]) -> Path:
 
 
 def _commit_staged(temporary: Path, target: Path) -> Path | None:
-    """Replace the target with the staged file; keep the previous version."""
+    """Replace changed content and retain each previous version without collisions."""
 
     backup: Path | None = None
     if target.is_file():
+        previous = target.read_bytes()
+        if previous == temporary.read_bytes():
+            temporary.unlink()
+            return None
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        backup = target.with_name(f"{target.name}.bak-{stamp}")
-        backup.write_bytes(target.read_bytes())
+        backup = target.with_name(f"{target.name}.bak-{stamp}-{secrets.token_hex(6)}")
+        with backup.open("xb") as handle:
+            handle.write(previous)
+            handle.flush()
+            os.fsync(handle.fileno())
     os.replace(temporary, target)
     return backup
 

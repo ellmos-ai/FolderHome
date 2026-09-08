@@ -286,7 +286,7 @@ def test_setup_save_writes_a_registry_the_existing_loader_accepts(
     assert launch["resources_file"] == str(app.resources_file)
     assert launch["port"] == 8765
 
-    # A second save keeps the previous version instead of losing it.
+    # Saving unchanged documents is idempotent and does not accumulate backups.
     second = _post(
         app,
         "/api/v1/setup/save",
@@ -298,8 +298,77 @@ def test_setup_save_writes_a_registry_the_existing_loader_accepts(
         ),
     )
     assert second.status_code == 200
-    assert len(second.payload["backups"]) == 2
-    assert all(Path(item).is_file() for item in second.payload["backups"])
+    assert second.payload["backups"] == []
+
+
+def test_setup_unchanged_save_preserves_file_timestamp(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    plan = app.plan(request)
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    timestamp = 1_700_000_000_000_000_000
+    os.utime(app.resources_file, ns=(timestamp, timestamp))
+
+    saved = app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+    assert saved["backups"] == []
+    assert app.resources_file.stat().st_mtime_ns == timestamp
+    assert not list(app.config_dir.glob("*.tmp-*"))
+
+
+def test_setup_rapid_changes_keep_each_previous_version(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from datetime import UTC, datetime
+
+    class FrozenDateTime:
+        @staticmethod
+        def now(tz: object) -> datetime:
+            return datetime(2026, 9, 8, 21, 30, tzinfo=UTC)
+
+    monkeypatch.setattr("folderhome.setup_app.datetime", FrozenDateTime)
+    app = _app(tmp_path)
+    backups = []
+    for port in (8765, 8766, 8767):
+        request = _request(tmp_path, port=port)
+        plan = app.plan(request)
+        saved = app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+        backups.extend(Path(item) for item in saved["backups"] if "launch.json" in item)
+
+    assert len(set(backups)) == 2
+    assert [json.loads(path.read_text(encoding="utf-8"))["port"] for path in backups] == [
+        8765, 8766
+    ]
+    assert json.loads(app.launch_file.read_text(encoding="utf-8"))["port"] == 8767
+
+
+@pytest.mark.parametrize("profile", [False, True])
+def test_setup_repeated_retirement_preserves_both_versions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, profile: bool
+) -> None:
+    from datetime import UTC, datetime
+
+    from folderhome.setup_app import _retire_file, _retire_profiles
+
+    class FrozenDateTime:
+        @staticmethod
+        def now(tz: object) -> datetime:
+            return datetime(2026, 9, 8, 21, 30, tzinfo=UTC)
+
+    monkeypatch.setattr("folderhome.setup_app.datetime", FrozenDateTime)
+    target = tmp_path / ("lukas.json" if profile else "calendar-accounts.json")
+    retired = []
+    for content in ("first version", "second version"):
+        target.write_text(content, encoding="utf-8")
+        retired.append(
+            _retire_profiles(tmp_path, ["lukas"])[0] if profile else _retire_file(target)
+        )
+
+    assert len(set(retired)) == 2
+    assert [path.read_text(encoding="utf-8") for path in retired] == [
+        "first version", "second version"
+    ]
+    assert not target.exists()
 
 
 def test_setup_app_refuses_a_foreign_host_and_unknown_endpoints(tmp_path: Path) -> None:

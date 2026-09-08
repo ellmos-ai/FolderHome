@@ -11,7 +11,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
 
-_Noch nichts._
+### Behoben
+
+- Unveränderte Einrichtungsdateien behalten beim Speichern ihren Zeitstempel und
+  erzeugen keine überflüssigen Sicherungen. Geänderte Dateien und ausgelagerte
+  Profile/Kalenderkonten erhalten auch bei mehreren Vorgängen innerhalb einer
+  Sekunde unterschiedliche Sicherungsnamen.
 
 ## [0.3.0] - 2026-09-05
 

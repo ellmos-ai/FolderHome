@@ -10,7 +10,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ## [Unreleased]
 
-_Nothing yet._
+### Fixed
+
+- Saving unchanged setup documents preserves their timestamps and creates no
+  redundant backups. Changed documents and retired profiles/calendar accounts
+  receive distinct backup names even when saved several times within one second.
 
 ## [0.3.0] - 2026-09-05
 

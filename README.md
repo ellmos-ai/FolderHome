@@ -454,7 +454,9 @@ Saving writes these files, by default under `%LOCALAPPDATA%\FolderHome\`:
 | `calendar.json` | default calendar backend, time zone and UpToday ICS folder, when you enable that section |
 | `calendar-accounts.json` | calendar connector accounts, when you add one |
 
-An existing file is kept as a `.bak-<timestamp>` copy, except `.env`, which
+An existing file is backed up only when its content changes, using a unique
+`.bak-<timestamp>-<suffix>` name. Unchanged files retain their timestamps.
+The exception is `.env`, which
 never leaves a backup because a backup of a key is a second copy of a key. Every
 file is staged in a temporary file, loaded back through the contract it belongs
 to, and only then put in place: a plan that turns out unloadable leaves the
@@ -469,7 +471,7 @@ four backends that exist.
 Saving replaces `resources.json` and the profile files completely rather than
 merging into them. If you extended the registry by hand, for example with a
 drafts mailbox or a calendar state folder, those entries are lost on save. The
-previous version stays next to it as `.bak-<timestamp>`, so you can copy the
+previous version stays next to it as `.bak-<timestamp>-<suffix>`, so you can copy the
 additions back.
 
 Start the app with what was written:

@@ -485,7 +485,9 @@ Das Speichern schreibt diese Dateien, standardmäßig unter
 | `calendar.json` | Standard-Backend, Zeitzone und UpToday-ICS-Ordner, wenn du diesen Abschnitt einschaltest |
 | `calendar-accounts.json` | Kalender-Connectorkonten, sobald du eines anlegst |
 
-Eine vorhandene Datei bleibt als Kopie `.bak-<Zeitstempel>` erhalten, außer
+Eine vorhandene Datei wird nur bei geändertem Inhalt unter dem eindeutigen Namen
+`.bak-<Zeitstempel>-<Zusatz>` gesichert. Unveränderte Dateien behalten ihren Zeitstempel.
+Ausgenommen ist
 `.env`: Eine Sicherung eines Schlüssels ist eine zweite Kopie eines Schlüssels.
 Jede Datei wird zuerst als temporäre Datei geschrieben, über den Vertrag
 zurückgelesen, zu dem sie gehört, und erst dann an ihren Platz gelegt. Ein Plan,
@@ -501,7 +503,7 @@ sagt beides und bietet nur die vier vorhandenen Backends an.
 Das Speichern ersetzt `resources.json` und die Profildateien vollständig, es
 führt nichts zusammen. Wer das Register von Hand erweitert hat, etwa um ein
 Entwurfspostfach oder einen Kalender-State-Ordner, verliert diese Einträge beim
-Speichern. Die Vorversion bleibt als `.bak-<Zeitstempel>` daneben liegen, sodass
+Speichern. Die Vorversion bleibt als `.bak-<Zeitstempel>-<Zusatz>` daneben liegen, sodass
 sich die Zusätze zurückkopieren lassen.
 
 Die App mit dem Geschriebenen starten:
