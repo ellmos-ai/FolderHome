@@ -296,6 +296,12 @@ footer p { margin: 0; }
   .capability-grid { grid-template-columns: 1fr; }
 }
 
+.recipe-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: .5rem; }
+.recipe-controls select { flex: 1 1 15rem; max-width: 100%; min-width: 0; }
+#recipe-form { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.plan-details { overflow-wrap: anywhere; }
+.plan-details pre { white-space: pre-wrap; font-size: .8rem; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }

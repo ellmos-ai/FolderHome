@@ -160,6 +160,12 @@ an endpoint that is not connected makes the recipe fail closed instead of
 silently skipping it. Details:
 [`docs/capability-recipes.md`](./docs/capability-recipes.md).
 
+Recipes are also available below the local chat as **Multi-step journey** and
+through the master's `list_home_recipes` / `propose_home_recipe` tools. Preparation
+never executes: review the exact steps, then confirm the whole chain separately.
+Failed chains preserve completed-step results and stop the rest. The app requires
+the recipe's configured resources and every individual adapter gate.
+
 The recommended CLI entry point is one in-process session. It preserves prepared
 plans between turns and accepts approval only through `/confirm <plan_id>`;
 `--json` emits one NDJSON event per line for controlled automation.

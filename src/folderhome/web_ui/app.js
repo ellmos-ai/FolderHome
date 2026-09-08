@@ -63,6 +63,14 @@ const translations = {
     readOnlyPlan: "Read-only; no approval required",
     confirmPlan: "Confirm for workflow handoff",
     confirmExecute: "Confirm and execute",
+    recipeLabel: "Multi-step journey",
+    recipePrepare: "Prepare whole journey",
+    recipeHint: "Preparation runs no workflow. Review every step before the separate confirmation.",
+    recipeUnavailable: "Not ready: required resources or connected executors are missing.",
+    recipeEmpty: "No journey available",
+    recipeReview: "Deterministic recipe review passed; one confirmation covers all steps.",
+    recipeAborted: "Journey stopped. Completed: {completed}; failed: {failed}; not started: {pending}.",
+    planDetails: "Review the exact prepared step",
     planConfirmed: "Plan confirmed; no workflow has been executed yet.",
     executionCompleted: "Workflow executed successfully ({id}).",
     executionReport: "Execution report",
@@ -154,6 +162,14 @@ const translations = {
     readOnlyPlan: "Nur lesend; keine Freigabe erforderlich",
     confirmPlan: "Für Workflow-Übergabe freigeben",
     confirmExecute: "Freigeben und ausführen",
+    recipeLabel: "Mehrschritt-Aufgabe",
+    recipePrepare: "Gesamte Aufgabe vorbereiten",
+    recipeHint: "Die Vorbereitung führt keinen Workflow aus. Vor der getrennten Freigabe alle Schritte prüfen.",
+    recipeUnavailable: "Noch nicht bereit: Benötigte Ressourcen oder verbundene Ausführer fehlen.",
+    recipeEmpty: "Keine Mehrschritt-Aufgabe verfügbar",
+    recipeReview: "Deterministische Rezeptprüfung bestanden; eine Bestätigung gilt für alle Schritte.",
+    recipeAborted: "Aufgabe gestoppt. Ausgeführt: {completed}; gescheitert: {failed}; nicht gestartet: {pending}.",
+    planDetails: "Genau vorbereiteten Schritt prüfen",
     planConfirmed: "Plan freigegeben; noch wurde kein Workflow ausgeführt.",
     executionCompleted: "Workflow erfolgreich ausgeführt ({id}).",
     executionReport: "Ausführungsbericht",
@@ -218,6 +234,10 @@ const capabilityTitles = {
 };
 
 const profileSelect = document.querySelector("#profile-select");
+const recipeSelect = document.querySelector("#recipe-select");
+const prepareRecipeButton = document.querySelector("#prepare-recipe");
+const recipeHint = document.querySelector("#recipe-hint");
+let recipeItems = [];
 const resultSection = document.querySelector("#result-section");
 const resultsSection = document.querySelector("#results-section");
 const resultsContent = document.querySelector("#results-content");
@@ -304,6 +324,7 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   renderRuntimeAccount();
   renderCapabilities();
   renderCurrentView(false);
+  if (profileSelect.value) loadRecipes().catch(showError);
 }
 
 function setTheme(nextTheme, { persist = true } = {}) {
@@ -457,11 +478,23 @@ function renderCurrentView(scroll = true) {
       cards.push(card);
     }
     for (const plan of plans) {
+      const recipe = (report.proposed_recipes || []).find((item) => item.plan.plan_id === plan.plan_id);
+      if (recipe) {
+        cards.push(textElement("p", `${plan.summary} ${t("recipeReview")}`, "result-card"));
+      }
       for (const step of plan.steps || []) {
         const card = document.createElement("article");
         card.className = "result-card plan-card";
         card.append(textElement("small", t("proposedWorkflow"), "card-label"));
         card.append(textElement("h3", step.workflow_id));
+        card.append(textElement("p", step.goal));
+        if (step.execution_envelope) {
+          const details = document.createElement("details");
+          details.className = "plan-details";
+          details.append(textElement("summary", t("planDetails")));
+          details.append(textElement("pre", JSON.stringify(step.execution_envelope.domain_plan, null, 2)));
+          card.append(details);
+        }
         card.append(textElement(
           "p",
           step.confirmation_required ? t("approvalRequired") : t("readOnlyPlan"),
@@ -487,7 +520,9 @@ function renderCurrentView(scroll = true) {
         const executionReady = (plan.steps || []).some((step) => step.execution_envelope);
         const button = textElement(
           "button",
-          outcome?.execution_performed
+          outcome?.recipe_execution?.status === "aborted"
+            ? recipeOutcomeText(outcome.recipe_execution)
+            : outcome?.execution_performed
             ? t("executionCompleted", {
               id: outcome.execution_reports?.[0]?.execution_id || "unknown",
             })
@@ -582,11 +617,13 @@ async function confirmPlan(plan, button) {
       schema: "folderhome.local-agent-confirmation-request.v1",
       plan_id: plan.plan_id,
       plan_sha256: plan.plan_sha256,
-      step_ids: (plan.steps || []).filter((step) => step.confirmation_required).map((step) => step.step_id),
+      step_ids: (plan.steps || []).map((step) => step.step_id),
     }),
   });
   planOutcomes[plan.plan_id] = payload;
-  if (payload.execution_performed) {
+  if (payload.recipe_execution?.status === "aborted") {
+    appendChatMessage("assistant", recipeOutcomeText(payload.recipe_execution));
+  } else if (payload.execution_performed) {
     const reports = payload.execution_reports || [];
     const firstId = reports[0]?.execution_id || "unknown";
     appendChatMessage("assistant", t("executionCompleted", { id: firstId }));
@@ -595,6 +632,62 @@ async function confirmPlan(plan, button) {
   }
   renderCurrentView(false);
   await loadResults();
+}
+
+function recipeOutcomeText(result) {
+  return t("recipeAborted", {
+    completed: (result.executed_step_refs || []).join(", ") || "—",
+    failed: (result.failed_step_refs || []).join(", ") || "—",
+    pending: (result.not_attempted_step_refs || []).join(", ") || "—",
+  });
+}
+
+async function loadRecipes() {
+  const profileId = profileSelect.value;
+  const requestedLanguage = language;
+  if (!profileId) return;
+  const payload = await api(`/api/v1/agent/recipes?profile_id=${encodeURIComponent(profileId)}&language=${requestedLanguage}`);
+  if (profileSelect.value !== profileId || language !== requestedLanguage) return;
+  recipeItems = payload.recipes || [];
+  recipeSelect.replaceChildren();
+  for (const item of recipeItems) {
+    const option = document.createElement("option");
+    option.value = item.recipe_id;
+    option.textContent = item.title;
+    recipeSelect.append(option);
+  }
+  renderRecipeSelection();
+}
+
+function renderRecipeSelection() {
+  const selected = recipeItems.find((item) => item.recipe_id === recipeSelect.value);
+  prepareRecipeButton.disabled = !selected?.available;
+  recipeHint.textContent = !selected ? t("recipeEmpty") : selected.available
+    ? `${selected.summary} ${t("recipeHint")}` : t("recipeUnavailable");
+}
+
+async function prepareRecipe(event) {
+  event.preventDefault();
+  const selected = recipeItems.find((item) => item.recipe_id === recipeSelect.value);
+  if (!selected?.available) return;
+  const profileId = profileSelect.value;
+  prepareRecipeButton.disabled = true;
+  try {
+    const recipe = await api("/api/v1/agent/recipes/plan", {
+      method: "POST",
+      body: JSON.stringify({
+        schema: "folderhome.local-recipe-plan-request.v1", profile_id: profileId,
+        recipe_id: selected.recipe_id, language,
+      }),
+    });
+    if (profileSelect.value !== profileId) return;
+    showAgent({ agent: {
+      response_text: recipe.plan.summary, tool_events: [],
+      proposed_plans: [recipe.plan], proposed_recipes: [recipe],
+    } });
+  } finally {
+    renderRecipeSelection();
+  }
 }
 
 function appendChatMessage(kind, value) {
@@ -697,6 +790,7 @@ async function bootstrap() {
   renderConnection();
   renderCapabilities();
   await loadResults();
+  await loadRecipes();
 }
 
 languageButtons.forEach((button) => {
@@ -713,7 +807,15 @@ refreshResultsButton.addEventListener("click", () => {
   loadResults().catch(showError);
 });
 profileSelect.addEventListener("change", () => {
+  currentView = null;
+  renderCurrentView(false);
+  prepareRecipeButton.disabled = true;
   loadResults().catch(showError);
+  loadRecipes().catch(showError);
+});
+recipeSelect.addEventListener("change", renderRecipeSelection);
+document.querySelector("#recipe-form").addEventListener("submit", (event) => {
+  prepareRecipe(event).catch(showError);
 });
 newConversationButton.addEventListener("click", () => {
   resetConversation().catch(showError);

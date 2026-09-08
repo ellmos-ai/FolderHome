@@ -2,7 +2,7 @@
 
 [English](./capability-recipes.md) | **Deutsch**
 
-> **Last verified:** 2026-08-25
+> **Last verified:** 2026-09-09
 
 ## Warum es Rezepte gibt
 
@@ -57,7 +57,43 @@ Jede beteiligte Fachrolle zeichnet das Ergebnis: eine bei einem Rezept aus einer
 Domäne, alle bei einem domänenübergreifenden Rezept. Die Abnahme geht in den
 Planhash ein; wer den Plan bestätigt, bestätigt die Abnahme mit.
 
-## Eines ausführen
+## In App und Chat
+
+Ein organisatorisches Profil und darunter eine **Mehrschritt-Aufgabe** auswählen.
+**Gesamte Aufgabe vorbereiten** erzeugt nur einen Vorschlag. Die vorbereiteten
+Schritte und ihre genauen Fachpläne prüfen und anschließend getrennt
+**Freigeben und ausführen** wählen. Eine nicht verfügbare Aufgabe bleibt sichtbar,
+kann aber nicht über die Auswahl vorbereitet werden. Die Ressourcen-IDs des
+mitgelieferten Rezepts müssen für dieses Profil eingerichtet sein; die App
+erfindet keine Bindungen und umgeht keine Freigabe einzelner Adapter.
+
+Der Strands-Master kann außerdem `list_home_recipes` und `propose_home_recipe`
+nutzen. Diese Werkzeuge listen oder planen nur; keines kann bestätigen oder
+ausführen. Die Auswahl durch ein Live-Modell hängt weiterhin vom Modell ab;
+deterministische Tests belegen die Werkzeuganbindung, nicht die Qualität der
+Live-Modell-Auswahl. Die Rezeptprüfung ist ein **deterministischer Katalog- und
+Ressourcenabgleich**, keine unabhängige Prüfung durch Menschen oder Modelle.
+
+Die authentifizierte lokale API bietet:
+
+- `GET /api/v1/agent/recipes?profile_id=lukas&language=en`
+- `POST /api/v1/agent/recipes/plan` mit Schema
+  `folderhome.local-recipe-plan-request.v1`, `profile_id`, `recipe_id` und `language`.
+- `POST /api/v1/agent/confirm` mit zurückgegebener Plan-ID, genauem Hash und **allen** Schritt-IDs.
+
+Pläne liegen nur im laufenden Prozess. Ein Gesprächsreset entfernt unbestätigte
+Pläne; gleichzeitige oder wiederholte Bestätigungen starten keine Kette erneut.
+Eine gescheiterte Kette erhält die Berichte abgeschlossener Schritte, stoppt den
+Rest und macht andere Vorschläge mit denselben Ausführungshüllen ungültig.
+Schrittübergreifendes Zurückrollen gibt es nicht. Adapter-Fehlerdetails werden an
+dieser API-Grenze redigiert. Eine neue App-Sitzung ersetzt nicht die dauerhaften
+Idempotenzprüfungen der einzelnen Adapter.
+
+Die lokale Adapterintegration ist mit synthetischen Daten und synthetischem
+Mailtransport getestet, einschließlich fehlender Mailfreigabe. Browser-Klickabnahme
+und echte Postfach-/Kalendereffekte sind getrennte Prüfungen und dadurch nicht belegt.
+
+## Eines über die CLI ausführen
 
 ```powershell
 $env:PYTHONPATH = "src"

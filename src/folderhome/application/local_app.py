@@ -19,6 +19,13 @@ from urllib.parse import parse_qs, quote, urlsplit
 from folderhome.application.document_search import build_theme_dossier, search_documents
 from folderhome.application.master_agent import MasterAgentError, confirm_master_agent_plan
 from folderhome.application.profile_rules import ProfileConfiguration
+from folderhome.application.recipes import (
+    build_recipe_plan,
+    execute_recipe_plan,
+    load_bundled_recipe,
+    load_bundled_recipes,
+    review_recipe,
+)
 from folderhome.application.workflow_execution import (
     WorkflowExecutionError,
     WorkflowExecutionGateway,
@@ -29,6 +36,7 @@ from folderhome.contracts.local_app import (
     OperatingSystemIdentity,
 )
 from folderhome.contracts.master_agent import MasterAgentPlan, MasterPlanApproval
+from folderhome.contracts.recipes import CapabilityRecipeError, CapabilityRecipePlan
 from folderhome.contracts.resources import ResourceRegistry
 from folderhome.contracts.strands_agent import FolderHomeAgentReport, StrandsAgentSettings
 
@@ -131,6 +139,12 @@ class LocalApplication:
         self._identity = capture_os_identity()
         self._profile_ids = frozenset(profile_ids)
         self._proposed_agent_plans: dict[str, MasterAgentPlan] = {}
+        self._recipe_plans: dict[str, CapabilityRecipePlan] = {}
+        # Object identity is a process-local preparation lease: two equal hashes
+        # from different tool calls must not release each other's references.
+        self._pending_recipe_plans: dict[int, CapabilityRecipePlan] = {}
+        self._pending_agent_plans: dict[int, MasterAgentPlan] = {}
+        self._started_recipe_plans: set[str] = set()
         self._agent_plan_lock = threading.RLock()
         self._agent_conversation_messages: dict[
             str, tuple[dict[str, Any], ...]
@@ -203,6 +217,152 @@ class LocalApplication:
         payload["configured"] = True
         return payload
 
+    def _recipe_context(self, profile_id: str, language: str):
+        if profile_id not in self._profile_ids or language not in {"en", "de"}:
+            raise LocalAppError("Rezept benötigt ein bekanntes Profil und Sprache en/de.")
+        resources = frozenset(
+            item.resource_id for item in self.resource_registry.resources
+            if profile_id in item.profile_ids
+        ) if self.resource_registry else frozenset()
+        statuses = {item.workflow_id: item.status for item in self.workflow_executor.catalog()}
+        return resources, statuses
+
+    def recipe_catalog_payload(self, *, profile_id: str, language: str) -> dict[str, object]:
+        """Describe packaged journeys without preparing or executing an adapter."""
+
+        resource_ids, statuses = self._recipe_context(profile_id, language)
+        entries = []
+        for recipe in load_bundled_recipes():
+            reason = None
+            try:
+                review_recipe(recipe, endpoint_statuses=statuses, known_resource_ids=resource_ids)
+            except CapabilityRecipeError as exc:
+                reason = str(exc)
+            entries.append({
+                "recipe_id": recipe.recipe_id,
+                "title": recipe.title(language=language),
+                "summary": recipe.summary(language=language),
+                "workflow_ids": list(recipe.workflow_ids),
+                "available": reason is None,
+                "unavailable_reason": reason,
+            })
+        return {
+            "schema": "folderhome.local-recipe-catalog.v1", "profile_id": profile_id,
+            "recipes": entries, "paths_disclosed": False, "execution_performed": False,
+        }
+
+    def _retain_agent_plan(
+        self, plan: MasterAgentPlan, *, pending_envelopes: tuple[str, ...] = (),
+    ) -> None:
+        """Retain plans and recipe metadata under the same bounded session budget."""
+
+        with self._agent_plan_lock:
+            self._pending_recipe_plans.pop(id(plan), None)
+            self._pending_agent_plans.pop(id(plan), None)
+            oldest = None
+            if (
+                plan.plan_id not in self._proposed_agent_plans
+                and len(self._proposed_agent_plans) >= _MAX_PROPOSED_AGENT_PLANS
+            ):
+                oldest_id = next(iter(self._proposed_agent_plans))
+                oldest = self._proposed_agent_plans.pop(oldest_id)
+                self._recipe_plans.pop(oldest_id, None)
+            self._proposed_agent_plans[plan.plan_id] = plan
+            if oldest is not None:
+                self._discard_unreferenced_envelopes(
+                    _plan_envelope_ids((oldest,)), protected=pending_envelopes,
+                )
+
+    def _discard_unreferenced_envelopes(
+        self, envelope_ids: tuple[str, ...], *, protected: tuple[str, ...] = (),
+    ) -> None:
+        pending = tuple(self._pending_agent_plans.values())
+        retained = set(_plan_envelope_ids(
+            tuple(self._proposed_agent_plans.values()) + pending
+        )) | set(protected)
+        self.workflow_executor.discard_unexecuted(tuple(
+            item for item in envelope_ids if item not in retained
+        ))
+
+    def discard_recipe_preparations(self, recipes: tuple[CapabilityRecipePlan, ...]) -> None:
+        """Release unretained recipe preparations when a model turn fails."""
+
+        self.discard_agent_preparations(tuple(item.plan for item in recipes))
+
+    def protect_agent_preparation(self, plan: MasterAgentPlan) -> None:
+        """Protect every in-flight plan, including an ordinary specialist proposal."""
+
+        with self._agent_plan_lock:
+            if (
+                id(plan) not in self._pending_agent_plans
+                and len(self._pending_agent_plans) >= _MAX_PROPOSED_AGENT_PLANS
+            ):
+                self._discard_unreferenced_envelopes(_plan_envelope_ids((plan,)))
+                raise LocalAppError("Budget für laufende Planvorbereitungen ist belegt.")
+            self._pending_agent_plans[id(plan)] = plan
+
+    def discard_agent_preparations(self, plans: tuple[MasterAgentPlan, ...]) -> None:
+        with self._agent_plan_lock:
+            for plan in plans:
+                self._pending_recipe_plans.pop(id(plan), None)
+                self._pending_agent_plans.pop(id(plan), None)
+            self._discard_unreferenced_envelopes(_plan_envelope_ids(plans))
+
+    def propose_recipe(
+        self, *, profile_id: str, recipe_id: str, language: str,
+    ) -> CapabilityRecipePlan:
+        """Prepare and retain a journey under the same lock as conversation reset."""
+
+        self._recipe_context(profile_id, language)
+        with self._agent_conversation_locks[profile_id], self._agent_plan_lock:
+            result = self.prepare_recipe(
+                profile_id=profile_id, recipe_id=recipe_id, language=language,
+            )
+            self._retain_agent_plan(result.plan)
+            self._recipe_plans[result.plan_id] = result
+            return result
+
+    def prepare_recipe(
+        self, *, profile_id: str, recipe_id: str, language: str,
+    ) -> CapabilityRecipePlan:
+        """Prepare only; a Strands tool thread must not acquire its caller's conversation lock."""
+
+        resource_ids, statuses = self._recipe_context(profile_id, language)
+        recipe = load_bundled_recipe(recipe_id)
+        prepared_ids = []
+
+        def prepare(workflow_id, request):
+            try:
+                envelope = self.workflow_executor.prepare(
+                    workflow_id=workflow_id, profile_id=profile_id, request=request,
+                )
+            except Exception as exc:
+                raise WorkflowExecutionError(
+                    f"Rezeptschritt {workflow_id} konnte nicht vorbereitet werden. "
+                    "Konfiguration und lokale Daten prüfen."
+                ) from exc
+            prepared_ids.append(envelope.envelope_id)
+            return envelope
+
+        with self._agent_plan_lock:
+            if len(self._started_recipe_plans) >= _MAX_PROPOSED_AGENT_PLANS:
+                raise LocalAppError("Rezeptbudget ist belegt; neue App-Sitzung erforderlich.")
+            if len(self._pending_recipe_plans) >= _MAX_PROPOSED_AGENT_PLANS:
+                raise LocalAppError("Budget für laufende Rezeptvorbereitungen ist belegt.")
+            try:
+                result = build_recipe_plan(
+                    recipe, profile_id=profile_id, language=language, prepare=prepare,
+                    endpoint_statuses=statuses, known_resource_ids=resource_ids,
+                )
+                if result.plan_id in self._started_recipe_plans:
+                    raise LocalAppError("Dieser Rezeptplan wurde bereits gestartet.")
+                self.protect_agent_preparation(result.plan)
+            except BaseException:
+                self._discard_unreferenced_envelopes(tuple(prepared_ids))
+                raise
+            self._pending_recipe_plans[id(result.plan)] = result
+            return result
+
     def run_agent_chat(
         self,
         *,
@@ -228,17 +388,13 @@ class LocalApplication:
             self._agent_conversation_messages[request["profile_id"]] = retained_messages
             self._agent_conversation_turns[request["profile_id"]] += 1
             with self._agent_plan_lock:
+                pending_envelopes = _plan_envelope_ids(report.proposed_plans)
                 for plan in report.proposed_plans:
-                    if (
-                        plan.plan_id not in self._proposed_agent_plans
-                        and len(self._proposed_agent_plans) >= _MAX_PROPOSED_AGENT_PLANS
-                    ):
-                        oldest_plan_id = next(iter(self._proposed_agent_plans))
-                        oldest_plan = self._proposed_agent_plans.pop(oldest_plan_id)
-                        self.workflow_executor.discard_unexecuted(
-                            _plan_envelope_ids((oldest_plan,))
-                        )
-                    self._proposed_agent_plans[plan.plan_id] = plan
+                    self._retain_agent_plan(plan, pending_envelopes=pending_envelopes)
+                for recipe_plan in report.proposed_recipes:
+                    if recipe_plan.plan_id in self._proposed_agent_plans:
+                        self._recipe_plans[recipe_plan.plan_id] = recipe_plan
+                self._discard_unreferenced_envelopes(pending_envelopes)
         return report
 
     def agent_conversation_payload(self, profile_id: str) -> dict[str, object]:
@@ -278,15 +434,25 @@ class LocalApplication:
                 discarded_plans = tuple(
                     self._proposed_agent_plans[plan_id] for plan_id in discarded
                 )
+                pending = tuple(
+                    plan for plan in self._pending_agent_plans.values()
+                    if plan.profile_id == profile_id
+                )
+                for plan in pending:
+                    self._pending_agent_plans.pop(id(plan), None)
+                    self._pending_recipe_plans.pop(id(plan), None)
                 for plan_id in discarded:
                     del self._proposed_agent_plans[plan_id]
-                self.workflow_executor.discard_unexecuted(
-                    _plan_envelope_ids(discarded_plans)
+                    self._recipe_plans.pop(plan_id, None)
+                self._discard_unreferenced_envelopes(
+                    _plan_envelope_ids(discarded_plans + pending)
                 )
             return {
                 "schema": "folderhome.local-agent-conversation-reset-response.v1",
                 "conversation": self.agent_conversation_payload(profile_id),
-                "discarded_plan_ids": list(discarded),
+                "discarded_plan_ids": list(dict.fromkeys(
+                    (*discarded, *(plan.plan_id for plan in pending))
+                )),
                 "side_effects": ["memory.agent_conversation.clear"],
             }
 
@@ -315,8 +481,11 @@ class LocalApplication:
         )
         with self._agent_plan_lock:
             plan = self._proposed_agent_plans.get(request["plan_id"])
+            recipe_plan = self._recipe_plans.get(request["plan_id"])
         if plan is None:
             raise LocalAppError("Plan ist in dieser lokalen Sitzung nicht bekannt.")
+        if recipe_plan is not None:
+            return self._confirm_recipe_plan(recipe_plan, request)
         approved_at = datetime.now(UTC).isoformat()
         try:
             receipt = confirm_master_agent_plan(
@@ -361,6 +530,73 @@ class LocalApplication:
                 )
             ),
         }
+
+    def _confirm_recipe_plan(self, recipe_plan, request) -> dict[str, object]:
+        plan = recipe_plan.plan
+        with self._agent_conversation_locks[plan.profile_id], self._agent_plan_lock:
+            if self._recipe_plans.get(plan.plan_id) is not recipe_plan:
+                raise LocalAppError("Rezeptplan ist nicht mehr in dieser Sitzung vorhanden.")
+            if plan.plan_id in self._started_recipe_plans:
+                raise LocalAppError("Dieser Rezeptplan wurde bereits gestartet.")
+            if set(request["step_ids"]) != {step.step_id for step in plan.steps}:
+                raise LocalAppError("Ein Rezept benötigt die Bestätigung aller Schritte.")
+            approved_at = datetime.now(UTC).isoformat()
+            try:
+                receipt = confirm_master_agent_plan(plan, MasterPlanApproval(
+                    approval_id=f"approval_{secrets.token_hex(10)}",
+                    plan_id=request["plan_id"], plan_sha256=request["plan_sha256"],
+                    step_ids=request["step_ids"], approved_at=approved_at,
+                ))
+            except (MasterAgentError, ValueError) as exc:
+                raise LocalAppError(str(exc)) from exc
+            self._started_recipe_plans.add(plan.plan_id)
+            reports = []
+            delivery_incomplete = False
+
+            def execute(envelope_id, timestamp):
+                nonlocal delivery_incomplete
+                try:
+                    report = self.workflow_executor.execute(
+                        envelope_id=envelope_id, approved_at=timestamp,
+                    )
+                except Exception as exc:
+                    # Adapter messages may contain private filesystem paths or mailbox data.
+                    raise WorkflowExecutionError(
+                        "Rezeptschritt gescheitert; keine weiteren Schritte gestartet."
+                    ) from exc
+                reports.append(report)
+                try:
+                    self._retain_execution_results(
+                        profile_id=plan.profile_id, plan_id=plan.plan_id,
+                        reports=[report], executed_at=approved_at,
+                    )
+                except OSError:
+                    delivery_incomplete = True
+                return report
+
+            result = execute_recipe_plan(recipe_plan, execute=execute, approved_at=approved_at)
+            # Do not leave failed or unattempted envelopes available for later execution.
+            self.workflow_executor.discard_unexecuted(_plan_envelope_ids((plan,)))
+            invalidated_ids = []
+            used_ids = set(_plan_envelope_ids((plan,)))
+            for other_id, other_plan in tuple(self._proposed_agent_plans.items()):
+                if other_id != plan.plan_id and used_ids.intersection(
+                    _plan_envelope_ids((other_plan,))
+                ):
+                    del self._proposed_agent_plans[other_id]
+                    self._recipe_plans.pop(other_id, None)
+                    invalidated_ids.append(other_id)
+            return {
+                "schema": "folderhome.local-agent-confirmation-response.v1",
+                "receipt": receipt.to_dict(), "recipe_execution": result.to_dict(),
+                "execution_reports": [item.to_dict() for item in reports],
+                "execution_performed": bool(reports),
+                "result_delivery_incomplete": delivery_incomplete,
+                "invalidated_plan_ids": invalidated_ids,
+                "side_effects": list(dict.fromkeys(
+                    effect for report in reports for effect in report.side_effects
+                )),
+            }
 
     def _retain_execution_results(
         self,
@@ -576,6 +812,17 @@ class LocalApplication:
             return self._json_response(self._capabilities_payload())
         if method == "GET" and parsed.path == "/api/v1/agent/executors":
             return self._json_response(self.executor_catalog_payload())
+        if method == "GET" and parsed.path == "/api/v1/agent/recipes":
+            query = parse_qs(parsed.query, keep_blank_values=True)
+            if (
+                set(query).difference({"profile_id", "language"})
+                or len(query.get("profile_id", [])) != 1
+                or len(query.get("language", ["en"])) != 1
+            ):
+                raise LocalAppError("Rezeptkatalog benötigt genau ein Profil und eine Sprache.")
+            return self._json_response(self.recipe_catalog_payload(
+                profile_id=query["profile_id"][0], language=query.get("language", ["en"])[0],
+            ))
         if method == "GET" and parsed.path == "/api/v1/agent/results":
             query = parse_qs(parsed.query)
             profile_ids = query.get("profile_id", [])
@@ -602,6 +849,7 @@ class LocalApplication:
             "/api/v1/profiles",
             "/api/v1/capabilities",
             "/api/v1/agent/executors",
+            "/api/v1/agent/recipes",
             "/api/v1/agent/results",
             "/api/v1/resources",
         }:
@@ -658,6 +906,18 @@ class LocalApplication:
                     "side_effects": [],
                 }
             )
+        if method == "POST" and parsed.path == "/api/v1/agent/recipes/plan":
+            payload = self._json_request(headers, body)
+            if (
+                set(payload) != {"schema", "profile_id", "recipe_id", "language"}
+                or payload.get("schema") != "folderhome.local-recipe-plan-request.v1"
+                or not all(isinstance(payload[key], str) for key in payload)
+            ):
+                raise LocalAppError("Rezeptanfrage besitzt unbekannte oder ungültige Felder.")
+            return self._json_response(self.propose_recipe(
+                profile_id=payload["profile_id"], recipe_id=payload["recipe_id"],
+                language=payload["language"],
+            ).to_dict())
         if method == "POST" and parsed.path == "/api/v1/agent/conversation/reset":
             payload = self._json_request(headers, body)
             profile_id = self._agent_conversation_reset_request(payload)
@@ -676,6 +936,7 @@ class LocalApplication:
             "/api/v1/documents/search",
             "/api/v1/documents/dossier",
             "/api/v1/agent/chat",
+            "/api/v1/agent/recipes/plan",
             "/api/v1/agent/confirm",
             "/api/v1/agent/conversation/reset",
         }:

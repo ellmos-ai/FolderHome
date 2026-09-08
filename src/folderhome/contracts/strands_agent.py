@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from urllib.parse import SplitResult, urlsplit
 
 from folderhome.contracts.master_agent import MasterAgentPlan
+from folderhome.contracts.recipes import CapabilityRecipePlan
 
 _MODEL_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:/-]{2,254}")
 _AWS_REGION = re.compile(r"[a-z]{2}(?:-gov)?-[a-z]+-\d")
@@ -293,6 +294,7 @@ class FolderHomeAgentReport:
     sensitive_cloud_data_authorized: bool
     delegation_events: tuple[AgentDelegationEvent, ...] = ()
     proposed_plans: tuple[MasterAgentPlan, ...] = ()
+    proposed_recipes: tuple[CapabilityRecipePlan, ...] = ()
     side_effects: tuple[str, ...] = ()
     security_boundary: str = "operating_system_account"
     profiles_are_authorization_boundaries: bool = False
@@ -315,6 +317,8 @@ class FolderHomeAgentReport:
             "sensitive_cloud_data_authorized": self.sensitive_cloud_data_authorized,
             "delegation_events": [item.to_dict() for item in self.delegation_events],
             "proposed_plans": [item.to_dict() for item in self.proposed_plans],
+            **({"proposed_recipes": [item.to_dict() for item in self.proposed_recipes]}
+               if self.proposed_recipes else {}),
             "side_effects": list(self.side_effects),
             "security_boundary": self.security_boundary,
             "profiles_are_authorization_boundaries": (

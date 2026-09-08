@@ -167,6 +167,13 @@ Endpunkt lässt das Rezept fail-closed scheitern, statt still übersprungen zu
 werden. Details:
 [`docs/capability-recipes.md`](./docs/capability-recipes.de.md).
 
+Rezepte stehen außerdem unter dem lokalen Chat als **Mehrschritt-Aufgabe** und
+über die Master-Werkzeuge `list_home_recipes` / `propose_home_recipe` bereit.
+Vorbereiten führt nichts aus: Die genauen Schritte prüfen und anschließend die
+ganze Kette getrennt bestätigen. Bei Fehlern bleiben abgeschlossene Ergebnisse
+erhalten; der Rest stoppt. Die App benötigt die Ressourcen des Rezepts und jede
+einzelne Adapterfreigabe.
+
 Der empfohlene CLI-Einstieg ist eine Sitzung im selben Prozess. Sie bewahrt
 vorbereitete Pläne zwischen den Gesprächsschritten und akzeptiert eine Freigabe
 ausschließlich über `/confirm <plan_id>`; mit `--json` wird pro Zeile ein

@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./capability-recipes.de.md)
 
-> **Last verified:** 2026-08-25
+> **Last verified:** 2026-09-09
 
 ## Why recipes exist
 
@@ -53,7 +53,40 @@ Every involved expert signs the result: one for a single-domain recipe, all of
 them for a recipe that spans domains. The endorsement goes into the plan hash,
 so confirming the plan confirms the review with it.
 
-## Running one
+## In the app and chat
+
+Choose an organizational profile, then a **Multi-step journey** below the chat.
+**Prepare whole journey** creates a proposal only. Read the prepared steps and
+their exact domain plans, then use the separate **Confirm and execute** button.
+An unavailable journey remains visible but cannot be prepared from the selector.
+The resource IDs in the packaged recipe must be configured for that profile;
+the app does not invent bindings or bypass individual adapter gates.
+
+The Strands master can also use `list_home_recipes` and `propose_home_recipe`.
+These tools only list or prepare; neither can confirm or execute. Selection by a
+live model still depends on that model; deterministic tests verify tool wiring,
+not the quality of live-model routing. The recipe review is a **deterministic
+catalog and resource check**, not an independent human or model review.
+
+The authenticated local API exposes:
+
+- `GET /api/v1/agent/recipes?profile_id=lukas&language=en`
+- `POST /api/v1/agent/recipes/plan` with schema
+  `folderhome.local-recipe-plan-request.v1`, `profile_id`, `recipe_id`, and `language`.
+- `POST /api/v1/agent/confirm` with the returned plan ID, exact hash and **all** step IDs.
+
+Plans remain in the current process only. Reset removes unconfirmed plans;
+concurrent or repeated confirmations cannot restart a journey. A failed chain
+retains the reports of completed steps, stops the remaining steps, and invalidates
+other proposals sharing its execution envelopes. There is no cross-step rollback.
+Adapter error details are redacted at this API boundary. A new app session does
+not replace an adapter's persistent idempotency protections.
+
+Local adapter integration is tested with synthetic data and synthetic mail
+transport, including the absent-mail-approval case. Browser click acceptance and
+real mailbox/calendar effects are separate checks, not implied by those tests.
+
+## Running one from the CLI
 
 ```powershell
 $env:PYTHONPATH = "src"

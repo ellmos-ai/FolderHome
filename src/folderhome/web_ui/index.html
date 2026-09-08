@@ -100,6 +100,15 @@
           </div>
         </form>
         <p class="hint" id="chat-hint" data-i18n="chatHint">Conversation is never an approval. FolderHome shows a separate plan before any workflow with side effects.</p>
+        <form id="recipe-form" aria-describedby="recipe-hint">
+          <label for="recipe-select" data-i18n="recipeLabel">Multi-step journey</label>
+          <div class="recipe-controls">
+            <select id="recipe-select" name="recipe" required></select>
+            <button id="prepare-recipe" class="button secondary" type="submit" disabled
+              data-i18n="recipePrepare">Prepare whole journey</button>
+          </div>
+          <p class="hint" id="recipe-hint" aria-live="polite" data-i18n="recipeHint">Preparation runs no workflow. Review every step before the separate confirmation.</p>
+        </form>
       </section>
 
       <section id="result-section" class="results" aria-labelledby="result-title" hidden>

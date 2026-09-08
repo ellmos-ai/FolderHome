@@ -211,6 +211,7 @@ def run_folderhome_agent_turn(
     events: list[AgentToolEvent] = []
     delegations: list[AgentDelegationEvent] = []
     proposed_plans = []
+    proposed_recipes = []
 
     def ensure_tool_budget() -> None:
         if len(events) >= settings.max_tool_calls:
@@ -343,9 +344,46 @@ def run_folderhome_agent_turn(
             "persona_id": persona_id,
             "language": language,
         }
-        record_tool("consult_home_specialist", payload, result)
+        try:
+            record_tool("consult_home_specialist", payload, result)
+        except BaseException:
+            application.discard_agent_preparations((plan,))
+            raise
         proposed_plans.append(plan)
         delegations.append(delegation)
+        return result
+
+    @tool(name="list_home_recipes")
+    def list_home_recipes(language: str = "en") -> dict[str, object]:
+        """List packaged multi-step journeys and their profile-specific availability."""
+
+        ensure_tool_budget()
+        result = application.recipe_catalog_payload(profile_id=profile_id, language=language)
+        record_tool("list_home_recipes", {"language": language}, result)
+        return result
+
+    @tool(name="propose_home_recipe")
+    def propose_home_recipe(recipe_id: str, language: str = "en") -> dict[str, object]:
+        """Prepare a listed journey for separate whole-chain approval; never execute it."""
+
+        ensure_tool_budget()
+        recipe_plan = application.prepare_recipe(
+            profile_id=profile_id, recipe_id=recipe_id, language=language,
+        )
+        result = {
+            "recipe_id": recipe_plan.recipe_id, "plan_id": recipe_plan.plan_id,
+            "summary": recipe_plan.plan.summary, "step_count": len(recipe_plan.plan.steps),
+            "review": recipe_plan.endorsement.to_dict(), "execution_performed": False,
+        }
+        try:
+            record_tool(
+                "propose_home_recipe", {"recipe_id": recipe_id, "language": language}, result,
+            )
+        except BaseException:
+            application.discard_recipe_preparations((recipe_plan,))
+            raise
+        proposed_plans.append(recipe_plan.plan)
+        proposed_recipes.append(recipe_plan)
         return result
 
     model = _build_model(settings)
@@ -362,6 +400,8 @@ def run_folderhome_agent_turn(
             list_home_capabilities,
             list_home_resources,
             consult_home_specialist,
+            list_home_recipes,
+            propose_home_recipe,
         ],
         system_prompt=_system_prompt(profile_id),
         callback_handler=None,
@@ -374,9 +414,14 @@ def run_folderhome_agent_turn(
         name="FolderHome",
         description="Lokaler Dokument- und Assistenzservice-Agent.",
     )
-    result = _call_agent(agent, prompt, settings)
+    try:
+        result = _call_agent(agent, prompt, settings)
+    except BaseException:
+        application.discard_agent_preparations(tuple(proposed_plans))
+        raise
     response_text = str(result).strip()
     if len(response_text) > settings.max_response_chars:
+        application.discard_agent_preparations(tuple(proposed_plans))
         raise FolderHomeAgentError("Agentenantwort überschreitet das Zeichenbudget.")
     try:
         framework_version = version("strands-agents")
@@ -396,9 +441,11 @@ def run_folderhome_agent_turn(
         sensitive_cloud_data_authorized=settings.allow_sensitive_cloud_data,
         delegation_events=tuple(delegations),
         proposed_plans=tuple(proposed_plans),
+        proposed_recipes=tuple(proposed_recipes),
     )
     retained_messages = tuple(deepcopy(agent.messages))
     if len(retained_messages) > settings.max_conversation_messages:
+        application.discard_agent_preparations(tuple(proposed_plans))
         raise FolderHomeAgentError("Gesprächsverlauf überschreitet das Nachrichtenbudget.")
     return report, retained_messages
 
@@ -504,6 +551,7 @@ def consult_folderhome_specialist(
             )
         except (MasterAgentError, WorkflowExecutionError, ValueError) as exc:
             raise FolderHomeAgentError(str(exc)) from exc
+        application.protect_agent_preparation(plan)
         plans.append(plan)
         return plan.to_dict()
 
@@ -538,8 +586,13 @@ def consult_folderhome_specialist(
         name=expert.title_en,
         description=expert.description_en,
     )
-    result = _call_agent(agent, request, settings)
+    try:
+        result = _call_agent(agent, request, settings)
+    except BaseException:
+        application.discard_agent_preparations(tuple(plans))
+        raise
     if len(plans) != 1:
+        application.discard_agent_preparations(tuple(plans))
         raise FolderHomeAgentError(
             "Fachagent hat keinen eindeutigen, geprüften Workflow-Plan erzeugt."
         )
@@ -594,7 +647,9 @@ def plan_folderhome_agent(
             "build_home_theme_dossier",
             "consult_home_specialist",
             "list_home_capabilities",
+            "list_home_recipes",
             "list_home_resources",
+            "propose_home_recipe",
             "search_home_documents",
         ],
         "tool_execution": "sequential",
@@ -732,6 +787,10 @@ def _system_prompt(profile_id: str) -> str:
         "semantically from the user's meaning, never with a keyword table. Use direct read-only "
         "tools for simple document work. For bounded domain planning, call "
         "consult_home_specialist with an expert and workflow from list_home_capabilities. "
+        "For an entire multi-step journey, inspect list_home_recipes and use "
+        "propose_home_recipe only for an available listed recipe. It prepares the whole "
+        "chain behind one separate confirmation; the review is deterministic, not an "
+        "independent human or model review. Never execute or confirm it through chat. "
         "Use list_home_resources when a workflow needs configured local data or output; "
         "logical IDs never disclose or grant arbitrary paths. "
         "Respect each runtime executor status; never claim that not_connected or "

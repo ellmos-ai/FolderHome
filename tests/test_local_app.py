@@ -393,7 +393,7 @@ def test_bedrock_status_requires_a_successful_turn_before_claiming_live_connecti
     )
 
     def successful_turn(**_kwargs):
-        return SimpleNamespace(proposed_plans=()), ()
+        return SimpleNamespace(proposed_plans=(), proposed_recipes=()), ()
 
     monkeypatch.setattr(
         "folderhome.application.strands_agent.run_folderhome_agent_turn",
