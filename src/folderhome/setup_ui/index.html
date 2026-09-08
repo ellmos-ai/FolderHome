@@ -254,7 +254,8 @@
           <h2 data-i18n="summaryTitle">8. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving merges the setup bindings with existing resources. Custom entries
-            and stricter permissions are preserved; changed files receive dated backups.
+            and stricter permissions are preserved. Existing JSON configuration files
+            receive dated backups when changed; the secret .env file is never backed up.
           </p>
           <button id="check" class="button" type="button" data-i18n="checkButton">Check</button>
           <button id="save" class="button primary" type="button" disabled

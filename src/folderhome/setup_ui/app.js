@@ -84,7 +84,8 @@ const translations = {
     checkFailed: "Please correct this first:",
     overwriteHint:
       "Saving merges folder bindings and preserves custom resources and stricter "
-      + "permissions. Changed files keep their previous version as a dated backup.",
+      + "permissions. Existing JSON configuration files receive dated backups when changed; "
+      + "the secret .env file is never backed up.",
     savedTitle: "Written. Start FolderHome with:",
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
@@ -185,7 +186,8 @@ const translations = {
     checkFailed: "Bitte zuerst korrigieren:",
     overwriteHint:
       "Das Speichern führt Ordnerbindungen zusammen und erhält eigene Ressourcen "
-      + "und strengere Rechte. Geänderte Dateien behalten ihre Vorversion als datiertes Backup.",
+      + "und strengere Rechte. Bestehende JSON-Konfigurationsdateien erhalten bei Änderungen "
+      + "datierte Backups; die Geheimnisdatei .env wird niemals gesichert.",
     savedTitle: "Geschrieben. Starte FolderHome mit:",
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
