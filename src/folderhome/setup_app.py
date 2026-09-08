@@ -312,6 +312,8 @@ class SetupApplication:
         resources_json = (
             _resources_document(planned.os_account, folders) if folders else None
         )
+        if resources_json is not None:
+            resources_json = self._merge_resources(resources_json, planned, errors)
         launch_json = (
             None
             if errors
@@ -368,6 +370,34 @@ class SetupApplication:
         payload["launch_command"] = _launch_command(self.launch_file, model)
         payload["plan_sha256"] = _plan_digest(payload)
         return payload
+
+    def _merge_resources(
+        self,
+        proposed: dict[str, Any],
+        planned: ProfileConfiguration,
+        errors: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        """Edit supported folder bindings without discarding private configuration."""
+
+        if not self.resources_file.exists():
+            return proposed
+        profile_ids = {item.profile_id for item in planned.profiles}
+        try:
+            existing = json.loads(self.resources_file.read_text(encoding="utf-8"))
+            parse_resource_registry(
+                existing,
+                expected_os_account=planned.os_account,
+                known_profile_ids=frozenset(
+                    profile_ids | {item.profile_id for item in self.profiles.profiles}
+                ),
+            )
+        except (OSError, ValueError) as exc:
+            errors.append({
+                "field": "resources_file",
+                "message": f"Bestehendes Ressourcenregister zuerst reparieren: {exc}",
+            })
+            return proposed
+        return _merge_resource_documents(existing, proposed, profile_ids)
 
     def _planned_profiles(
         self,
@@ -470,7 +500,12 @@ class SetupApplication:
         return errors
 
     def save(self, request: dict[str, Any]) -> dict[str, Any]:
-        """Write both files atomically after an exact, confirmed plan."""
+        """Serialize revalidation and save; roll back on reported write failures."""
+
+        with self._lock:
+            return self._save_confirmed(request)
+
+    def _save_confirmed(self, request: dict[str, Any]) -> dict[str, Any]:
 
         if request.get("confirm") is not True:
             raise SetupAppError("Speichern benötigt eine ausdrückliche Bestätigung.")
@@ -505,8 +540,9 @@ class SetupApplication:
                     profile_files: list[tuple[Path, Path]] = []
                     for profile_id, document in sorted(plan["profiles_json"].items()):
                         target = profiles_dir / _profile_filename(profile_id)
-                        profile_files.append((_stage_json(target, document), target))
-                    staged.extend(profile_files)
+                        entry = (_stage_json(target, document), target)
+                        profile_files.append(entry)
+                        staged.append(entry)
                     household_target = profiles_dir / HOUSEHOLD_FILENAME
                     household_staged = _stage_json(
                         household_target, plan["household_json"]
@@ -544,20 +580,40 @@ class SetupApplication:
                 for temporary, _target in staged:
                     temporary.unlink(missing_ok=True)
                 raise
-            written = [_commit_staged(temporary, target) for temporary, target in staged]
-            # Deleted profiles are moved aside, never removed: a profile file is the
-            # only place its rules live.
-            retired = (
-                _retire_profiles(profiles_dir, plan["removed_profile_ids"])
-                if profiles_dir is not None
-                else []
-            )
-            retired += [
-                _retire_file(Path(item)) for item in plan["cascade"]["retired_files"]
-            ]
-            retired = [item for item in retired if item is not None]
+            retired_targets = [Path(item) for item in plan["cascade"]["retired_files"]]
+            if profiles_dir is not None:
+                retired_targets.extend(
+                    profiles_dir / _profile_filename(profile_id)
+                    for profile_id in plan["removed_profile_ids"]
+                )
+            targets = [target for _, target in staged] + retired_targets
             if api_keys:
-                write_env_file(self.env_file, api_keys)
+                targets.append(self.env_file)
+            snapshots = {}
+            try:
+                snapshots = {
+                    target: (target.read_bytes(), target.stat()) if target.exists() else None
+                    for target in targets
+                }
+                written = [_commit_staged(temporary, target) for temporary, target in staged]
+                # Retired copies and backups remain available even if rollback is needed.
+                retired = (
+                    _retire_profiles(profiles_dir, plan["removed_profile_ids"])
+                    if profiles_dir is not None
+                    else []
+                )
+                retired += [
+                    _retire_file(Path(item)) for item in plan["cascade"]["retired_files"]
+                ]
+                retired = [item for item in retired if item is not None]
+                if api_keys:
+                    write_env_file(self.env_file, api_keys)
+            except BaseException:
+                _restore_setup_files(snapshots)
+                raise
+            finally:
+                for temporary, _target in staged:
+                    temporary.unlink(missing_ok=True)
         plan["written"] = True
         plan["backups"] = [str(item) for item in written if item is not None]
         plan["retired_profiles"] = [str(item) for item in retired]
@@ -1237,6 +1293,8 @@ def _configured_folders(registry: ResourceRegistry | None) -> list[dict[str, Any
         return []
     current = []
     for resource in registry.resources:
+        if resource.kind != "directory":
+            continue
         for profile_id in sorted(resource.profile_ids):
             defaults = registry.profile_defaults.get(profile_id, {})
             for purpose in sorted(resource.purposes):
@@ -1250,7 +1308,12 @@ def _configured_folders(registry: ResourceRegistry | None) -> list[dict[str, Any
                         "is_default": defaults.get(purpose) == resource.resource_id,
                     }
                 )
-    return current
+    return sorted(
+        current,
+        key=lambda item: (
+            item["profile_id"], item["purpose"], not item["is_default"], item["path"]
+        ),
+    )
 
 
 def _security_headers() -> dict[str, str]:
@@ -1502,6 +1565,149 @@ def _resources_document(
     }
 
 
+def _merge_resource_documents(
+    existing: dict[str, Any], proposed: dict[str, Any], profile_ids: set[str]
+) -> dict[str, Any]:
+    """Preserve opaque resources, stable IDs and stricter policy while editing folders."""
+
+    reserved_ids = {item["resource_id"] for item in existing["resources"]}
+    requested = {
+        (profile, Path(item["locator"]["path"]).resolve(), purpose)
+        for item in proposed["resources"]
+        for profile in item["profile_ids"]
+        for purpose in item["purposes"]
+    }
+    old = []
+    retained_ids = {}
+    for item in existing["resources"]:
+        groups: dict[tuple[str, ...], list[str]] = {}
+        for profile in item["profile_ids"]:
+            if profile not in profile_ids:
+                continue
+            purposes = tuple(
+                purpose for purpose in item["purposes"]
+                if item["kind"] != "directory" or purpose not in SETUP_PURPOSES
+                or (profile, Path(item["locator"]["path"]).resolve(), purpose) in requested
+            )
+            if purposes:
+                groups.setdefault(purposes, []).append(profile)
+        for index, (purposes, profiles) in enumerate(groups.items()):
+            resource_id = item["resource_id"]
+            if index:
+                suffix = 1
+                while (resource_id := f"setup_resource_{suffix}") in reserved_ids:
+                    suffix += 1
+                reserved_ids.add(resource_id)
+            old.append({
+                **item, "resource_id": resource_id,
+                "profile_ids": profiles, "purposes": list(purposes),
+            })
+            for profile in profiles:
+                retained_ids[(item["resource_id"], profile)] = resource_id
+    used_ids = {item["resource_id"] for item in old}
+    resources = list(old)
+    replacements = {}
+    for item in proposed["resources"]:
+        # Existing resources retain their own purpose/permission boundaries.
+        # Only genuinely new purposes receive generated bindings.
+        profile = item["profile_ids"][0]
+        path = Path(item["locator"]["path"]).resolve()
+        missing = []
+        for purpose in item["purposes"]:
+            matches = [
+                previous for previous in old
+                if previous["kind"] == item["kind"]
+                and Path(previous["locator"]["path"]).resolve() == path
+                and profile in previous["profile_ids"] and purpose in previous["purposes"]
+            ]
+            if not matches:
+                missing.append(purpose)
+                continue
+            old_default = existing["profile_defaults"].get(profile, {}).get(purpose)
+            preferred_id = retained_ids.get((old_default, profile))
+            chosen = next(
+                (previous for previous in matches if previous["resource_id"] == preferred_id),
+                matches[0],
+            )
+            replacements[(item["resource_id"], purpose)] = chosen["resource_id"]
+        if not missing:
+            continue
+        resource = {
+            **item, "purposes": missing,
+            "operations": sorted({op for p in missing for op in _PURPOSE_OPERATIONS[p]}),
+        }
+        candidate = item["resource_id"]
+        suffix = 1
+        while candidate in reserved_ids or candidate in used_ids:
+            candidate = f"setup_resource_{suffix}"
+            suffix += 1
+        resource["resource_id"] = candidate
+        # The form cannot grant cloud access. A new profile binding must not
+        # bypass a stricter binding already registered for the same location.
+        cloud_rank = {"deny": 0, "synthetic_only": 1, "minimized_with_approval": 2}
+        overlapping = [
+            previous for previous in existing["resources"]
+            if path.is_relative_to(Path(previous["locator"]["path"]).resolve())
+            or Path(previous["locator"]["path"]).resolve().is_relative_to(path)
+        ]
+        resource["cloud_context"] = min(
+            [resource["cloud_context"], *(p["cloud_context"] for p in overlapping)],
+            key=cloud_rank.__getitem__,
+        )
+        for purpose in missing:
+            replacements[(item["resource_id"], purpose)] = resource["resource_id"]
+        used_ids.add(resource["resource_id"])
+        resources.append(resource)
+    # Outputs and pre-existing privacy boundaries also constrain retained source
+    # bindings: splitting purposes must never create a second path to cloud data.
+    cloud_rank = {"deny": 0, "synthetic_only": 1, "minimized_with_approval": 2}
+    boundaries = [
+        (Path(item["locator"]["path"]).resolve(), item["cloud_context"])
+        for item in [*existing["resources"], *proposed["resources"]]
+    ]
+    changed = True
+    while changed:
+        changed = False
+        current_boundaries = boundaries + [
+            (Path(item["locator"]["path"]).resolve(), item["cloud_context"])
+            for item in resources
+        ]
+        for resource in resources:
+            path = Path(resource["locator"]["path"]).resolve()
+            policy = min(
+                [resource["cloud_context"], *(
+                    policy for boundary, policy in current_boundaries
+                    if path.is_relative_to(boundary) or boundary.is_relative_to(path)
+                )],
+                key=cloud_rank.__getitem__,
+            )
+            if policy != resource["cloud_context"]:
+                resource["cloud_context"] = policy
+                changed = True
+    defaults = {
+        profile: {
+            purpose: retained_ids[(rid, profile)] for purpose, rid in bindings.items()
+            if (rid, profile) in retained_ids and retained_ids[(rid, profile)] in used_ids
+        }
+        for profile, bindings in existing["profile_defaults"].items()
+        if profile in profile_ids
+    }
+    by_id = {item["resource_id"]: item for item in resources}
+    for profile, bindings in proposed["profile_defaults"].items():
+        for purpose, rid in bindings.items():
+            current = defaults.setdefault(profile, {}).get(purpose)
+            # Non-folder defaults are invisible in this form and cannot be edited here.
+            if current is None or by_id[current]["kind"] == "directory":
+                defaults[profile][purpose] = replacements[(rid, purpose)]
+    # Removed supported purposes must not leave stale defaults on retained resources.
+    for profile, bindings in defaults.items():
+        defaults[profile] = {
+            purpose: rid for purpose, rid in bindings.items()
+            if purpose in by_id[rid]["purposes"] and profile in by_id[rid]["profile_ids"]
+        }
+    return {**proposed, "resources": resources, "profile_defaults": defaults}
+
+
 def _launch_document(
     *,
     profiles_dir: Path | None,
@@ -1573,12 +1779,54 @@ def _stage_json(target: Path, document: dict[str, Any]) -> Path:
     content = (json.dumps(document, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
         "utf-8"
     )
+    return _stage_bytes(target, content)
+
+
+def _stage_bytes(target: Path, content: bytes) -> Path:
     temporary = target.with_name(f"{target.name}.tmp-{secrets.token_hex(6)}")
-    with temporary.open("wb") as handle:
-        handle.write(content)
-        handle.flush()
-        os.fsync(handle.fileno())
-    return temporary
+    created = False
+    try:
+        with temporary.open("xb") as handle:
+            created = True
+            os.chmod(temporary, 0o600)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        return temporary
+    except BaseException:
+        if created:
+            temporary.unlink(missing_ok=True)
+        raise
+
+
+def _restore_setup_files(
+    snapshots: dict[Path, tuple[bytes, os.stat_result] | None],
+) -> None:
+    """Best-effort restoration of all files; credentials never get backup copies."""
+
+    failures = []
+    for target, snapshot in snapshots.items():
+        try:
+            if snapshot is None:
+                target.unlink(missing_ok=True)
+                continue
+            content, metadata = snapshot
+            if target.is_file() and target.read_bytes() == content:
+                continue
+            temporary = _stage_bytes(target, content)
+            try:
+                os.chmod(temporary, metadata.st_mode)
+                os.replace(temporary, target)
+                os.utime(target, ns=(metadata.st_atime_ns, metadata.st_mtime_ns))
+            finally:
+                temporary.unlink(missing_ok=True)
+        except OSError:
+            failures.append(target.name)
+    if failures:
+        raise SetupAppError(
+            "Speichern und Rücksetzen fehlgeschlagen. Sicherungen prüfen: "
+            + ", ".join(failures), status_code=500,
+        )
 
 
 def _commit_staged(temporary: Path, target: Path) -> Path | None:

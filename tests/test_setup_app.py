@@ -316,6 +316,299 @@ def test_setup_unchanged_save_preserves_file_timestamp(tmp_path: Path) -> None:
     assert not list(app.config_dir.glob("*.tmp-*"))
 
 
+def test_setup_preserves_custom_resources_and_defaults(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    custom = {
+        "resource_id": "lukas_resource_3",
+        "kind": "file",
+        "locator": {"type": "local_path", "path": str(tmp_path / "notes.json")},
+        "operations": ["read"],
+        "purposes": ["notes.custom"],
+        "profile_ids": ["lukas"],
+        "cloud_context": "deny",
+    }
+    (tmp_path / "notes.json").write_text("{}", encoding="utf-8")
+    existing["resources"].append(custom)
+    existing["profile_defaults"]["lukas"]["notes.custom"] = "lukas_resource_3"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+    extra = tmp_path / "extra"
+    extra.mkdir()
+    request["folders"].append(
+        {"profile_id": "lukas", "purpose": "documents.source", "path": str(extra)}
+    )
+
+    plan = app.plan(request)
+    assert plan["valid"], plan["errors"]
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+    stored = json.loads(app.resources_file.read_text(encoding="utf-8"))
+    assert custom in stored["resources"]
+    assert stored["profile_defaults"]["lukas"]["notes.custom"] == "lukas_resource_3"
+    assert len({item["resource_id"] for item in stored["resources"]}) == 4
+
+
+def test_setup_preserves_stricter_policy_and_existing_resource_id(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["resource_id"] = "private_documents"
+    source["cloud_context"] = "deny"
+    source["purposes"].append("archive.custom")
+    for purpose in source["purposes"]:
+        existing["profile_defaults"]["lukas"][purpose] = "private_documents"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    plan = app.plan(request)
+    assert plan["valid"], plan["errors"]
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+    stored = json.loads(app.resources_file.read_text(encoding="utf-8"))
+    assert source in stored["resources"]
+    assert stored["profile_defaults"]["lukas"]["documents.source"] == "private_documents"
+    assert not any(
+        item["locator"] == source["locator"] and item["cloud_context"] != "deny"
+        for item in stored["resources"]
+    )
+
+
+@pytest.mark.parametrize("content", ['{"broken": true}', '{"schema":'])
+def test_setup_refuses_to_overwrite_unreadable_registry(tmp_path: Path, content: str) -> None:
+    app = _app(tmp_path)
+    app.resources_file.write_text(content, encoding="utf-8")
+
+    plan = app.plan(_request(tmp_path))
+
+    assert not plan["valid"]
+    assert any(error["field"] == "resources_file" for error in plan["errors"])
+    assert app.resources_file.read_text(encoding="utf-8") == content
+
+
+def test_setup_new_output_binding_protects_existing_source_at_same_path(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+    request["folders"].append({
+        "profile_id": "lukas", "purpose": "documents.output",
+        "path": str(tmp_path / "documents"),
+    })
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    assert all(r["cloud_context"] == "deny" for r in plan["resources_json"]["resources"])
+
+
+def test_setup_overlapping_privacy_normalization_is_idempotent(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    for name in ("private", "public"):
+        path = tmp_path / "documents" / name
+        path.mkdir()
+        request["folders"].append({
+            "profile_id": "lukas", "purpose": "documents.source", "path": str(path),
+        })
+    existing = app.plan(request)["resources_json"]
+    for resource in existing["resources"]:
+        if Path(resource["locator"]["path"]).name == "private":
+            resource["cloud_context"] = "deny"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+    plan = app.plan(request)
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    before = app.resources_file.read_bytes()
+
+    next_plan = app.plan(request)
+    saved = app.save({**request, "confirm": True, "plan_sha256": next_plan["plan_sha256"]})
+
+    assert app.resources_file.read_bytes() == before
+    assert saved["backups"] == []
+
+
+def test_setup_changed_default_survives_state_reload_and_unchanged_save(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    second = tmp_path / "second"
+    second.mkdir()
+    extra = {"profile_id": "lukas", "purpose": "documents.source", "path": str(second)}
+    request["folders"].append(extra)
+    plan = app.plan(request)
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    request["folders"].remove(extra)
+    request["folders"].insert(0, extra)
+    plan = app.plan(request)
+    app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    before = app.resources_file.read_bytes()
+
+    folders = app.state_payload()["current_folders"]
+    sources = [f for f in folders if f["purpose"] == "documents.source"]
+    assert sources[0]["path"] == str(second)
+    request["folders"] = folders
+    plan = app.plan(request)
+    saved = app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+    assert app.resources_file.read_bytes() == before
+    assert saved["backups"] == []
+
+
+def test_setup_shared_private_folder_cannot_gain_cloud_permission(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["profile_ids"] = ["lukas", "hanna"]
+    source["cloud_context"] = "deny"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    same_path = [
+        item for item in plan["resources_json"]["resources"]
+        if item["locator"] == source["locator"]
+    ]
+    assert all(item["cloud_context"] == "deny" for item in same_path)
+
+
+def test_setup_shared_folder_cannot_gain_read_permission(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["profile_ids"] = ["lukas", "hanna"]
+    source["operations"] = ["list"]
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    assert all(
+        "read" not in item["operations"]
+        for item in plan["resources_json"]["resources"]
+        if item["locator"] == source["locator"]
+    )
+
+
+def test_setup_keeps_per_purpose_operation_boundaries(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["purposes"] = ["documents.source"]
+    source["operations"] = ["list"]
+    insurance = {
+        **source, "resource_id": "insurance_folder", "purposes": ["insurance.source"],
+        "operations": ["list", "read"],
+    }
+    existing["resources"].append(insurance)
+    existing["profile_defaults"]["lukas"]["insurance.source"] = "insurance_folder"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    defaults = plan["resources_json"]["profile_defaults"]["lukas"]
+    by_id = {r["resource_id"]: r for r in plan["resources_json"]["resources"]}
+    assert by_id[defaults["documents.source"]]["operations"] == ["list"]
+    assert by_id[defaults["insurance.source"]]["operations"] == ["list", "read"]
+
+
+@pytest.mark.parametrize("direction", ["parent_to_child", "child_to_parent"])
+def test_setup_overlapping_folder_cannot_gain_cloud_permission(
+    tmp_path: Path, direction: str
+) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    parent = tmp_path / "documents"
+    child = parent / "private"
+    child.mkdir()
+    previous_path, next_path = (
+        (parent, child) if direction == "parent_to_child" else (child, parent)
+    )
+    for folder in request["folders"]:
+        if folder["purpose"] != "documents.output":
+            folder["path"] = str(previous_path)
+    existing = app.plan(request)["resources_json"]
+    source = next(r for r in existing["resources"] if "documents.source" in r["purposes"])
+    source["cloud_context"] = "deny"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+    for folder in request["folders"]:
+        if folder["purpose"] != "documents.output":
+            folder["path"] = str(next_path)
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    assert all(r["cloud_context"] == "deny" for r in plan["resources_json"]["resources"])
+
+
+def test_setup_different_existing_operations_do_not_produce_empty_permissions(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["operations"] = ["list"]
+    alternate = {**source, "resource_id": "read_only", "operations": ["read"]}
+    existing["resources"].append(alternate)
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    assert source in plan["resources_json"]["resources"]
+    assert alternate in plan["resources_json"]["resources"]
+
+
+def test_setup_removes_supported_binding_independently_of_resource_id(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    source = existing["resources"][0]
+    source["resource_id"] = "custom_source"
+    source["purposes"].append("archive.custom")
+    for purpose in source["purposes"]:
+        existing["profile_defaults"]["lukas"][purpose] = "custom_source"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+    request["folders"] = [f for f in request["folders"] if f["purpose"] == "documents.output"]
+
+    plan = app.plan(request)
+
+    assert plan["valid"], plan["errors"]
+    retained = next(
+        r for r in plan["resources_json"]["resources"] if r["resource_id"] == "custom_source"
+    )
+    assert retained["purposes"] == ["archive.custom"]
+    assert "documents.source" not in plan["resources_json"]["profile_defaults"]["lukas"]
+
+
+def test_setup_file_resources_are_preserved_but_not_shown_as_folders(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    existing = app.plan(request)["resources_json"]
+    path = tmp_path / "report.txt"
+    path.write_text("synthetic", encoding="utf-8")
+    existing["resources"].append({
+        "resource_id": "private_file", "kind": "file",
+        "locator": {"type": "local_path", "path": str(path)},
+        "operations": ["read"], "purposes": ["documents.source"],
+        "profile_ids": ["lukas"], "cloud_context": "deny",
+    })
+    existing["profile_defaults"]["lukas"]["documents.source"] = "private_file"
+    app.resources_file.write_text(json.dumps(existing), encoding="utf-8")
+
+    state = app.state_payload()
+
+    assert all(item["path"] != str(path) for item in state["current_folders"])
+    plan = app.plan(request)
+    assert plan["valid"], plan["errors"]
+    assert existing["resources"][-1] in plan["resources_json"]["resources"]
+    assert plan["resources_json"]["profile_defaults"]["lukas"]["documents.source"] == "private_file"
+
+
 def test_setup_rapid_changes_keep_each_previous_version(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -602,6 +895,93 @@ def test_each_purpose_alone_produces_a_registry_the_real_loader_accepts(
         {**request, "confirm": True, "plan_sha256": planned.payload["plan_sha256"]},
     )
     assert saved.status_code == 200, saved.payload
+
+
+@pytest.mark.parametrize("previously_saved", [False, True])
+def test_setup_rolls_back_all_documents_when_second_commit_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, previously_saved: bool
+) -> None:
+    from folderhome.setup_app import _commit_staged
+
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    if previously_saved:
+        plan = app.plan(request)
+        app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+    targets = [app.resources_file, app.launch_file]
+    before = {p: p.read_bytes() if p.exists() else None for p in targets}
+    request["folders"] = [f for f in request["folders"] if f["purpose"] != "insurance.source"]
+    request["port"] = 8769
+    plan = app.plan(request)
+    calls = 0
+
+    def fail_second(temporary: Path, target: Path) -> Path | None:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("synthetic second-commit failure")
+        return _commit_staged(temporary, target)
+
+    monkeypatch.setattr("folderhome.setup_app._commit_staged", fail_second)
+    with pytest.raises(OSError, match="second-commit"):
+        app.save({**request, "confirm": True, "plan_sha256": plan["plan_sha256"]})
+
+    assert {p: p.read_bytes() if p.exists() else None for p in targets} == before
+    assert not list(app.config_dir.glob("*.tmp-*"))
+
+
+def test_setup_rolls_back_configuration_when_key_save_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path)
+    plan = app.plan(request)
+
+    def fail_keys(*args: object) -> None:
+        raise OSError("synthetic credential-store failure")
+
+    monkeypatch.setattr("folderhome.setup_app.write_env_file", fail_keys)
+    with pytest.raises(OSError, match="credential-store"):
+        app.save({
+            **request, "confirm": True, "plan_sha256": plan["plan_sha256"],
+            "api_keys": {"OPENAI_API_KEY": "synthetic-test-key"},
+        })
+
+    assert not app.resources_file.exists()
+    assert not app.launch_file.exists()
+    assert not app.env_file.exists()
+    assert not list(app.config_dir.glob("*.tmp-*"))
+
+
+def test_setup_staging_failure_removes_incomplete_temporary_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from folderhome.setup_app import _stage_json
+
+    def fail_sync(_descriptor: int) -> None:
+        raise OSError("synthetic fsync failure")
+
+    monkeypatch.setattr("folderhome.setup_app.os.fsync", fail_sync)
+    with pytest.raises(OSError, match="fsync"):
+        _stage_json(tmp_path / "document.json", {"value": "synthetic"})
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_setup_staging_collision_keeps_the_preexisting_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from folderhome.setup_app import _stage_json
+
+    target = tmp_path / "document.json"
+    preexisting = tmp_path / "document.json.tmp-collision"
+    preexisting.write_bytes(b"existing work")
+    monkeypatch.setattr("folderhome.setup_app.secrets.token_hex", lambda _: "collision")
+
+    with pytest.raises(FileExistsError):
+        _stage_json(target, {"value": "synthetic"})
+
+    assert preexisting.read_bytes() == b"existing work"
 
 
 def test_save_leaves_the_previous_state_untouched_when_the_registry_does_not_load(

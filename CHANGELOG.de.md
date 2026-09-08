@@ -13,6 +13,25 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Loopback-Ollama meldet jetzt `local_model` / `local_only_model` statt einer
+  Netzwerk-/Hybridtopologie. Entfernte und fremdgehostete Modelle behalten ihre
+  unterscheidbaren Provider- und Inferenzort-Felder.
+- Der MCP-Start löst den unvollständigen Einstellungstyp des SDK vor dessen
+  Verwendung auf. Ein Test im frischen Prozess behandelt Warnungen als Fehler;
+  die direkt genutzte MCP-v1-Abhängigkeit ist jetzt ausdrücklich deklariert.
+- Optionale Dokument-, FCSA- und Rechtsquellen-Provider können isolierte,
+  revisionsgebundene Checkouts unter `.providers/` nutzen. Gemeinsame
+  Arbeitskopien und Revisionsprüfungen bleiben unverändert. Die zweisprachige
+  Anleitung nennt Zugriffs- und Integrationstestgrenzen.
+- Die Einrichtung erhält benutzerdefinierte Ressourcen und Standardzuordnungen,
+  stabile Ressourcen-IDs und strengere Cloud-Regeln. Ungültige bestehende
+  Register blockieren das Speichern; Einzeldateien erscheinen nicht mehr als
+  bearbeitbare Ordner.
+- Getrennte Zweck-/Operationsgrenzen bleiben erhalten; Ausgabe-Datenschutzregeln
+  gelten auch für überlappende Quellenbindungen. Standards bleiben beim erneuten
+  Laden bestehen. Erkannte Schreibfehler setzen die Konfiguration einschließlich
+  Schlüsseldatei zurück; temporäre Dateien werden bereinigt. Das ist keine gegen
+  Stromausfall atomare Dateisystemtransaktion.
 - Unveränderte Einrichtungsdateien behalten beim Speichern ihren Zeitstempel und
   erzeugen keine überflüssigen Sicherungen. Geänderte Dateien und ausgelagerte
   Profile/Kalenderkonten erhalten auch bei mehreren Vorgängen innerhalb einer

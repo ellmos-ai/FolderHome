@@ -12,6 +12,24 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- Loopback Ollama now reports `local_model` / `local_only_model` instead of a
+  network/hybrid topology; remote and hosted models retain their distinct
+  provider and inference-location fields.
+- MCP startup resolves the SDK's unfinished settings type before construction.
+  A fresh-process test treats warnings as errors; the directly used MCP v1
+  dependency is now explicitly declared.
+- Optional document, FCSA and legal-registry providers can use isolated pinned
+  checkouts under `.providers/`, without changing a shared working copy or
+  relaxing revision checks. The bilingual provider guide states access and
+  integration-test boundaries.
+- Setup preserves custom resource entries and defaults, stable resource IDs and
+  stricter cloud policies. Invalid existing registries block saving; individual
+  files no longer appear as editable folders.
+- Setup keeps separate purpose/operation boundaries, applies output privacy
+  restrictions to overlapping source bindings, and preserves defaults on reload.
+  Reported write failures restore the previous configuration (including the key
+  file); temporary staging files are cleaned up. This is not a crash-atomic
+  filesystem transaction.
 - Saving unchanged setup documents preserves their timestamps and creates no
   redundant backups. Changed documents and retired profiles/calendar accounts
   receive distinct backup names even when saved several times within one second.
