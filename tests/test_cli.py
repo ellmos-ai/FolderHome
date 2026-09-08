@@ -4098,7 +4098,10 @@ def test_contract_cockpit_cli_combines_versions_and_keeps_state_read_only(
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
-    assert payload["schema"] == "folderhome.contract-cockpit.v1"
+    assert tmp_path.name not in result.stdout
+    assert tmp_path.name not in output_markdown.read_text(encoding="utf-8")
+    assert tmp_path.name not in output_json.read_text(encoding="utf-8")
+    assert payload["schema"] == "folderhome.contract-cockpit-export.v1"
     assert payload["latest_version"]["document"]["filename"] == new.name
     assert [item["document"]["filename"] for item in payload["older_versions"]] == [
         old.name

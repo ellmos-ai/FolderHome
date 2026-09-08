@@ -55,6 +55,29 @@ keinen Termin, sendet keine Nachricht, greift nicht auf ein Bankkonto zu und
 behauptet keinen Vertragsstatus. Die Sensitivitätsfreigabe wird vor dem ersten
 Zustands- oder Dokumentzugriff geprüft.
 
+### Grenze des Dateiexports — aktualisiert am 09.09.2026
+
+CLI-Standardausgabe und JSON-Dateien aus CLI oder freigegebenem Workflow verwenden
+`folderhome.contract-cockpit-export.v1`. Dessen `source_schema` bezeichnet die
+interne Darstellung `folderhome.contract-cockpit.v1`. Interne Datensätze behalten
+ihre Dateisystempfade für Planhash und erneute Quellprüfung; Exporte lassen
+`source_path` bei Dokumenten, Kontakten und Kalenderereignissen sowie den privaten
+Dokumentverweis `index.ref` weg.
+
+Archivierungsvorschläge enthalten `source_filename`, `target_filename` und
+`target_role: "configured_archive"` statt ausführbarer Quell-/Zielpfade.
+Auch Markdown zeigt nur Dateiname und Archivrolle. Dokument-IDs, Quellhashes,
+Datumsangaben, Kontaktdaten und Evidenzgrenzen bleiben erhalten.
+**Dies ist ein privater Evidenzexport, keine Anonymisierung:** Freitext kann
+weiterhin personenbezogene Daten oder Pfade enthalten und muss vor einer
+Weitergabe geprüft werden.
+
+Für Dateisystemaktionen müssen Verbraucher den intern freigegebenen Plan
+verwenden, statt Pfade aus exportierten Namen zu rekonstruieren. Größen- und
+Workspace-Pfadschutz beim Download bleiben aktiv. Der synthetische
+AgentCore-Ablauf kann alle vier kleinen Ergebnisdateien inline zurückgeben;
+das ist lokal getestet und kein Nachweis einer aktualisierten Cloud-Bereitstellung.
+
 ## Abnahme
 
 - explizite Zuordnung statt implizitem fuzzy Join

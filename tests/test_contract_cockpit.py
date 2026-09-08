@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from dataclasses import replace
 from datetime import date
 from hashlib import sha256
 from pathlib import Path
@@ -76,6 +78,7 @@ def test_contract_cockpit_combines_existing_evidence_without_writes(tmp_path: Pa
         tmp_path / "KFZ_Hyundai_i10_2026.txt",
         "KFZ Versicherung Hyundai i10. Gültig ab 01.01.2026.",
     )
+    new = replace(new, index_ref=str(tmp_path / "private-index" / "document"))
     family = build_document_family("KFZ Versicherung Hyundai i10", (old, new))
     version_analysis = DocumentVersionAnalysis(
         original_query="KFZ Versicherung Hyundai i10",
@@ -227,6 +230,31 @@ def test_contract_cockpit_combines_existing_evidence_without_writes(tmp_path: Pa
     assert {path: path.read_bytes() for path in before} == before
     assert not (tmp_path / "Archiv").exists()
     assert "text" not in report.to_dict()["latest_version"]["document"]
+
+    # Export must not erase the internal provenance used to revalidate execution.
+    report = replace(report, prior_contacts=(replace(contact, status="deletion_candidate"),))
+    internal_before = report.to_dict()
+    exported = report.to_export_dict()
+    assert tmp_path.name not in json.dumps(exported, ensure_ascii=False)
+    assert tmp_path.name not in report.markdown
+    assert exported["schema"] == "folderhome.contract-cockpit-export.v1"
+    assert exported["source_schema"] == "folderhome.contract-cockpit.v1"
+    assert exported["latest_version"]["document"]["document_id"] == new.document_id
+    assert exported["latest_version"]["document"]["source_sha256"] == new.source_sha256
+    assert exported["older_versions"][0]["document"]["filename"] == old.filename
+    assert exported["archive_proposals"][0]["source_filename"] == old.filename
+    assert exported["archive_proposals"][0]["target_filename"] == old.filename
+    assert exported["archive_proposals"][0]["gate"] == {"required": True, "granted": False}
+    assert exported["current_contacts"][0]["email"] == "erika@example.invalid"
+    assert exported["prior_contacts"][0]["source_sha256"] == new.source_sha256
+    assert exported["calendar_events"][0]["event_date"] == "2026-11-01"
+    assert exported["calendar_events"][0]["source_document_id"] == new.document_id
+    assert exported["read_only"] is True
+    assert exported["automatic_archive_executed"] is False
+    assert report.to_dict() == internal_before
+    assert report.latest_version.document.source_path == new.source_path
+    assert report.latest_version.document.index_ref == new.index_ref
+    assert report.archive_proposals[0].target_path == tmp_path / "Archiv" / old.filename
 
 
 def test_contract_cockpit_keeps_missing_components_and_archive_setting_visible(

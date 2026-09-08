@@ -233,7 +233,7 @@ def _render_markdown(
             for proposal in archive_proposals:
                 lines.append(
                     f"  - `{_safe_code(proposal.source_path.name)}` → "
-                    f"`{_safe_code(str(proposal.target_path))}`"
+                    f"konfiguriertes Archiv / `{_safe_code(proposal.target_path.name)}`"
                 )
         else:
             lines.append("- Archivierung ist konfiguriert; es gibt keinen Kandidaten.")

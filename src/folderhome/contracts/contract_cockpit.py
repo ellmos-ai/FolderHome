@@ -177,3 +177,107 @@ class ContractCockpitReport:
             "automatic_calendar_action": False,
             "payment_or_bank_access": False,
         }
+
+    def to_export_dict(self) -> dict[str, object]:
+        """Export private evidence without internal filesystem locator fields.
+
+        This is not an anonymizer: names, contact details and user-supplied text
+        remain private. Internal ``to_dict`` and typed records retain the paths
+        needed for plan hashing and source revalidation.
+        """
+        return {
+            "schema": "folderhome.contract-cockpit-export.v1",
+            "source_schema": self.SCHEMA,
+            "report_id": self.report_id,
+            "request": self.request.to_dict(),
+            "latest_version": _export_version(self.latest_version),
+            "older_versions": [_export_version(item) for item in self.older_versions],
+            "archive_proposals": [
+                {
+                    "document_id": item.document_id,
+                    "retained_document_id": item.retained_document_id,
+                    "source_filename": item.source_path.name,
+                    "target_filename": item.target_path.name,
+                    "target_role": "configured_archive",
+                    "provider_id": item.provider_id,
+                    "capability_id": item.capability_id,
+                    "action": item.action,
+                    "collision_policy": item.collision_policy,
+                    "status": item.status,
+                    "gate": {"required": item.gate_required, "granted": item.gate_granted},
+                    "undo_action": item.undo_action,
+                }
+                for item in self.archive_proposals
+            ],
+            "current_contacts": [_export_contact(item) for item in self.current_contacts],
+            "prior_contacts": [_export_contact(item) for item in self.prior_contacts],
+            "recurring_costs": [item.to_dict() for item in self.recurring_costs],
+            "calendar_events": [_export_event(item) for item in self.calendar_events],
+            "finance_coverages": [item.to_dict() for item in self.finance_coverages],
+            "component_revisions": dict(sorted(self.component_revisions.items())),
+            "component_issues": [item.to_dict() for item in self.component_issues],
+            "markdown": self.markdown,
+            "read_only": self.read_only,
+            "contract_status_proven": self.contract_status_proven,
+            "automatic_archive_executed": self.automatic_archive_executed,
+            "automatic_contact_change": False,
+            "automatic_calendar_action": False,
+            "payment_or_bank_access": False,
+        }
+
+
+def _export_version(version: DocumentVersion) -> dict[str, object]:
+    document = version.document
+    return {
+        "family_id": version.family_id,
+        "family_label": version.family_label,
+        "document": {
+            "document_id": document.document_id,
+            "filename": document.source_path.name,
+            "media_type": document.media_type,
+            "source_sha256": document.source_sha256,
+            "size_bytes": document.size_bytes,
+            "modified_at": document.modified_at,
+            "content_format": document.content_format.value,
+            "extraction": {
+                "provider": document.extraction_provider,
+                "method": document.extraction_method,
+            },
+            "privacy": {
+                "status": document.privacy_status.value,
+                "summary": document.privacy_summary,
+            },
+            "index": {
+                "status": document.index_status.value,
+                "provider": document.index_provider,
+            },
+        },
+        "version_date": version.version_date,
+        "date_basis": version.date_basis.value,
+        "date_confidence": version.date_confidence.value,
+        "date_evidence": version.date_evidence,
+    }
+
+
+def _export_contact(contact: ContactRecord) -> dict[str, object]:
+    # Explicit fields prevent newly added internal locators from leaking by default.
+    return {
+        key: getattr(contact, key)
+        for key in (
+            "contact_id", "candidate_id", "profile_id", "area", "organization",
+            "contact_name", "role", "purpose", "object_ref", "email", "phone",
+            "effective_date", "source_document_id", "source_sha256", "status",
+            "created_at", "updated_at",
+        )
+    }
+
+
+def _export_event(event: CalendarEventRecord) -> dict[str, object]:
+    return {
+        key: getattr(event, key)
+        for key in (
+            "event_id", "event_uid", "candidate_id", "profile_id", "area", "title",
+            "event_date", "start_time", "end_time", "timezone", "location",
+            "source_document_id", "source_sha256", "status", "created_at", "updated_at",
+        )
+    }

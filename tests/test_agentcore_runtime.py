@@ -244,21 +244,31 @@ def test_agentcore_runtime_returns_result_files_inline_for_browser_download(
     assert [item["filename"] for item in inline] == [
         "Hyundai-i10-claim-letter.md",
         "Hyundai-i10-claim-letter.txt",
+        "Hyundai-i10-insurance-overview.json",
+        "Hyundai-i10-insurance-overview.md",
     ]
     for item in inline:
         assert item["content_encoding"] == "utf-8"
         assert sha256(item["content"].encode("utf-8")).hexdigest() == item["sha256"]
     assert inline[0]["content_type"] == "text/markdown; charset=utf-8"
 
-    # The two overview files embed the workspace path, so they stay metadata only.
-    withheld = [item for item in results if not item["inline"]]
-    assert [item["filename"] for item in withheld] == [
-        "Hyundai-i10-insurance-overview.json",
-        "Hyundai-i10-insurance-overview.md",
-    ]
-    assert all(item["inline_skipped_reason"] == "local_paths" for item in withheld)
-    assert all("content" not in item for item in withheld)
+    assert all(tmp_path.name not in item["content"] for item in inline)
     assert str(tmp_path) not in json.dumps(confirmed.payload, ensure_ascii=False)
+
+
+@pytest.mark.parametrize("as_json", [False, True])
+def test_inline_result_guard_withholds_content_containing_workspace_paths(
+    tmp_path: Path, as_json: bool,
+) -> None:
+    content = str(tmp_path / "private" / "source.txt")
+    if as_json:
+        content = json.dumps({"source_path": content})
+    result = accident_demo._inline_content(
+        content.encode("utf-8"),
+        "application/json" if as_json else "text/plain",
+        workspace=str(tmp_path),
+    )
+    assert result == {"inline": False, "inline_skipped_reason": "local_paths"}
 
 
 def test_agentcore_runtime_reports_oversized_results_as_metadata_only(

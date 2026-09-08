@@ -3292,7 +3292,7 @@ def _run_contract_cockpit(args: argparse.Namespace) -> int:
                 "document_family": version_analysis.family.family_id,
             },
         )
-        payload = report.to_dict()
+        payload = report.to_export_dict()
         if args.output_markdown:
             _write_new_text(args.output_markdown, report.markdown)
         if args.output_json:

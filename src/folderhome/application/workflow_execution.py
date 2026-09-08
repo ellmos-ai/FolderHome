@@ -5460,7 +5460,7 @@ class ContractCockpitWorkflowAdapter:
                 {
                     f"{domain_plan.output_basename}.md": domain_plan.report.markdown,
                     f"{domain_plan.output_basename}.json": json.dumps(
-                        domain_plan.report.to_dict(),
+                        domain_plan.report.to_export_dict(),
                         ensure_ascii=False,
                         indent=2,
                         sort_keys=True,

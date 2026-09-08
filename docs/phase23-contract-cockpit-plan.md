@@ -45,6 +45,27 @@ A `folderhome.contract-cockpit-request.v1` file specifies profile, domain, displ
 
 The run is read‑only. It does not archive anything, change any contact, create any appointment, send any message, access a bank account, or assert any contract status. The sensitivity approval is checked before the first state or document access.
 
+### File export boundary — updated 2026-09-09
+
+CLI stdout and JSON files written by the CLI or the approved workflow use
+`folderhome.contract-cockpit-export.v1`. Its `source_schema` identifies the
+internal `folderhome.contract-cockpit.v1` representation. The internal records
+keep their filesystem paths for plan hashing and source revalidation; exports
+omit document, contact and calendar `source_path` fields and the private
+document `index.ref` locator.
+
+Archive suggestions export `source_filename`, `target_filename` and
+`target_role: "configured_archive"` instead of executable source/target paths.
+Markdown likewise shows only the filename and archive role. Document IDs,
+source hashes, dates, contact details and evidence limitations remain available.
+**This is a private evidence export, not anonymization:** user-provided text can
+still contain personal data or paths and requires review before sharing.
+
+Consumers needing filesystem actions must use the internal approved plan, not
+reconstruct paths from exported names. Download size and workspace-path guards
+remain active. The synthetic AgentCore journey can return all four small result
+files inline; this is locally tested, not evidence of a deployed cloud update.
+
 ## Acceptance
 
 - explicit mapping instead of implicit fuzzy join

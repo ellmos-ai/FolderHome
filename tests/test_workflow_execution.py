@@ -2675,8 +2675,9 @@ def test_artifact_studio_adapter_writes_design_set_and_business_card_after_appro
     assert report.domain_report["paths_disclosed"] is False
 
 
+@pytest.mark.parametrize("source_changed", [False, True])
 def test_contract_cockpit_adapter_writes_private_synthesis_after_approval(
-    tmp_path: Path,
+    tmp_path: Path, source_changed: bool,
 ) -> None:
     state_root = tmp_path / "cockpit-state"
     output_root = tmp_path / "cockpit-output"
@@ -2760,6 +2761,16 @@ def test_contract_cockpit_adapter_writes_private_synthesis_after_approval(
     assert envelope.domain_plan["content_disclosed"] is False
     assert "Hyundai i10" not in str(envelope.to_dict())
 
+    if source_changed:
+        source.write_text("Veränderter synthetischer Vertrag", encoding="utf-8")
+        with pytest.raises(WorkflowExecutionError, match="Dokument.*verändert"):
+            gateway.execute(
+                envelope_id=envelope.envelope_id,
+                approved_at="2026-08-23T11:30:00+02:00",
+            )
+        assert list(output_root.iterdir()) == []
+        return
+
     report = gateway.execute(
         envelope_id=envelope.envelope_id,
         approved_at="2026-08-23T11:30:00+02:00",
@@ -2767,6 +2778,8 @@ def test_contract_cockpit_adapter_writes_private_synthesis_after_approval(
 
     assert (output_root / "Hyundai-Cockpit.md").is_file()
     assert (output_root / "Hyundai-Cockpit.json").is_file()
+    assert tmp_path.name not in (output_root / "Hyundai-Cockpit.md").read_text(encoding="utf-8")
+    assert tmp_path.name not in (output_root / "Hyundai-Cockpit.json").read_text(encoding="utf-8")
     assert report.domain_report["contract_status_proven"] is False
     assert report.domain_report["automatic_archive_executed"] is False
     assert report.domain_report["paths_disclosed"] is False
