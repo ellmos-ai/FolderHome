@@ -12,24 +12,27 @@
 `Implementation` says whether a typed adapter exists in the code, not
 whether your installation has it configured. An endpoint only becomes
 `connected` at runtime once its resources are declared.
+Inputs marked `?` are not universally required; a selected operation
+may still require them through its `oneOf` schema. Consult the exact
+runtime request schema before preparing a workflow.
 
 ---
 
 ## Endpoints (auto-generated)
 
 <!-- @auto-generated:capability-index -->
-<!-- last-updated: 2026-09-09 05:00 UTC -->
+<!-- last-updated: 2026-09-09 12:53 UTC -->
 <!-- tool: _tools/capability-index -->
 <!-- count: 33 endpoints -->
 
 | Endpoint | Expert | Purpose | Inputs | Effect | Implementation |
 | --- | --- | --- | --- | --- | --- |
-| `calendar-connectors` | `communication_expert` | Plan a provider-neutral external calendar connector without invoking one. | — | `external_effect` | `no_typed_adapter` |
+| `calendar-connectors` | `communication_expert` | Create Google appointments or review version-bound changes with separate approval. | `account_id`, `accounts_resource_id`, `area`, `configuration_resource_id`, `credential_resource_id`, `ledger_resource_id`, `allow_sensitive_local_read?`, `expected_etag?`, `operation?`, `planned_at?`, `previous_event?`, `recursive?`, `reminders?`, `replacement?`, `source_resource_id?` | `external_effect` | `typed_adapter_available` |
 | `calendar-handoff` | `communication_expert` | Record document appointments in the local calendar and optionally export them as ICS. | `allow_sensitive_local_read`, `area`, `configuration_resource_id`, `planned_at`, `recursive`, `source_resource_id`, `state_resource_id`, `export_basename?`, `export_resource_id?` | `local_state_and_file_write` | `typed_adapter_available` |
 | `contact-register` | `communication_expert` | Extract labeled contact data from documents into the local contact register. | `allow_sensitive_local_read`, `area`, `recursive`, `source_resource_id`, `state_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `correspondence-studio` | `communication_expert` | Render one local letter from a controlled template and design. | `designs_resource_id`, `output_basename`, `output_resource_id`, `request_resource_id`, `templates_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `findcall` | `communication_expert` | Prepare a bounded provider inquiry as a strictly local simulation. | `action`, `area`, `candidates`, `kind`, `location`, `max_distance_km`, `max_price_eur`, `planned_at`, `service`, `windows` | `local_simulation` | `typed_adapter_available` |
-| `mail-connector` | `communication_expert` | Place one prepared letter as a draft in the user's own mailbox; never send. | `account_resource_id`, `designs_resource_id`, `planned_at`, `request_resource_id`, `templates_resource_id` | `external_effect` | `typed_adapter_available` |
+| `mail-connector` | `communication_expert` | Place one prepared letter as a draft in the user's own mailbox; never send. | `account_resource_id`, `designs_resource_id`, `planned_at`, `request_resource_id`, `templates_resource_id`, `expected_preview_id?` | `external_effect` | `typed_adapter_available` |
 | `artifact-studio` | `creative_knowledge_expert` | Plan and render a local presentation, table, card or media artifact. | `business_card`, `colors`, `design_set_id`, `display_name`, `fonts`, `output_basename`, `output_resource_id`, `purpose` | `local_file_write` | `typed_adapter_available` |
 | `personal-notes` | `creative_knowledge_expert` | Store a human-written note as a new revision in the pinned local note store. | `action`, `area`, `notebook_id`, `title`, `expected_revision?`, `human_content?`, `note_id?`, `references?`, `revert_to_revision?` | `local_file_write` | `typed_adapter_available` |
 | `directory-observation` | `document_expert` | Compare an observed folder against its checkpoint without reading document text. | `allow_sensitive_local_read`, `area`, `captured_at`, `interval_minutes`, `recursive`, `source_resource_id`, `state_resource_id`, `watch_id` | `local_file_write` | `typed_adapter_available` |

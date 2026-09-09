@@ -2,34 +2,37 @@
 
 [English](./CAPABILITY-INDEX.md) | **Deutsch**
 
-> **Zweck:** Eine Stelle, die sagt, wofuer ein Endpunkt da ist, was er
+> **Zweck:** Eine Stelle, die sagt, wofür ein Endpunkt da ist, was er
 > braucht und was er bewirken kann.
 > **Quelle:** `folderhome.application.capability_index` — derselbe Index, den
-> der Master-Agent als kompakten Prompt-Auszug erhaelt.
+> der Master-Agent als kompakten Prompt-Auszug erhält.
 > **Auto-generiert:** Der Block zwischen den Markern wird von
-> `_tools/capability-index` geschrieben. Text ausserhalb bleibt unberuehrt.
+> `_tools/capability-index` geschrieben. Text außerhalb bleibt unberührt.
 
 `Umsetzung` sagt, ob im Code ein typisierter Adapter existiert, nicht ob
 die eigene Installation ihn konfiguriert hat. Ein Endpunkt wird erst zur
 Laufzeit `connected`, wenn seine Ressourcen deklariert sind.
+Mit `?` markierte Eingaben sind nicht allgemein verpflichtend; die
+gewählte Operation kann sie über ihr `oneOf`-Schema trotzdem verlangen.
+Vor der Vorbereitung gilt das genaue Laufzeit-Anfrageschema.
 
 ---
 
 ## Endpunkte (auto-generiert)
 
 <!-- @auto-generated:capability-index -->
-<!-- last-updated: 2026-09-09 05:00 UTC -->
+<!-- last-updated: 2026-09-09 12:53 UTC -->
 <!-- tool: _tools/capability-index -->
 <!-- count: 33 endpoints -->
 
 | Endpunkt | Fachrolle | Zweck | Eingaben | Wirkung | Umsetzung |
 | --- | --- | --- | --- | --- | --- |
-| `calendar-connectors` | `communication_expert` | Einen providerneutralen externen Kalender-Connector planen, ohne ihn aufzurufen. | — | `external_effect` | `no_typed_adapter` |
+| `calendar-connectors` | `communication_expert` | Google-Termine anlegen oder versionsgebundene Änderungen mit eigener Freigabe prüfen. | `account_id`, `accounts_resource_id`, `area`, `configuration_resource_id`, `credential_resource_id`, `ledger_resource_id`, `allow_sensitive_local_read?`, `expected_etag?`, `operation?`, `planned_at?`, `previous_event?`, `recursive?`, `reminders?`, `replacement?`, `source_resource_id?` | `external_effect` | `typed_adapter_available` |
 | `calendar-handoff` | `communication_expert` | Dokumenttermine im lokalen Kalender festhalten und auf Wunsch als ICS exportieren. | `allow_sensitive_local_read`, `area`, `configuration_resource_id`, `planned_at`, `recursive`, `source_resource_id`, `state_resource_id`, `export_basename?`, `export_resource_id?` | `local_state_and_file_write` | `typed_adapter_available` |
 | `contact-register` | `communication_expert` | Gelabelte Kontaktdaten aus Dokumenten in das lokale Kontaktregister übernehmen. | `allow_sensitive_local_read`, `area`, `recursive`, `source_resource_id`, `state_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `correspondence-studio` | `communication_expert` | Einen lokalen Brief aus geprüfter Vorlage und Gestaltung erzeugen. | `designs_resource_id`, `output_basename`, `output_resource_id`, `request_resource_id`, `templates_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `findcall` | `communication_expert` | Eine begrenzte Anbieteranfrage als strikt lokale Simulation vorbereiten. | `action`, `area`, `candidates`, `kind`, `location`, `max_distance_km`, `max_price_eur`, `planned_at`, `service`, `windows` | `local_simulation` | `typed_adapter_available` |
-| `mail-connector` | `communication_expert` | Ein vorbereitetes Schreiben als Entwurf im eigenen Postfach ablegen; nie senden. | `account_resource_id`, `designs_resource_id`, `planned_at`, `request_resource_id`, `templates_resource_id` | `external_effect` | `typed_adapter_available` |
+| `mail-connector` | `communication_expert` | Ein vorbereitetes Schreiben als Entwurf im eigenen Postfach ablegen; nie senden. | `account_resource_id`, `designs_resource_id`, `planned_at`, `request_resource_id`, `templates_resource_id`, `expected_preview_id?` | `external_effect` | `typed_adapter_available` |
 | `artifact-studio` | `creative_knowledge_expert` | Eine lokale Präsentation, Tabelle, Karte oder Mediendatei planen und erzeugen. | `business_card`, `colors`, `design_set_id`, `display_name`, `fonts`, `output_basename`, `output_resource_id`, `purpose` | `local_file_write` | `typed_adapter_available` |
 | `personal-notes` | `creative_knowledge_expert` | Eine menschlich geschriebene Notiz als neue Revision im gepinnten Notizspeicher ablegen. | `action`, `area`, `notebook_id`, `title`, `expected_revision?`, `human_content?`, `note_id?`, `references?`, `revert_to_revision?` | `local_file_write` | `typed_adapter_available` |
 | `directory-observation` | `document_expert` | Einen beobachteten Ordner gegen seinen Prüfpunkt vergleichen, ohne Dokumenttext zu lesen. | `allow_sensitive_local_read`, `area`, `captured_at`, `interval_minutes`, `recursive`, `source_resource_id`, `state_resource_id`, `watch_id` | `local_file_write` | `typed_adapter_available` |

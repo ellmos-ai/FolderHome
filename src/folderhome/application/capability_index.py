@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from folderhome.application import workflow_execution
+from folderhome.application.google_calendar_workflow import GoogleCalendarWorkflowAdapter
 from folderhome.application.master_agent import master_capability_catalog
 from folderhome.application.scheduler_workflow import SchedulerRegistrationWorkflowAdapter
 from folderhome.contracts.workflow_execution import WorkflowAdapterDescriptor
@@ -35,8 +36,8 @@ _PURPOSES: dict[str, tuple[str, str]] = {
         "Ein lokales Leistungsprofil gegen datierte Kriterien abgleichen, nur als Orientierung.",
     ),
     "calendar-connectors": (
-        "Plan a provider-neutral external calendar connector without invoking one.",
-        "Einen providerneutralen externen Kalender-Connector planen, ohne ihn aufzurufen.",
+        "Create Google appointments or review version-bound changes with separate approval.",
+        "Google-Termine anlegen oder versionsgebundene Änderungen mit eigener Freigabe prüfen.",
     ),
     "calendar-handoff": (
         "Record document appointments in the local calendar and optionally export them as ICS.",
@@ -208,7 +209,11 @@ def adapter_descriptors() -> dict[str, WorkflowAdapterDescriptor]:
     """Collect every typed adapter descriptor without instantiating an adapter."""
 
     scheduler = SchedulerRegistrationWorkflowAdapter.descriptor
-    descriptors: dict[str, WorkflowAdapterDescriptor] = {scheduler.workflow_id: scheduler}
+    google = GoogleCalendarWorkflowAdapter.descriptor
+    descriptors: dict[str, WorkflowAdapterDescriptor] = {
+        scheduler.workflow_id: scheduler,
+        google.workflow_id: google,
+    }
     for name in workflow_execution.__all__:
         if not name.endswith("WorkflowAdapter"):
             continue

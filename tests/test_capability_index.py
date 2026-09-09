@@ -10,6 +10,7 @@ from folderhome.application.capability_index import (
     capability_index_prompt_excerpt,
     master_capability_index,
 )
+from folderhome.application.google_calendar_workflow import GoogleCalendarWorkflowAdapter
 from folderhome.application.master_agent import (
     master_capability_catalog,
     master_expert_catalog,
@@ -21,9 +22,7 @@ def test_index_covers_every_catalog_endpoint_exactly_once() -> None:
     index = master_capability_index()
 
     assert len(index) == len(catalog)
-    assert {item.workflow_id for item in index} == {
-        item.workflow_id for item in catalog
-    }
+    assert {item.workflow_id for item in index} == {item.workflow_id for item in catalog}
     assert len({item.workflow_id for item in index}) == len(index)
 
 
@@ -50,8 +49,37 @@ def test_index_reads_inputs_from_the_adapter_request_schema() -> None:
     assert "export_basename" in calendar.optional_inputs
 
     connectors = index["calendar-connectors"]
-    assert connectors.required_inputs == ()
-    assert connectors.implementation == "no_typed_adapter"
+    assert connectors.implementation == "typed_adapter_available"
+    assert set(connectors.required_inputs) == {
+        "configuration_resource_id",
+        "accounts_resource_id",
+        "credential_resource_id",
+        "ledger_resource_id",
+        "account_id",
+        "area",
+    }
+    assert {"operation", "previous_event", "expected_etag", "replacement"} <= set(
+        connectors.optional_inputs
+    )
+    assert descriptors["calendar-connectors"] is GoogleCalendarWorkflowAdapter.descriptor
+
+
+def test_google_index_can_be_read_without_instantiating_an_adapter(monkeypatch) -> None:
+    def forbidden(*args, **kwargs):
+        raise AssertionError(
+            "A static index must not create an adapter or access private resources"
+        )
+
+    monkeypatch.setattr(GoogleCalendarWorkflowAdapter, "__init__", forbidden)
+    for language in ("en", "de"):
+        payload = capability_index_document(language=language)
+        entry = next(
+            item for item in payload["entries"] if item["workflow_id"] == "calendar-connectors"
+        )
+        assert entry["implementation"] == "typed_adapter_available"
+        assert entry["side_effects"] == ["external.calendar.write"]
+        assert "credential_resource_id" in entry["required_inputs"]
+        assert "expected_etag" in entry["optional_inputs"]
 
 
 def test_index_states_code_availability_not_runtime_connection() -> None:
@@ -63,9 +91,16 @@ def test_index_states_code_availability_not_runtime_connection() -> None:
     scheduler = index["scheduler-handoff"]
     assert scheduler.implementation == "typed_adapter_available"
     assert set(scheduler.required_inputs) == {
-        "watches_resource_id", "bindings_resource_id", "store_resource_id",
-        "ledger_resource_id", "state_resource_id", "task_name", "interval_minutes",
-        "start_at", "timezone", "allow_sensitive_local_read",
+        "watches_resource_id",
+        "bindings_resource_id",
+        "store_resource_id",
+        "ledger_resource_id",
+        "state_resource_id",
+        "task_name",
+        "interval_minutes",
+        "start_at",
+        "timezone",
+        "allow_sensitive_local_read",
     }
 
 
@@ -110,11 +145,7 @@ def test_eight_expert_roles_partition_the_catalog() -> None:
     assert len(assigned) == len(set(assigned))
     assert set(assigned) == {item.workflow_id for item in catalog}
     for capability in catalog:
-        owner = next(
-            expert
-            for expert in experts
-            if capability.workflow_id in expert.workflow_ids
-        )
+        owner = next(expert for expert in experts if capability.workflow_id in expert.workflow_ids)
         assert owner.expert_id == capability.expert_id
 
 
@@ -130,9 +161,7 @@ def test_prompt_excerpt_is_compact_grouped_and_path_free() -> None:
 
 
 def test_prompt_excerpt_and_markdown_share_the_same_purpose_text() -> None:
-    entry = next(
-        item for item in master_capability_index() if item.workflow_id == "mail-connector"
-    )
+    entry = next(item for item in master_capability_index() if item.workflow_id == "mail-connector")
 
     assert entry.purpose_en in capability_index_prompt_excerpt(language="en")
     assert entry.purpose_en in capability_index_markdown(language="en")
