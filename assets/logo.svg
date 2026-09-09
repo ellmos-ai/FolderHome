@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 200" width="100%" height="100%">
   <defs>
     <style type="text/css">
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;700;800&amp;family=JetBrains+Mono:wght@600&amp;display=swap');
-      .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .font-sans { font-family: 'Segoe UI', sans-serif; }
+      .font-mono { font-family: Consolas, monospace; }
     </style>
 
     <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -117,7 +116,7 @@
 
       <rect x="210" y="0" width="195" height="26" rx="13" fill="#1E293B" stroke="#D97706" stroke-width="1"/>
       <circle cx="222" cy="13" r="3.5" fill="#FBBF24"/>
-      <text x="234" y="17" font-size="10.5" font-weight="700" fill="#FDE68A">26 Connected Workflows</text>
+      <text x="234" y="17" font-size="10.5" font-weight="700" fill="#FDE68A">Gated Home Workflows</text>
     </g>
   </g>
 </svg>

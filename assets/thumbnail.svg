@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="100%" height="100%">
   <defs>
     <style type="text/css">
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap');
-      .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .font-sans { font-family: 'Segoe UI', sans-serif; }
+      .font-mono { font-family: Consolas, monospace; }
     </style>
 
     <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -133,7 +132,7 @@
       <line x1="10" y1="46" x2="64" y2="46" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <line x1="10" y1="56" x2="80" y2="56" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <rect x="10" y="90" width="52" height="18" rx="4" fill="#0284C7" fill-opacity="0.3"/>
-      <text x="36" y="102" font-family="'JetBrains Mono', monospace" font-size="8.5" fill="#7DD3FC" font-weight="700" text-anchor="middle">CONTRACT</text>
+      <text x="36" y="102" font-family="Consolas, monospace" font-size="8.5" fill="#7DD3FC" font-weight="700" text-anchor="middle">CONTRACT</text>
     </g>
 
     <!-- Floating Doc 2: Health Dossier -->
@@ -150,7 +149,7 @@
       <line x1="34" y1="52" x2="72" y2="52" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <line x1="10" y1="68" x2="88" y2="68" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <rect x="10" y="96" width="52" height="18" rx="4" fill="#059669" fill-opacity="0.3"/>
-      <text x="36" y="108" font-family="'JetBrains Mono', monospace" font-size="8.5" fill="#6EE7B7" font-weight="700" text-anchor="middle">HEALTH</text>
+      <text x="36" y="108" font-family="Consolas, monospace" font-size="8.5" fill="#6EE7B7" font-weight="700" text-anchor="middle">HEALTH</text>
     </g>
 
     <!-- Main FolderHome Motif -->
@@ -207,7 +206,7 @@
       <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">01 · Local FTS Document Index &amp; Natural Search</text>
       <!-- Badge -->
       <rect x="545" y="22" width="125" height="24" rx="12" fill="#0369A1" fill-opacity="0.4"/>
-      <text x="607.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#7DD3FC" text-anchor="middle">LOCAL-FIRST</text>
+      <text x="607.5" y="38" font-family="Consolas, monospace" font-size="10" font-weight="700" fill="#7DD3FC" text-anchor="middle">LOCAL-FIRST</text>
 
       <!-- Descriptions -->
       <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
@@ -229,7 +228,7 @@
       <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">02 · Gated Planning &amp; Scoped Specialists</text>
       <!-- Badge -->
       <rect x="515" y="22" width="155" height="24" rx="12" fill="#92400E" fill-opacity="0.4"/>
-      <text x="592.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#FDE68A" text-anchor="middle">26 WORKFLOWS</text>
+      <text x="592.5" y="38" font-family="Consolas, monospace" font-size="10" font-weight="700" fill="#FDE68A" text-anchor="middle">EXACT APPROVAL</text>
 
       <!-- Descriptions -->
       <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
@@ -251,14 +250,14 @@
       <text x="68" y="38" font-size="16" font-weight="800" fill="#FFFFFF">03 · Fail-Closed &amp; Reversible File Actions</text>
       <!-- Badge -->
       <rect x="535" y="22" width="135" height="24" rx="12" fill="#065F46" fill-opacity="0.4"/>
-      <text x="602.5" y="38" font-family="'JetBrains Mono', monospace" font-size="10" font-weight="700" fill="#A7F3D0" text-anchor="middle">FAIL-CLOSED</text>
+      <text x="602.5" y="38" font-family="Consolas, monospace" font-size="10" font-weight="700" fill="#A7F3D0" text-anchor="middle">FAIL-CLOSED</text>
 
       <!-- Descriptions -->
       <text x="68" y="68" font-size="13" font-weight="500" fill="#94A3B8">
         Strict default deny. Separate planning, exact /confirm ID verification &amp; full audit.
       </text>
       <text x="68" y="90" font-size="13" font-weight="500" fill="#94A3B8">
-        Reversible file actions ensure older drafts and changes can be safely undone.
+        Undo is available only for supported file actions; external effects need reconciliation.
       </text>
     </g>
 
@@ -270,7 +269,7 @@
 
     <g transform="translate(24, 24)">
       <circle cx="0" cy="-4" r="4" fill="#34D399"/>
-      <text x="12" y="0" fill="#A7F3D0">36 OF 36 PHASES IMPLEMENTED</text>
+      <text x="12" y="0" fill="#A7F3D0">EXPLICIT PLAN APPROVAL</text>
     </g>
 
     <g transform="translate(340, 24)">
@@ -280,7 +279,7 @@
 
     <g transform="translate(620, 24)">
       <circle cx="0" cy="-4" r="4" fill="#38BDF8"/>
-      <text x="12" y="0" fill="#BAE6FD">26 CONNECTED WORKFLOWS</text>
+      <text x="12" y="0" fill="#BAE6FD">GATED HOME WORKFLOWS</text>
     </g>
 
     <g transform="translate(950, 24)">

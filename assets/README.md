@@ -4,9 +4,9 @@
 
 > Assistantify your home.
 
-**Version:** 1.2  
+**Version:** 1.3  
 **Repository:** [https://github.com/ellmos-ai/FolderHome](https://github.com/ellmos-ai/FolderHome)  
-**Positioning:** Local-first Strands agent for household documents, 26 connected workflows, explicit cloud gates, and reversible file actions.
+**Positioning:** Local-first Strands agent for household documents, gated home workflows, explicit cloud gates, and reversible file actions.
 
 ---
 
@@ -28,15 +28,19 @@
 
 ---
 
-## 📦 Canonical Brand & Product Assets (Production-Ready)
+## 📦 Canonical Brand & Product Assets
 
-All vector SVGs and high-DPI raster PNGs are publication-ready, factually harmonized with Phase 36, and free of visual artifacts or text overflows.
+Banner, horizontal logo and both thumbnails were refreshed on 9 September 2026.
+Workflow availability depends on configured resources and gates; consult the
+[runtime capability index](../CAPABILITY-INDEX.md), not a fixed badge count.
+These brand images are not live-service acceptance evidence. For the current
+component and approval map, see [product architecture](../docs/submission/PRODUCT_ARCHITECTURE.svg).
 
 | File | Type | Dimensions | Purpose / Description |
 |---|---|---|---|
-| [`banner.svg`](./banner.svg) | Vector SVG | 1200 × 340 | Responsive vector GitHub repo banner with FolderHome emblem, document matrix, and 4 precise feature pills (*Gated Execution*, *Reversible File Actions*, *Explicit Cloud Gates*, *26 Connected Workflows*). |
+| [`banner.svg`](./banner.svg) | Vector SVG | 1200 × 340 | Responsive vector GitHub repo banner with FolderHome emblem, document matrix, and 4 precise feature pills (*Gated Execution*, *Reversible File Actions*, *Explicit Cloud Gates*, *Gated Home Workflows*). |
 | [`banner.png`](./banner.png) | Raster PNG (@2x) | 2400 × 680 | High-DPI rendered GitHub header banner for README and release headers. |
-| [`logo.svg`](./logo.svg) | Vector SVG | 800 × 200 | Horizontal brand lockup (Emblem + Wordmark + Subtitle + 26 Connected Workflows). |
+| [`logo.svg`](./logo.svg) | Vector SVG | 800 × 200 | Horizontal brand lockup (Emblem + Wordmark + Subtitle + Gated Home Workflows). |
 | [`logo.png`](./logo.png) | Raster PNG (@2x) | 1600 × 400 | High-DPI horizontal logo for web headers, docs, and presentations. |
 | [`logo_vertical.svg`](./logo_vertical.svg) | Vector SVG | 500 × 500 | Centered / stacked brand logo lockup. |
 | [`logo_vertical.png`](./logo_vertical.png) | Raster PNG (@2x) | 1000 × 1000 | Centered stacked logo for square avatars and card layouts. |
@@ -46,7 +50,7 @@ All vector SVGs and high-DPI raster PNGs are publication-ready, factually harmon
 | [`favicon.png`](./favicon.png) | Raster PNG | 64 × 64 | 64px browser favicon. |
 | [`thumbnail.svg`](./thumbnail.svg) | Vector SVG | 1280 × 720 | 16:9 Video and showcase thumbnail with generous padding, clean multi-line wrapping, and 3 architecture pillars. |
 | [`thumbnail.png`](./thumbnail.png) | Raster PNG (@2x) | 2560 × 1440 | 16:9 High-impact showcase thumbnail for YouTube, Devpost, and OpenGraph preview. |
-| [`thumbnail_features.svg`](./thumbnail_features.svg) | Vector SVG | 1280 × 720 | 16:9 4-Pillar Feature Matrix (*Local FTS Document Ingestion*, *Gated Planning & Governance*, *26 Connected Workflows*, *Reversible File Actions*). |
+| [`thumbnail_features.svg`](./thumbnail_features.svg) | Vector SVG | 1280 × 720 | 16:9 4-Pillar Feature Matrix (*Local FTS Document Ingestion*, *Gated Planning & Governance*, *Gated Home Workflows*, *Explicit Approval & Effect Evidence*). |
 | [`thumbnail_features.png`](./thumbnail_features.png) | Raster PNG (@2x) | 2560 × 1440 | 16:9 Rendered feature matrix slide for Devpost and video presentations. |
 
 ---
@@ -54,7 +58,7 @@ All vector SVGs and high-DPI raster PNGs are publication-ready, factually harmon
 ## 💡 Exploratory Concept Art (Moodboard)
 
 > [!NOTE]
-> The following renderings are generative **design concept studies** for visual moodboards and social media teasers. They contain model-generated text and UI artifacts and do **not** serve as product or architectural evidence. The canonical product architecture is defined strictly by the vector diagrams and code assets above.
+> The following renderings are generative **design concept studies** for visual moodboards and social media teasers. They contain model-generated text and UI artifacts and do **not** serve as product or architectural evidence. The current product architecture is described in [ARCHITECTURE.md](../ARCHITECTURE.md), not by these moodboards.
 
 | File | Type | Dimensions | Purpose / Status |
 |---|---|---|---|
@@ -67,22 +71,51 @@ All vector SVGs and high-DPI raster PNGs are publication-ready, factually harmon
 ## 🚀 Markdown Integration
 
 ### Header Banner
+
 ```markdown
 <img src="assets/banner.png" width="100%" alt="FolderHome Banner">
 ```
 
 ### Social / OpenGraph Card
+
 ```html
 <meta property="og:image" content="https://raw.githubusercontent.com/ellmos-ai/FolderHome/main/assets/thumbnail.png" />
 <meta property="og:title" content="FolderHome — Assistantify your home." />
-<meta property="og:description" content="Local-first Strands agent for household documents, 26 connected workflows, explicit cloud gates, and reversible file actions." />
+<meta property="og:description" content="Local-first Strands agent for household documents, gated home workflows, explicit cloud gates, and reversible file actions." />
 ```
 
 ### Badges
+
 ```markdown
 [![Local-First](https://img.shields.io/badge/architecture-local--first-blue.svg)](https://github.com/ellmos-ai/FolderHome)
 [![Strands Agent](https://img.shields.io/badge/strands--agents-1.53.0-orange.svg)](https://github.com/ellmos-ai/FolderHome)
 [![Fail-Closed](https://img.shields.io/badge/security-fail--closed-green.svg)](https://github.com/ellmos-ai/FolderHome)
-[![26 Workflows](https://img.shields.io/badge/workflows-26%20connected-purple.svg)](https://github.com/ellmos-ai/FolderHome)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Gated Workflows](https://img.shields.io/badge/workflows-gated-purple.svg)](https://github.com/ellmos-ai/FolderHome)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+```
+
+## Reproducible raster export
+
+The four refreshed SVGs need no remote fonts. PNG export uses
+`resvg-py==0.5.0`, Segoe UI, Consolas and Segoe UI Symbol from a local Windows
+installation; font files are not distributed. Other font versions can produce
+different bytes. Existing @2x dimensions are retained. Python example from
+the repository root:
+
+```python
+from pathlib import Path
+import resvg_py
+
+fonts = [str(Path('C:/Windows/Fonts') / name) for name in
+         ('segoeui.ttf', 'segoeuib.ttf', 'consola.ttf', 'consolab.ttf', 'seguisym.ttf')]
+for name, (width, height) in {
+    'banner': (2400, 680), 'logo': (1600, 400),
+    'thumbnail': (2560, 1440), 'thumbnail_features': (2560, 1440),
+}.items():
+    png = resvg_py.svg_to_bytes(
+        svg_string=Path('assets', name + '.svg').read_text(encoding='utf-8'),
+        width=width, height=height, skip_system_fonts=True, font_files=fonts,
+        sans_serif_family='Segoe UI', monospace_family='Consolas',
+    )
+    Path('assets', name + '.png').write_bytes(png)
 ```

@@ -1,9 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="100%" height="100%">
   <defs>
     <style type="text/css">
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap');
-      .font-sans { font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-      .font-mono { font-family: 'JetBrains Mono', monospace; }
+      .font-sans { font-family: 'Segoe UI', sans-serif; }
+      .font-mono { font-family: Consolas, monospace; }
     </style>
 
     <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -65,13 +64,13 @@
       <text x="58" y="31" font-size="15" font-weight="800" fill="#E0F2FE">01 · SMART DOCUMENT INGESTION</text>
 
       <g transform="translate(24, 74)" font-size="12.5" font-weight="500" fill="#94A3B8">
-        <text y="0" fill="#F8FAFC" font-weight="700">✓ KnowledgeDigest Read-Only Index</text>
+        <text y="0" fill="#F8FAFC" font-weight="700">• KnowledgeDigest Read-Only Index</text>
         <text y="20">Normalized SQLite FTS queries and natural-language document search</text>
 
-        <text y="52" fill="#F8FAFC" font-weight="700">✓ Multi-Format &amp; Version Awareness</text>
+        <text y="52" fill="#F8FAFC" font-weight="700">• Multi-Format &amp; Version Awareness</text>
         <text y="72">Parses PDF, TXT, scans, version diffs and archive candidates</text>
 
-        <text y="104" fill="#F8FAFC" font-weight="700">✓ Topic Dossiers &amp; Folder Reports</text>
+        <text y="104" fill="#F8FAFC" font-weight="700">• Topic Dossiers &amp; Folder Reports</text>
         <text y="124">Automatic synthesis across distributed household records</text>
       </g>
     </g>
@@ -86,35 +85,35 @@
       <text x="58" y="31" font-size="15" font-weight="800" fill="#FEF3C7">02 · GATED PLANNING &amp; GOVERNANCE</text>
 
       <g transform="translate(24, 74)" font-size="12.5" font-weight="500" fill="#94A3B8">
-        <text y="0" fill="#F8FAFC" font-weight="700">✓ strands.Agent 1.53.0 Master Architecture</text>
+        <text y="0" fill="#F8FAFC" font-weight="700">• strands.Agent 1.53.0 Master Architecture</text>
         <text y="20">Sequential bounded tool executor with deterministic fixtures</text>
 
-        <text y="52" fill="#F8FAFC" font-weight="700">✓ Scoped Specialist Subagents</text>
+        <text y="52" fill="#F8FAFC" font-weight="700">• Scoped Specialist Subagents</text>
         <text y="72">Dedicated planners for notes, medications, tax, and calendar</text>
 
-        <text y="104" fill="#F8FAFC" font-weight="700">✓ Finite Resource Budgets &amp; Explicit Cloud Gates</text>
+        <text y="104" fill="#F8FAFC" font-weight="700">• Finite Resource Budgets &amp; Explicit Cloud Gates</text>
         <text y="124">Amazon Bedrock guarded by --allow-network &amp; sensitive data gate</text>
       </g>
     </g>
 
-    <!-- Pillar 3: 26 Connected Workflows (Bottom Left) -->
+    <!-- Pillar 3: Gated Home Workflows (Bottom Left) -->
     <g transform="translate(0, 250)">
       <rect width="560" height="230" rx="16" fill="#0C1322" stroke="#10B981" stroke-width="1.5" filter="url(#soft-shadow)"/>
       <rect width="560" height="50" rx="16" fill="#065F46" fill-opacity="0.15"/>
 
       <circle cx="34" cy="25" r="13" fill="#064E3B" stroke="#34D399" stroke-width="1.4"/>
       <path d="M 28 27 L 34 21 L 40 27 V 31 H 28 Z" fill="none" stroke="#34D399" stroke-width="1.6"/>
-      <text x="58" y="31" font-size="15" font-weight="800" fill="#D1FAE5">03 · 26 CONNECTED HOME WORKFLOWS</text>
+      <text x="58" y="31" font-size="15" font-weight="800" fill="#D1FAE5">03 · GATED HOME WORKFLOWS</text>
 
       <g transform="translate(24, 74)" font-size="12.5" font-weight="500" fill="#94A3B8">
-        <text y="0" fill="#F8FAFC" font-weight="700">✓ Contracts, Cockpits &amp; Subscriptions</text>
-        <text y="20">Automatic term tracking, cancellation notice and evidence links</text>
+        <text y="0" fill="#F8FAFC" font-weight="700">• Staged Recipes &amp; Confirmed Results</text>
+        <text y="20">Each section binds prior results and needs fresh exact approval</text>
 
-        <text y="52" fill="#F8FAFC" font-weight="700">✓ Health Dossiers &amp; Medication Schedules</text>
-        <text y="72">Medical timeline extraction &amp; confirmed dosage tracking</text>
+        <text y="52" fill="#F8FAFC" font-weight="700">• Health Dossiers &amp; Medication Schedules</text>
+        <text y="72">Organize supplied records and confirmed intake; no diagnosis</text>
 
-        <text y="104" fill="#F8FAFC" font-weight="700">✓ Finance, Official Notices &amp; ICS Calendar</text>
-        <text y="124">33 verified endpoints across document and household services</text>
+        <text y="104" fill="#F8FAFC" font-weight="700">• Calendar, Mail Drafts &amp; Scheduler</text>
+        <text y="124">Optional connectors need private resources and separate gates</text>
       </g>
     </g>
 
@@ -126,17 +125,17 @@
       <circle cx="34" cy="25" r="13" fill="#3B0764" stroke="#A78BFA" stroke-width="1.4"/>
       <rect x="30" y="23" width="8" height="7" rx="1" fill="none" stroke="#C084FC" stroke-width="1.4"/>
       <path d="M 31.5 23 V 21 C 31.5 19.5 32.5 18.5 34 18.5 C 35.5 18.5 36.5 19.5 36.5 21 V 23" fill="none" stroke="#C084FC" stroke-width="1.4"/>
-      <text x="58" y="31" font-size="15" font-weight="800" fill="#EDE9FE">04 · LOCAL-FIRST PRIVACY &amp; REVERSIBLE ACTIONS</text>
+      <text x="58" y="31" font-size="15" font-weight="800" fill="#EDE9FE">04 · EXPLICIT APPROVAL &amp; EFFECT EVIDENCE</text>
 
       <g transform="translate(24, 74)" font-size="12.5" font-weight="500" fill="#94A3B8">
-        <text y="0" fill="#F8FAFC" font-weight="700">✓ Strict Default Deny &amp; Never-Overwrite Policy</text>
+        <text y="0" fill="#F8FAFC" font-weight="700">• Default Deny &amp; Concrete Plan Binding</text>
         <text y="20">Chat never executes writes directly without exact plan confirmation</text>
 
-        <text y="52" fill="#F8FAFC" font-weight="700">✓ Exact /confirm &lt;plan_id&gt; Verification</text>
+        <text y="52" fill="#F8FAFC" font-weight="700">• Exact /confirm &lt;plan_id&gt; Verification</text>
         <text y="72">Deterministic plan hashes and separate execution confirmation</text>
 
-        <text y="104" fill="#F8FAFC" font-weight="700">✓ Reversible File Actions &amp; Audited Changes</text>
-        <text y="124">Older drafts and changes can be safely rolled back and audited</text>
+        <text y="104" fill="#F8FAFC" font-weight="700">• Scoped Undo &amp; Retained Effect Evidence</text>
+        <text y="124">Undo only where supported; reset does not erase confirmed effects</text>
       </g>
     </g>
 
@@ -144,6 +143,6 @@
 
   <!-- ==================== FOOTER ==================== -->
   <g transform="translate(60, 672)" class="font-mono" font-size="11.5" font-weight="600" fill="#64748B">
-    <text>https://github.com/ellmos-ai/FolderHome · MIT License · Local-First Architecture · 26 Connected Workflows</text>
+    <text>https://github.com/ellmos-ai/FolderHome · MIT License · Local-First Architecture · Gated Home Workflows</text>
   </g>
 </svg>

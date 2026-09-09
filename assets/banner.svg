@@ -1,13 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="100%" height="100%">
   <defs>
     <style type="text/css">
-      @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap');
 
       .font-sans {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: 'Segoe UI', sans-serif;
       }
       .font-mono {
-        font-family: 'JetBrains Mono', monospace;
+        font-family: Consolas, monospace;
       }
 
       @keyframes float-y {
@@ -163,7 +162,7 @@
       <line x1="8" y1="52" x2="72" y2="52" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <line x1="8" y1="62" x2="48" y2="62" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <rect x="8" y="78" width="46" height="16" rx="4" fill="#0284C7" fill-opacity="0.3"/>
-      <text x="31" y="90" font-family="'JetBrains Mono', monospace" font-size="8" fill="#7DD3FC" font-weight="600" text-anchor="middle">CONTRACT</text>
+      <text x="31" y="90" font-family="Consolas, monospace" font-size="8" fill="#7DD3FC" font-weight="600" text-anchor="middle">CONTRACT</text>
     </g>
 
     <!-- Floating Document 2: Health / Meds (Top Right) -->
@@ -180,7 +179,7 @@
       <line x1="8" y1="62" x2="78" y2="62" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <line x1="8" y1="72" x2="52" y2="72" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <rect x="8" y="84" width="44" height="16" rx="4" fill="#059669" fill-opacity="0.3"/>
-      <text x="30" y="96" font-family="'JetBrains Mono', monospace" font-size="8" fill="#6EE7B7" font-weight="600" text-anchor="middle">DOSSIER</text>
+      <text x="30" y="96" font-family="Consolas, monospace" font-size="8" fill="#6EE7B7" font-weight="600" text-anchor="middle">DOSSIER</text>
     </g>
 
     <!-- Floating Document 3: Finance / Tax / Receipts (Bottom Right) -->
@@ -191,7 +190,7 @@
       <polyline points="10,54 28,44 46,48 64,36 76,30" fill="none" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       <line x1="8" y1="66" x2="76" y2="66" stroke="#475569" stroke-width="2" stroke-linecap="round"/>
       <rect x="8" y="74" width="42" height="14" rx="3" fill="#D97706" fill-opacity="0.3"/>
-      <text x="29" y="84" font-family="'JetBrains Mono', monospace" font-size="8" fill="#FDE68A" font-weight="600" text-anchor="middle">FINANCE</text>
+      <text x="29" y="84" font-family="Consolas, monospace" font-size="8" fill="#FDE68A" font-weight="600" text-anchor="middle">FINANCE</text>
     </g>
 
     <!-- ================= MAIN EMBLEM: FOLDER + HOUSE + SHIELD VAULT ================= -->
@@ -293,12 +292,12 @@
         <text x="29" y="21" font-size="11" font-weight="700" fill="#A7F3D0">Explicit Cloud Gates</text>
       </g>
 
-      <!-- Badge 4: 26 Connected Workflows -->
+      <!-- Badge 4: Gated Home Workflows -->
       <g transform="translate(490, 0)">
         <rect width="170" height="34" rx="8" fill="#3B0764" fill-opacity="0.4" stroke="#7C3AED" stroke-width="1.2"/>
         <circle cx="18" cy="17" r="4.5" fill="none" stroke="#C084FC" stroke-width="1.4"/>
         <path d="M 13 24 C 13 21.5 15.5 20.5 18 20.5 C 20.5 20.5 23 21.5 23 24" fill="none" stroke="#C084FC" stroke-width="1.4"/>
-        <text x="28" y="21" font-size="11" font-weight="700" fill="#E9D5FF">26 Connected Workflows</text>
+        <text x="28" y="21" font-size="11" font-weight="700" fill="#E9D5FF">Gated Home Workflows</text>
       </g>
     </g>
 
