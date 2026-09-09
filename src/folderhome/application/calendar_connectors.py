@@ -48,9 +48,7 @@ class CalendarConnectorGateway(Protocol):
 
 
 def load_calendar_connector_accounts(path: Path) -> tuple[CalendarConnectorAccount, ...]:
-    return parse_calendar_connector_accounts(
-        _load_json_object(path, "Kalenderconnectorkonten")
-    )
+    return parse_calendar_connector_accounts(_load_json_object(path, "Kalenderconnectorkonten"))
 
 
 def parse_calendar_connector_accounts(
@@ -60,17 +58,13 @@ def parse_calendar_connector_accounts(
 
     _strict_fields(payload, {"schema", "accounts"}, "Kalenderconnectorkonten")
     if payload.get("schema") != "folderhome.calendar-connector-accounts.v1":
-        raise CalendarConnectorError(
-            "Kalenderconnectorkonten verwenden ein unbekanntes Schema."
-        )
+        raise CalendarConnectorError("Kalenderconnectorkonten verwenden ein unbekanntes Schema.")
     raw_accounts = payload.get("accounts")
     if not isinstance(raw_accounts, list) or not raw_accounts:
         raise CalendarConnectorError(
             "Kalenderconnectorkonten benötigen eine nichtleere accounts-Liste."
         )
-    accounts = tuple(
-        _parse_account(item, index) for index, item in enumerate(raw_accounts)
-    )
+    accounts = tuple(_parse_account(item, index) for index, item in enumerate(raw_accounts))
     ids = [item.account_id for item in accounts]
     if len(ids) != len(set(ids)):
         raise CalendarConnectorError("Kalenderconnectorkonto-IDs müssen eindeutig sein.")
@@ -85,9 +79,7 @@ def load_calendar_connector_request(path: Path) -> CalendarConnectorRequest:
         "Kalenderconnector-Anfrage",
     )
     if payload.get("schema") != CalendarConnectorRequest.SCHEMA:
-        raise CalendarConnectorError(
-            "Kalenderconnector-Anfrage verwendet ein unbekanntes Schema."
-        )
+        raise CalendarConnectorError("Kalenderconnector-Anfrage verwendet ein unbekanntes Schema.")
     raw_operations = payload.get("operations")
     raw_reminders = payload.get("reminders")
     if not isinstance(raw_operations, list) or not all(
@@ -98,9 +90,7 @@ def load_calendar_connector_request(path: Path) -> CalendarConnectorRequest:
         raise CalendarConnectorError("Kalenderconnector-Anfrage benötigt Erinnerungen.")
     try:
         operations = tuple(CalendarConnectorOperation(item) for item in raw_operations)
-        reminders = tuple(
-            _parse_reminder(item, index) for index, item in enumerate(raw_reminders)
-        )
+        reminders = tuple(_parse_reminder(item, index) for index, item in enumerate(raw_reminders))
         return CalendarConnectorRequest(
             request_id=_text(payload, "request_id", "Kalenderconnector-Anfrage"),
             profile_id=_text(payload, "profile_id", "Kalenderconnector-Anfrage"),
@@ -109,9 +99,7 @@ def load_calendar_connector_request(path: Path) -> CalendarConnectorRequest:
             reminders=reminders,
         )
     except ValueError as exc:
-        raise CalendarConnectorError(
-            f"Kalenderconnector-Anfrage ist ungültig: {exc}"
-        ) from exc
+        raise CalendarConnectorError(f"Kalenderconnector-Anfrage ist ungültig: {exc}") from exc
 
 
 def build_calendar_connector_plan(
@@ -155,21 +143,9 @@ def build_calendar_connector_plan(
         status = "review_required"
     else:
         status = "ready"
-    material = {
-        "handoff_plan_id": handoff.plan_id,
-        "request": request.to_dict(),
-        "account": account.to_dict(),
-        "backend_source": handoff.backend_source,
-        "source_rule_ids": list(handoff.source_rule_ids),
-        "route": route.to_dict(),
-        "events": [item.to_dict() for item in events],
-        "actions": [item.to_dict() for item in actions],
-        "status": status,
-    }
-    plan_sha256 = _json_hash(material)
-    return CalendarConnectorPlan(
-        plan_id=f"calendar_connector_plan_{plan_sha256}",
-        plan_sha256=plan_sha256,
+    plan = CalendarConnectorPlan(
+        plan_id=f"calendar_connector_plan_{'0' * 64}",
+        plan_sha256="0" * 64,
         handoff_plan_id=handoff.plan_id,
         profile_id=request.profile_id,
         account_id=account.account_id,
@@ -179,8 +155,55 @@ def build_calendar_connector_plan(
         route=route,
         events=events,
         actions=actions,
+        input_sha256=_json_hash(
+            {
+                "request": request.to_dict(),
+                "account": account.to_dict(),
+                "handoff": handoff.to_dict(),
+            }
+        ),
         status=status,
     )
+    plan_sha256 = _connector_content_hash(plan)
+    return replace(plan, plan_id=f"calendar_connector_plan_{plan_sha256}", plan_sha256=plan_sha256)
+
+
+def _connector_content_hash(plan: CalendarConnectorPlan) -> str:
+    material = plan.to_dict()
+    del material["plan_id"]
+    del material["plan_sha256"]
+    return _json_hash(material)
+
+
+def _verify_connector_content(plan: CalendarConnectorPlan) -> None:
+    expected = _connector_content_hash(plan)
+    if plan.plan_sha256 != expected or plan.plan_id != f"calendar_connector_plan_{expected}":
+        raise CalendarConnectorError(
+            "Kalenderconnector-Inhalt stimmt nicht mit dem Planhash überein."
+        )
+
+
+def _verify_connector_gateway(
+    plan: CalendarConnectorPlan,
+    gateway: CalendarConnectorGateway,
+    approval: CalendarConnectorApproval,
+) -> None:
+    if (
+        gateway.provider_id != plan.route.provider_id
+        or gateway.provider_revision != plan.route.provider_revision
+    ):
+        raise CalendarConnectorError(
+            "Kalendergateway stimmt nicht mit dem freigegebenen Provider überein."
+        )
+    if gateway.network_required and not approval.allow_network_write:
+        raise CalendarConnectorError("Netzwerk-Kalenderfreigabe fehlt.")
+    synthetic = plan.route.provider_id == "folderhome.synthetic-calendar"
+    if (
+        gateway.simulated is not synthetic
+        or (synthetic and gateway.network_required)
+        or (not gateway.simulated and not plan.route.live_supported)
+    ):
+        raise CalendarConnectorError("Gateway-Effekte weichen von der geplanten Kalenderroute ab.")
 
 
 def execute_calendar_connector_plan(
@@ -191,21 +214,14 @@ def execute_calendar_connector_plan(
 ) -> CalendarConnectorExecutionReport:
     """Execute only exact planned create/remind actions through one bound gateway."""
 
+    _verify_connector_content(plan)
     if plan.status != "ready":
         raise CalendarConnectorError(
             "Nur ein bereiter Kalenderconnector-Plan darf ausgeführt werden."
         )
     if approval.plan_id != plan.plan_id or approval.plan_sha256 != plan.plan_sha256:
         raise CalendarConnectorError("Kalenderconnector-Freigabe bindet einen anderen Plan.")
-    if (
-        gateway.provider_id != plan.route.provider_id
-        or gateway.provider_revision != plan.route.provider_revision
-    ):
-        raise CalendarConnectorError(
-            "Kalendergateway stimmt nicht mit dem freigegebenen Provider überein."
-        )
-    if gateway.network_required and not approval.allow_network_write:
-        raise CalendarConnectorError("Netzwerk-Kalenderfreigabe fehlt.")
+    _verify_connector_gateway(plan, gateway, approval)
     action_by_id = {item.action_id: item for item in plan.actions}
     try:
         selected = tuple(action_by_id[item] for item in approval.action_ids)
@@ -223,10 +239,7 @@ def execute_calendar_connector_plan(
     by_event: dict[str, set[CalendarConnectorOperation]] = {}
     for action in selected:
         by_event.setdefault(action.event_uid, set()).add(action.operation)
-    if any(
-        CalendarConnectorOperation.CREATE not in operations
-        for operations in by_event.values()
-    ):
+    if any(CalendarConnectorOperation.CREATE not in operations for operations in by_event.values()):
         raise CalendarConnectorError(
             "Erinnern, Aktualisieren oder Löschen ist ohne freigegebene Erstellung blockiert."
         )
@@ -234,6 +247,8 @@ def execute_calendar_connector_plan(
     references = []
     try:
         for event_uid, operations in sorted(by_event.items()):
+            _verify_connector_content(plan)
+            _verify_connector_gateway(plan, gateway, approval)
             if operations.difference(
                 {CalendarConnectorOperation.CREATE, CalendarConnectorOperation.REMIND}
             ):
@@ -250,11 +265,17 @@ def execute_calendar_connector_plan(
                     "operations": sorted(item.value for item in operations),
                 }
             )
+            payload_sha256 = _json_hash(event.to_dict())
             provider_event_id = gateway.create_event(
                 event,
                 idempotency_key=idempotency_key,
             )
-            payload_sha256 = _json_hash(event.to_dict())
+            _verify_connector_content(plan)
+            _verify_connector_gateway(plan, gateway, approval)
+            if _json_hash(event.to_dict()) != payload_sha256:
+                raise CalendarConnectorError(
+                    "Kalenderconnector-Payload wurde beim Aufruf verändert."
+                )
             reference_material = {
                 "event_uid": event_uid,
                 "account_id": plan.account_id,
@@ -265,9 +286,7 @@ def execute_calendar_connector_plan(
             }
             references.append(
                 CalendarProviderEventReference(
-                    reference_id=(
-                        f"calendar_provider_event_{_json_hash(reference_material)}"
-                    ),
+                    reference_id=(f"calendar_provider_event_{_json_hash(reference_material)}"),
                     event_uid=event_uid,
                     account_id=plan.account_id,
                     calendar_id=event.calendar_id,
@@ -375,9 +394,11 @@ def _build_event(
         if candidate.end_time is None:
             end = None
         else:
-            end = datetime.fromisoformat(
-                f"{candidate.event_date}T{candidate.end_time}:00"
-            ).replace(tzinfo=ZoneInfo(candidate.timezone)).isoformat()
+            end = (
+                datetime.fromisoformat(f"{candidate.event_date}T{candidate.end_time}:00")
+                .replace(tzinfo=ZoneInfo(candidate.timezone))
+                .isoformat()
+            )
     return CalendarConnectorEvent(
         event_uid=candidate.event_uid,
         profile_id=candidate.profile_id,
@@ -410,9 +431,7 @@ def _build_action(
         CalendarConnectorOperation.DELETE,
     }:
         status = "blocked"
-        reason = (
-            "Update und Löschen benötigen zuerst eine bestehende Provider-Ereignisreferenz."
-        )
+        reason = "Update und Löschen benötigen zuerst eine bestehende Provider-Ereignisreferenz."
     elif event.end is None and operation is CalendarConnectorOperation.CREATE:
         status = "blocked"
         reason = "Connector-Erstellung benötigt eine belegte Endzeit."
@@ -513,9 +532,7 @@ def _strict_fields(payload: dict[str, object], allowed: set[str], label: str) ->
     unknown = sorted(set(payload).difference(allowed))
     missing = sorted(allowed.difference(payload))
     if unknown:
-        raise CalendarConnectorError(
-            f"{label} enthält unbekannte Felder: {', '.join(unknown)}"
-        )
+        raise CalendarConnectorError(f"{label} enthält unbekannte Felder: {', '.join(unknown)}")
     if missing:
         raise CalendarConnectorError(f"{label} benötigt Felder: {', '.join(missing)}")
 

@@ -21,7 +21,7 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 - 36-phase local competition baseline implemented; expanded final acceptance is ongoing
 - one real `strands.Agent` master with seven bounded tools and on-demand planning specialists
-- latest local full suite: **812 passed**, zero failed in 265.58 seconds on
+- latest local full suite: **831 passed**, zero failed in 251.39 seconds on
   2026-09-09, with warnings treated as errors; this is not browser or AWS acceptance
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated

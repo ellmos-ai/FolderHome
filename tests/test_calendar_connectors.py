@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
@@ -157,14 +158,10 @@ def _handoff_plan(tmp_path: Path, backend: CalendarBackend) -> CalendarHandoffPl
         status="planned" if backend is CalendarBackend.UPTODAY_ICS else "blocked",
         side_effect="new_ics_file" if backend is CalendarBackend.UPTODAY_ICS else "none",
         target_path=(
-            (tmp_path / "uptoday" / "event.ics")
-            if backend is CalendarBackend.UPTODAY_ICS
-            else None
+            (tmp_path / "uptoday" / "event.ics") if backend is CalendarBackend.UPTODAY_ICS else None
         ),
         content_sha256=(
-            sha256(b"ics").hexdigest()
-            if backend is CalendarBackend.UPTODAY_ICS
-            else None
+            sha256(b"ics").hexdigest() if backend is CalendarBackend.UPTODAY_ICS else None
         ),
         message="Synthetischer Phase-17-Handoff.",
     )
@@ -264,9 +261,7 @@ def test_uptoday_create_reuses_existing_ics_handoff_without_live_sync(
 def test_routinika_is_hash_bound_but_blocked_without_live_contract(tmp_path: Path) -> None:
     accounts = load_calendar_connector_accounts(_accounts_file(tmp_path))
     account = next(item for item in accounts if item.backend is CalendarBackend.ROUTINIKA)
-    request = load_calendar_connector_request(
-        _request_file(tmp_path, account_id="routinika-lukas")
-    )
+    request = load_calendar_connector_request(_request_file(tmp_path, account_id="routinika-lukas"))
     plan = build_calendar_connector_plan(
         _handoff_plan(tmp_path, CalendarBackend.ROUTINIKA),
         request=request,
@@ -391,3 +386,183 @@ def test_network_calendar_gateway_is_blocked_before_invocation(tmp_path: Path) -
     with pytest.raises(CalendarConnectorError, match="Netzwerk-Kalenderfreigabe"):
         execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
     assert gateway.create_count == 0
+
+
+def _synthetic_plan_and_approval(tmp_path: Path, *, multiple: bool = False):
+    account = next(
+        item
+        for item in load_calendar_connector_accounts(_accounts_file(tmp_path))
+        if item.backend is CalendarBackend.GOOGLE
+    )
+    handoff = _handoff_plan(tmp_path, CalendarBackend.GOOGLE)
+    if multiple:
+        second = replace(
+            handoff.actions[0],
+            action_id="calendar_action_" + "b" * 32,
+            candidate=replace(
+                handoff.actions[0].candidate,
+                event_uid="b" * 64 + "@folderhome.local",
+                title="Zweiter Termin",
+            ),
+        )
+        handoff = replace(handoff, actions=(*handoff.actions, second))
+    plan = build_calendar_connector_plan(
+        handoff,
+        request=load_calendar_connector_request(_request_file(tmp_path)),
+        account=account,
+        provider_ready=True,
+        synthetic_override=True,
+    )
+    approval = CalendarConnectorApproval(
+        approval_id="calendar-integrity",
+        plan_id=plan.plan_id,
+        plan_sha256=plan.plan_sha256,
+        action_ids=tuple(item.action_id for item in plan.actions),
+        allowed_operations=(CalendarConnectorOperation.CREATE, CalendarConnectorOperation.REMIND),
+        approved_at="2026-09-09T03:00:00+02:00",
+        allow_network_write=False,
+    )
+    return plan, approval
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("profile_id", "other-profile"),
+        ("account_id", "other-account"),
+        ("backend", CalendarBackend.ROUTINIKA),
+        ("backend_source", "other-source"),
+        ("source_rule_ids", ("other-rule",)),
+        ("handoff_plan_id", "calendar_plan_" + "a" * 64),
+    ],
+)
+def test_connector_rejects_changed_plan_metadata_before_effect(tmp_path, field, value):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+    changed = replace(plan, **{field: value})
+    gateway = SyntheticCalendarConnectorGateway()
+    with pytest.raises(CalendarConnectorError, match="Inhalt|Hash"):
+        execute_calendar_connector_plan(changed, approval=approval, gateway=gateway)
+    assert gateway.create_count == 0
+    # Rejection must not consume the unchanged proposal's idempotency key.
+    report = execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert report.status == "simulated"
+    assert gateway.create_count == 1
+
+
+def test_connector_stops_when_plan_changes_during_first_provider_call(tmp_path):
+    plan, approval = _synthetic_plan_and_approval(tmp_path, multiple=True)
+
+    class MutatingGateway(SyntheticCalendarConnectorGateway):
+        def create_event(self, event, *, idempotency_key):
+            result = super().create_event(event, idempotency_key=idempotency_key)
+            object.__setattr__(plan, "account_id", "different-account")
+            return result
+
+    gateway = MutatingGateway()
+    with pytest.raises(CalendarConnectorError, match="Inhalt|Hash"):
+        execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert gateway.create_count == 1
+
+
+def test_connector_does_not_report_success_after_gateway_effect_mode_changes(tmp_path):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+
+    class MutatingGateway(SyntheticCalendarConnectorGateway):
+        def create_event(self, event, *, idempotency_key):
+            result = super().create_event(event, idempotency_key=idempotency_key)
+            self.simulated = False
+            return result
+
+    gateway = MutatingGateway()
+    with pytest.raises(CalendarConnectorError, match="Gateway"):
+        execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert gateway.create_count == 1
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("title", "Anderer Termin"),
+        ("calendar_id", "different-calendar"),
+        ("profile_id", "other-profile"),
+        ("start", "2026-09-14T15:00:00+02:00"),
+        ("location", "Anderer Ort"),
+        ("reminders", ()),
+    ],
+)
+def test_connector_rejects_changed_event_before_effect(tmp_path, field, value):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+    changed = replace(plan, events=(replace(plan.events[0], **{field: value}),))
+    gateway = SyntheticCalendarConnectorGateway()
+    with pytest.raises(CalendarConnectorError, match="Inhalt|Hash"):
+        execute_calendar_connector_plan(changed, approval=approval, gateway=gateway)
+    assert gateway.create_count == 0
+
+
+def test_connector_rejects_changed_route_before_effect(tmp_path):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+    changed = replace(plan, route=replace(plan.route, live_supported=True))
+    gateway = SyntheticCalendarConnectorGateway()
+    with pytest.raises(CalendarConnectorError, match="Inhalt|Hash"):
+        execute_calendar_connector_plan(changed, approval=approval, gateway=gateway)
+    assert gateway.create_count == 0
+
+
+@pytest.mark.parametrize("network_required", [False, True])
+def test_synthetic_plan_cannot_be_promoted_to_live_gateway(tmp_path, network_required):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+
+    class LiveProbe(SyntheticCalendarConnectorGateway):
+        simulated = False
+
+    gateway = LiveProbe()
+    gateway.network_required = network_required
+    with pytest.raises(CalendarConnectorError, match="Gateway|synthetisch"):
+        execute_calendar_connector_plan(
+            plan, approval=replace(approval, allow_network_write=True), gateway=gateway
+        )
+    assert gateway.create_count == 0
+
+
+def test_connector_binds_handoff_evidence_not_only_its_supplied_id(tmp_path):
+    account = load_calendar_connector_accounts(_accounts_file(tmp_path))[-1]
+    request = load_calendar_connector_request(_request_file(tmp_path))
+    handoff = _handoff_plan(tmp_path, CalendarBackend.GOOGLE)
+    changed_action = replace(
+        handoff.actions[0],
+        candidate=replace(handoff.actions[0].candidate, source_sha256="a" * 64),
+    )
+    changed_handoff = replace(handoff, actions=(changed_action,))
+    original = build_calendar_connector_plan(
+        handoff, account=account, request=request, provider_ready=True, synthetic_override=True
+    )
+    changed = build_calendar_connector_plan(
+        changed_handoff,
+        account=account,
+        request=request,
+        provider_ready=True,
+        synthetic_override=True,
+    )
+    assert original.plan_sha256 != changed.plan_sha256
+
+
+def test_connector_rejects_gateway_mutation_of_filtered_event_payload(tmp_path):
+    plan, approval = _synthetic_plan_and_approval(tmp_path)
+    create = next(a for a in plan.actions if a.operation is CalendarConnectorOperation.CREATE)
+    approval = replace(
+        approval,
+        action_ids=(create.action_id,),
+        allowed_operations=(CalendarConnectorOperation.CREATE,),
+    )
+
+    class PayloadMutatingGateway(SyntheticCalendarConnectorGateway):
+        def create_event(self, event, *, idempotency_key):
+            assert event.reminders == ()
+            result = super().create_event(event, idempotency_key=idempotency_key)
+            object.__setattr__(event, "calendar_id", "other-calendar")
+            return result
+
+    gateway = PayloadMutatingGateway()
+    with pytest.raises(CalendarConnectorError, match="Inhalt|Payload"):
+        execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert gateway.create_count == 1

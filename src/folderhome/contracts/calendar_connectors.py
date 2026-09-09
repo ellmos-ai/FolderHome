@@ -59,15 +59,17 @@ class CalendarConnectorAccount:
             raise ValueError("Kalenderkonto-ID ist ungültig.")
         if not self.profile_id.strip() or not self.display_name.strip():
             raise ValueError("Kalenderkonto benötigt Profil und Bezeichnung.")
-        if _PROVIDER_ID.fullmatch(self.provider_id) is None or _PROVIDER_REVISION.fullmatch(
-            self.provider_revision
-        ) is None:
+        if (
+            _PROVIDER_ID.fullmatch(self.provider_id) is None
+            or _PROVIDER_REVISION.fullmatch(self.provider_revision) is None
+        ):
             raise ValueError("Kalenderkonto besitzt ungültige Provideridentität.")
         if not self.calendar_id.strip() or any(char in self.calendar_id for char in "\r\n"):
             raise ValueError("Kalenderkonto benötigt eine explizite Kalender-ID.")
-        if self.credential_ref is not None and _CREDENTIAL_REF.fullmatch(
-            self.credential_ref
-        ) is None:
+        if (
+            self.credential_ref is not None
+            and _CREDENTIAL_REF.fullmatch(self.credential_ref) is None
+        ):
             raise ValueError("Kalenderkonto benötigt eine Connector-Secret-Referenz.")
         if self.backend is CalendarBackend.GOOGLE and self.credential_ref is None:
             raise ValueError("Google-Kalenderkonto benötigt eine Connector-Referenz.")
@@ -166,8 +168,7 @@ class CalendarConnectorEvent:
         if _EVENT_UID.fullmatch(self.event_uid) is None:
             raise ValueError("Connectorereignis besitzt eine ungültige UID.")
         if not all(
-            value.strip()
-            for value in (self.profile_id, self.calendar_id, self.title, self.start)
+            value.strip() for value in (self.profile_id, self.calendar_id, self.title, self.start)
         ):
             raise ValueError("Connectorereignis besitzt leere Pflichtfelder.")
         if self.attendees:
@@ -241,9 +242,10 @@ class CalendarConnectorRoute:
             raise ValueError("Kalenderconnector-Route besitzt ungültigen Status.")
         if not self.reason or not self.supported_operations:
             raise ValueError("Kalenderconnector-Route benötigt Grund und Operationen.")
-        if self.provider_revision is not None and _PROVIDER_REVISION.fullmatch(
-            self.provider_revision
-        ) is None:
+        if (
+            self.provider_revision is not None
+            and _PROVIDER_REVISION.fullmatch(self.provider_revision) is None
+        ):
             raise ValueError("Kalenderconnector-Route besitzt eine ungültige Revision.")
         if self.connector_invoked:
             raise ValueError("Kalenderconnector-Route darf keinen Provider ausführen.")
@@ -314,6 +316,7 @@ class CalendarConnectorPlan:
     route: CalendarConnectorRoute
     events: tuple[CalendarConnectorEvent, ...]
     actions: tuple[CalendarConnectorAction, ...]
+    input_sha256: str
     status: str
     connector_invoked: bool = False
     live_calendar_written: bool = False
@@ -321,12 +324,15 @@ class CalendarConnectorPlan:
     SCHEMA = "folderhome.calendar-connector-plan.v1"
 
     def __post_init__(self) -> None:
-        if _PLAN_ID.fullmatch(self.plan_id) is None or _PLAN_SHA.fullmatch(
-            self.plan_sha256
-        ) is None:
+        if (
+            _PLAN_ID.fullmatch(self.plan_id) is None
+            or _PLAN_SHA.fullmatch(self.plan_sha256) is None
+        ):
             raise ValueError("Kalenderconnector-Plan besitzt ungültige Identität.")
         if _HANDOFF_PLAN_ID.fullmatch(self.handoff_plan_id) is None:
             raise ValueError("Kalenderconnector-Plan benötigt eine Phase-17-Planreferenz.")
+        if _PLAN_SHA.fullmatch(self.input_sha256) is None:
+            raise ValueError("Kalenderconnector-Plan benötigt eine Eingabebindung.")
         if self.status not in {"ready", "review_required", "blocked"}:
             raise ValueError("Kalenderconnector-Plan besitzt ungültigen Status.")
         if self.connector_invoked or self.live_calendar_written:
@@ -346,6 +352,7 @@ class CalendarConnectorPlan:
             "route": self.route.to_dict(),
             "events": [item.to_dict() for item in self.events],
             "actions": [item.to_dict() for item in self.actions],
+            "input_sha256": self.input_sha256,
             "status": self.status,
             "connector_invoked": False,
             "live_calendar_written": False,
@@ -407,9 +414,10 @@ class CalendarProviderEventReference:
     def __post_init__(self) -> None:
         if _EVENT_REF_ID.fullmatch(self.reference_id) is None:
             raise ValueError("Provider-Ereignisreferenz besitzt eine ungültige ID.")
-        if _EVENT_UID.fullmatch(self.event_uid) is None or _PLAN_SHA.fullmatch(
-            self.payload_sha256
-        ) is None:
+        if (
+            _EVENT_UID.fullmatch(self.event_uid) is None
+            or _PLAN_SHA.fullmatch(self.payload_sha256) is None
+        ):
             raise ValueError("Provider-Ereignisreferenz besitzt ungültige Bindungen.")
         if not self.provider_event_id.strip():
             raise ValueError("Provider-Ereignisreferenz benötigt eine externe Ereignis-ID.")

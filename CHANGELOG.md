@@ -12,6 +12,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- Calendar connector approvals bind the complete plan and input snapshot.
+  Execution rechecks content, gateway effects and the exact event payload around
+  every call. Synthetic routes cannot become live routes. Older approvals need
+  fresh review; failures after a call do not imply rollback or safe retry.
+  Live calendar integration remains open.
 - The public-demo proxy atomically reserves reviewed micro-USD alongside its
   daily forward limit. UTC entitlement carries over without exceeding the finite
   allocation. Missing/changed/expired policies fail closed; timeouts are not

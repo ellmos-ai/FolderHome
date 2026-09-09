@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./phase27-calendar-connector-plan.de.md)
 
-**Status:** locally completed, 233 tests green  
-**Stand:** 2026-08-22  
+**Status:** planning and synthetic execution implemented; live integration open  
+**Updated:** 2026-09-09 (original phase acceptance: 233 tests on 2026-08-22)  
 **Product name in competition:** FolderHome
 
 ## Goal
@@ -51,6 +51,33 @@ A Google creation payload always includes an explicit `calendar_id`, an empty at
 The synthetic provider accepts only exact hash‑ and action‑bound approvals for `create` and optionally `remind`. It has no network path, does not write to a live calendar, and returns only synthetic provider‑event references. Duplicate idempotency keys are rejected within a gateway run. A gateway declared as network‑required is stopped before invocation without network approval.
 
 ## Product limits
+
+### Approval integrity — 9 September 2026
+
+The plan hash covers the complete public plan, including account, profile,
+route, event fields and operations. An `input_sha256` additionally binds the
+complete request, account configuration and Phase-17 handoff snapshot without
+exposing their private source paths or connector references in the public plan.
+This binds a snapshot; it does **not** reread source files at execution time.
+
+Execution recomputes the content hash at entry and before and after each event.
+Provider identity, revision and simulated/network/live effects must match the
+approved route. A synthetic route cannot become a live route, even with network
+approval. The exact payload is hashed before the gateway call and checked again
+afterward, including when unapproved reminders were removed.
+
+**Older approvals require a fresh proposal and review.** A failure detected
+after a gateway call does not undo a possible effect. Do not automatically retry
+or treat missing success evidence as proof that nothing happened. A future live
+adapter still needs persistent idempotency, uncertain-outcome handling and
+provider readback; these tests do not establish a live integration.
+
+Local verification: 19 new red-to-green integrity regressions, 38 focused
+calendar tests, and a full suite of **831 passed in 251.39 seconds** with
+warnings treated as errors. The real `calendar connector-simulate` CLI returned
+one synthetic event reference with both live-calendar and network flags false.
+
+### Remaining boundaries
 
 - `ready` or `review_required` does not mean that a calendar was modified.  
 - A synthetic event reference is not a live calendar entry.  

@@ -2,8 +2,8 @@
 
 [English](./phase27-calendar-connector-plan.md) | **Deutsch**
 
-**Status:** lokal abgeschlossen, 233 Tests grün  
-**Stand:** 2026-08-22  
+**Status:** Planung und synthetische Ausführung implementiert; Live-Anbindung offen  
+**Aktualisiert:** 2026-09-09 (ursprüngliche Phasenabnahme: 233 Tests am 2026-08-22)  
 **Produktname im Wettbewerb:** FolderHome
 
 ## Ziel
@@ -77,6 +77,37 @@ innerhalb eines Gateway-Laufs abgewiesen. Ein als netzwerkpflichtig
 deklarierter Gateway wird ohne Netzwerkfreigabe vor dem Aufruf gestoppt.
 
 ## Produktgrenzen
+
+### Freigabeintegrität — 9. September 2026
+
+Der Planhash umfasst den vollständigen öffentlichen Plan einschließlich Konto,
+Profil, Route, Ereignisfeldern und Operationen. Ein `input_sha256` bindet
+zusätzlich die vollständige Anfrage, Kontokonfiguration und den Phase-17-Handoff-
+Snapshot, ohne deren private Quellpfade oder Connectorreferenzen im öffentlichen
+Plan offenzulegen. Das bindet einen Snapshot; Quelldateien werden bei der
+Ausführung **nicht** erneut gelesen.
+
+Die Ausführung berechnet den Inhaltshash beim Einstieg sowie vor und nach jedem
+Ereignis neu. Provideridentität, Revision und simulierte/Netzwerk-/Live-Effekte
+müssen zur freigegebenen Route passen. Eine synthetische Route kann auch mit
+Netzwerkfreigabe nicht zur Live-Route werden. Der genaue Payload wird vor dem
+Gateway-Aufruf gehasht und danach erneut geprüft, auch wenn nicht freigegebene
+Erinnerungen daraus entfernt wurden.
+
+**Ältere Freigaben benötigen einen neuen Vorschlag und eine erneute Prüfung.**
+Ein nach dem Gateway-Aufruf erkannter Fehler macht eine mögliche Wirkung nicht
+rückgängig. Nicht automatisch wiederholen oder fehlende Erfolgsnachweise als
+Beweis ausbleibender Wirkung behandeln. Ein zukünftiger Live-Adapter benötigt
+weiterhin dauerhafte Idempotenz, Behandlung unklarer Ergebnisse und Provider-
+Readback; diese Tests belegen keine Live-Anbindung.
+
+Lokale Verifikation: 19 neue Rot-Grün-Integritätsregressionen, 38 fokussierte
+Kalendertests und eine Gesamtsuite mit **831 bestanden in 251,39 Sekunden**,
+Warnungen als Fehler behandelt. Die reale CLI `calendar connector-simulate`
+lieferte eine synthetische Ereignisreferenz mit beiden Live-Kalender- und
+Netzwerkflags auf false.
+
+### Verbleibende Grenzen
 
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
   wurde.

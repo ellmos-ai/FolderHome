@@ -33,6 +33,12 @@ python -m folderhome calendar connector-plan `
 - Konfigurationen dürfen nur `connector://`-Referenzen enthalten, niemals
   Tokens, Passwörter oder Cookies.
 - Konto, Profil, Backend und Phase-17-Handoff müssen exakt zusammenpassen.
+- Vollständiger Plan und Eingabesnapshot sind hashgebunden. Veränderte Inhalte
+  oder Gateway-Effekte sperren die Ausführung; ältere Freigaben benötigen einen
+  neuen Vorschlag und eine erneute Prüfung.
+- Ein Fehler nach einem Gateway-Aufruf macht dessen mögliche Wirkung nicht
+  rückgängig. Nicht automatisch wiederholen; dauerhafte Live-Idempotenz und
+  Provider-Readback bleiben eigene Integrationsanforderungen.
 - Ein Plan ruft keinen Connector auf und schreibt keinen Kalender.
 - UpToday-Erstellung bleibt beim vorhandenen ICS-Handoff; sie ist kein
   Live-Sync.

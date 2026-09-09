@@ -13,6 +13,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Kalenderconnector-Freigaben binden den vollständigen Plan und Eingabesnapshot.
+  Die Ausführung prüft Inhalt, Gateway-Effekte und den genauen Ereignispayload
+  rund um jeden Aufruf erneut. Synthetische Routen können nicht zu Live-Routen
+  werden. Ältere Freigaben benötigen eine erneute Prüfung; Fehler nach einem
+  Aufruf bedeuten weder Rücknahme noch sichere Wiederholbarkeit.
+  Die Live-Kalenderanbindung bleibt offen.
 - Der öffentliche Demo-Proxy reserviert geprüfte Mikro-USD atomar zusammen mit
   seinem täglichen Aufruflimit. UTC-Tagesmittel werden ohne Überschreiten des
   endlichen Guthabens übertragen. Fehlende/geänderte/abgelaufene Policies sperren;

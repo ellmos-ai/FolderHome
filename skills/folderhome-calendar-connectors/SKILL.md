@@ -34,6 +34,8 @@ python -m folderhome calendar connector-plan `
 
 - Configurations may contain only `connector://` references, never tokens, passwords, or cookies.  
 - Account, profile, backend, and Phase‑17 handoff must match exactly.  
+- The full plan and its input snapshot are hash-bound. Changed content or gateway effects block execution; older approvals need a fresh proposal and review.
+- A failure after a gateway call does not undo its possible effect. Do not automatically retry; live idempotency and provider readback remain separate integration requirements.
 - A plan does not invoke any connector and does not write to a calendar.  
 - UpToday creation remains at the existing ICS handoff; it is not a live sync.  
 - Routinika remains blocked without a verified live contract.  
