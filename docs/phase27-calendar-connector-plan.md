@@ -241,12 +241,13 @@ references; a rejected recipe is labelled aborted, not uncertain. Both uncertain
 and aborted execution make the session exit with code **2**, even when `/quit`
 follows normally. Neither output mode repeats execution to retrieve evidence.
 
-### Remaining boundaries
+### Reviewed changes and deletion
 
-The native gateway now has a **conditional update/delete core**, but these
-operations are **not yet connected to the normal app, CLI or UI approval flow**.
-That flow still creates reviewed events only. A gateway method is not permission
-to call Google; no real event has been modified or deleted during acceptance.
+The native adapter accepts **conditional update/delete requests through the normal
+`calendar-connectors` workflow approval flow**. Both operations require the separate
+`--approve-calendar-write` launch gate and exact plan confirmation. The plan shows
+the full previous event, its ETag, the operation and the replacement event (or
+`null` for deletion). The old creation approval cannot authorize a mutation.
 
 The core requires the previously confirmed own solo event, its payload hash and
 a strong ETag from the private ledger. Update keeps the profile, calendar and
@@ -259,16 +260,45 @@ version or a deletion tombstone. Unrelated event fields survive the PATCH.
 [Google conditional modifications](https://developers.google.com/workspace/calendar/api/guides/version-resources),
 [PATCH field semantics](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch).
 
-Still required: versioned event references in a reviewable mutation plan, fresh
-resource checks, separate exact confirmation, user-facing results and normal
-API/CLI/UI integration. Existing v1 creation references alone cannot authorize
-an update or deletion.
+Successful creation and update reports expose `event_versions`: complete typed
+events with provider IDs and strong ETags (`folderhome.google-calendar-event-version.v1`).
+The session result list retains them under the same profile, independently copied.
+The English/German UI displays expandable, inert JSON for follow-up planning;
+deletion returns an empty version list. These are **previously confirmed versions**,
+not a permanent freshness guarantee. No private database query is needed to obtain
+the request material.
+
+`agent session` returns these fields in NDJSON confirmation reports and prints
+the mutation receipt and version references in ordinary text mode as well. The
+text output reminds the user that another change needs a fresh check and approval.
+
+For a follow-up request, keep `configuration_resource_id`, `accounts_resource_id`,
+`credential_resource_id`, `ledger_resource_id`, `account_id` and `area`. Set
+`operation` to `update` or `delete`, `previous_event` to the returned `event`, and
+`expected_etag` to the returned `etag`. For update, `replacement` is the complete
+modified event with unchanged identity; for deletion it is `null`. Do not include
+creation-only fields such as `source_resource_id` or `planned_at`.
+
+Preview reads configuration, profile rights and the confirmed local receipt only;
+it does not read OAuth credentials or contact Google. The original source document
+need not still exist. Before execution the whole plan and old receipt are checked
+again; rights and request bindings are checked before and after each HTTP request.
+Revocation after a possible effect is uncertain and consumes the approval. If the
+core already confirmed the result, that mutation receipt survives as partial
+evidence. A changed or missing final version receipt cannot become a success claim.
+
+### Remaining boundaries
+
+Automated adapter, app-factory/API and Node-render tests use synthetic calendar
+responses and private temporary state. These do not establish live-calendar or
+browser acceptance. A dedicated event-selection/editing form remains open; the
+current normal workflow accepts the explicit typed request described above.
 
 - `ready` or `review_required` does not mean that a calendar was modified.  
 - A synthetic event reference is not a live calendar entry.  
 - No real Google credentials or accounts were accessed during acceptance.  
 - UpToday receives an ICS file only via the separately approved Phase‑17 handoff.  
-- Routinika live sync, user-facing update/delete and series events remain open.  
+- Routinika live sync, guided event editing and series events remain open.  
 - Automatic appointment detection is best effort and carries no completeness guarantee.  
 - Profiles within an operating system account are organizational rules, not cryptographic tenant separation.
 

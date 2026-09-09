@@ -720,6 +720,21 @@ class LocalApplication:
                     ],
                 }
                 self._execution_artifacts[report.execution_id] = artifacts
+                mutation = report.domain_report.get("mutation")
+                if (
+                    report.workflow_id == "calendar-connectors"
+                    and isinstance(mutation, dict)
+                    and mutation.get("schema") == "folderhome.google-calendar-mutation-result.v1"
+                ):
+                    self._execution_results[report.execution_id]["evidence"] = {
+                        "confirmed_mutation": deepcopy(mutation),
+                    }
+                versions = report.domain_report.get("event_versions")
+                if report.workflow_id == "calendar-connectors" and isinstance(versions, list):
+                    evidence = self._execution_results[report.execution_id].setdefault(
+                        "evidence", {}
+                    )
+                    evidence["event_versions"] = deepcopy(versions)
             while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
                 oldest = next(iter(self._execution_results))
                 self._execution_results.pop(oldest)

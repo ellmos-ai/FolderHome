@@ -4,29 +4,33 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from dataclasses import dataclass, replace
-from hashlib import sha256
+from dataclasses import dataclass
 from pathlib import Path
 
 from folderhome.application.calendar_connectors import (
     CalendarConnectorOutcomeUnknown,
     build_calendar_connector_plan,
     execute_calendar_connector_plan,
-    parse_calendar_connector_accounts,
 )
 from folderhome.application.calendar_handoff import (
     analyze_folder_calendar,
     build_calendar_handoff_plan,
-    parse_calendar_configuration,
-    resolve_calendar_preferences,
 )
-from folderhome.application.profile_rules import parse_profile_configuration, resolve_profile_policy
-from folderhome.application.resource_registry import parse_resource_registry
+from folderhome.application.google_calendar_mutation_workflow import (
+    MUTATION_SCHEMA,
+    PreparedGoogleMutation,
+    confirmed_event_version,
+    execute_mutation,
+    prepare_mutation,
+)
+from folderhome.application.google_calendar_resources import (
+    RESOURCE_REQUIREMENTS,
+    resolve_google_calendar_resources,
+    verify_snapshots,
+)
 from folderhome.application.workflow_execution import (
     WorkflowExecutionError,
     WorkflowExecutionOutcomeUnknown,
-    _canonical_json,
-    _require_separate_resources,
     _resource_execution_envelope,
     _resource_execution_report,
     _validate_exact_request,
@@ -37,7 +41,6 @@ from folderhome.bridges.google_calendar import (
     GoogleCalendarTransport,
 )
 from folderhome.bridges.google_calendar_credentials import GoogleCalendarCredentialResolver
-from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.calendar_connectors import (
     CalendarConnectorApproval,
     CalendarConnectorOperation,
@@ -46,13 +49,7 @@ from folderhome.contracts.calendar_connectors import (
 )
 from folderhome.contracts.workflow_execution import WorkflowAdapterDescriptor
 
-_RESOURCES = {
-    "source_resource_id": ("calendar.source", "directory", {"read", "list"}),
-    "configuration_resource_id": ("calendar.configuration", "file", {"read"}),
-    "accounts_resource_id": ("calendar.connector_accounts", "file", {"read"}),
-    "credential_resource_id": ("calendar.google_credentials", "file", {"read"}),
-    "ledger_resource_id": ("calendar.connector_ledger", "directory", {"read", "state_write"}),
-}
+_RESOURCES = RESOURCE_REQUIREMENTS
 _PROPERTIES = {
     **{key: {"type": "string", "minLength": 2, "maxLength": 64} for key in _RESOURCES},
     "account_id": {"type": "string", "minLength": 2, "maxLength": 64},
@@ -127,8 +124,14 @@ class GoogleCalendarWorkflowAdapter:
         plan_schema="folderhome.google-calendar-resource-plan.v1",
         report_schema="folderhome.google-calendar-resource-report.v1",
         side_effects=("external.calendar.write",),
-        reason="Creates reviewed appointments in an explicitly configured Google calendar.",
-        request_schema=_SCHEMA,
+        reason="Creates appointments or applies separately reviewed version-bound mutations.",
+        request_schema={
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {**_PROPERTIES, **MUTATION_SCHEMA["properties"]},
+            "required": [key for key in _SCHEMA["required"] if key in MUTATION_SCHEMA["required"]],
+            "oneOf": [_SCHEMA, MUTATION_SCHEMA],
+        },
     )
 
     def __init__(
@@ -159,101 +162,30 @@ class GoogleCalendarWorkflowAdapter:
         self._transport_factory = transport_factory or GoogleCalendarTransport
 
     def prepare(self, *, profile_id, request):
+        if "operation" in request:
+            return prepare_mutation(self, profile_id=profile_id, request=request, load=_load)
         _validate_exact_request(request, _SCHEMA, "Google-Kalenderanfrage")
         try:
-            snapshots = {}
-
-            def document(path):
-                raw, payload = _load(path)
-                snapshots[path] = raw
-                return payload
-
-            registry = self._registry
-            if self._registry_file is not None:
-                registry = parse_resource_registry(
-                    document(self._registry_file),
-                    expected_os_account=registry.os_account,
-                    known_profile_ids=registry.known_profile_ids,
-                )
-                # Only explicit launch additions survive the reload. Persisted bindings
-                # and overlapping declarations always take precedence, even if weaker.
-                additions = []
-                for item in self._launch_resources:
-                    if any(
-                        current.resource_id == item.resource_id for current in registry.resources
-                    ):
-                        continue
-                    profiles = item.profile_ids
-                    for current in registry.resources:
-                        if current.purposes & item.purposes:
-                            profiles = profiles - current.profile_ids
-                    if profiles:
-                        additions.append(replace(item, profile_ids=profiles))
-                registry = replace(registry, resources=registry.resources + tuple(additions))
-            resources = {}
-            for key, (purpose, kind, operations) in _RESOURCES.items():
-                required = set(operations)
-                if key == "source_resource_id" and request["allow_sensitive_local_read"]:
-                    required.add("sensitive_read")
-                resources[key] = registry.resolve(
-                    resource_id=request[key],
-                    profile_id=profile_id,
-                    purpose=purpose,
-                    required_kind=kind,
-                    required_operations=frozenset(required),
-                )
-            source = resources["source_resource_id"].local_path
-            ledger = resources["ledger_resource_id"].local_path
-            credential = resources["credential_resource_id"].local_path
-            _require_separate_resources(source, ledger)
-            _require_separate_resources(source, credential)
-            _require_separate_resources(ledger, credential)
-            profile_files = sorted(self._profiles_dir.glob("*.json"))
-            household = self._profiles_dir / "household.json"
-            profiles = parse_profile_configuration(
-                document(household),
-                {
-                    path.name: document(path)
-                    for path in profile_files
-                    if path.name.casefold() != "household.json"
-                },
+            context = resolve_google_calendar_resources(
+                self,
+                profile_id,
+                request,
+                include_source=True,
+                load=_load,
             )
-            if profiles.os_account != registry.os_account:
-                raise ValueError("Profile and resource account differ")
-            configuration_path = resources["configuration_resource_id"].local_path
-            configuration = parse_calendar_configuration(
-                document(configuration_path), config_path=configuration_path
-            )
-            accounts = parse_calendar_connector_accounts(
-                document(resources["accounts_resource_id"].local_path)
-            )
-            account = next(item for item in accounts if item.account_id == request["account_id"])
-            if (
-                account.profile_id != profile_id
-                or account.provider_id != "google-calendar"
-                or account.provider_revision != "v3"
-                or account.calendar_id == "primary"
-                or account.credential_ref
-                != "connector://google-calendar/" + request["credential_resource_id"]
-            ):
-                raise ValueError("Invalid Google account binding")
-            policy = resolve_profile_policy(profiles, profile_id=profile_id, area=request["area"])
-            backend, _, timezone, _ = resolve_calendar_preferences(configuration, policy)
-            if backend is not CalendarBackend.GOOGLE:
-                raise ValueError("Profile does not select Google")
             analysis = analyze_folder_calendar(
-                source,
+                context.source_path,
                 profile_id=profile_id,
                 area=request["area"],
-                default_timezone=timezone,
+                default_timezone=context.timezone,
                 extractor=self._extractor,
                 recursive=request["recursive"],
                 allow_sensitive_local_read=request["allow_sensitive_local_read"],
             )
             handoff = build_calendar_handoff_plan(
                 analysis,
-                configuration=configuration,
-                policy=policy,
+                configuration=context.configuration,
+                policy=context.policy,
                 planned_at=request["planned_at"],
             )
             operations = (CalendarConnectorOperation.CREATE,)
@@ -265,38 +197,20 @@ class GoogleCalendarWorkflowAdapter:
                 request=CalendarConnectorRequest(
                     request_id="google-resource-create",
                     profile_id=profile_id,
-                    account_id=account.account_id,
+                    account_id=context.account.account_id,
                     operations=operations,
                     reminders=reminders,
                 ),
-                account=account,
+                account=context.account,
                 provider_ready=True,
             )
             if not plan.events or plan.status != "ready":
                 raise ValueError("No executable non-conflicting appointments")
-            if profile_files != sorted(self._profiles_dir.glob("*.json")) or any(
-                _load(path)[0] != raw for path, raw in snapshots.items()
-            ):
-                raise ValueError("Configuration changed during preparation")
-            binding = {
-                "files": [(str(path), sha256(raw).hexdigest()) for path, raw in snapshots.items()],
-                "resources": [
-                    {
-                        "id": item.resource_id,
-                        "path": str(item.local_path),
-                        "operations": sorted(item.operations),
-                        "profiles": sorted(item.profile_ids),
-                        "purposes": sorted(item.purposes),
-                        "kind": item.kind,
-                        "cloud_context": item.cloud_context,
-                    }
-                    for item in resources.values()
-                ],
-            }
+            verify_snapshots(context, self._profiles_dir, _load)
             public = {
                 **plan.to_dict(),
                 "schema": self.descriptor.plan_schema,
-                "resource_binding_sha256": sha256(_canonical_json(binding)).hexdigest(),
+                "resource_binding_sha256": context.binding_sha256,
                 "request": deepcopy(request),
                 "paths_disclosed": False,
             }
@@ -310,9 +224,9 @@ class GoogleCalendarWorkflowAdapter:
                 profile_id,
                 deepcopy(request),
                 plan,
-                account,
-                credential,
-                ledger / "google-calendar.sqlite3",
+                context.account,
+                context.credential_path,
+                context.ledger_path,
             )
         except Exception:
             raise WorkflowExecutionError(
@@ -320,6 +234,14 @@ class GoogleCalendarWorkflowAdapter:
             ) from None
 
     def execute(self, *, envelope, domain_plan, approved_at):
+        if isinstance(domain_plan, PreparedGoogleMutation):
+            return execute_mutation(
+                self,
+                envelope=envelope,
+                prepared=domain_plan,
+                approved_at=approved_at,
+                load=_load,
+            )
         if not self._allowed or not isinstance(domain_plan, _PreparedGoogleCalendar):
             raise WorkflowExecutionError("Getrennte Freigabe --approve-calendar-write fehlt.")
 
@@ -386,6 +308,15 @@ class GoogleCalendarWorkflowAdapter:
         except Exception:
             raise WorkflowExecutionError("Google-Kalenderausführung wurde abgewiesen.") from None
         try:
+            by_uid = {event.event_uid: event for event in domain_plan.plan.events}
+            versions = [
+                confirmed_event_version(
+                    domain_plan.account,
+                    domain_plan.ledger_path,
+                    by_uid[ref.event_uid],
+                )
+                for ref in report.event_references
+            ]
             verify()
             return _resource_execution_report(
                 envelope=envelope,
@@ -394,6 +325,7 @@ class GoogleCalendarWorkflowAdapter:
                 public_report={
                     **report.to_dict(),
                     "schema": self.descriptor.report_schema,
+                    "event_versions": versions,
                     "paths_disclosed": False,
                 },
             )

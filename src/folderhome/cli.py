@@ -4920,6 +4920,16 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         )
         if result["side_effects"]:
             print("Side effects: " + ", ".join(result["side_effects"]))
+        for report in result.get("execution_reports", []):
+            if report.get("workflow_id") != "calendar-connectors":
+                continue
+            domain = report.get("domain_report", {})
+            evidence = {
+                key: domain[key] for key in ("mutation", "event_versions") if key in domain
+            }
+            if evidence:
+                print("Calendar evidence (new changes require a fresh check and approval):")
+                print(json.dumps(evidence, ensure_ascii=False, sort_keys=True, indent=2))
         sys.stdout.flush()
         return
     if event == "error":

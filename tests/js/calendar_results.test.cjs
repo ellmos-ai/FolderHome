@@ -47,7 +47,7 @@ function view() {
     },
   });
   vm.runInContext(source.slice(source.indexOf("class LocalRequestError"), source.indexOf("function initialLanguage")), context);
-  for (const name of ["api", "textElement", "renderUncertainResult", "renderResults", "loadResults", "confirmPlan", "recipeOutcomeText"]) {
+  for (const name of ["api", "textElement", "renderCalendarVersions", "renderCalendarMutation", "renderUncertainResult", "renderResults", "loadResults", "confirmPlan", "recipeOutcomeText"]) {
     const pattern = new RegExp(`^(?:async )?function ${name}\\(`, "m");
     const match = pattern.exec(source);
     if (!match) continue;
@@ -59,6 +59,37 @@ function view() {
 }
 const plan = { plan_id: "plan-one", plan_sha256: "exact-plan-hash", profile_id: "lukas",
   steps: [{ step_id: "one" }] };
+
+test("confirmed event versions are readable inert text for subsequent change planning", () => {
+  const {context, content} = view();
+  context.renderResults([{...result, status: "executed", evidence: {
+    event_versions: [{schema: "folderhome.google-calendar-event-version.v1",
+      provider_event_id: "fh-one", etag: '"v1"', event: {title: "<img src=x onerror=alert(1)>"}}],
+  }}]);
+  assert.match(text(content), /calendarEventVersions/);
+  assert.match(text(content), /fh-one/);
+  assert.match(text(content), /<img src=x onerror=alert\(1\)>/);
+  function nodes(node) { return [node, ...node.children.flatMap(nodes)]; }
+  assert.equal(nodes(content).some(node => node.tag === "img" || node.tag === "a"), false);
+});
+
+for (const operation of ["update", "delete"]) {
+  for (const uncertainRun of [false, true]) {
+    test(`calendar ${operation} receipt remains visible with uncertainty=${uncertainRun}`, () => {
+      const {context, content} = view();
+      context.renderResults([{...result, status: uncertainRun ? "uncertain" : "executed", evidence: {
+        confirmed_mutation: {schema: "folderhome.google-calendar-mutation-result.v1",
+          operation, status: operation === "update" ? "updated" : "absent",
+          provider_event_id: "<img src=x onerror=alert(1)>"},
+      }}]);
+      assert.match(text(content), new RegExp(operation === "update" ? "calendarMutationUpdated" : "calendarMutationAbsent"));
+      assert.match(text(content), /<img src=x onerror=alert\(1\)>/);
+      if (uncertainRun) assert.match(text(content), /executionUncertain/);
+      function nodes(node) { return [node, ...node.children.flatMap(nodes)]; }
+      assert.equal(nodes(content).some(node => node.tag === "img" || node.tag === "a"), false);
+    });
+  }
+}
 
 test("409 confirmation retains uncertainty and renders confirmed references without retry", async () => {
   const { context, messages, requests, content } = view();
@@ -147,6 +178,19 @@ test("late confirmation keeps evidence for its plan but does not write into anot
 });
 
 for (const lang of ["en", "de"]) {
+  test(`calendar version references and mutation receipts are localized in ${lang}`, () => {
+    const {context, content} = view();
+    context.language = lang;
+    vm.runInContext(source.slice(source.indexOf("const translations ="), source.indexOf("const capabilityTitles =")), context);
+    vm.runInContext(source.slice(source.indexOf("function t("), source.indexOf("function setLanguage(")), context);
+    context.renderResults([{...result, status: "executed", evidence: {
+      confirmed_mutation: {schema: "folderhome.google-calendar-mutation-result.v1", operation: "update", status: "updated"},
+      event_versions: [{schema: "folderhome.google-calendar-event-version.v1", etag: '"v2"'}],
+    }}]);
+    assert.doesNotMatch(text(content), /calendarEventVersions|calendarVersionCaution|calendarMutationUpdated|calendarMutationEvidence/);
+    assert.match(text(content), lang === "de" ? /Folgeänderungen/ : /follow-up changes/);
+    assert.match(text(content), lang === "de" ? /erneute Prüfung/ : /fresh check/);
+  });
   test(`partial evidence is readable in ${lang} without fallback keys`, () => {
     const { context, content } = view();
     context.language = lang;

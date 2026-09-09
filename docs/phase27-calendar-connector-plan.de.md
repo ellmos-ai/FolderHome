@@ -286,13 +286,14 @@ Unklare wie abgebrochene Ausführungen führen zum Sitzungs-Exitcode **2**, auch
 anschließend regulär `/quit` folgt. Kein Ausgabemodus wiederholt die Ausführung,
 um Nachweise abzurufen.
 
-### Verbleibende Grenzen
+### Geprüfte Änderungen und Löschung
 
-Das native Gateway besitzt jetzt einen **bedingten Änderungs-/Löschkern**, aber
-diese Operationen sind **noch nicht mit dem normalen Freigabeweg in App, CLI oder
-Oberfläche verbunden**. Dieser erstellt weiterhin nur geprüfte Ereignisse.
-Eine Gateway-Methode ist keine Erlaubnis für Google-Aufrufe; während der Abnahme
-wurde kein echter Termin geändert oder gelöscht.
+Der native Adapter akzeptiert **bedingte Änderungs-/Löschanfragen über den normalen
+Freigabeweg des Workflows `calendar-connectors`**. Beide Operationen benötigen die
+getrennte Startfreigabe `--approve-calendar-write` und eine exakte Planbestätigung.
+Der Plan zeigt den vollständigen bisherigen Termin, sein ETag, die Operation und
+das Ersatzereignis (oder `null` zum Löschen). Die alte Erstellungsfreigabe
+autorisiert keine Änderung.
 
 Der Kern benötigt den zuvor bestätigten eigenen Solo-Termin, seinen Nutzdatenhash
 und ein starkes ETag aus dem privaten Ledger. Bei Änderungen bleiben Profil,
@@ -306,10 +307,42 @@ Löschvermerk überschreiben. Unbeteiligte Ereignisfelder bleiben beim PATCH erh
 [Bedingte Google-Änderungen](https://developers.google.com/workspace/calendar/api/guides/version-resources),
 [PATCH-Feldsemantik](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch).
 
-Noch nötig: versionierte Ereignisreferenzen in einem prüfbaren Änderungsplan,
-frische Ressourcenprüfung, getrennte exakte Bestätigung, sichtbare Ergebnisse
-und normale API-/CLI-/UI-Anbindung. Bestehende v1-Erstellungsreferenzen allein
-autorisieren keine Änderung oder Löschung.
+Erfolgreiche Erstellungs- und Änderungsberichte enthalten `event_versions`:
+vollständige typisierte Ereignisse mit Provider-IDs und starken ETags
+(`folderhome.google-calendar-event-version.v1`). Die Sitzungsergebnisliste behält
+sie unabhängig kopiert unter demselben Profil. Die englische/deutsche Oberfläche
+zeigt aufklappbares, inertes JSON für Folgepläne; Löschen gibt eine leere
+Versionsliste zurück. Das sind **zuvor bestätigte Versionen**, keine dauerhafte
+Aktualitätsgarantie. Für die Anfragedaten ist kein privater Datenbankzugriff nötig.
+
+`agent session` liefert diese Felder in NDJSON-Bestätigungsberichten und zeigt
+Änderungsnachweis sowie Versionsreferenzen auch im normalen Textmodus. Die Ausgabe
+erinnert daran, dass jede Folgeänderung eine erneute Prüfung und Freigabe benötigt.
+
+Für eine Folgeanfrage `configuration_resource_id`, `accounts_resource_id`,
+`credential_resource_id`, `ledger_resource_id`, `account_id` und `area` beibehalten.
+`operation` auf `update` oder `delete`, `previous_event` auf das zurückgegebene
+`event` und `expected_etag` auf das zurückgegebene `etag` setzen. Bei Änderungen
+ist `replacement` das vollständige geänderte Ereignis mit unveränderter Identität;
+zum Löschen ist es `null`. Keine erstellungsspezifischen Felder wie
+`source_resource_id` oder `planned_at` mitsenden.
+
+Die Vorschau liest nur Konfiguration, Profilrechte und bestätigten lokalen Nachweis;
+sie liest keine OAuth-Zugangsdaten und kontaktiert Google nicht. Die ursprüngliche
+Quelldatei muss nicht mehr existieren. Vor Ausführung werden der gesamte Plan und
+der alte Nachweis erneut geprüft; vor und nach jedem HTTP-Aufruf zusätzlich Rechte
+und Anfragebindung. Widerruf nach möglicher Wirkung bleibt unklar und verbraucht
+die Freigabe. Hat der Kern das Ergebnis bereits bestätigt, bleibt dieser
+Änderungsnachweis als Teilbeleg erhalten. Ein veränderter oder fehlender endgültiger
+Versionsnachweis darf nicht als Erfolg ausgegeben werden.
+
+### Verbleibende Grenzen
+
+Automatisierte Adapter-, App-Fabrik-/API- und Node-Rendering-Tests verwenden
+synthetische Kalenderantworten und private temporäre Daten. Sie belegen keine
+Live-Kalender- oder Browserabnahme. Ein eigenes Termin-Auswahl-/Bearbeitungsformular
+bleibt offen; der normale Workflow akzeptiert derzeit die oben beschriebene
+explizite typisierte Anfrage.
 
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
   wurde.
@@ -317,7 +350,7 @@ autorisieren keine Änderung oder Löschung.
 - Während der Abnahme wurden keine echten Google-Zugangsdaten oder Konten verwendet.
 - UpToday erhält eine ICS-Datei erst über den getrennt freigegebenen
   Phase-17-Handoff.
-- Routinika-Live-Sync, bedienbares Ändern/Löschen und Serienereignisse bleiben offen.
+- Routinika-Live-Sync, geführte Terminbearbeitung und Serienereignisse bleiben offen.
 - Automatische Terminerkennung ist best effort und besitzt keine
   Vollständigkeitsgarantie.
 - Profile innerhalb eines Betriebssystemkontos sind organisatorische Regeln,

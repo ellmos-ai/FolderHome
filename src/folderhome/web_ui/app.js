@@ -58,7 +58,7 @@ const translations = {
     refreshResults: "Refresh",
     resultsEmpty: "Nothing has run yet in this process. Confirmed plans and their files appear here, including runs started through the API or an editor.",
     resultArtifacts: "Files",
-    resultNoArtifacts: "This run changed local state and produced no file.",
+    resultNoArtifacts: "No downloadable file is available for this run.",
     modelLocalConfigured: "Local model configured (Ollama)",
     modelLocalConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} at {host}. No successful live chat has been verified in this process yet.",
     modelLocalVerified: "Local model active (Ollama)",
@@ -97,6 +97,11 @@ const translations = {
     executionUncertain: "An effect may already exist. Check the affected target and private evidence before any new approval; do not repeat automatically. Confirmed entries below do not account for every possible effect.",
     confirmedCalendarEntries: "Confirmed calendar entries: {count}",
     confirmedCalendarReferences: "Show confirmed event references",
+    calendarMutationUpdated: "Calendar change verified by readback.",
+    calendarMutationAbsent: "Calendar event confirmed absent; this does not prove which request removed it.",
+    calendarMutationEvidence: "Show calendar version evidence",
+    calendarEventVersions: "Show event references for follow-up changes",
+    calendarVersionCaution: "Previously confirmed versions; each new change requires a fresh check and approval.",
     workflowConnected: "Connected executor ready",
     workflowPlanningOnly: "This system endpoint is intentionally planning-only.",
     workflowNotConnected: "No typed chat executor is connected yet; confirmation creates a handoff only.",
@@ -180,7 +185,7 @@ const translations = {
     refreshResults: "Aktualisieren",
     resultsEmpty: "In diesem Prozess lief noch nichts. Freigegebene Pläne und ihre Dateien erscheinen hier, auch wenn sie über die API oder einen Editor gestartet wurden.",
     resultArtifacts: "Dateien",
-    resultNoArtifacts: "Dieser Lauf hat lokalen Zustand geändert und keine Datei erzeugt.",
+    resultNoArtifacts: "Für diesen Lauf ist keine herunterladbare Datei verfügbar.",
     modelLocalConfigured: "Lokales Modell konfiguriert (Ollama)",
     modelLocalConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelLocalVerified: "Lokales Modell aktiv (Ollama)",
@@ -219,6 +224,11 @@ const translations = {
     executionUncertain: "Eine Wirkung kann bereits bestehen. Vor einer neuen Freigabe betroffenes Zielsystem und privaten Nachweis prüfen; nicht automatisch wiederholen. Die bestätigten Einträge unten erfassen nicht jede mögliche Wirkung.",
     confirmedCalendarEntries: "Bestätigte Kalendereinträge: {count}",
     confirmedCalendarReferences: "Bestätigte Ereignisreferenzen anzeigen",
+    calendarMutationUpdated: "Kalenderänderung durch Rücklesen bestätigt.",
+    calendarMutationAbsent: "Abwesenheit des Termins bestätigt; dies beweist nicht, welcher Aufruf ihn entfernt hat.",
+    calendarMutationEvidence: "Kalender-Versionsnachweis anzeigen",
+    calendarEventVersions: "Ereignisreferenzen für Folgeänderungen anzeigen",
+    calendarVersionCaution: "Zuvor bestätigte Versionen; jede weitere Änderung benötigt eine erneute Prüfung und Freigabe.",
     workflowConnected: "Verbundener Executor ist bereit",
     workflowPlanningOnly: "Dieser Systemendpunkt ist absichtlich nur planend.",
     workflowNotConnected: "Noch ist kein typisierter Chat-Executor verbunden; die Freigabe erzeugt nur eine Übergabe.",
@@ -609,6 +619,8 @@ function renderCurrentView(scroll = true) {
           executionCard.append(textElement("small", t("executionReport"), "card-label"));
           executionCard.append(textElement("h3", report.workflow_id));
           executionCard.append(textElement("p", `${report.status} · ${report.execution_id}`));
+          renderCalendarMutation(executionCard, report.domain_report?.mutation);
+          renderCalendarVersions(executionCard, report.domain_report?.event_versions);
           cards.push(executionCard);
         }
       }
@@ -628,10 +640,34 @@ async function loadResults() {
   renderResults(payload.results || []);
 }
 
+function renderCalendarVersions(card, versions) {
+  if (!Array.isArray(versions) || !versions.length) return;
+  const confirmed = versions.filter(item => item?.schema === "folderhome.google-calendar-event-version.v1");
+  if (!confirmed.length) return;
+  const details = document.createElement("details");
+  details.append(textElement("summary", t("calendarEventVersions")));
+  details.append(textElement("p", t("calendarVersionCaution")));
+  details.append(textElement("pre", JSON.stringify(confirmed, null, 2)));
+  card.append(details);
+}
+
+function renderCalendarMutation(card, mutation) {
+  if (!mutation || mutation.schema !== "folderhome.google-calendar-mutation-result.v1") return;
+  const updated = mutation.operation === "update" && mutation.status === "updated";
+  const absent = mutation.operation === "delete" && mutation.status === "absent";
+  if (!updated && !absent) return;
+  card.append(textElement("strong", t(updated ? "calendarMutationUpdated" : "calendarMutationAbsent")));
+  const details = document.createElement("details");
+  details.append(textElement("summary", t("calendarMutationEvidence")));
+  details.append(textElement("pre", JSON.stringify(mutation, null, 2)));
+  card.append(details);
+}
+
 function renderUncertainResult(card, item) {
   const warning = textElement("p", t("executionUncertain"), "result-warning");
   warning.setAttribute("role", "status");
   card.append(warning);
+  renderCalendarMutation(card, item.evidence?.confirmed_mutation);
   const refs = item.evidence?.confirmed_event_references;
   if (Array.isArray(refs)) {
     card.append(textElement("strong", t("confirmedCalendarEntries", { count: refs.length })));
@@ -658,6 +694,8 @@ function renderResults(items) {
     card.append(textElement("h3", `${item.workflow_id} · ${status}`));
     card.append(textElement("p", `${item.executed_at} · ${(item.side_effects || []).join(", ")}`));
     if (item.status === "uncertain") renderUncertainResult(card, item);
+    else renderCalendarMutation(card, item.evidence?.confirmed_mutation);
+    renderCalendarVersions(card, item.evidence?.event_versions);
     const artifacts = item.artifacts || [];
     if (!artifacts.length) {
       card.append(textElement("p", t("resultNoArtifacts")));
