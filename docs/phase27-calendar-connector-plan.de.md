@@ -336,13 +336,42 @@ die Freigabe. Hat der Kern das Ergebnis bereits bestätigt, bleibt dieser
 Änderungsnachweis als Teilbeleg erhalten. Ein veränderter oder fehlender endgültiger
 Versionsnachweis darf nicht als Erfolg ausgegeben werden.
 
+### Geführte Terminbearbeitung
+
+In der Ergebnisliste **Termin bearbeiten** bei einem zuvor bestätigten Ereignis
+aufklappen. Titel, Beginn/Ende, Zeitzone, Ganztagsstatus, Ort und Popup-Erinnerungen
+sind bearbeitbar. Beginn und Ende sind Pflichtfelder. Ganztägige Daten verwenden
+`JJJJ-MM-TT` mit exklusivem Ende; zeitgebundene Termine ISO-Zeitstempel mit Offset.
+Erinnerungen werden als kommagetrennte Minuten vor dem Termin angegeben.
+**Änderung prüfen** und **Löschung prüfen** erzeugen nur einen Plan. Die Vorschau
+zeigt bisherige und vorgeschlagene Werte nebeneinander; erst die bestehende,
+gesonderte Bestätigung führt die Wirkung aus. Löschen übernimmt keine ungespeicherten
+Feldänderungen.
+
+Der geschützte `POST /api/v1/agent/calendar/plan` akzeptiert ein geschlossenes
+Objekt `folderhome.calendar-event-edit-request.v1` mit `profile_id`,
+`execution_id`, ganzzahligem `version_index`, `operation`, `changes` und `language`.
+Bisheriges Ereignis und sechs Ressourcen-/Konto-IDs stammen aus dem gespeicherten
+Servernachweis, nicht aus vom Client vorgegebenen Identitäten oder Pfaden.
+Die Antwort enthält einen normalen Master-Agenten-`plan` ohne Wirkung.
+Alte Versionen und widerrufene Rechte werden abgewiesen. Ein Gesprächsreset
+verwirft offene Pläne, erhält aber bestätigte Ergebnisse; verspätete
+Editorantworten von vor dem Reset erscheinen nicht als neue Pläne.
+
+Dies ist ein Editor für bestätigte Nachweise der aktuellen Sitzung, keine
+Live-Liste aller Kalendertermine. Neustart oder Ergebnisverdrängung entfernt diesen
+Bearbeitungseinstieg. Die Vorschau prüft die Existenz konfigurierter Ressourcendateien,
+liest aber keinen OAuth-Dateiinhalt und kontaktiert Google nicht. EN/DE-Beschriftung
+und Antwortwachen sind durch Node-Tests geprüft; echte Browser-, Tastatur- und
+Layoutabnahme bleiben separat.
+
 ### Verbleibende Grenzen
 
 Automatisierte Adapter-, App-Fabrik-/API- und Node-Rendering-Tests verwenden
 synthetische Kalenderantworten und private temporäre Daten. Sie belegen keine
-Live-Kalender- oder Browserabnahme. Ein eigenes Termin-Auswahl-/Bearbeitungsformular
-bleibt offen; der normale Workflow akzeptiert derzeit die oben beschriebene
-explizite typisierte Anfrage.
+Live-Kalender- oder Browserabnahme. Geführtes Formular und explizite typisierte
+Workflow-Anfrage sind implementiert; OAuth-Erstanmeldung und echte Kontoabnahme
+bleiben interaktiv.
 
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
   wurde.
@@ -350,7 +379,7 @@ explizite typisierte Anfrage.
 - Während der Abnahme wurden keine echten Google-Zugangsdaten oder Konten verwendet.
 - UpToday erhält eine ICS-Datei erst über den getrennt freigegebenen
   Phase-17-Handoff.
-- Routinika-Live-Sync, geführte Terminbearbeitung und Serienereignisse bleiben offen.
+- Routinika-Live-Sync, Browserabnahme des Editors und Serienereignisse bleiben offen.
 - Automatische Terminerkennung ist best effort und besitzt keine
   Vollständigkeitsgarantie.
 - Profile innerhalb eines Betriebssystemkontos sind organisatorische Regeln,

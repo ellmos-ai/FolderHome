@@ -47,7 +47,7 @@ function view() {
     },
   });
   vm.runInContext(source.slice(source.indexOf("class LocalRequestError"), source.indexOf("function initialLanguage")), context);
-  for (const name of ["api", "textElement", "renderCalendarVersions", "renderCalendarMutation", "renderUncertainResult", "renderResults", "loadResults", "confirmPlan", "recipeOutcomeText"]) {
+  for (const name of ["api", "textElement", "renderCalendarEditors", "renderCalendarVersions", "renderCalendarMutation", "renderUncertainResult", "renderResults", "loadResults", "confirmPlan", "recipeOutcomeText"]) {
     const pattern = new RegExp(`^(?:async )?function ${name}\\(`, "m");
     const match = pattern.exec(source);
     if (!match) continue;

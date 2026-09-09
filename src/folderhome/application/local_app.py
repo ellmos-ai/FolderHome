@@ -317,6 +317,44 @@ class LocalApplication:
                 self._pending_agent_plans.pop(id(plan), None)
             self._discard_unreferenced_envelopes(_plan_envelope_ids(plans))
 
+    def propose_calendar_edit(self, payload):
+        """Plan a retained own event edit without performing a provider write."""
+        from folderhome.application.calendar_event_editor import (
+            mutation_request_from_result,
+            validate_edit_request,
+        )
+        from folderhome.application.master_agent import build_master_agent_plan
+
+        payload = validate_edit_request(payload)
+        profile_id = payload["profile_id"]
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Unbekanntes organisatorisches Profil.")
+        with self._agent_conversation_locks[profile_id], self._agent_plan_lock:
+            with self._execution_results_lock:
+                result = deepcopy(self._execution_results.get(payload["execution_id"]))
+            request = mutation_request_from_result(payload, result)
+            envelope = self.workflow_executor.prepare(
+                workflow_id="calendar-connectors", profile_id=profile_id, request=request,
+            )
+            try:
+                deleting = payload["operation"] == "delete"
+                goal = (
+                    ("Ausgewählten Termin löschen." if deleting else "Ausgewählten Termin ändern.")
+                    if payload["language"] == "de" else
+                    ("Delete the selected event." if deleting else "Update the selected event.")
+                )
+                plan = build_master_agent_plan(
+                    goal, profile_id=profile_id, language=payload["language"],
+                    expert_id="communication_expert", workflow_ids=("calendar-connectors",),
+                    confidence="high", execution_envelopes={"calendar-connectors": envelope},
+                )
+                self._retain_agent_plan(plan, pending_envelopes=(envelope.envelope_id,))
+            except BaseException:
+                self._discard_unreferenced_envelopes((envelope.envelope_id,))
+                raise
+        return {"schema": "folderhome.calendar-event-edit-plan.v1",
+                "plan": plan.to_dict(), "side_effects": []}
+
     def propose_recipe(
         self, *, profile_id: str, recipe_id: str, language: str,
     ) -> CapabilityRecipePlan:
@@ -735,6 +773,9 @@ class LocalApplication:
                         "evidence", {}
                     )
                     evidence["event_versions"] = deepcopy(versions)
+                    context = report.domain_report.get("calendar_edit_context")
+                    if isinstance(context, dict):
+                        evidence["calendar_edit_context"] = deepcopy(context)
             while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
                 oldest = next(iter(self._execution_results))
                 self._execution_results.pop(oldest)
@@ -1028,6 +1069,10 @@ class LocalApplication:
                     "side_effects": [],
                 }
             )
+        if method == "POST" and parsed.path == "/api/v1/agent/calendar/plan":
+            return self._json_response(
+                self.propose_calendar_edit(self._json_request(headers, body))
+            )
         if method == "POST" and parsed.path == "/api/v1/agent/recipes/plan":
             payload = self._json_request(headers, body)
             if (
@@ -1060,6 +1105,7 @@ class LocalApplication:
             "/api/v1/agent/chat",
             "/api/v1/agent/recipes/plan",
             "/api/v1/agent/confirm",
+            "/api/v1/agent/calendar/plan",
             "/api/v1/agent/conversation/reset",
         }:
             return self._error(405, "Lokaler Dienst benötigt eine POST-JSON-Anfrage.")

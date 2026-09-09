@@ -287,18 +287,43 @@ Revocation after a possible effect is uncertain and consumes the approval. If th
 core already confirmed the result, that mutation receipt survives as partial
 evidence. A changed or missing final version receipt cannot become a success claim.
 
+### Guided event editing
+
+In the result list, expand **Edit appointment** on a previously confirmed event.
+Change its title, start/end, time zone, all-day flag, location or popup reminders.
+Start and end are required. All-day dates use `YYYY-MM-DD` with an exclusive end;
+timed events use ISO timestamps with offsets. Reminder values are comma-separated
+minutes before the event. **Review change** and **Review deletion** only prepare
+a plan. The preview shows old and proposed values side by side; the existing,
+separate confirmation performs the effect. Deletion does not apply unsaved edits.
+
+The protected `POST /api/v1/agent/calendar/plan` accepts a closed
+`folderhome.calendar-event-edit-request.v1` object with `profile_id`,
+`execution_id`, integer `version_index`, `operation`, `changes` and `language`.
+It selects the prior event and six resource/account identifiers from the retained
+server-side receipt, not from client-supplied identities or locators. The response
+contains a normal master-agent `plan` and no side effects. Old versions and revoked
+rights fail closed. A conversation reset discards pending plans but preserves
+confirmed results; delayed pre-reset editor responses are not shown as new plans.
+
+This is an editor for the current session's confirmed receipts, not a live list
+of every calendar event. A restart or result eviction removes this editing entry.
+Preview validates that configured resource files exist but does not parse the
+OAuth file or contact Google. English/German labels and late-response guards are
+covered by Node tests; real browser keyboard/layout acceptance is still separate.
+
 ### Remaining boundaries
 
 Automated adapter, app-factory/API and Node-render tests use synthetic calendar
 responses and private temporary state. These do not establish live-calendar or
-browser acceptance. A dedicated event-selection/editing form remains open; the
-current normal workflow accepts the explicit typed request described above.
+browser acceptance. The guided form and the explicit typed workflow request are
+implemented; OAuth first login and live account acceptance remain interactive.
 
 - `ready` or `review_required` does not mean that a calendar was modified.  
 - A synthetic event reference is not a live calendar entry.  
 - No real Google credentials or accounts were accessed during acceptance.  
 - UpToday receives an ICS file only via the separately approved Phase‑17 handoff.  
-- Routinika live sync, guided event editing and series events remain open.  
+- Routinika live sync, editor browser acceptance and series events remain open.  
 - Automatic appointment detection is best effort and carries no completeness guarantee.  
 - Profiles within an operating system account are organizational rules, not cryptographic tenant separation.
 

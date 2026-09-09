@@ -6,6 +6,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from hashlib import sha256
 
+from folderhome.application.calendar_event_editor import calendar_edit_context
 from folderhome.application.google_calendar_resources import resolve_google_calendar_resources
 from folderhome.application.workflow_execution import (
     WorkflowExecutionError,
@@ -351,6 +352,7 @@ def execute_mutation(adapter, *, envelope, prepared, approved_at, load):
             "schema": adapter.descriptor.report_schema,
             "mutation": result,
             "event_versions": versions,
+            "calendar_edit_context": calendar_edit_context(prepared.request),
             "paths_disclosed": False,
         },
     )

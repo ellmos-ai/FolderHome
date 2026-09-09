@@ -302,6 +302,14 @@ footer p { margin: 0; }
 .plan-details { overflow-wrap: anywhere; }
 .plan-details pre { white-space: pre-wrap; font-size: .8rem; }
 
+.calendar-editor { margin-top: 1rem; }
+.calendar-editor form { display: grid; gap: .75rem; margin-top: .75rem; }
+.calendar-editor label { display: grid; gap: .3rem; }
+.calendar-editor input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; }
+.calendar-editor input[type="checkbox"] { justify-self: start; }
+.calendar-change-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.calendar-change-table th, .calendar-change-table td { padding: .5rem; border: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; text-align: left; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }
 }

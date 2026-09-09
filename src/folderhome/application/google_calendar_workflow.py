@@ -12,6 +12,7 @@ from folderhome.application.calendar_connectors import (
     build_calendar_connector_plan,
     execute_calendar_connector_plan,
 )
+from folderhome.application.calendar_event_editor import calendar_edit_context
 from folderhome.application.calendar_handoff import (
     analyze_folder_calendar,
     build_calendar_handoff_plan,
@@ -326,6 +327,7 @@ class GoogleCalendarWorkflowAdapter:
                     **report.to_dict(),
                     "schema": self.descriptor.report_schema,
                     "event_versions": versions,
+                    "calendar_edit_context": calendar_edit_context(domain_plan.request),
                     "paths_disclosed": False,
                 },
             )

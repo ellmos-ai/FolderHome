@@ -102,6 +102,14 @@ const translations = {
     calendarMutationEvidence: "Show calendar version evidence",
     calendarEventVersions: "Show event references for follow-up changes",
     calendarVersionCaution: "Previously confirmed versions; each new change requires a fresh check and approval.",
+    calendarEdit: "Edit appointment",
+    calendarTitle: "Title", calendarStart: "Start", calendarEnd: "End",
+    calendarTimezone: "Time zone", calendarAllDay: "All-day event", calendarLocation: "Location (optional)",
+    calendarReminders: "Popup reminders: minutes before, separated by commas",
+    calendarDateHelp: "All-day: YYYY-MM-DD; end date is exclusive. Otherwise use an ISO timestamp with offset, e.g. 2026-09-12T14:00:00+02:00.",
+    calendarPlanUpdate: "Review change", calendarPlanDelete: "Review deletion",
+    calendarBefore: "Previously confirmed", calendarAfter: "Proposed replacement",
+    calendarEditFailure: "Could not prepare this change. Check the fields, current version and permissions.",
     workflowConnected: "Connected executor ready",
     workflowPlanningOnly: "This system endpoint is intentionally planning-only.",
     workflowNotConnected: "No typed chat executor is connected yet; confirmation creates a handoff only.",
@@ -229,6 +237,14 @@ const translations = {
     calendarMutationEvidence: "Kalender-Versionsnachweis anzeigen",
     calendarEventVersions: "Ereignisreferenzen für Folgeänderungen anzeigen",
     calendarVersionCaution: "Zuvor bestätigte Versionen; jede weitere Änderung benötigt eine erneute Prüfung und Freigabe.",
+    calendarEdit: "Termin bearbeiten",
+    calendarTitle: "Titel", calendarStart: "Beginn", calendarEnd: "Ende",
+    calendarTimezone: "Zeitzone", calendarAllDay: "Ganztägiger Termin", calendarLocation: "Ort (optional)",
+    calendarReminders: "Popup-Erinnerungen: Minuten vorher, durch Kommas getrennt",
+    calendarDateHelp: "Ganztägig: JJJJ-MM-TT; das Enddatum ist exklusiv. Sonst ISO-Zeitstempel mit Offset verwenden, z. B. 2026-09-12T14:00:00+02:00.",
+    calendarPlanUpdate: "Änderung prüfen", calendarPlanDelete: "Löschung prüfen",
+    calendarBefore: "Zuvor bestätigt", calendarAfter: "Vorgeschlagener Ersatz",
+    calendarEditFailure: "Änderung nicht vorbereitet. Felder, aktuelle Version und Berechtigungen prüfen.",
     workflowConnected: "Verbundener Executor ist bereit",
     workflowPlanningOnly: "Dieser Systemendpunkt ist absichtlich nur planend.",
     workflowNotConnected: "Noch ist kein typisierter Chat-Executor verbunden; die Freigabe erzeugt nur eine Übergabe.",
@@ -324,6 +340,8 @@ let connectionStatus = "checking";
 let currentView = null;
 const planOutcomes = {};
 let resultsRequestVersion = 0;
+let conversationRevision = 0;
+let conversationResetPending = false;
 
 class LocalRequestError extends Error {
   constructor(status, outcome = null) {
@@ -554,6 +572,7 @@ function renderCurrentView(scroll = true) {
         card.append(textElement("h3", step.workflow_id));
         card.append(textElement("p", step.goal));
         if (step.execution_envelope) {
+          renderCalendarChangePreview(card, step.execution_envelope.domain_plan);
           const details = document.createElement("details");
           details.className = "plan-details";
           details.append(textElement("summary", t("planDetails")));
@@ -640,6 +659,102 @@ async function loadResults() {
   renderResults(payload.results || []);
 }
 
+function renderCalendarChangePreview(card, domain) {
+  if (!domain?.previous_event || !["update", "delete"].includes(domain.operation)) return;
+  card.append(textElement("strong", t(domain.operation === "delete" ? "calendarPlanDelete" : "calendarPlanUpdate")));
+  const table = document.createElement("table");
+  table.className = "calendar-change-table";
+  const header = document.createElement("tr");
+  for (const label of ["", t("calendarBefore"), t("calendarAfter")]) header.append(textElement("th", label));
+  table.append(header);
+  for (const [field, label] of Object.entries({title: "calendarTitle", start: "calendarStart", end: "calendarEnd",
+    timezone: "calendarTimezone", all_day: "calendarAllDay", location: "calendarLocation", reminders: "calendarReminders"})) {
+    const row = document.createElement("tr");
+    row.append(textElement("th", t(label)));
+    for (const event of [domain.previous_event, domain.replacement]) {
+      const value = event?.[field];
+      row.append(textElement("td", value == null ? "—" : typeof value === "object" ? JSON.stringify(value) : String(value)));
+    }
+    table.append(row);
+  }
+  card.append(table);
+}
+
+function renderCalendarEditors(card, item) {
+  if (item.status !== "executed" || item.profile_id !== profileSelect.value || !item.evidence?.calendar_edit_context) return;
+  const versions = item.evidence?.event_versions;
+  if (!Array.isArray(versions)) return;
+  const generation = resultsRequestVersion;
+  versions.forEach((version, versionIndex) => {
+    if (version?.schema !== "folderhome.google-calendar-event-version.v1" || version.event?.profile_id !== item.profile_id) return;
+    const details = document.createElement("details");
+    details.className = "calendar-editor";
+    details.append(textElement("summary", `${t("calendarEdit")}: ${version.event.title}`));
+    const form = document.createElement("form");
+    const fields = {};
+    for (const [name, label] of Object.entries({title: "calendarTitle", start: "calendarStart", end: "calendarEnd",
+      timezone: "calendarTimezone", all_day: "calendarAllDay", location: "calendarLocation", reminders: "calendarReminders"})) {
+      const wrapper = document.createElement("label"), input = document.createElement("input");
+      input.name = name;
+      input.type = name === "all_day" ? "checkbox" : "text";
+      if (name === "all_day") input.checked = version.event.all_day;
+      else input.value = name === "reminders" ? (version.event.reminders || []).map(value => value.minutes_before).join(", ") : version.event[name] || "";
+      input.required = ["title", "start", "end", "timezone"].includes(name);
+      input.maxLength = name === "reminders" ? 100 : 8192;
+      wrapper.append(textElement("span", t(label)), input);
+      form.append(wrapper);
+      fields[name] = input;
+    }
+    form.append(textElement("p", t("calendarDateHelp")));
+    const update = textElement("button", t("calendarPlanUpdate"), "button secondary");
+    update.type = "submit";
+    const deletion = textElement("button", t("calendarPlanDelete"), "button secondary");
+    deletion.type = "button";
+    const status = textElement("p", "");
+    status.setAttribute("role", "status");
+    form.append(update, deletion, status);
+    let revision = 0, pending = false;
+    form.addEventListener("input", () => { revision += 1; });
+    form.addEventListener("change", () => { revision += 1; });
+    const current = () => form.isConnected && generation === resultsRequestVersion && profileSelect.value === item.profile_id;
+    async function prepare(operation) {
+      if (pending || conversationResetPending || !current()) return;
+      pending = true;
+      update.disabled = deletion.disabled = true;
+      const requestedRevision = revision, requestedLanguage = language, requestedConversation = conversationRevision;
+      status.textContent = "";
+      try {
+        let changes = {};
+        if (operation === "update") {
+          const reminderText = fields.reminders.value.trim();
+          if (reminderText && !/^\d+(\s*,\s*\d+){0,4}$/.test(reminderText)) throw new Error("Invalid reminders");
+          changes = {title: fields.title.value, start: fields.start.value,
+            end: fields.end.value || null, timezone: fields.timezone.value,
+            all_day: fields.all_day.checked, location: fields.location.value || null,
+            reminders: reminderText ? reminderText.split(",").map(value => ({
+              schema: "folderhome.calendar-reminder.v1", method: "popup", minutes_before: Number(value.trim()),
+            })) : []};
+        }
+        const response = await api("/api/v1/agent/calendar/plan", {method: "POST", body: JSON.stringify({
+          schema: "folderhome.calendar-event-edit-request.v1", profile_id: item.profile_id,
+          execution_id: item.execution_id, version_index: versionIndex, operation, changes, language: requestedLanguage,
+        })});
+        if (!current() || revision !== requestedRevision || language !== requestedLanguage || conversationRevision !== requestedConversation || response.plan?.profile_id !== item.profile_id) return;
+        showAgent({agent: {response_text: response.plan.summary, tool_events: [], proposed_plans: [response.plan]}});
+      } catch (_error) {
+        if (current() && revision === requestedRevision) status.textContent = t("calendarEditFailure");
+      } finally {
+        pending = false;
+        update.disabled = deletion.disabled = false;
+      }
+    }
+    form.addEventListener("submit", event => {event.preventDefault(); return prepare("update");});
+    deletion.addEventListener("click", () => prepare("delete"));
+    details.append(form);
+    card.append(details);
+  });
+}
+
 function renderCalendarVersions(card, versions) {
   if (!Array.isArray(versions) || !versions.length) return;
   const confirmed = versions.filter(item => item?.schema === "folderhome.google-calendar-event-version.v1");
@@ -696,6 +811,7 @@ function renderResults(items) {
     if (item.status === "uncertain") renderUncertainResult(card, item);
     else renderCalendarMutation(card, item.evidence?.confirmed_mutation);
     renderCalendarVersions(card, item.evidence?.event_versions);
+    renderCalendarEditors(card, item);
     const artifacts = item.artifacts || [];
     if (!artifacts.length) {
       card.append(textElement("p", t("resultNoArtifacts")));
@@ -894,6 +1010,9 @@ async function runAgent() {
 }
 
 async function resetConversation() {
+  if (conversationResetPending) return;
+  conversationRevision += 1;
+  conversationResetPending = true;
   const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   actionButtons.forEach((button) => { button.disabled = true; });
   try {
@@ -910,6 +1029,7 @@ async function resetConversation() {
     currentView = null;
     renderCurrentView(false);
   } finally {
+    conversationResetPending = false;
     actionButtons.forEach((button) => { button.disabled = false; });
     (returnFocus || messageInput)?.focus({ preventScroll: true });
   }
