@@ -86,11 +86,22 @@ the strictly local FindCall fixture. A configured registry adds 23 typed
 resource adapters for the complete local document and assistance stack,
 including organization, health, finance, social law, inventory, tax, briefing,
 design, FCSA and routines. Each publishes a closed request schema to its scoped
-specialist. A registry that also declares `mail.draft_account` reports, across
-all 33 endpoints, 27 connected, one direct read-only, three planning-only and
-two visibly unconnected endpoints instead of falling back to a generic command
-runner. Draft-only mail has no send path and requires its own approval.
-External calendars and scheduler registration remain unconnected.
+specialist. The runtime catalog reports actual configured coverage rather than
+falling back to a generic command runner. Private resources can additionally
+connect own-mail drafts, Google calendar and scheduler registration. Draft-only
+mail has no send path. Google creation and conditional update/delete require a
+private OAuth grant, a separate write gate and exact approval; strong ETags,
+durable receipts and readback preserve conflicts and uncertain outcomes.
+Scheduler registration and app-owned consumer start require separate gates and
+confirmations; its queues do not authorize document changes. Synthetic tests
+cover these integrations; first OAuth login and live-account acceptance remain open.
+
+The master has nine bounded tools, all read-only or plan-only. A v1 recipe
+prepares its whole chain; a v2 recipe prepares separately approved sections with
+typed values from verified prior execution reports. The shipped letter-to-mail-
+draft journey binds the confirmed letter preview before proposing an own-mail
+draft. Every new section requires a new exact approval. Runs are process-local;
+no imported reports, automatic continuation or blind retry grants effects.
 
 The application core is Python 3.11+, with stable data contracts, a CLI, a
 loopback-only API and a responsive local web interface. SQLite stores use

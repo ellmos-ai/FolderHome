@@ -21,7 +21,7 @@ Cloudberechtigungen zu geben.
 ## Status
 
 - lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
-- ein echter `strands.Agent`-Master mit sieben begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
+- ein echter `strands.Agent`-Master mit neun begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
 - letzte vollständig geprüfte lokale Basis: **985 bestanden** in ergänzenden
   Teilmengen (64 CLI + 921 übrige Tests) am 09.09.2026, Warnungen als Fehler behandelt;
   nachfolgende Änderungen an der Dienststeuerung werden separat fokussiert geprüft.
@@ -114,9 +114,14 @@ flowchart LR
   A --> S[search_home_documents]
   A --> D[build_home_theme_dossier]
   A --> C[list_home_capabilities]
+  A --> Resources[list_home_resources]
+  A --> Recipes[list_home_recipes / list_home_recipe_runs]
+  A --> RecipePlan[propose_home_recipe / propose_next_recipe_stage]
   A --> X[consult_home_specialist]
   X --> P[Begrenzter Fachagent / ein Planungswerkzeug]
-  P --> E[Typisiertes Executor-Gateway]
+  P --> Review[Getrennte exakte Planbestätigung]
+  RecipePlan --> Review
+  Review --> E[Typisiertes Executor-Gateway]
   E --> N[Vorhandener llm-note-Workflow]
   E --> M[Vorhandener Medikamenteneinnahme-Workflow]
   S --> L[FolderHome LocalApplication]
@@ -125,7 +130,7 @@ flowchart LR
   MCP[Claude Code / Codex CLI] -- stdio --> PX[folderhome mcp serve]
   PX -- Loopback-API + Token --> L
   UI --> W[Other gated domain workflows]
-  P --> W
+  Review --> W
 ```
 
 Der Fixture-Adapter durchläuft den echten Strands-Agenten und dessen
@@ -145,15 +150,11 @@ typisierte Ressourcenadapter für den vollständigen lokalen Dokument-,
 Organisations-, Gesundheits-, Finanz-, Sozialrechts-, Bestands-, Steuer-,
 Briefing-, Design-, FCSA- und Routinenstack hinzu. Ein Register, das zusätzlich
 ein Entwurfspostfach (`mail.draft_account`) deklariert, verbindet auch den
-reinen Entwurfsendpunkt für Mail. Damit sind 27 Endpunkte verbunden; hinzu
-kommen ein direkter Nur-Lese-Pfad, drei absichtlich nur planende
-Systemendpunkte und zwei nicht konfigurierte externe Endpunkte: externe Kalender
-und Scheduler-Registrierung. Die optionalen Scheduler-Ressourcen verbinden einen
-weiteren Endpunkt; mit Mail und Scheduler sind es 28 verbundene Endpunkte.
-Registrierung benötigt weiterhin Startgate und genaue Bestätigung und startet
-keinen Ausführungsdienst. Ohne Mailpostfach und ohne Scheduler-Konfiguration
-bleiben beide Endpunkte unverbunden; der Katalog meldet dann 26 verbundene
-Endpunkte und drei Lücken. Jeder
+reinen Entwurfsendpunkt für Mail. Optionale private Google-Kalender- und
+Scheduler-Ressourcen verbinden auch deren Adapter. **Der Laufzeitkatalog meldet
+die tatsächlich konfigurierte Abdeckung**, einschließlich fehlender Verbindungen
+und rein planender Endpunkte. Registrierung benötigt weiterhin Startgate und
+genaue Bestätigung und startet keinen Ausführungsdienst. Jeder
 verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema. Eine
 Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
 verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten
@@ -293,9 +294,13 @@ IMAP-Mailentwürfe stehen nur mit einer Ressource `mail.draft_account` und dem
 getrennten Gate `--approve-mail-draft` bereit. Scheduler-Registrierung wird über
 private Ressourcen und das getrennte Gate `--approve-scheduler-write` verbunden;
 siehe [Registrierungsanleitung](docs/phase15-scheduler-handoff-plan.de.md).
-Externe Kalenderconnectoren bleiben unverbunden. Mit Mail, aber ohne Scheduler-
-Ressourcen meldet der Katalog 27 verbundene, einen direkt nur lesenden, drei rein
-planende und zwei unverbundene Endpunkte; mit Scheduler gilt 28/1/3/1.
+Der App-eigene Consumer braucht das eigene Gate `--approve-scheduler-consumer`
+und eine bestätigte Vorschau. Google-Kalenderanlage und ETag-gebundenes
+Ändern/Löschen verbinden sich über private Ressourcen, `--approve-calendar-write`
+und exakte Bestätigung; siehe die
+[Kalenderanleitung](docs/phase27-calendar-connector-plan.de.md). Erster OAuth-Login
+und Live-Konto-Abnahme bleiben getrennt. Die
+[Produktarchitektur](docs/submission/PRODUCT_ARCHITECTURE.svg) zeigt diese Grenzen.
 
 ## Lokales Modell über Ollama
 

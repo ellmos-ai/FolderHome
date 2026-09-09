@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1080" viewBox="0 0 1200 1080" role="img" aria-labelledby="title desc">
+  <title id="title">FolderHome product runtime and approval boundaries</title>
+  <desc id="desc">Local GUI, session CLI and MCP share LocalApplication. Nine master tools read or prepare using private configuration. Separate exact approval invokes domain adapters. Google and own-mail drafts need additional gates. Scheduler registration and app-owned consumer start have separate approvals. Recipe-v2 reports feed a newly reviewed section, never automatic execution. Live-provider and browser acceptance remain separate.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/></marker>
+  </defs>
+  <style>
+    text { font-family: 'Segoe UI', sans-serif; fill: #172b43; font-size: 19px; }
+    .heading { font-size: 24px; font-weight: 700; }
+    .label { font-size: 17px; }
+    .edge { fill: none; stroke: #334155; stroke-width: 2.5; marker-end: url(#arrow); }
+    .box { stroke: #64748b; stroke-width: 1.5; rx: 12; }
+  </style>
+  <rect width="1200" height="1080" fill="#ffffff"/>
+  <text x="60" y="48" style="font-size:32px;font-weight:700">FolderHome — product runtime</text>
+  <text x="60" y="78" class="label">Component / approval map · 9 September 2026 · local-first, not a cloud deployment claim</text>
+
+  <g id="entry-points">
+    <rect class="box" x="60" y="105" width="1080" height="95" fill="#edf4ff"/>
+    <text class="heading" x="84" y="138">Person / OS account</text>
+    <text x="84" y="170">Local GUI · interactive agent CLI · MCP proxy → token-gated loopback HTTP</text>
+  </g>
+  <path class="edge" d="M 320 200 V 252"/>
+  <text class="label" x="340" y="233">request / review</text>
+  <path class="edge" d="M 880 200 V 252"/>
+  <text class="label" x="900" y="233">separate setup</text>
+
+  <g id="planning">
+    <rect class="box" x="60" y="255" width="510" height="205" fill="#edf4ff"/>
+    <text class="heading" x="84" y="291">LocalApplication + Strands</text>
+    <text x="84" y="324">Nine master tools: read or prepare only</text>
+    <text x="84" y="354">Read-only search / dossiers · scoped experts</text>
+    <text x="84" y="384">Recipe v1: whole chain · v2: next section</text>
+    <text x="84" y="414">Bounded history and runs in process memory</text>
+    <text class="label" x="84" y="442">No model tool can confirm domain effects.</text>
+  </g>
+  <g id="configuration">
+    <rect class="box" x="630" y="255" width="510" height="205" fill="#f1f5f9"/>
+    <text class="heading" x="654" y="291">Private configuration</text>
+    <text x="654" y="324">Profiles · resource IDs · explicit rights</text>
+    <text x="654" y="354">Separate SetupApplication stages changes</text>
+    <text x="654" y="384">Launch flags restrict optional effects</text>
+    <text x="654" y="414">Credentials stay outside model context</text>
+    <text class="label" x="654" y="442">Setup saving grants no workflow approval.</text>
+  </g>
+  <path class="edge" d="M 630 352 H 573"/>
+  <path class="edge" d="M 320 460 V 507"/>
+  <text class="label" x="340" y="491">concrete plan + hash</text>
+  <g id="approval">
+    <rect class="box" x="60" y="510" width="1080" height="92" fill="#fff4d9"/>
+    <text class="heading" x="84" y="546">Separate exact confirmation → typed execution gateway</text>
+    <text x="84" y="578">Current rights rechecked · one-use approval · recipe-v2: fresh confirmation for each section</text>
+  </g>
+  <path class="edge" d="M 600 602 V 630 H 230 V 657"/>
+  <path class="edge" d="M 600 602 V 657"/>
+  <path class="edge" d="M 600 630 H 970 V 657"/>
+
+  <g id="local-domains">
+    <rect class="box" x="60" y="660" width="340" height="230" fill="#effaf4"/>
+    <text class="heading" x="80" y="696">Local domain adapters</text>
+    <text x="80" y="730">Documents / household stores</text>
+    <text x="80" y="760">Local calendar + optional ICS</text>
+    <text x="80" y="790">Letter → new MD / TXT</text>
+    <text x="80" y="820">Existing providers and gates</text>
+    <text class="label" x="80" y="858">No automatic external effect</text>
+  </g>
+  <g id="external-adapters">
+    <rect class="box" x="430" y="660" width="340" height="230" fill="#effaf4"/>
+    <text class="heading" x="450" y="696">Configured connectors</text>
+    <text x="450" y="730">Google: create / update / delete</text>
+    <text x="450" y="760">Own IMAP drafts — never send</text>
+    <text x="450" y="790">Extra launch gates required</text>
+    <text x="450" y="820">Private durable effect ledgers</text>
+    <text class="label" x="450" y="858">ETag checks for Google changes</text>
+  </g>
+  <g id="scheduler">
+    <rect class="box" x="800" y="660" width="340" height="230" fill="#effaf4"/>
+    <text class="heading" x="820" y="696">Scheduler registration</text>
+    <text x="820" y="730">Bound job in ellmos-scheduler</text>
+    <text x="820" y="760" font-weight="700">Separate consumer approval</text>
+    <text x="820" y="790">App-owned worker / stop signal</text>
+    <text x="820" y="820">Read-only routine queues</text>
+    <text class="label" x="820" y="858">No automatic document changes</text>
+  </g>
+  <path class="edge" d="M 230 890 V 917"/>
+  <path class="edge" d="M 600 890 V 917"/>
+  <path class="edge" d="M 970 890 V 917"/>
+  <g id="reports">
+    <rect class="box" x="60" y="920" width="1080" height="105" fill="#f1f5f9"/>
+    <text class="heading" x="84" y="954">Reports preserve what is known — uncertainty is not rollback</text>
+    <text x="84" y="986">Recipe-v2: verified prior results → new plan with typed values and source lineage → new approval</text>
+    <text class="label" x="84" y="1011">No imported reports, automatic next section, restart-resume or blind retry of an uncertain effect</text>
+  </g>
+  <text class="label" x="60" y="1057">OS permissions are the security boundary. Synthetic tests do not establish OAuth, live-mail or browser acceptance.</text>
+</svg>

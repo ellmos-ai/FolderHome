@@ -20,7 +20,7 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 ## Status
 
 - 36-phase local competition baseline implemented; expanded final acceptance is ongoing
-- one real `strands.Agent` master with seven bounded tools and on-demand planning specialists
+- one real `strands.Agent` master with nine bounded tools and on-demand planning specialists
 - latest complete local baseline: **985 passed** in complementary partitions
   (64 CLI + 921 other tests) on 2026-09-09, warnings treated as errors;
   subsequent consumer-control changes have separate focused verification.
@@ -112,9 +112,14 @@ flowchart LR
   A --> S[search_home_documents]
   A --> D[build_home_theme_dossier]
   A --> C[list_home_capabilities]
+  A --> Resources[list_home_resources]
+  A --> Recipes[list_home_recipes / list_home_recipe_runs]
+  A --> RecipePlan[propose_home_recipe / propose_next_recipe_stage]
   A --> X[consult_home_specialist]
   X --> P[Scoped subagent / one planning tool]
-  P --> E[Typed executor gateway]
+  P --> Review[Separate exact plan confirmation]
+  RecipePlan --> Review
+  Review --> E[Typed executor gateway]
   E --> N[Existing llm-note workflow]
   E --> M[Existing medication-intake workflow]
   S --> L[FolderHome LocalApplication]
@@ -123,7 +128,7 @@ flowchart LR
   MCP[Claude Code / Codex CLI] -- stdio --> PX[folderhome mcp serve]
   PX -- loopback API + token --> L
   UI --> W[Other gated domain workflows]
-  P --> W
+  Review --> W
 ```
 
 
@@ -142,14 +147,11 @@ FindCall fixture cascade. With a configured registry, 23 additional typed
 resource adapters connect the complete local document, organization, health,
 finance, social-law, inventory, tax, briefing, design, FCSA and routine stack.
 A registry that also declares a drafts mailbox (`mail.draft_account`) connects
-the draft-only mail endpoint as well. This yields 27 connected endpoints, one
-direct read-only path, three intentionally planning-only system endpoints and
-two unconfigured external endpoints: external calendars and scheduler registration.
-Configuring the optional scheduler resources connects one more endpoint, giving
-28 connected endpoints when both mail and scheduler are configured. Registration
-still needs its startup gate and exact confirmation; it starts no consumer.
-Without either optional configuration, mail and scheduler stay unconnected;
-the catalog reports 26 connected endpoints and three gaps. Each connected
+the draft-only mail endpoint as well. Optional private Google calendar and
+scheduler resources connect their adapters too. **The runtime catalog reports
+actual configured coverage**, including missing connections and planning-only
+endpoints. Registration still needs its startup gate and exact confirmation;
+it starts no consumer. Each connected
 adapter publishes a closed request schema. A chat
 message never writes; exact confirmation returns a separate domain execution
 report for a connected plan. External effects retain their own configuration
@@ -274,10 +276,13 @@ requires the separate exact plan confirmation. Draft-only IMAP mail is
 available only with a `mail.draft_account` resource and the separate
 `--approve-mail-draft` gate. Scheduler registration connects with its private
 resources and separate `--approve-scheduler-write` gate; see the
-[registration guide](docs/phase15-scheduler-handoff-plan.md). External calendar
-connectors remain unconnected. With mail but without scheduler resources the
-catalog reports 27 connected, one direct read-only, three planning-only and two
-unconnected endpoints; adding scheduler resources changes those counts to 28/1/3/1.
+[registration guide](docs/phase15-scheduler-handoff-plan.md). The app-owned
+consumer needs its own `--approve-scheduler-consumer` gate and confirmed preview.
+Google calendar creation and ETag-bound update/delete connect through private
+resources, `--approve-calendar-write` and exact confirmation; see the
+[calendar guide](docs/phase27-calendar-connector-plan.md). Initial OAuth login
+and live-account acceptance remain separate. The
+[product architecture](docs/submission/PRODUCT_ARCHITECTURE.svg) shows these boundaries.
 
 ## Local model via Ollama
 

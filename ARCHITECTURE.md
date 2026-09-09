@@ -96,10 +96,11 @@ arbitrary resource identifiers or external effects.
 
 ## Strands Agent
 
-The [submission diagram](./docs/submission/ARCHITECTURE_DIAGRAM.md) separates
-the four-adapter synthetic accident-demo view from the complete application
-map. Its SVG is the editable source; PNG has a pinned local renderer and a
-non-writing drift check. Neither diagram establishes current AWS availability.
+The [diagram guide](./docs/submission/ARCHITECTURE_DIAGRAM.md) separates the
+four-adapter synthetic accident demo from the
+[product architecture](./docs/submission/PRODUCT_ARCHITECTURE.svg).
+Both have editable SVG sources, PNG exports and a pinned renderer with a
+non-writing drift check. Neither view establishes live-provider acceptance.
 
 ```mermaid
 flowchart LR
@@ -114,7 +115,10 @@ flowchart LR
   A --> T5[list_home_resources]
   A --> T6[list_home_recipes]
   A --> T7[propose_home_recipe]
-  T7 --> RP[Deterministic recipe review + whole-chain plan]
+  A --> T8[list_home_recipe_runs]
+  A --> T9[propose_next_recipe_stage]
+  T7 --> RP[Recipe review: v1 chain or v2 section]
+  T9 --> RP
   RP --> P
   A --> T4[consult_home_specialist]
   T4 --> S[Scoped specialist: one planning tool]
@@ -130,23 +134,26 @@ flowchart LR
 ```
 
 
-The master agent has seven bounded tools: document search, topic dossiers,
-capability and resource catalogs, recipe listing and preparation, and specialist
-consultation. Recipe preparation retains the full chain and deterministic review;
-it cannot confirm or execute. Specialist consultation creates a short-lived
+The master agent has **nine bounded tools**: document search, topic dossiers,
+capability and resource catalogs, specialist consultation, recipe listing and
+preparation, and the two v2 tools `list_home_recipe_runs` and
+`propose_next_recipe_stage`. None can confirm or execute domain effects.
+Recipe preparation retains the reviewed v1 chain or concrete v2 section.
+Specialist consultation creates a short-lived
 specialist with exactly one planning tool. The specialist cannot
 approve or execute. After a separate exact confirmation, the typed executor
 registry can invoke only a prepared envelope and returns the existing domain
-report. With a fully configured registry, coverage is 27 connected workflows,
-one direct read-only workflow, three planning-only system endpoints and two
-visible external connector gaps.
+report. **Connection is configuration-dependent**: the runtime executor catalog
+reports the adapters available to the current app, not a fixed deployment count.
 Connected specialists receive the exact closed JSON request schema for their
 single endpoint; unknown fields and arbitrary paths fail closed.
 All 22 resource-ID-dependent endpoints, the local-calendar alternative and the
 draft-only mail endpoint are implemented. The mail endpoint connects only when
 the registry declares a drafts mailbox; otherwise it stays honestly
-unconnected. External calendars and scheduler registration still await
-explicitly configured external connectors plus their live-effect approvals.
+unconnected. The normal factory also connects Google calendar execution and
+scheduler registration when their private resources are configured. Their
+separate launch and confirmation gates remain mandatory; implementation is not
+evidence of a live calendar write or a running consumer.
 
 The mail endpoint has no send path. It appends one prepared letter to the
 drafts folder of the user's own IMAP mailbox, behind the separate live-effect
@@ -154,10 +161,10 @@ approval `--approve-mail-draft`. No recipient is contacted, the mailbox
 password is read only from its configured local file at execution time, and a
 local ledger keeps the append at most once.
 
-A capability recipe turns a real journey into one plan. It is declarative
+A capability recipe turns a real journey into reviewed execution. It is declarative
 (`folderhome/recipes/*.json`, shipped inside the package), it grants no new
 capability, and every step stays an existing typed endpoint with its own adapter
-and gates. The master resolves the whole chain into one hash-bound
+and gates. In **v1**, the master resolves the whole chain into one hash-bound
 `MasterAgentPlan` whose steps each carry the expert that actually owns the
 endpoint, so a recipe may span domains without weakening the ownership rule —
 the rule is checked per step instead of once per plan. Data moves only as
@@ -166,7 +173,59 @@ request, which is what keeps every request complete and hashable before anything
 runs. A deterministic review runs first, is signed by every involved expert, and
 becomes part of the plan hash. Execution walks the steps in order and stops at
 the first failure, reporting what ran, what broke and what was never attempted.
+In **v2**, `RecipeRun` prepares only a concrete section whose inputs are available.
+Typed values may come from verified execution reports of previously confirmed
+sections in that same run. They cannot choose resource IDs, credentials, paths or
+permissions. The new plan binds resolved values and their source lineage;
+**every section requires a fresh exact confirmation**. No automatic next section
+or automatic retry follows an uncertain effect.
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant App as LocalApplication / RecipeRun
+  participant Domain as Existing domain adapters
+  User->>App: Prepare letter-to-mail-draft
+  App-->>User: Review local letter plan
+  User->>App: Confirm exact section 1
+  App->>Domain: Write new local MD and TXT
+  Domain-->>App: Verified preview_id and approved_at
+  App-->>User: Letter artifacts; run ready
+  User->>App: Prepare next section
+  App-->>User: Review bound mail draft and lineage
+  User->>App: Confirm exact section 2
+  App->>Domain: Append own draft, only with mail gate
+  Domain-->>App: Execution report or uncertain outcome
+```
+
+The shipped `letter-to-mail-draft` recipe rejects changed letter inputs between
+sections by binding `expected_preview_id`; the first approval time supplies the
+draft date. It never sends mail. GUI, direct session commands and model tools
+use the same run service. Runs remain **process-local**, bounded and scoped to a
+profile; reset/close discard pending work without undoing confirmed effects.
+There is no JSON report import or restart-resume mechanism.
 Details: [`docs/capability-recipes.md`](./docs/capability-recipes.md).
+
+### Scheduler and external calendar boundaries
+
+**Registration is not consumer start.** `scheduler-handoff` registers a bound job
+through the pinned `ellmos-scheduler` provider only with `--approve-scheduler-write`
+and exact workflow confirmation. Starting the app-owned consumer requires
+`--approve-scheduler-consumer` plus a separately confirmed current preview and an
+existing matching job. Status observes only this app instance. Stop/close signal
+owned workers; a bounded in-flight check may outlive the short close wait.
+The consumer creates read-only document queues and operational receipts, not
+automatic document changes or an installed OS service.
+See [scheduler control](./docs/phase15-scheduler-handoff-plan.md).
+
+**Google effects need their own authority.** Configured `calendar-connectors`
+supports creation and conditional update/delete of previously confirmed own
+events. Private OAuth resolution happens only after the separate write gate and
+exact confirmation. A durable ledger, strong ETags and provider readback prevent
+blind replay; uncertainty is not rollback. The GUI editor prepares changes from
+retained session receipts, not from an unrestricted live event browser. Initial
+OAuth login, live-account and real-browser acceptance remain separate.
+See [calendar execution](./docs/phase27-calendar-connector-plan.md).
 
 One capability index describes every endpoint exactly once. It joins the master
 capability catalog (expert, execution mode, gates), the adapter request schemas
@@ -293,7 +352,7 @@ idempotency, field-level readback and typed uncertain/partial outcomes through
 the calendar plan executor. A resource-bound app/CLI adapter now loads an existing
 private OAuth grant only after `--approve-calendar-write` and exact confirmation.
 It rechecks source and resource permissions before/after provider calls;
-initial login, setup assistance and live acceptance remain open;
+setup can bind existing private credentials, while initial login and live acceptance remain open;
 see [calendar limits](./docs/phase27-calendar-connector-plan.md).
 
 The optional AWS demo proxy now has a local, reviewed micro-USD reservation

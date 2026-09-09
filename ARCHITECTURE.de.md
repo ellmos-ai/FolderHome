@@ -105,11 +105,11 @@ Ressourcen-IDs oder externe Effekte.
 
 ## Strands-Agent
 
-Das [Einreichungsdiagramm](./docs/submission/ARCHITECTURE_DIAGRAM.md) trennt
-die synthetische Unfall-Demo mit vier Adaptern von der vollständigen
-Anwendungskarte. SVG ist die editierbare Quelle; für PNG gibt es einen lokal
-versionierten Renderer und eine schreibfreie Driftprüfung. Keines der Diagramme
-belegt aktuelle AWS-Verfügbarkeit.
+Der [Diagrammleitfaden](./docs/submission/ARCHITECTURE_DIAGRAM.md) trennt die
+synthetische Unfall-Demo mit vier Adaptern von der
+[Produktarchitektur](./docs/submission/PRODUCT_ARCHITECTURE.svg).
+Beide besitzen editierbare SVG-Quellen, PNG-Exporte und einen versionierten
+Renderer mit schreibfreier Driftprüfung. Keine Sicht belegt eine Live-Abnahme.
 
 ```mermaid
 flowchart LR
@@ -124,7 +124,10 @@ flowchart LR
   A --> T5[list_home_resources]
   A --> T6[list_home_recipes]
   A --> T7[propose_home_recipe]
-  T7 --> RP[Deterministic recipe review + whole-chain plan]
+  A --> T8[list_home_recipe_runs]
+  A --> T9[propose_next_recipe_stage]
+  T7 --> RP[Recipe review: v1 chain or v2 section]
+  T9 --> RP
   RP --> P
   A --> T4[consult_home_specialist]
   T4 --> S[Scoped specialist: one planning tool]
@@ -139,24 +142,27 @@ flowchart LR
   A --> R[Planning report: tool events and hashes; no execution]
 ```
 
-Der Master-Agent besitzt sieben begrenzte Werkzeuge: Dokumentensuche,
-Themendossiers, Fähigkeits- und Ressourcenkatalog, Rezeptliste und
-Rezeptvorbereitung sowie Fachagenten-Konsultation. Die Rezeptvorbereitung erhält
-die ganze Kette mit deterministischer Prüfung, kann aber weder freigeben noch
-ausführen. Die Konsultation erzeugt einen kurzlebigen Fachagenten mit genau
+Der Master-Agent besitzt **neun begrenzte Werkzeuge**: Dokumentensuche,
+Themendossiers, Fähigkeits- und Ressourcenkatalog, Fachagenten-Konsultation,
+Rezeptliste und Rezeptvorbereitung sowie die beiden v2-Werkzeuge
+`list_home_recipe_runs` und `propose_next_recipe_stage`. Keines kann fachliche
+Wirkungen freigeben oder ausführen. Die Rezeptvorbereitung erhält die geprüfte
+v1-Kette oder den konkreten v2-Abschnitt. Die Konsultation erzeugt einen kurzlebigen Fachagenten mit genau
 einem Planungswerkzeug. Der Fachagent kann weder freigeben noch ausführen. Nach
 einer getrennten exakten Bestätigung darf der typisierte Executor-Katalog nur
 eine vorbereitete Ausführungshülle aufrufen und liefert den vorhandenen
-Fachbericht zurück. Mit vollständig konfiguriertem Register sind 27 Workflows
-verbunden, ein Workflow direkt nur lesend, drei Systemendpunkte nur planend und
-zwei externe Connectorlücken sichtbar. Verbundene Fachagenten erhalten das
+Fachbericht zurück. **Die Verbindung hängt von der Konfiguration ab**: Der
+Executor-Katalog meldet die für diese App verfügbaren Adapter, keine feste
+Deployment-Anzahl. Verbundene Fachagenten erhalten das
 exakte geschlossene JSON-Anfrageschema ihres einzelnen Endpunkts; unbekannte
 Felder und beliebige Pfade werden blockiert. Alle 22 ressourcenabhängigen
 Endpunkte, die lokale Kalenderalternative und der reine Entwurfsendpunkt für
 Mail sind umgesetzt. Der Mailendpunkt verbindet sich nur, wenn das Register ein
-Entwurfspostfach deklariert; sonst bleibt er ehrlich unverbunden. Externe
-Kalender und Scheduler-Registrierung warten weiterhin auf ausdrücklich
-konfigurierte externe Connectoren samt Live-Effekt-Freigaben.
+Entwurfspostfach deklariert; sonst bleibt er ehrlich unverbunden. Die normale
+Factory verbindet auch Google-Kalenderausführung und Scheduler-Registrierung,
+wenn deren private Ressourcen konfiguriert sind. Getrennte Start- und
+Bestätigungsgates bleiben Pflicht; vorhandener Code belegt weder einen echten
+Kalenderschreibvorgang noch einen laufenden Consumer.
 
 Der Mailendpunkt besitzt keinen Versandweg. Er legt ein vorbereitetes Schreiben
 im Entwurfsordner des eigenen IMAP-Postfachs des Nutzers ab, hinter der
@@ -165,10 +171,10 @@ kontaktiert, das Postfachpasswort wird erst zur Ausführung aus seinem
 konfigurierten lokalen Fundort gelesen, und ein lokales Ledger hält die Ablage
 höchstens einmal.
 
-Ein Fähigkeitsrezept macht aus einer echten Geschichte einen Plan. Es ist
+Ein Fähigkeitsrezept macht aus einer echten Geschichte eine geprüfte Ausführung. Es ist
 deklarativ (`folderhome/recipes/*.json`, im Paket ausgeliefert), verleiht keine
 neue Fähigkeit, und jeder Schritt bleibt ein vorhandener typisierter Endpunkt mit
-eigenem Adapter und eigenen Gates. Der Master löst die ganze Kette in einen
+eigenem Adapter und eigenen Gates. Bei **v1** löst der Master die ganze Kette in einen
 hashgebundenen `MasterAgentPlan` auf, dessen Schritte jeweils die Fachrolle
 tragen, der der Endpunkt wirklich gehört; ein Rezept darf deshalb mehrere
 Domänen umspannen, ohne die Eigentumsregel aufzuweichen — sie wird pro Schritt
@@ -178,8 +184,65 @@ wodurch jede Anfrage vollständig und hashbar bleibt, bevor irgendetwas läuft.
 Zuerst läuft eine deterministische Abnahme, die jede beteiligte Fachrolle
 zeichnet und die Teil des Planhashes wird. Die Ausführung geht die Schritte der
 Reihe nach durch und hält beim ersten Fehler an; der Bericht nennt, was lief, was
-brach und was nie versucht wurde. Details:
+brach und was nie versucht wurde.
+
+Bei **v2** bereitet `RecipeRun` nur einen konkreten Abschnitt mit verfügbaren
+Eingaben vor. Typisierte Werte dürfen aus verifizierten Ausführungsberichten
+zuvor bestätigter Abschnitte desselben Laufs stammen. Sie dürfen keine
+Ressourcen-IDs, Zugangsdaten, Pfade oder Berechtigungen wählen. Der neue Plan
+bindet aufgelöste Werte und deren Herkunft; **jeder Abschnitt braucht eine neue
+exakte Bestätigung**. Weder der nächste Abschnitt noch eine Wiederholung nach
+unklarer Wirkung startet automatisch.
+
+```mermaid
+sequenceDiagram
+  actor User
+  participant App as LocalApplication / RecipeRun
+  participant Domain as Existing domain adapters
+  User->>App: Prepare letter-to-mail-draft
+  App-->>User: Review local letter plan
+  User->>App: Confirm exact section 1
+  App->>Domain: Write new local MD and TXT
+  Domain-->>App: Verified preview_id and approved_at
+  App-->>User: Letter artifacts; run ready
+  User->>App: Prepare next section
+  App-->>User: Review bound mail draft and lineage
+  User->>App: Confirm exact section 2
+  App->>Domain: Append own draft, only with mail gate
+  Domain-->>App: Execution report or uncertain outcome
+```
+
+Das mitgelieferte Rezept `letter-to-mail-draft` weist veränderte Briefeingaben
+zwischen Abschnitten über `expected_preview_id` ab; der erste Freigabezeitpunkt
+liefert das Entwurfsdatum. Es versendet keine Mail. GUI, direkte Sitzungsbefehle
+und Modellwerkzeuge verwenden denselben Laufdienst. Läufe bleiben **prozesslokal**,
+begrenzt und profilgebunden; Reset/Schließen verwirft offene Arbeit, ohne
+bestätigte Wirkungen zurückzunehmen. Es gibt weder JSON-Berichtimport noch
+Wiederaufnahme nach einem Neustart. Details:
 [`docs/capability-recipes.md`](./docs/capability-recipes.de.md).
+
+### Scheduler und externe Kalendergrenzen
+
+**Registrierung ist kein Consumer-Start.** `scheduler-handoff` registriert einen
+gebundenen Job über den gepinnten Provider `ellmos-scheduler` nur mit
+`--approve-scheduler-write` und exakter Workflow-Bestätigung. Der App-eigene
+Consumer braucht `--approve-scheduler-consumer`, eine getrennt bestätigte aktuelle
+Vorschau und einen vorhandenen passenden Job. Der Status beobachtet nur diese
+App-Instanz. Stop/Schließen signalisiert eigenen Workern; eine laufende begrenzte
+Prüfung kann die kurze Wartezeit beim Schließen überdauern. Der Consumer erzeugt
+nur lesende Dokumentqueues und Betriebsbelege, keine automatischen
+Dokumentänderungen und keinen installierten Betriebssystemdienst.
+Siehe [Scheduler-Steuerung](./docs/phase15-scheduler-handoff-plan.de.md).
+
+**Google-Wirkungen brauchen eigene Berechtigungen.** Konfigurierte
+`calendar-connectors` unterstützen Neuanlage und bedingtes Ändern/Löschen zuvor
+bestätigter eigener Termine. Private OAuth-Auflösung erfolgt erst nach dem
+getrennten Schreibgate und exakter Bestätigung. Dauerhaftes Ledger, starke ETags
+und Provider-Readback verhindern blindes Wiederholen; Ungewissheit ist kein
+Rollback. Der GUI-Editor bereitet Änderungen aus gespeicherten Sitzungsbelegen
+vor, nicht aus einem uneingeschränkten Live-Terminkatalog. Erster OAuth-Login,
+Live-Konto- und echte Browserabnahme bleiben getrennt.
+Siehe [Kalenderausführung](./docs/phase27-calendar-connector-plan.de.md).
 
 Ein Fähigkeitsindex beschreibt jeden Endpunkt genau einmal. Er führt den
 Master-Fähigkeitskatalog (Fachrolle, Ausführungsmodus, Gates), die
@@ -329,8 +392,8 @@ Gateway bietet jetzt dauerhafte Idempotenz, feldweises Rücklesen und typisierte
 unklare/teilweise Ergebnisse über den Kalenderplan-Executor. Ein ressourcengebundener
 App-/CLI-Adapter lädt eine bestehende private OAuth-Zustimmung erst nach
 `--approve-calendar-write` und exakter Bestätigung. Er prüft Quellen und
-Ressourcenrechte vor/nach Provideraufrufen erneut. Erstmalige Anmeldung,
-Einrichtungshilfe und Live-Abnahme bleiben offen; siehe
+Ressourcenrechte vor/nach Provideraufrufen erneut. Das Setup kann vorhandene
+private Zugangsdaten binden; erstmalige Anmeldung und Live-Abnahme bleiben offen; siehe
 [Kalendergrenzen](./docs/phase27-calendar-connector-plan.de.md).
 
 Der optionale AWS-Demo-Proxy besitzt jetzt einen lokalen Vertrag zur geprüften
