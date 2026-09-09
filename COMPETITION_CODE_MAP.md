@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.40  
+**Version:** 0.41
 **Updated:** 2026-09-09  
 **Reason:** Scheduler registration and unmodified provider reuse classified  
 **Purpose:** Assigns each relevant repository area to an origin class.
@@ -32,6 +32,10 @@
   at revision `d5103b9a733701f6db80dd08cfae408bf0af8ac5`; provider source is not
   copied. Job writes use the provider API; a pinned-schema read transaction
   joins job and run evidence. This private API is not yet a connected app endpoint.
+- `application.scheduler_consumer` is new single-job integration and child-report
+  verification (`NEW_CORE` / `NEW_BRIDGE`). Scheduling, claims, leases, run history
+  and the polling loop reuse the same unmodified provider; no second scheduler
+  engine is implemented. Consumer startup requires a separate explicit gate.
 - FCSA, HungryCall, and Ringedingeding remain separate repositories.  
 - UpToday remains a local, revision‑accurate documented design reference. The existing inventory engine is not imported and no source code is copied.  
 - The public health skill remains a revision‑accurate design reference for organizational and security boundaries; it stores nothing itself in the FolderHome run.  

@@ -98,8 +98,26 @@ akzeptiert belegte Intervallfortschreibungen und verlassene Wiederholungsslots,
 keine beliebige manuelle Neuplanung. Das schützt kooperierende Prozesse, nicht
 vor bösartigem Code mit denselben Betriebssystemrechten.
 
-Bestätigungsadapter, begrenzter Ausführungsdienst, Ressourceneinrichtung und
-App-/CLI-Anbindung bleiben in Arbeit. Das bisherige Verhalten von
+Die private API `application.scheduler_consumer.create_scheduler_consumer`
+erzeugt nach getrennter genauer Planfreigabe jetzt einen **gestoppten**, auf einen
+Job begrenzten Ausführungsdienst. Ein ausdrückliches `tick()` prüft einen fälligen
+Job; ein ausdrückliches `serve()` nutzt die vorhandene Schleife des Providers.
+Registrierung und Konstruktion starten keinen dieser Vorgänge. Vor jeder
+Übernahme werden Konfiguration und gespeicherter Job erneut geprüft. Das isolierte
+Executorregister führt keine beliebigen Shelljobs aus und übernimmt keine anderen
+Jobs desselben Stores.
+
+Die Queue läuft mit Zeitlimit in einem an diese FolderHome-Installation gebundenen
+Kindprozess, auch wenn das Arbeitsverzeichnis einen anderen Checkout enthält.
+Exit 0 oder 10 gilt nur mit passendem strukturiertem Queue-Bericht, dessen
+gespeicherter Datei und einer frischen Aufruf-ID mit eigenem unveränderlichem
+Nachweis als Erfolg. Ein alter gültiger Bericht belegt keinen neuen Lauf.
+Timeouts und fehlende Nachweise sind kein Erfolg; ein gescheiterter
+Beobachtungsnachweis wird getrennt vom Laufergebnis als `uncertain` gemeldet.
+Dokumente bleiben unverändert; weder Checkpoint noch Aufräumaktion werden freigegeben.
+
+Bestätigungsadapter, Ressourceneinrichtung und App-/CLI-Anbindung bleiben in Arbeit.
+Das bisherige Verhalten von
 `scheduler plan/run` und der öffentliche Capability-Katalog bleiben unverändert.
 Integrationstests verwenden temporäre Stores und benötigen den sauberen gepinnten
 Scheduler-Checkout; es wird kein echter Nutzerjob registriert.

@@ -20,8 +20,10 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   einen echten Provider-Insert mit Freigabe und vorherigem Versuchsnachweis;
   unklare Ergebnisse werden ohne blinden Retry zurückgelesen. Fälligkeiten
   werden gegen einen konsistenten Laufhistorien-Snapshot geprüft; fremde
-  Stores und SQLite-Begleitdateien bleiben unverändert. Ausführungsdienst und
-  App-/CLI-Anbindung fehlen noch; der öffentliche Katalog bleibt unverändert.
+  Stores und SQLite-Begleitdateien bleiben unverändert. Ein getrennt freigegebener
+  privater Ausführungsdienst nutzt jetzt die Providerschleife, übernimmt nur
+  seinen eigenen Job und prüft frische Kindprozessnachweise. Kein automatischer
+  Dienststart; App-/CLI-Anbindung bleibt offen, der öffentliche Katalog unverändert.
 - Die Architekturdokumentation trennt die synthetische Vier-Adapter-Demo von
   der vollständigen Laufzeit, sieben Master-Werkzeugen, Setup-/MCP-Grenzen und
   Modellprovidern. Die zweisprachige Anleitung erläutert Kalenderintegrität und

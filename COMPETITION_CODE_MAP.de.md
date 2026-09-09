@@ -2,7 +2,7 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.40
+**Version:** 0.41
 **Aktualisiert:** 2026-09-09
 **Grund:** Scheduler-Registrierung und unveränderte Provider-Nutzung eingeordnet
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
@@ -34,6 +34,11 @@
   wird nicht kopiert. Jobs schreibt die Provider-API; eine schemafeste
   Lesetransaktion verbindet Job- und Laufnachweise. Die private API ist noch
   kein verbundener App-Endpunkt.
+- `application.scheduler_consumer` ist neue Einzeljob-Anbindung und
+  Kindprozessbericht-Prüfung (`NEW_CORE` / `NEW_BRIDGE`). Zeitplanung, Übernahmen,
+  Leases, Laufhistorie und Ausführungsschleife stammen vom selben unveränderten
+  Provider; es entsteht kein zweiter Scheduler. Der Dienststart benötigt eine
+  getrennte ausdrückliche Freigabe.
 - FCSA, HungryCall und Ringedingeding bleiben eigene Repositories.
 - UpToday bleibt eine lokale, revisionsgenau dokumentierte Designreferenz. Der
   vorhandene Inventar-Engine wird nicht importiert und kein Quellcode kopiert.

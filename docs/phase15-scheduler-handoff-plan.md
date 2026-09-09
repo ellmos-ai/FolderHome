@@ -82,8 +82,23 @@ accepts provider-evidenced interval progression and abandoned retry slots, not
 arbitrary manual rescheduling. These are cooperative-process safeguards, not
 protection against malicious code with the same operating-system permissions.
 
-The confirmation adapter, limited consumer, resource setup and app/CLI wiring
-remain under development. The existing `scheduler plan/run` behavior and the
+The private `application.scheduler_consumer.create_scheduler_consumer` API now
+constructs a **stopped**, single-job consumer after separate exact-plan approval.
+An explicit `tick()` checks one due job; explicit `serve()` reuses the provider's
+polling loop. Registration and construction never start either operation.
+Each claim revalidates the configuration and stored job; the isolated executor
+registry cannot run arbitrary shell jobs or claim other jobs in the same store.
+
+The queue runs in a bounded child process pinned to this FolderHome installation,
+including when the working directory contains another checkout. Exit 0 or 10 is
+accepted only with a matching structured queue report, its persisted file, and
+a fresh invocation ID bound to its own immutable receipt. An old valid report
+cannot establish a new run. Timeouts and missing evidence are not success; a
+failed observation write is marked `uncertain` separately from the run result.
+Documents remain unchanged, and no checkpoint or cleanup action is released.
+
+The confirmation adapter, resource setup and app/CLI wiring remain under
+development. The existing `scheduler plan/run` behavior and the
 public capability catalog are unchanged. Integration tests use temporary stores
 and require the clean pinned scheduler checkout; no real user job is registered.
 

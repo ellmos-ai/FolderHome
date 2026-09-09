@@ -226,16 +226,7 @@ def register_scheduler_job(
     plan = validate_scheduler_registration_plan(plan)
     provider = _scheduler_provider(plan)
     job_id = "folderhome-" + plan.plan_id
-    definition = {
-        "schedule": {"kind": "interval", "seconds": plan.handoff.interval_minutes * 60},
-        "executor": "folderhome.routine-queue.v1",
-        "payload": {"registration_plan": plan.to_dict()},
-        "enabled": True,
-        "next_due_at": datetime.fromisoformat(plan.handoff.start_at).astimezone(UTC),
-        "lease_seconds": 900,
-        "timeout_seconds": 600,
-        "authorities": [],
-    }
+    definition = _job_definition(plan)
     try:
         attempt_file = _safe_state_root(plan.ledger_dir / f"attempt-{plan.plan_id}.json")
     except SchedulerHandoffError:
@@ -335,6 +326,19 @@ def register_scheduler_job(
         return finish(
             "uncertain", error=f"Registrierung nicht abschließend belegt ({type(exc).__name__})."
         )
+
+
+def _job_definition(plan):
+    return {
+        "schedule": {"kind": "interval", "seconds": plan.handoff.interval_minutes * 60},
+        "executor": "folderhome.routine-queue.v1",
+        "payload": {"registration_plan": plan.to_dict()},
+        "enabled": True,
+        "next_due_at": datetime.fromisoformat(plan.handoff.start_at).astimezone(UTC),
+        "lease_seconds": 900,
+        "timeout_seconds": 600,
+        "authorities": [],
+    }
 
 
 def _scheduler_provider(plan):
