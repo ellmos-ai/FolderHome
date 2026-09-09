@@ -159,6 +159,25 @@ setup assistance remains open. Only explicitly launched read-only configuration
 and account bindings survive registry reloads; credentials, source and ledger
 permissions are never synthesized by this adapter.
 
+The setup calendar account form can now bind an **existing private OAuth file**
+and an **existing private receipt folder**. Choose Google, `google-calendar`, `v3`,
+a concrete calendar ID and `connector://google-calendar/<credential_resource_id>`.
+Enter the two absolute paths and select the separate private-resource checkbox.
+Review the generated read-only credential grant and `read`/`state_write` ledger
+grant before confirming the setup plan. Credentials must be outside setup,
+profile, document and output folders; receipts must be separate from credentials
+and document/output folders. These checks include newly configured scheduler
+folders and later folder edits, even when Google settings are unchanged.
+
+Setup checks file metadata only: it does not open the OAuth file, validate a token,
+create a calendar database, log in or call Google. Paths are private setup data,
+not model context. Existing conflicting rights or aliases cannot be replaced by
+this form. On reopen, the binding checkbox resets; unselected fields do not change
+existing grants. Removing an account does not erase its private files or ledger.
+Initial OAuth login and automatic `primary` resolution remain open; metadata
+lookup requires an additional scope beyond `calendar.events`.
+[Google calendar metadata authorization](https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get).
+
 The OAuth tests use real `google-auth 2.57.1` behind a synthetic HTTPS boundary.
 Normal app-factory tests cover the separate gate and a persisted registry-rights
 revocation. No real Google grant or account was used. Protocol reference:

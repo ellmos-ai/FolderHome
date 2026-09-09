@@ -104,7 +104,7 @@ const translations = {
     backupNote: "The previous version was kept as a .bak file.",
     requestFailed: "The setup service refused the request ({status}).",
     calendarTitle: "7. Calendar",
-    calendarHint: "The app loads these files through launch.json as private, profile-bound resources. Select a calendar.source folder explicitly. The current app executor supports the local calendar and optional ICS export; external accounts do not enable a live connector. There is no Outlook backend. An account stores a secret reference, never the secret. Unchanged fields preserve existing file references. Editing this section writes setup-owned copies, shown in the preview; custom source files stay untouched.",
+    calendarHint: "The app loads these files through launch.json as private, profile-bound resources. Select a calendar.source folder explicitly. Local calendar, optional ICS export and the separately gated Google connector are supported; configuring an account grants no network permission. There is no Outlook backend. Unchanged fields preserve existing file references. Editing this section writes setup-owned copies, shown in the preview; custom source files stay untouched.",
     calendarEnable: "Write calendar configuration",
     calendarLoadError: "The saved calendar configuration could not be loaded. Check its files before replacing it.",
     calendarBackend: "Default backend",
@@ -114,6 +114,11 @@ const translations = {
     calendarAccount: "Account",
     calendarProfile: "Profile",
     calendarCredential: "Connector reference (google only)",
+    googleBindingHint: "Google: use provider google-calendar, revision v3 and a concrete calendar ID, not primary. Supply an existing authorized_user OAuth file with calendar.events permission, never paste its contents here. Setup checks paths only, not token validity. Private paths must be outside document/output folders; the OAuth file must also be outside setup/profile folders. Existing bindings stay unchanged unless explicitly selected below; conflicting existing bindings require a separate registry review.",
+    googleCredentialFile: "Existing private OAuth JSON file (absolute path)",
+    googleLedgerDir: "Existing private receipt folder (absolute path; no database created by setup)",
+    googleBind: "Explicitly bind these private Google resources (no login or calendar access)",
+    googleExecutionHint: "Install FolderHome with the calendar extra. Later start the app with --approve-calendar-write and confirm the exact calendar plan separately. Saving setup does neither. Initial Google login and live acceptance remain separate steps.",
     cloudTitle: "Cloud variant",
     cloudHint: "In the AWS or browser variant there are no local output folders. There the results view is the delivery path: files are downloaded into the download folder of the browser.",
   },
@@ -220,7 +225,7 @@ const translations = {
     backupNote: "Die Vorversion wurde als .bak-Datei behalten.",
     requestFailed: "Der Einrichtungsdienst hat die Anfrage abgelehnt ({status}).",
     calendarTitle: "7. Kalender",
-    calendarHint: "Die App lädt diese Dateien über launch.json als private, profilgebundene Ressourcen. Wähle ausdrücklich einen calendar.source-Ordner. Der aktuelle App-Executor unterstützt den lokalen Kalender mit optionalem ICS-Export; externe Konten aktivieren keinen Live-Connector. Ein Outlook-Backend gibt es nicht. Ein Konto speichert einen Geheimnisverweis, nie das Geheimnis selbst. Unveränderte Felder erhalten bestehende Dateiverweise. Änderungen in diesem Abschnitt schreiben Setup-eigene Kopien, die die Vorschau zeigt; benutzerdefinierte Quelldateien bleiben unangetastet.",
+    calendarHint: "Die App lädt diese Dateien über launch.json als private, profilgebundene Ressourcen. Wähle ausdrücklich einen calendar.source-Ordner. Lokaler Kalender, optionaler ICS-Export und der getrennt freizugebende Google-Connector sind unterstützt; ein konfiguriertes Konto erteilt keine Netzwerkfreigabe. Ein Outlook-Backend gibt es nicht. Unveränderte Felder erhalten bestehende Dateiverweise. Änderungen in diesem Abschnitt schreiben Setup-eigene Kopien, die die Vorschau zeigt; benutzerdefinierte Quelldateien bleiben unangetastet.",
     calendarEnable: "Kalenderkonfiguration schreiben",
     calendarLoadError: "Die gespeicherte Kalenderkonfiguration konnte nicht geladen werden. Prüfe ihre Dateien, bevor du sie ersetzt.",
     calendarBackend: "Standard-Backend",
@@ -230,6 +235,11 @@ const translations = {
     calendarAccount: "Konto",
     calendarProfile: "Profil",
     calendarCredential: "Connector-Referenz (nur google)",
+    googleBindingHint: "Google: Provider google-calendar, Revision v3 und eine konkrete Kalender-ID statt primary verwenden. Eine vorhandene authorized_user-OAuth-Datei mit calendar.events-Recht angeben, ihren Inhalt niemals hier einfügen. Das Setup prüft nur Pfade, nicht die Token-Gültigkeit. Private Pfade müssen außerhalb von Dokument-/Ausgabeordnern liegen, die OAuth-Datei zusätzlich außerhalb von Setup-/Profilordnern. Bestehende Bindungen bleiben ohne ausdrückliche Auswahl unten unverändert; widersprüchliche Bindungen benötigen eine separate Registerprüfung.",
+    googleCredentialFile: "Vorhandene private OAuth-JSON-Datei (absoluter Pfad)",
+    googleLedgerDir: "Vorhandener privater Nachweisordner (absoluter Pfad; Setup erzeugt keine Datenbank)",
+    googleBind: "Diese privaten Google-Ressourcen ausdrücklich binden (keine Anmeldung oder Kalenderabfrage)",
+    googleExecutionHint: "FolderHome mit dem Kalenderextra installieren. Die App später mit --approve-calendar-write starten und den genauen Kalenderplan separat bestätigen. Das Speichern der Einrichtung erledigt beides nicht. Erste Google-Anmeldung und Live-Abnahme bleiben eigene Schritte.",
     cloudTitle: "Cloud-Variante",
     cloudHint: "In der AWS- oder Browser-Variante gibt es keine lokalen Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg: Dateien landen im Download-Ordner des Browsers.",
   },
@@ -524,6 +534,27 @@ function calendarAccountRow(account) {
   credential.placeholder = "connector://google-calendar/default";
   credential.value = (account && account.credential_ref) || "";
   block.append(labelled(t("calendarCredential"), credential));
+  const googleFields = document.createElement("div");
+  googleFields.append(textElement("p", t("googleBindingHint")));
+  for (const [name, caption] of [["credential_file", "googleCredentialFile"], ["ledger_dir", "googleLedgerDir"]]) {
+    const input = document.createElement("input");
+    input.spellcheck = false;
+    input.dataset.googleField = name;
+    googleFields.append(labelled(t(caption), input));
+  }
+  const bind = document.createElement("input");
+  bind.type = "checkbox";
+  bind.checked = false;
+  bind.dataset.googleField = "bind_private_resources";
+  googleFields.append(labelled(t("googleBind"), bind));
+  googleFields.append(textElement("p", t("googleExecutionHint")));
+  const updateGoogleFields = () => {
+    googleFields.hidden = backend.value !== "google";
+    if (googleFields.hidden) bind.checked = false;
+  };
+  backend.addEventListener("change", updateGoogleFields);
+  updateGoogleFields();
+  block.append(googleFields);
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "button compact";
@@ -552,6 +583,13 @@ function buildCalendar() {
     const account = {};
     for (const control of block.querySelectorAll("[data-calendar-field]")) {
       account[control.dataset.calendarField] = control.value.trim() || null;
+    }
+    const google = Object.fromEntries([...block.querySelectorAll("[data-google-field]")]
+      .map(control => [control.dataset.googleField, control]));
+    if (account.backend === "google" && google.bind_private_resources.checked) {
+      account.bind_private_resources = true;
+      account.credential_file = google.credential_file.value.trim();
+      account.ledger_dir = google.ledger_dir.value.trim();
     }
     accounts.push(account);
   }

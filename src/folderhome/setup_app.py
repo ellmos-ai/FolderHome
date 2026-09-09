@@ -37,6 +37,10 @@ from folderhome.application.calendar_handoff import (
     load_calendar_configuration,
     parse_calendar_configuration,
 )
+from folderhome.application.google_calendar_setup import (
+    bind_google_setup_resources,
+    validate_google_resource_separation,
+)
 from folderhome.application.local_app import capture_os_identity
 from folderhome.application.profile_rules import (
     ProfileConfiguration,
@@ -341,6 +345,20 @@ class SetupApplication:
         )
         if resources_json is not None:
             resources_json = self._merge_resources(resources_json, planned, errors)
+            try:
+                bind_google_setup_resources(
+                    request.get("calendar"), accounts=calendar_accounts_json,
+                    resources=resources_json, config_dir=self.config_dir,
+                    profiles_dir=profiles_dir or self.profiles_dir,
+                )
+            except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+                errors.append({
+                    "field": "calendar.google_resources",
+                    "message": (
+                        "Google-Ressourcen benötigen bestätigte, getrennte vorhandene Pfade, "
+                        "eine konkrete Kalender-ID, v3 und unveränderte bestehende Rechte."
+                    ),
+                })
         scheduler = None
         if resources_json is not None:
             try:
@@ -350,6 +368,14 @@ class SetupApplication:
                 )
             except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
                 errors.append({"field": "scheduler", "message": str(exc)})
+            try:
+                validate_google_resource_separation(resources_json)
+            except (OSError, ValueError, TypeError, KeyError, RuntimeError):
+                errors.append({
+                    "field": "calendar.google_resources",
+                    "message": "Private Google-Dateien und Nachweisordner müssen auch von "
+                    "neuen Dokument- und Schedulerordnern getrennt bleiben.",
+                })
         launch_json = (
             None
             if errors

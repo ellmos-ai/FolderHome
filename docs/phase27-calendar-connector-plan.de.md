@@ -194,6 +194,28 @@ Nur ausdrücklich beim Start gebundene lesbare Konfigurations- und Kontendateien
 bleiben beim erneuten Registerlesen erhalten; Rechte für Zugangsdaten, Quellen und
 Ledger ergänzt dieser Adapter niemals automatisch.
 
+Das Kalenderkontoformular der Einrichtung kann jetzt eine **vorhandene private
+OAuth-Datei** und einen **vorhandenen privaten Nachweisordner** binden. Wähle Google,
+`google-calendar`, `v3`, eine konkrete Kalender-ID und
+`connector://google-calendar/<credential_resource_id>`. Gib beide absoluten Pfade
+an und aktiviere den getrennten Schalter für private Ressourcen. Prüfe vor der
+Bestätigung des Setup-Plans die erzeugte Lesebindung für Zugangsdaten und
+`read`/`state_write` für den Nachweisordner. Zugangsdaten müssen außerhalb von
+Setup-, Profil-, Dokument- und Ausgabeordnern liegen; Nachweise getrennt von
+Zugangsdaten und Dokument-/Ausgabeordnern. Diese Prüfung umfasst neue
+Schedulerordner und spätere Ordneränderungen auch bei unveränderten Google-Einstellungen.
+
+Das Setup prüft nur Dateimetadaten: Es öffnet die OAuth-Datei nicht, validiert kein
+Token, erzeugt keine Kalenderdatenbank und meldet sich weder an noch fragt es
+Google ab. Pfade sind private Einrichtungsdaten, kein Modellkontext. Bestehende
+widersprüchliche Rechte oder Aliasbindungen ersetzt dieses Formular nicht. Beim
+erneuten Öffnen ist der Bindungsschalter aus; nicht ausgewählte Felder verändern
+bestehende Rechte nicht. Das Entfernen eines Kontos löscht weder seine privaten
+Dateien noch seinen Ausführungsnachweis. Erste OAuth-Anmeldung und automatische
+Auflösung von `primary` bleiben offen; die Metadatenabfrage benötigt einen
+zusätzlichen Scope neben `calendar.events`.
+[Google-Berechtigungen für Kalendermetadaten](https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get).
+
 Die OAuth-Tests verwenden echtes `google-auth 2.57.1` hinter einer synthetischen
 HTTPS-Grenze. Tests des normalen App-Einstiegs decken das separate Gate und den
 Entzug gespeicherter Registerrechte ab. Keine echte Google-Zustimmung oder echtes

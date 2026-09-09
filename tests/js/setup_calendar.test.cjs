@@ -26,7 +26,8 @@ class Element {
   addEventListener(event, callback) { this.listeners[event] = callback; }
   querySelectorAll(selector) {
     return this.children.flatMap(child => [
-      ...((selector === "[data-calendar-field]" ? child.dataset.calendarField : child.tag === selector) ? [child] : []),
+      ...((selector === "[data-calendar-field]" ? child.dataset.calendarField :
+          selector === "[data-google-field]" ? child.dataset.googleField : child.tag === selector) ? [child] : []),
       ...child.querySelectorAll(selector),
     ]);
   }
@@ -106,4 +107,23 @@ test("folder picker cancellation preserves config and a chosen folder marks an e
   context.chosenPath = "C:/different-folder";
   await element("#calendar-directory-choose").listeners.click();
   assert.equal(context.buildCalendar().ics_directory, "C:/different-folder");
+});
+
+test("private Google paths enter the setup request only with their separate binding checkbox", () => {
+  const {context} = form();
+  const fields = Object.fromEntries(context.calendarAccounts.querySelectorAll("[data-google-field]")
+    .map(control => [control.dataset.googleField, control]));
+  assert.ok(fields.credential_file && fields.ledger_dir && fields.bind_private_resources);
+  fields.credential_file.value = "C:/private/oauth.json";
+  fields.ledger_dir.value = "C:/private/receipts";
+  context.calendarDirty = true;
+  assert.equal(context.buildCalendar().accounts[0].credential_file, undefined);
+  fields.bind_private_resources.checked = true;
+  const account = context.buildCalendar().accounts[0];
+  assert.equal(account.bind_private_resources, true);
+  assert.equal(account.credential_file, "C:/private/oauth.json");
+  assert.equal(account.ledger_dir, "C:/private/receipts");
+  context.renderCalendar();
+  context.calendarDirty = true;
+  assert.equal(context.buildCalendar().accounts[0].bind_private_resources, undefined);
 });
