@@ -74,7 +74,12 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   Windows schützt die Datei die Grenze des Benutzerkontos.
 - Der Ordnerdialog des Einrichtungsprogramms läuft in einem Kindprozess, ist auf
   einen offenen Dialog serialisiert und gibt nach fünf Minuten auf, damit ein
-  abgebrochener Dialog nicht der letzte bleibt. Erreichbar ist er nur über die
+  abgebrochener Dialog nicht der letzte bleibt. Der Helfer startet Python isoliert
+  und mit explizitem UTF-8: Arbeitsverzeichnis, `PYTHONPATH`, User-Site-Pakete und
+  geerbte Python-Ausgabekodierungen können weder seine Imports liefern noch
+  seine Ausgabekodierung verändern. Das ist keine Betriebssystem-Sandbox;
+  Interpreter und Systempakete bleiben vertrauenswürdig vorausgesetzt.
+  Erreichbar ist er nur über die
   tokengeprüfte Loopback-Route des Einrichtungsprogramms, nie aus der App. Er
   antwortet absichtlich mit dem gewählten Pfad: Ordner zu benennen ist der Zweck
   des Einrichtungsprogramms. Die Regel, dass physische Adressen aus Nutzdaten

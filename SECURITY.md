@@ -60,7 +60,11 @@ Security fixes are maintained on the current competition state on branch
   enforces it; on Windows the user account boundary is what protects the file.
 - The installer's folder dialog runs in a child process, is serialized to one
   open dialog, and gives up after five minutes so that a cancelled dialog is not
-  the last one. It is reached only through the token-checked loopback route of
+  the last one. The helper uses isolated Python startup and explicit UTF-8:
+  the working directory, `PYTHONPATH`, user-site packages and inherited Python
+  output-encoding settings cannot supply its imports or change its output
+  encoding. This is not an OS sandbox; the interpreter and its system packages
+  remain trusted. It is reached only through the token-checked loopback route of
   the installer, never from the app. It answers with the chosen path on purpose:
   naming folders is what the installer is for. The rule that physical locators
   stay out of payloads belongs to the application API, which never returns one.

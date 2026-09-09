@@ -781,7 +781,9 @@ class SetupApplication:
             )
         try:
             completed = subprocess.run(
-                [sys.executable, "-c", _PICK_FOLDER_SCRIPT, str(Path.home())],
+                # This helper needs only the interpreter's toolkit, never project
+                # modules or inherited Python startup/output configuration.
+                [sys.executable, "-I", "-X", "utf8", "-c", _PICK_FOLDER_SCRIPT, str(Path.home())],
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
