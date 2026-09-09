@@ -177,7 +177,7 @@ verlangen, Anfragen erst während der Ausführung aufzulösen, und würde den ei
 Hash über die Kette brechen. Bestehende Ressourcenübergaben bleiben unverändert;
 Ergebnisfelder verwenden ein eigenes versioniertes Format.
 
-## Ergebnisübergaben: v2-Laufzeit, API und Chat
+## Ergebnisübergaben: v2-Laufzeit, API, Chat und GUI
 
 Der Parser erkennt zusätzlich `folderhome.capability-recipe.v2` mit einer
 expliziten Liste `result_bindings`. Jede Übergabe nennt einen früheren
@@ -256,10 +256,26 @@ Scheitert ein Modellturn beim Vorschlagen eines Folgeabschnitts, wird nur dieser
 unversuchte Vorschlag verworfen. Bestätigte Quellberichte bleiben im selben Lauf;
 der Abschnitt lässt sich ohne Wiederholung früherer Wirkungen neu vorbereiten.
 
-**Noch offen:** ein sinnvolles paketiertes v2-Rezept, GUI-Abschnittssteuerung und
-eine sitzungsfähige CLI. API-/Strands-Integrationstests verwenden synthetische
-Fachadapter; sie belegen weder Browserabnahme noch die Auswahlqualität eines
-Live-Modells. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
+Der GUI-Bereich **Begonnene Abläufe** zeigt die Läufe des gewählten Profils,
+bestätigte Schritte und den aktuellen Zustand. **Nächsten Abschnitt vorbereiten**
+schlägt nur den nächsten konkreten Abschnitt vor; **Offenen Abschnitt prüfen**
+öffnet einen bestehenden Vorschlag erneut. **Ablauf schließen** verwirft die
+offene Vorbereitung, ohne frühere Wirkungen zurückzunehmen. Die Abschnittsprüfung
+zeigt jeden übernommenen Wert, Berichtspfad, Quellausführung und Zielfeld vor
+**Diesen Abschnitt bestätigen und ausführen**.
+
+Nur die getrennte Bestätigung führt aus. Gleichzeitiges Schließen und Bestätigen
+ist in der UI gesperrt. Profil-, Sprach- und Gesprächswechsel verwerfen verspätete
+Vorschläge; eine frische Abfrage gleicht Aktionen ab, die erst nach Rückkehr zum
+selben Profil enden. Reset entfernt alte sichtbare Freigabeknöpfe sofort.
+Stoppt ein Abschnitt mit unklarer Wirkung, zeigt die Ansicht trotzdem bestätigte,
+gescheiterte und unversuchte Schritte und warnt vor unvollständiger Ergebnisablage.
+
+**Noch offen:** ein sinnvolles paketiertes v2-Rezept und eine sitzungsfähige CLI.
+API-/Strands-Integrationstests verwenden synthetische Fachadapter; GUI-Verhaltenstests
+führen das echte Skript mit wirkungslosen DOM-/Netzwerk-Testumgebungen aus.
+Beides belegt weder Layout-/Tastaturabnahme im Browser noch die Auswahlqualität
+eines Live-Modells. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
 oder mit vom Client gelieferten Berichten befüllen. Ein ausgewählter JSON-Wert
 allein belegt weder Ausführung noch Herkunft.
 

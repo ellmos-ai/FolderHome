@@ -301,6 +301,11 @@ footer p { margin: 0; }
 #recipe-form { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
 .plan-details { overflow-wrap: anywhere; }
 .plan-details pre { white-space: pre-wrap; font-size: .8rem; }
+.recipe-runs { margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.recipe-runs .section-heading { flex-wrap: wrap; gap: .75rem; }
+.recipe-run-card, .recipe-stage-card { overflow-wrap: anywhere; }
+.recipe-binding { margin-block: .75rem; padding: .75rem; border: 1px solid var(--line); }
+.recipe-binding pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; }
 
 .calendar-editor { margin-top: 1rem; }
 .calendar-editor form { display: grid; gap: .75rem; margin-top: .75rem; }

@@ -36,6 +36,7 @@ function view() {
     Headers, token: "synthetic-session", encodeURIComponent,
     document: { createElement: element }, resultsSection: element("section"),
     resultsContent: content, profileSelect: { value: "lukas" }, planOutcomes: {}, resultsRequestVersion: 0,
+    conversationRevision: 0, conversationResetPending: false,
     t: (key, values = {}) => key + JSON.stringify(values),
     appendChatMessage: (_role, message) => messages.push(message),
     renderCurrentView: () => {},

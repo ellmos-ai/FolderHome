@@ -167,7 +167,7 @@ resolving requests after execution starts and would break the single hash over
 the chain. Existing resource handoffs remain unchanged; result-value slots use
 a separate versioned format.
 
-## Result bindings: v2 runtime, API and chat
+## Result bindings: v2 runtime, API, chat and GUI
 
 The parser also recognizes `folderhome.capability-recipe.v2` with an explicit
 `result_bindings` list. Each binding names an earlier `from_step`, a later
@@ -238,9 +238,24 @@ If a model turn fails while proposing a follow-up section, only that unexecuted
 proposal is discarded. Confirmed source reports remain in the same run so the
 section can be prepared again without repeating earlier effects.
 
-**Still pending:** a useful bundled v2 recipe, GUI section controls and a
-session-capable CLI. API/Strands integration tests use synthetic domain adapters;
-they do not prove browser acceptance or live-model selection quality. Runs cannot
+The GUI's **Started journeys** area lists the selected profile's runs, their
+confirmed steps and current state. **Prepare next section** proposes only the
+next concrete section; **Review open section** reopens an existing proposal.
+**Close journey** discards the open proposal without undoing earlier effects.
+The section review shows each carried value, source report path, source execution
+and destination field before **Confirm and execute this section**.
+
+Only a separate confirmation executes. Concurrent close/confirm actions are
+disabled in the UI. Profile, language and conversation changes discard late
+proposals; a fresh read reconciles actions that finish after returning to the
+same profile. Reset removes old visible approval buttons immediately. If a
+section stops with uncertain effects, the view still names completed, failed and
+unattempted steps and warns if result delivery is incomplete.
+
+**Still pending:** a useful bundled v2 recipe and a session-capable CLI.
+API/Strands integration tests use synthetic domain adapters; GUI behavior tests
+execute the real script with inert DOM/network fixtures. Neither proves browser
+layout/keyboard acceptance or live-model selection quality. Runs cannot
 be restored after process restart or populated with client-provided reports.
 A selected JSON value alone proves neither execution nor provenance.
 

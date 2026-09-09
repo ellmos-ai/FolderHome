@@ -29,6 +29,8 @@ function view() {
     HTMLElement: class {}, actionButtons: [], planOutcomes: {},
     chatTranscript: {replaceChildren() {}}, appendChatMessage() {},
     renderCurrentView() {}, messageInput: {focus() {}}, currentView: null,
+    resetRecipeControls() {}, renderRecipeSelection() {}, renderRecipeRuns() {},
+    loadRecipes: async () => {}, loadRecipeRuns: async () => {}, showError() {},
     t: key => key, showAgent: value => shown.push(value),
     api: async (url, options) => {calls.push({url, body: JSON.parse(options.body)});
       return {plan: {profile_id: "lukas", summary: "review", steps: []}};},

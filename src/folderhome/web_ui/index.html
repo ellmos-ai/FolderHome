@@ -109,6 +109,15 @@
           </div>
           <p class="hint" id="recipe-hint" aria-live="polite" data-i18n="recipeHint">Preparation runs no workflow. Review every step before the separate confirmation.</p>
         </form>
+        <section class="recipe-runs" aria-labelledby="recipe-runs-title">
+          <div class="section-heading">
+            <h3 id="recipe-runs-title" data-i18n="recipeRunsTitle">Started journeys</h3>
+            <button id="refresh-recipe-runs" class="button secondary" type="button"
+              data-i18n="recipeRunsRefresh">Refresh journeys</button>
+          </div>
+          <p class="hint" data-i18n="recipeRunsHint">Runs belong to this profile and app session. Closing discards open sections; completed effects are not undone.</p>
+          <div id="recipe-runs-content" role="status" aria-live="polite"></div>
+        </section>
       </section>
 
       <section id="result-section" class="results" aria-labelledby="result-title" hidden>
