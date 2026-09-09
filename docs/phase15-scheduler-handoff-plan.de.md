@@ -64,6 +64,23 @@ Dateiaktionen freizugeben.
 
 ## Usecases
 
+### Registrierungserweiterung in Arbeit
+
+Die private Python-Planungsgrenze in `application.scheduler_registration`
+bindet jetzt den vollständigen Handoff, die Scheduler-Checkout-Revision,
+Store-/Ledgerpfade, aufgelöste Watch-/Bindingverzeichnisse sowie Dateiauswahl und
+SHA-256-Inhalte von Watch-, Binding-, Profil- und Komponentenmanifest-Dateien.
+Erneute Validierung weist auch umgehängte Verzeichnislinks ab; neue Dokumente
+im genehmigten Watch ändern diesen Konfigurationssnapshot
+nicht. Die Planung erzeugt weder Store noch Ledger oder Ausführungsdienst.
+Der gemeinsame Provider-Loader unterstützt gepinnte `src`-Layouts und weist
+vorab geladene fremde Module der gesamten benannten Paketfamilie zurück.
+
+Das ist noch keine Jobregistrierung: Bestätigungsadapter, persistenter
+Versuchsnachweis, Provider-Schreibzugriff mit Rückleseprüfung, begrenzter
+Ausführungsdienst und App-/CLI-Anbindung bleiben in Arbeit. Das bisherige
+Verhalten von `scheduler plan/run` bleibt unverändert.
+
 ### USECASE 015-1: Installationsfreien Handoff prüfen
 
 - **Vorbedingung:** Synthetische Konfigurationspfade und expliziter Startzeitpunkt.

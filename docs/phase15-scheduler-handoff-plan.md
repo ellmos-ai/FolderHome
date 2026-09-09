@@ -52,6 +52,21 @@ FolderHome shall be able to regularly check the read‑only routine queue headle
 
 ## Use Cases
 
+### Registration extension in progress
+
+The private Python planning boundary in `application.scheduler_registration`
+now binds the complete handoff, scheduler checkout revision, store/ledger paths,
+the resolved watch/binding directories, and the membership and SHA-256 content
+of watch, binding, profile and component manifest files. Revalidation rejects
+drift, including retargeted directory links; new documents inside an approved
+watch do not invalidate this configuration snapshot. Planning creates no store,
+ledger, or consumer. The shared provider loader supports pinned `src` layouts
+and rejects preloaded foreign modules throughout the named package family.
+
+This is not yet job registration: the confirmation adapter, persistent attempt
+ledger, provider write/readback, limited consumer, and app/CLI integration remain
+under development. The existing `scheduler plan/run` behavior is unchanged.
+
 ### USECASE 015-1: Verify Installation‑Free Handoff
 
 - **Precondition:** Synthetic configuration paths and explicit start time.  

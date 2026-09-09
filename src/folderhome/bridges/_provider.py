@@ -25,18 +25,32 @@ def load_pinned_python_modules(
     package_name: str,
     module_names: Iterable[str] = (),
     import_from_parent: bool = False,
+    src_layout: bool = False,
 ) -> dict[str, ModuleType]:
     """Verify one clean Git checkout and import only the requested package modules."""
 
+    if src_layout and import_from_parent:
+        raise ProviderCheckoutError("Provider-Layout ist mehrdeutig: src und parent.")
+    requested = tuple(module_names)
+    if any(not name.startswith(package_name + ".") for name in requested):
+        raise ProviderCheckoutError("Provider-Modul liegt außerhalb des benannten Pakets.")
     provider_root = provider_root.resolve()
     _verify_checkout(plugin, provider_root)
     import_root = provider_root.parent if import_from_parent else provider_root
+    if src_layout:
+        import_root = provider_root / "src"
+    for name, existing in tuple(sys.modules.items()):
+        if existing is not None and (name == package_name or name.startswith(package_name + ".")):
+            existing_path = Path(existing.__file__ or "").resolve()
+            if not existing_path.is_relative_to(provider_root):
+                raise ProviderCheckoutError(
+                    f"Ein anderer {name}-Provider ist bereits geladen: {existing_path}"
+                )
     with _import_path(import_root, package_name, provider_root):
         package = importlib.import_module(package_name)
         modules = {package_name: package}
         modules.update(
-            (module_name, importlib.import_module(module_name))
-            for module_name in module_names
+            (module_name, importlib.import_module(module_name)) for module_name in requested
         )
     package_path = Path(package.__file__ or "").resolve()
     if not package_path.is_relative_to(provider_root):

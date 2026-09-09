@@ -12,6 +12,10 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Changed
 
+- Scheduler registration groundwork: a read-only plan binds configuration
+  file membership/content and provider/store identity. Pinned Python providers
+  may use a `src` layout; foreign preloaded package members are rejected.
+  Registration, the consumer, and app/CLI integration are not yet available.
 - Architecture documentation now separates the four-adapter synthetic demo
   from the full runtime, seven master tools, setup/MCP boundaries and model
   providers. The bilingual guide includes calendar integrity and the local
