@@ -160,7 +160,12 @@ class LocalServer:
         self._server.shutdown()
 
     def server_close(self) -> None:
-        self._server.server_close()
+        try:
+            close_application = getattr(self._server.application, "close", None)
+            if close_application is not None:
+                close_application()
+        finally:
+            self._server.server_close()
 
 
 def create_local_server(

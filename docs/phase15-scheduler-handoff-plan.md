@@ -126,9 +126,40 @@ consumer before another claim. Earlier private proposals require a new preview.
 An uncertain provider response remains explicitly unknown in ordinary HTTP and
 recipe confirmation; it is never presented as proof that no job was written.
 
-The Setup UI and visible consumer start/status controls remain under development.
+The Setup UI prepares the private resources without registering or starting a job.
+The normal EN/DE UI provides consumer preview, separate start confirmation,
+status refresh and stop. Changing profile invalidates the visible preview.
 The existing `scheduler plan/run` behavior is unchanged. Tests use temporary stores
 and require the clean pinned scheduler checkout; no real user job is registered.
+
+### Process-owned consumer control API
+
+The normal app resolves exactly one `scheduler.request` file for the selected
+profile, using the saved Setup request and the existing registration validator.
+Starting requires `--approve-scheduler-consumer` at app launch **and** a separate
+confirmation of the current preview. `--approve-scheduler-write` alone is not enough.
+Neither flag automatically starts a worker; a matching registration must already exist.
+
+| Endpoint | Method | Request |
+|---|---|---|
+| `/api/v1/scheduler/status` | GET | Exactly one `profile_id` query parameter |
+| `/api/v1/scheduler/preview` | POST | `schema`, `profile_id` |
+| `/api/v1/scheduler/start` | POST | `schema`, `profile_id`, `plan_id`, `plan_sha256` |
+| `/api/v1/scheduler/stop` | POST | `schema`, `profile_id`, `worker_id` |
+
+POST schemas are `folderhome.scheduler-consumer-<action>-request.v1`.
+Use the existing session-token header and same-origin JSON request boundary.
+Caller-supplied paths, commands and extra fields are rejected. Start rereads the
+saved request and resource authority; changed plans and reused confirmations fail.
+Preview does not inspect the job database (`registration_checked: false`);
+the exact registered job is validated at start, without creating a missing job.
+
+Status describes **this app instance only**; other instances remain `not_observed`.
+Stop accepts only this instance's worker ID, signals its existing provider loop,
+and reports `stopping` until the current bounded check drains. App/server close
+signals all owned workers too. A running check is not force-killed and may outlive
+the short close wait; no detached service or OS task is installed. Document actions
+remain unauthorized. Browser acceptance and package-wide final verification are pending.
 
 ### USECASE 015-1: Verify Installation‑Free Handoff
 

@@ -212,6 +212,7 @@ from folderhome.application.routine_queue import (
     build_folder_routine_queue,
     load_folder_routine_bindings,
 )
+from folderhome.application.scheduler_control import SchedulerConsumerController
 from folderhome.application.scheduler_handoff import (
     SchedulerHandoffError,
     build_scheduler_handoff,
@@ -1575,6 +1576,7 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--approve-mail-draft", action="store_true")
     parser.add_argument("--scheduler-root", type=Path, default=DEFAULT_SCHEDULER_PROVIDER_ROOT)
     parser.add_argument("--approve-scheduler-write", action="store_true")
+    parser.add_argument("--approve-scheduler-consumer", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--max-body-bytes", type=int, default=65_536)
@@ -5299,6 +5301,7 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
 
 def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
     _apply_launch_config(args)
+    scheduler_controller = None
     settings = LocalAppSettings(
         host=args.host,
         port=args.port,
@@ -5508,14 +5511,20 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
             )
         if any("scheduler.store" in resource.purposes for resource in resource_registry.resources):
             scheduler_plugin = _plugin_by_id(args.manifest_root, "ellmos-scheduler")
-            workflow_adapters.append(SchedulerRegistrationWorkflowAdapter(
+            scheduler_adapter = SchedulerRegistrationWorkflowAdapter(
                 registry=resource_registry, resource_registry_file=configured_resources_file,
                 profiles_dir=settings.profiles_dir, manifest_root=args.manifest_root,
                 doc_services_root=args.doc_services_root, scheduler_root=args.scheduler_root,
                 scheduler_revision=scheduler_plugin.source_revision,
                 python_executable=Path(sys.executable), working_directory=REPOSITORY_ROOT,
                 allow_scheduler_write=args.approve_scheduler_write,
-            ))
+            )
+            workflow_adapters.append(scheduler_adapter)
+            scheduler_controller = SchedulerConsumerController(
+                profile_ids=profile_ids,
+                allow_consumer_start=args.approve_scheduler_consumer,
+                plan_provider=scheduler_adapter.prepare_saved_plan,
+            )
     workflow_executor = WorkflowExecutionGateway(tuple(workflow_adapters))
     return LocalApplication(
         settings=settings,
@@ -5524,6 +5533,7 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
         agent_settings=_strands_agent_settings(args),
         workflow_executor=workflow_executor,
         resource_registry=resource_registry,
+        scheduler_controller=scheduler_controller,
     )
 
 

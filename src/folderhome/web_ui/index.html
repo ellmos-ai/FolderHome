@@ -134,6 +134,27 @@
         <div id="results-content" aria-live="polite"></div>
       </section>
 
+      <section class="workspace" aria-labelledby="scheduler-title">
+        <div class="section-heading">
+          <h2 id="scheduler-title" data-i18n="schedulerTitle">Regular folder checks</h2>
+          <button id="scheduler-status-refresh" class="button secondary" type="button"
+            data-i18n="schedulerRefresh">Refresh service status</button>
+        </div>
+        <p class="hint" data-i18n="schedulerScope">Uses the selected profile. Status covers this app only; other instances are not observed. Checks prepare proposals, not document actions.</p>
+        <p id="scheduler-status" role="status" aria-live="polite"></p>
+        <p id="scheduler-last-observation" class="hint"></p>
+        <p id="scheduler-preview-details" hidden></p>
+        <p class="hint" data-i18n="schedulerGate">Configure in Setup and register the job separately. Starting also requires --approve-scheduler-consumer at app launch. Closing the app signals a stop after the current check.</p>
+        <div class="recipe-controls">
+          <button id="scheduler-preview" class="button secondary" type="button"
+            data-i18n="schedulerPreview">Preview service start</button>
+          <button id="scheduler-start" class="button primary" type="button" disabled
+            data-i18n="schedulerStart">Start this exact service</button>
+          <button id="scheduler-stop" class="button secondary" type="button" disabled
+            data-i18n="schedulerStop">Stop this app's service</button>
+        </div>
+      </section>
+
       <section class="capability-section" aria-labelledby="capability-title">
         <div class="section-heading">
           <div>

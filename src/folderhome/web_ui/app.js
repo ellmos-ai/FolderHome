@@ -8,6 +8,24 @@ const supportedThemes = ["light", "dark"];
 const translations = {
   en: {
     skipLink: "Skip to content",
+    schedulerTitle: "Regular folder checks",
+    schedulerUnavailable: "Service control is not configured or unavailable. Check the selected profile's Scheduler settings in Setup.",
+    schedulerRefresh: "Refresh service status",
+    schedulerScope: "Uses the selected profile. Status covers this app only; other instances are not observed. Checks prepare proposals, not document actions.",
+    schedulerGate: "Configure in Setup and register the job separately. Starting also requires --approve-scheduler-consumer at app launch. Closing the app signals a stop after the current check.",
+    schedulerPreview: "Preview service start",
+    schedulerStart: "Start this exact service",
+    schedulerStop: "Stop this app's service",
+    schedulerState_unknown: "Service status has not been observed.",
+    schedulerState_not_started_in_this_app: "No service has been started in this app.",
+    schedulerState_running: "This app's service is running.",
+    schedulerState_stopping: "Stopping after the current check; not stopped yet.",
+    schedulerState_stopped: "This app's service has stopped.",
+    schedulerState_failed: "This app's service failed. Review its private report before starting again.",
+    schedulerControlError: "The request could not be confirmed. Check configuration and refresh status before retrying; an interrupted start request may already have started the service.",
+    schedulerProposal: "Profile: {profile}. Every {interval} minutes from {start} ({zone}). Watches: {watches}. Registration is required and will be checked at start.",
+    schedulerLastObservation: "Last check: {time}; result: {status}.",
+    schedulerNoObservation: "No completed check has been observed in this app.",
     brandHome: "FolderHome home",
     languageSwitch: "FolderHome language",
     useEnglish: "Use English",
@@ -107,6 +125,24 @@ const translations = {
   },
   de: {
     skipLink: "Zum Inhalt springen",
+    schedulerTitle: "Regelmäßige Ordnerprüfungen",
+    schedulerUnavailable: "Dienststeuerung ist nicht eingerichtet oder nicht verfügbar. Scheduler-Einstellungen des ausgewählten Profils im Setup prüfen.",
+    schedulerRefresh: "Dienststatus aktualisieren",
+    schedulerScope: "Verwendet das ausgewählte Profil. Der Status gilt nur für diese App; andere Instanzen werden nicht beobachtet. Prüfungen bereiten Vorschläge vor, keine Dokumentaktionen.",
+    schedulerGate: "Im Setup einrichten und den Job separat registrieren. Starten benötigt zusätzlich --approve-scheduler-consumer beim App-Start. App-Schließen signalisiert einen Stopp nach der laufenden Prüfung.",
+    schedulerPreview: "Dienststart vorschauen",
+    schedulerStart: "Genau diesen Dienst starten",
+    schedulerStop: "Dienst dieser App stoppen",
+    schedulerState_unknown: "Dienststatus wurde noch nicht beobachtet.",
+    schedulerState_not_started_in_this_app: "In dieser App wurde kein Dienst gestartet.",
+    schedulerState_running: "Der Dienst dieser App läuft.",
+    schedulerState_stopping: "Stoppt nach der laufenden Prüfung; noch nicht gestoppt.",
+    schedulerState_stopped: "Der Dienst dieser App ist gestoppt.",
+    schedulerState_failed: "Der Dienst dieser App ist fehlgeschlagen. Vor erneutem Start den privaten Bericht prüfen.",
+    schedulerControlError: "Die Anfrage konnte nicht bestätigt werden. Konfiguration prüfen und vor Wiederholung den Status aktualisieren; eine unterbrochene Startanfrage kann den Dienst bereits gestartet haben.",
+    schedulerProposal: "Profil: {profile}. Alle {interval} Minuten ab {start} ({zone}). Watches: {watches}. Registrierung ist erforderlich und wird beim Start geprüft.",
+    schedulerLastObservation: "Letzte Prüfung: {time}; Ergebnis: {status}.",
+    schedulerNoObservation: "In dieser App wurde noch keine abgeschlossene Prüfung beobachtet.",
     brandHome: "FolderHome Startseite",
     languageSwitch: "FolderHome Sprache",
     useEnglish: "Englisch verwenden",
@@ -325,6 +361,7 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   renderCapabilities();
   renderCurrentView(false);
   if (profileSelect.value) loadRecipes().catch(showError);
+  renderSchedulerControl();
 }
 
 function setTheme(nextTheme, { persist = true } = {}) {
@@ -765,6 +802,82 @@ async function resetConversation() {
   }
 }
 
+// Scheduler consumer controls
+let schedulerView = { busy: false, preview: null, status: null, error: null };
+
+function resetSchedulerControl() {
+  schedulerView = { busy: false, preview: null, status: null, error: null };
+  renderSchedulerControl();
+}
+
+function renderSchedulerControl() {
+  const view = schedulerView;
+  const status = view.status?.status || "unknown";
+  document.querySelector("#scheduler-status").textContent = t(view.error || `schedulerState_${status}`);
+  const observation = view.status?.last_observation;
+  document.querySelector("#scheduler-last-observation").textContent = observation
+    ? t("schedulerLastObservation", { time: observation.observed_at, status: observation.status })
+    : t("schedulerNoObservation");
+  const details = document.querySelector("#scheduler-preview-details");
+  details.hidden = !view.preview;
+  details.textContent = view.preview ? t("schedulerProposal", {
+    profile: view.preview.profile_id, interval: view.preview.interval_minutes,
+    start: view.preview.start_at, zone: view.preview.timezone, watches: view.preview.watch_ids.join(", "),
+  }) : "";
+  document.querySelector("#scheduler-start").disabled = view.busy || !view.preview?.live_effect_approved;
+  document.querySelector("#scheduler-stop").disabled = view.busy || status !== "running";
+  document.querySelector("#scheduler-preview").disabled = view.busy || !profileSelect.value;
+  document.querySelector("#scheduler-status-refresh").disabled = view.busy || !profileSelect.value;
+}
+
+async function schedulerAction(action) {
+  const profile = profileSelect.value;
+  const view = schedulerView;
+  if (!profile || view.busy) return;
+  if (action === "start" && (!view.preview?.live_effect_approved || view.preview.profile_id !== profile)) return;
+  if (action === "stop" && (view.status?.status !== "running" || view.status.profile_id !== profile)) return;
+  const payload = { schema: `folderhome.scheduler-consumer-${action}-request.v1`, profile_id: profile };
+  if (action === "start") {
+    payload.plan_id = view.preview.plan_id;
+    payload.plan_sha256 = view.preview.plan_sha256;
+  }
+  if (action === "stop") payload.worker_id = view.status.worker_id;
+  if (action !== "status") view.preview = null;
+  view.busy = true;
+  view.error = null;
+  renderSchedulerControl();
+  try {
+    const result = action === "status"
+      ? await api(`/api/v1/scheduler/status?profile_id=${encodeURIComponent(profile)}`)
+      : await api(`/api/v1/scheduler/${action}`, { method: "POST", body: JSON.stringify(payload) });
+    if (schedulerView !== view || profileSelect.value !== profile) return;
+    if (action === "preview") view.preview = result;
+    else view.status = result;
+  } catch (_error) {
+    if (schedulerView !== view || profileSelect.value !== profile) return;
+    view.error = action === "status" && _error.status === 503 ? "schedulerUnavailable" : "schedulerControlError";
+    view.preview = null;
+  } finally {
+    if (schedulerView === view) {
+      view.busy = false;
+      renderSchedulerControl();
+      if (view.refreshAfter) {
+        view.refreshAfter = false;
+        await schedulerAction("status");
+      }
+    } else if (profileSelect.value === profile && ["start", "stop"].includes(action)) {
+      // A late effect may invalidate an earlier status read after A → B → A.
+      // Reconcile through a fresh GET; never restore the abandoned approval.
+      schedulerView.refreshAfter = true;
+      if (!schedulerView.busy) {
+        schedulerView.refreshAfter = false;
+        await schedulerAction("status");
+      }
+    }
+  }
+}
+// End scheduler consumer controls
+
 async function bootstrap() {
   const [status, profiles, capabilities, executors] = await Promise.all([
     api("/api/v1/status"),
@@ -791,6 +904,7 @@ async function bootstrap() {
   renderCapabilities();
   await loadResults();
   await loadRecipes();
+  await schedulerAction("status");
 }
 
 languageButtons.forEach((button) => {
@@ -807,6 +921,8 @@ refreshResultsButton.addEventListener("click", () => {
   loadResults().catch(showError);
 });
 profileSelect.addEventListener("change", () => {
+  resetSchedulerControl();
+  schedulerAction("status");
   currentView = null;
   renderCurrentView(false);
   prepareRecipeButton.disabled = true;
@@ -826,6 +942,13 @@ promptExamples.forEach((button) => {
     runAgent().catch(showError);
   });
 });
+
+for (const [id, action] of Object.entries({
+  "scheduler-preview": "preview", "scheduler-start": "start",
+  "scheduler-stop": "stop", "scheduler-status-refresh": "status",
+})) {
+  document.querySelector(`#${id}`).addEventListener("click", () => schedulerAction(action));
+}
 
 setLanguage(language, { persist: false });
 setTheme(theme, { persist: false });

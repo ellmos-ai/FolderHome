@@ -105,6 +105,43 @@ class SchedulerRegistrationWorkflowAdapter:
         self._allow_scheduler_write = allow_scheduler_write
         self._resource_registry_file = resource_registry_file
 
+    def prepare_saved_plan(self, profile_id: str) -> SchedulerRegistrationPlan:
+        """Resolve only the selected profile's trusted setup request, then reuse prepare."""
+        registry = self._registry
+        registry_bytes = None
+        if self._resource_registry_file is not None:
+            registry_bytes = self._resource_registry_file.read_bytes()
+            registry = parse_resource_registry(
+                json.loads(registry_bytes), expected_os_account=registry.os_account,
+                known_profile_ids=registry.known_profile_ids,
+            )
+        candidates = [resource for resource in registry.resources
+                      if "scheduler.request" in resource.purposes
+                      and profile_id in resource.profile_ids]
+        if len(candidates) != 1:
+            raise ValueError("Genau ein gespeicherter Scheduler-Antrag pro Profil erforderlich.")
+        resource = registry.resolve(
+            resource_id=candidates[0].resource_id, profile_id=profile_id,
+            purpose="scheduler.request", required_kind="file", required_operations={"read"},
+        )
+        request_bytes = resource.local_path.read_bytes()
+        payload = json.loads(request_bytes)
+        if (
+            not isinstance(payload, dict)
+            or set(payload) != {"schema", "profile_id", "request"}
+            or payload["schema"] != "folderhome.scheduler-setup.v1"
+            or payload["profile_id"] != profile_id
+            or not isinstance(payload["request"], dict)
+        ):
+            raise ValueError("Gespeicherter Scheduler-Antrag besitzt ungültige Profilbindung.")
+        _, prepared = self.prepare(profile_id=profile_id, request=payload["request"])
+        if resource.local_path.read_bytes() != request_bytes or (
+            registry_bytes is not None
+            and self._resource_registry_file.read_bytes() != registry_bytes
+        ):
+            raise ValueError("Scheduler-Antrag oder Ressourcenrechte wurden beim Laden verändert.")
+        return prepared.plan
+
     def prepare(self, *, profile_id: str, request: dict[str, object]):
         _validate_exact_request(request, _REQUEST_SCHEMA, "Scheduler-Anfrage")
         if request["allow_sensitive_local_read"] is not True:

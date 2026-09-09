@@ -111,6 +111,7 @@ class LocalApplication:
         agent_settings: StrandsAgentSettings | None = None,
         workflow_executor: WorkflowExecutionGateway | None = None,
         resource_registry: ResourceRegistry | None = None,
+        scheduler_controller=None,
     ) -> None:
         if profiles.os_account.strip() == "":
             raise LocalAppError("Profilkonfiguration besitzt kein OS-Konto-Label.")
@@ -135,6 +136,7 @@ class LocalApplication:
                     "Ressourcenregister und Profilkonfiguration besitzen andere Profile."
                 )
         self.resource_registry = resource_registry
+        self.scheduler_controller = scheduler_controller
         self.session_token = token
         self._token_sha256 = sha256(token.encode("utf-8")).hexdigest()
         self._identity = capture_os_identity()
@@ -160,6 +162,11 @@ class LocalApplication:
         self._successful_live_model_turns = 0
         self._model_status_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
+
+    def close(self) -> None:
+        """Stop only background work owned by this application instance."""
+        if self.scheduler_controller is not None:
+            self.scheduler_controller.close()
 
     def plan(self) -> dict[str, object]:
         return {
@@ -860,6 +867,11 @@ class LocalApplication:
         }:
             return self._error(405, "Methode ist für diese lokale Ressource nicht erlaubt.")
 
+        if parsed.path in {
+            "/api/v1/scheduler/status", "/api/v1/scheduler/preview",
+            "/api/v1/scheduler/start", "/api/v1/scheduler/stop",
+        }:
+            return self._scheduler_response(method, parsed, headers, body)
         if method == "GET" and parsed.path == "/api/v1/status":
             return self._json_response(self._status_payload(server_port))
         if method == "GET" and parsed.path == "/api/v1/profiles":
@@ -998,6 +1010,59 @@ class LocalApplication:
         }:
             return self._error(405, "Lokaler Dienst benötigt eine POST-JSON-Anfrage.")
         return self._error(404, "Unbekannter lokaler Endpunkt.")
+
+    def _scheduler_response(self, method, parsed, headers, body):
+        action = parsed.path.rsplit("/", 1)[-1]
+        if method != ("GET" if action == "status" else "POST"):
+            return self._error(405, "Methode für diese Scheduler-Aktion nicht erlaubt.")
+        if self.scheduler_controller is None:
+            return self._error(503, "Scheduler-Steuerung ist in dieser App nicht eingerichtet.")
+        if action == "status":
+            query = parse_qs(parsed.query, keep_blank_values=True)
+            if set(query) != {"profile_id"} or len(query["profile_id"]) != 1:
+                raise LocalAppError("Scheduler-Status benötigt genau ein Profil.")
+            payload = {"profile_id": query["profile_id"][0]}
+        else:
+            if parsed.query:
+                raise LocalAppError("Scheduler-Aktionen akzeptieren keine Query-Parameter.")
+            payload = self._json_request(headers, body)
+            fields = {"schema", "profile_id"}
+            if action == "start":
+                fields.update({"plan_id", "plan_sha256"})
+            elif action == "stop":
+                fields.add("worker_id")
+            if (
+                set(payload) != fields
+                or payload.get("schema") != f"folderhome.scheduler-consumer-{action}-request.v1"
+                or not all(isinstance(value, str) for value in payload.values())
+            ):
+                raise LocalAppError("Scheduler-Anfrage besitzt ungültige Felder.")
+            for key, pattern in {
+                "plan_id": r"consumer_start_[0-9a-f]{32}",
+                "plan_sha256": r"[0-9a-f]{64}",
+                "worker_id": r"consumer_worker_[0-9a-f]{32}",
+            }.items():
+                if key in payload and re.fullmatch(pattern, payload[key]) is None:
+                    raise LocalAppError("Scheduler-Bestätigung besitzt ungültige Kennungen.")
+        profile_id = payload["profile_id"]
+        if profile_id not in self._profile_ids:
+            raise LocalAppError("Scheduler-Anfrage nennt kein bekanntes Profil.")
+        control = self.scheduler_controller
+        try:
+            if action == "status":
+                result = control.status(profile_id=profile_id)
+            elif action == "preview":
+                result = control.preview_configured(profile_id=profile_id)
+            elif action == "start":
+                result = control.start(profile_id=profile_id, plan_id=payload["plan_id"],
+                                       plan_sha256=payload["plan_sha256"])
+            else:
+                result = control.stop(profile_id=profile_id, worker_id=payload["worker_id"])
+        except (ValueError, WorkflowExecutionError):
+            return self._error(409, "Scheduler-Konfiguration oder Bestätigung nicht mehr gültig.")
+        except (OSError, RuntimeError):
+            return self._error(503, "Scheduler-Dienst ist derzeit nicht verfügbar.")
+        return self._json_response(result)
 
     def _status_payload(self, server_port: int) -> dict[str, object]:
         return {

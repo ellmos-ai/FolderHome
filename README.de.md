@@ -22,8 +22,10 @@ Cloudberechtigungen zu geben.
 
 - lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
 - ein echter `strands.Agent`-Master mit sieben begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- letzter lokaler Gesamtlauf: **954 bestanden**, 0 fehlgeschlagen in 672,88 Sekunden
-  am 09.09.2026, Warnungen als Fehler behandelt; keine Browser- oder AWS-Abnahme
+- letzte vollständig geprüfte lokale Basis: **985 bestanden** in ergänzenden
+  Teilmengen (64 CLI + 921 übrige Tests) am 09.09.2026, Warnungen als Fehler behandelt;
+  nachfolgende Änderungen an der Dienststeuerung werden separat fokussiert geprüft.
+  Keine Browser- oder AWS-Abnahme.
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,
   bestätigungspflichtige FolderHome-Workflowadapter
@@ -549,8 +551,13 @@ sowie private Betriebsordner; Speichern verwendet dieselbe genaue Planbestätigu
 wie das übrige Setup. Ohne gesetzten Bearbeitungsschalter bleibt alles erhalten.
 **Speichern registriert keinen Job und startet keinen Dienst.** Die normale App
 lädt die erzeugten logischen Ressourcen. Registrierung benötigt weiterhin eine
-separate Planbestätigung und `--approve-scheduler-write`; Start-/Statussteuerung
-des Ausführungsdienstes fehlt noch in der Oberfläche. Sobald ein Store existiert,
+separate Planbestätigung und `--approve-scheduler-write`. Das zusätzliche App-Gate
+`--approve-scheduler-consumer` ermöglicht die ausdrückliche, profilgebundene
+Startbestätigung über die [lokale Steuerungs-API](docs/phase15-scheduler-handoff-plan.de.md).
+Es startet niemals automatisch einen Worker. Der EN/DE-Bereich „Regelmäßige
+Ordnerprüfungen“ bietet Vorschau, genaue Startbestätigung, Statusaktualisierung und
+Stopp des eigenen Workers. Bedienlogik geprüft; Browser-/Layoutabnahme steht aus.
+Sobald ein Store existiert,
 verweigert das Setup das Ersetzen dieser Scheduler-Konfiguration. Quelle, Ziel
 und Betriebsdaten müssen getrennt bleiben; andere Ressourcen und eingeschränkte
 Berechtigungen bleiben erhalten.

@@ -146,10 +146,42 @@ Consumer vor einer weiteren Übernahme. Frühere private Vorschläge benötigen 
 neue Vorschau. Ein unklarer Providerrückgabewert bleibt bei gewöhnlicher HTTP-
 und Rezeptbestätigung ausdrücklich unklar; er belegt nicht, dass kein Job entstand.
 
-Setup-Oberfläche und sichtbare Consumer-Start-/Statusbedienung bleiben in Arbeit.
+Die Setup-Oberfläche bereitet private Ressourcen vor, ohne einen Job zu registrieren
+oder zu starten. Die normale EN/DE-Oberfläche bietet Consumer-Vorschau, getrennte
+Startbestätigung, Statusaktualisierung und Stopp. Profilwechsel verwirft die Vorschau.
 Das bisherige Verhalten von `scheduler plan/run` bleibt unverändert.
 Tests verwenden temporäre Stores und benötigen den sauberen gepinnten
 Scheduler-Checkout; es wird kein echter Nutzerjob registriert.
+
+### Instanzgebundene Consumer-Steuerungs-API
+
+Die normale App löst genau eine `scheduler.request`-Datei für das gewählte Profil
+auf und nutzt den gespeicherten Setup-Antrag sowie die bestehende Registrierungsprüfung.
+Starten erfordert `--approve-scheduler-consumer` beim App-Start **und** eine getrennte
+Bestätigung der aktuellen Vorschau. `--approve-scheduler-write` allein genügt nicht.
+Keines der Flags startet automatisch einen Worker; die passende Registrierung muss bestehen.
+
+| Endpunkt | Methode | Anfrage |
+|---|---|---|
+| `/api/v1/scheduler/status` | GET | Genau ein Query-Parameter `profile_id` |
+| `/api/v1/scheduler/preview` | POST | `schema`, `profile_id` |
+| `/api/v1/scheduler/start` | POST | `schema`, `profile_id`, `plan_id`, `plan_sha256` |
+| `/api/v1/scheduler/stop` | POST | `schema`, `profile_id`, `worker_id` |
+
+POST-Schemas heißen `folderhome.scheduler-consumer-<action>-request.v1`.
+Es gelten der bestehende Sitzungstoken-Header und die gleichursprüngliche JSON-Anfragegrenze.
+Übergebene Pfade, Befehle und zusätzliche Felder werden abgewiesen. Start liest Antrag und
+Ressourcenrechte erneut; geänderte Pläne und wiederverwendete Bestätigungen scheitern.
+Vorschau liest keine Jobdatenbank (`registration_checked: false`); erst Start prüft
+den genauen registrierten Job, ohne einen fehlenden Job anzulegen.
+
+Status beschreibt **nur diese App-Instanz**; andere Instanzen bleiben `not_observed`.
+Stop akzeptiert nur die eigene Worker-ID, signalisiert deren bestehenden Providerloop
+und meldet `stopping`, bis die laufende begrenzte Prüfung beendet ist. App-/Server-Schließen
+signalisiert ebenfalls alle eigenen Worker. Ein laufender Durchgang wird nicht erzwungen
+abgebrochen und darf die kurze Schließwartezeit überdauern; es entsteht kein losgelöster
+Dienst oder OS-Task. Dokumentaktionen bleiben unautorisiert. Browserabnahme und abschließende
+paketweite Prüfung stehen aus.
 
 ### USECASE 015-1: Installationsfreien Handoff prüfen
 

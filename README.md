@@ -21,8 +21,10 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 - 36-phase local competition baseline implemented; expanded final acceptance is ongoing
 - one real `strands.Agent` master with seven bounded tools and on-demand planning specialists
-- latest local full suite: **954 passed**, zero failed in 672.88 seconds on
-  2026-09-09, with warnings treated as errors; this is not browser or AWS acceptance
+- latest complete local baseline: **985 passed** in complementary partitions
+  (64 CLI + 921 other tests) on 2026-09-09, warnings treated as errors;
+  subsequent consumer-control changes have separate focused verification.
+  This is not browser or AWS acceptance.
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated
   FolderHome workflow adapters
@@ -515,8 +517,13 @@ private runtime directories; save uses the same exact-plan confirmation as the
 rest of setup. Leaving the edit checkbox off preserves the configuration.
 **Saving neither registers a job nor starts a service.** The normal app loads
 the generated logical resources. Registration still requires a separate plan
-confirmation and `--approve-scheduler-write`; consumer start/status controls are
-not yet available in the UI. Once a store exists, setup refuses to replace that
+confirmation and `--approve-scheduler-write`. The app's separate
+`--approve-scheduler-consumer` gate enables explicit, profile-bound start
+confirmation through the [local control API](docs/phase15-scheduler-handoff-plan.md).
+It never starts a worker automatically. The EN/DE “Regular folder checks” panel
+provides preview, exact start confirmation, status refresh and stop for this app's
+worker. UI logic is tested; browser/layout acceptance is still pending.
+Once a store exists, setup refuses to replace that
 profile's scheduler configuration. Source, destination and runtime paths must
 remain separate; other resources and restricted permissions are preserved.
 
