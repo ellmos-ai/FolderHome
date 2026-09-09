@@ -1,4 +1,4 @@
-# Fähigkeitsrezepte — eine Bestätigung für eine ganze Geschichte
+# Fähigkeitsrezepte — ganze Abläufe und getrennt freigegebene Abschnitte
 
 [English](./capability-recipes.md) | **Deutsch**
 
@@ -13,9 +13,10 @@ Rezepten konnte FolderHome alle vier Dinge — aber man musste viermal fragen un
 viermal bestätigen, und nichts stellte sicher, dass Schritt drei dasselbe
 Schreiben verwendet wie Schritt zwei.
 
-Ein Rezept ist diese Geschichte, aufgeschrieben. Der Master löst sie in **einen**
-Plan mit mehreren geordneten Schritten auf, und die ganze Kette wird einmal
-bestätigt.
+Ein Rezept ist diese Geschichte, aufgeschrieben. Bei v1 löst der Master sie in
+**einen** Plan mit mehreren geordneten Schritten auf; die ganze Kette wird einmal
+bestätigt. Ergebnisgebundene v2-Rezepte brauchen **eine eigene Freigabe für jeden
+konkreten Abschnitt**. Die unten beschriebene Auswahl und CLI bieten bisher v1 an.
 
 ## Was ein Rezept nicht ist
 
@@ -34,7 +35,7 @@ widerspricht. Ein Rezept darf deshalb mehrere Domänen umspannen, ohne die Regel
 aufzuweichen, dass ein Endpunkt nur von seiner eigenen Fachrolle genutzt werden
 darf — die Regel wird lediglich pro Schritt geprüft statt einmal pro Plan.
 
-**Daten fließen nur als logische Ressourcen-IDs.** Eine Übergabekante
+**Bei v1 fließen Daten nur als logische Ressourcen-IDs.** Eine Übergabekante
 deklariert, dass ein benanntes Feld eines früheren und ein benanntes Feld eines
 späteren Schrittes dieselbe logische Ressource bezeichnen müssen: einen Speicher,
 den ein Schritt schreibt und ein späterer liest, oder eine Quelle, auf die sich
@@ -168,15 +169,15 @@ Er benennt drei Gruppen ausdrücklich:
 seine eigene Atomizitätsgarantie, und ein abgeschlossener Schritt bleibt
 abgeschlossen. Der Bericht sagt genau, wo fortzusetzen ist.
 
-## Bekannte Grenze dieser Fassung
+## Grenzen von Rezepten mit einer Bestätigung
 
-Übergabekanten binden Ressourcen, keine Werte. Ein Rezept kann noch keinen Wert
+Übergabekanten binden Ressourcen, keine Werte. Ein v1-Rezept kann keinen Wert
 aus dem Bericht eines Schrittes in die Anfrage des nächsten setzen — das würde
 verlangen, Anfragen erst während der Ausführung aufzulösen, und würde den einen
 Hash über die Kette brechen. Bestehende Ressourcenübergaben bleiben unverändert;
 Ergebnisfelder verwenden ein eigenes versioniertes Format.
 
-## Ergebnisübergaben: v2-Laufzeit, Produktanbindung noch offen
+## Ergebnisübergaben: v2-Laufzeit, API und Chat
 
 Der Parser erkennt zusätzlich `folderhome.capability-recipe.v2` mit einer
 expliziten Liste `result_bindings`. Jede Übergabe nennt einen früheren
@@ -225,9 +226,40 @@ Diese Python-Laufzeit wurde mit dem echten lokalen Notizadapter geprüft:
 Notiz anlegen, bestätigte ID und Revision in eine Änderung übernehmen und
 Revision 2 getrennt freigeben. Kein Netzwerk oder externer Abgleich ist beteiligt.
 
-**Die Produktanbindung steht noch aus:** Im Katalog wird kein v2-Rezept
-ausgeliefert, und normale API, CLI, Chat und GUI bieten diese Abschnittssteuerung
-noch nicht an. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
+Die normale Anwendung verarbeitet ein paketiertes v2-Rezept jetzt über dieselben
+Grenzen `POST /api/v1/agent/recipes/plan` und die exakte Bestätigung
+`POST /api/v1/agent/confirm`. Ein Abschnittsvorschlag verwendet
+`folderhome.recipe-stage-plan.v1`, enthält seinen Zustand `run` und gibt nur den
+zurückgegebenen Plan frei. Katalogeinträge nennen
+`approval_mode: per_section` oder `whole_chain`.
+
+| Aktion | Authentifizierter Endpunkt / Anfrage |
+| --- | --- |
+| Läufe dieses Profils anzeigen | `GET /api/v1/agent/recipes/runs?profile_id=lukas` |
+| Nächsten Abschnitt vorbereiten | `POST /api/v1/agent/recipes/next`; Schema `folderhome.local-recipe-next-request.v1`, `profile_id`, `run_id` |
+| Lauf ohne Rücknahme schließen | `POST /api/v1/agent/recipes/close`; Schema `folderhome.local-recipe-close-request.v1`, `profile_id`, `run_id` |
+
+Die Strands-Werkzeuge `list_home_recipe_runs` und `propose_next_recipe_stage`
+nutzen denselben prozesslokalen Zustand. Sie geben niemals Wirkungen frei.
+Die Bestätigung liefert `recipe_run` und die tatsächlichen Abschnittsergebnisse
+in `recipe_execution`. Erfolgreiche Berichte und ausdrücklich unsichere
+Providerbelege erscheinen auch in der normalen Ergebnisliste. Scheitert die
+zusätzliche Ergebnisablage, bleiben Wiederholungswarnung und
+`result_delivery_incomplete` erhalten; das darf nicht wie eine unversuchte Aktion wirken.
+
+Höchstens 128 Läufe werden behalten. Alte Läufe schließen, um Platz freizugeben.
+Reset, Planverdrängung und App-Ende verwerfen betroffene offene Abschnitte, nicht
+abgeschlossene Wirkungen. Gescheiterte Bereinigung bleibt für einen ausdrücklichen
+Schließversuch erreichbar. Ein Bereinigungsfehler verhindert nicht den Stopp
+des eigenen Scheduler-Consumers.
+Scheitert ein Modellturn beim Vorschlagen eines Folgeabschnitts, wird nur dieser
+unversuchte Vorschlag verworfen. Bestätigte Quellberichte bleiben im selben Lauf;
+der Abschnitt lässt sich ohne Wiederholung früherer Wirkungen neu vorbereiten.
+
+**Noch offen:** ein sinnvolles paketiertes v2-Rezept, GUI-Abschnittssteuerung und
+eine sitzungsfähige CLI. API-/Strands-Integrationstests verwenden synthetische
+Fachadapter; sie belegen weder Browserabnahme noch die Auswahlqualität eines
+Live-Modells. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
 oder mit vom Client gelieferten Berichten befüllen. Ein ausgewählter JSON-Wert
 allein belegt weder Ausführung noch Herkunft.
 

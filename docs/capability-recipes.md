@@ -1,4 +1,4 @@
-# Capability Recipes — one confirmation for a whole journey
+# Capability Recipes — whole journeys and separately approved sections
 
 **English** | [Deutsch](./capability-recipes.de.md)
 
@@ -12,8 +12,10 @@ follow-up appointment in your calendar. Before recipes, FolderHome could do all
 four — but you had to ask four times and confirm four times, and nothing
 guaranteed that step three used the same letter as step two.
 
-A recipe is that journey written down. The master resolves it into **one** plan
-with several ordered steps, and you confirm the whole chain once.
+A recipe is that journey written down. For v1, the master resolves it into
+**one** plan with several ordered steps, and you confirm the whole chain once.
+Result-bound v2 recipes require **separate approval for each concrete section**.
+The existing selector and CLI below currently offer v1 recipes.
 
 ## What a recipe is not
 
@@ -31,7 +33,7 @@ therefore span domains without weakening the rule that an endpoint may only be
 used by the expert that owns it — the rule is simply checked per step instead of
 once per plan.
 
-**Data moves only as logical resource IDs.** A handoff declares that a named
+**In v1, data moves only as logical resource IDs.** A handoff declares that a named
 field of an earlier step and a named field of a later step must resolve to the
 same logical resource: a store one step writes and a later one reads, or a
 source both must agree on. No value from a step report is ever substituted into
@@ -157,15 +159,15 @@ Nothing is rolled back across steps: each adapter keeps its own atomicity
 guarantee, and a completed step stays completed. The report tells you exactly
 where to resume.
 
-## Known limit of this version
+## Limits of single-confirmation recipes
 
-Handoffs bind resources, not values. A recipe cannot yet take a value out of one
+Handoffs bind resources, not values. A v1 recipe cannot take a value out of one
 step's report and put it into the next step's request — that would require
 resolving requests after execution starts and would break the single hash over
 the chain. Existing resource handoffs remain unchanged; result-value slots use
 a separate versioned format.
 
-## Result bindings: v2 runtime, product integration pending
+## Result bindings: v2 runtime, API and chat
 
 The parser also recognizes `folderhome.capability-recipe.v2` with an explicit
 `result_bindings` list. Each binding names an earlier `from_step`, a later
@@ -209,10 +211,38 @@ This Python runtime has been tested through the real local notes adapter:
 create a note, carry its confirmed ID and revision into an edit, then separately
 approve revision 2. No network or external synchronization is involved.
 
-**Product integration is still pending:** no v2 recipe is shipped in the catalog,
-and the normal API, CLI, chat and GUI do not yet offer these section controls.
-Runs cannot be restored after process restart or populated with client-provided
-reports. A selected JSON value alone proves neither execution nor provenance.
+The normal application now dispatches a bundled v2 recipe through the same
+`POST /api/v1/agent/recipes/plan` and exact `POST /api/v1/agent/confirm` boundary.
+A section proposal uses `folderhome.recipe-stage-plan.v1`, includes its `run`
+state, and approves only the returned plan. Catalog entries declare
+`approval_mode: per_section` or `whole_chain`.
+
+| Action | Authenticated endpoint / request |
+| --- | --- |
+| List this profile's runs | `GET /api/v1/agent/recipes/runs?profile_id=lukas` |
+| Prepare the next section | `POST /api/v1/agent/recipes/next`; schema `folderhome.local-recipe-next-request.v1`, `profile_id`, `run_id` |
+| Close a run without rollback | `POST /api/v1/agent/recipes/close`; schema `folderhome.local-recipe-close-request.v1`, `profile_id`, `run_id` |
+
+The Strands tools `list_home_recipe_runs` and `propose_next_recipe_stage` use
+this same process-local state. They never approve effects. Confirmation returns
+`recipe_run` plus the actual `recipe_execution` section outcomes. Successful
+reports and explicitly uncertain provider evidence also use the normal result
+list. A secondary result-storage failure preserves the no-retry warning and
+sets `result_delivery_incomplete`; it must not look like an unattempted action.
+
+At most 128 runs are retained. Close old runs to free capacity. Reset, plan
+eviction and app shutdown discard the affected pending sections, not completed
+effects. Failed cleanup remains available for an explicit close retry. A failed
+recipe cleanup does not prevent the app's own scheduler consumer from stopping.
+If a model turn fails while proposing a follow-up section, only that unexecuted
+proposal is discarded. Confirmed source reports remain in the same run so the
+section can be prepared again without repeating earlier effects.
+
+**Still pending:** a useful bundled v2 recipe, GUI section controls and a
+session-capable CLI. API/Strands integration tests use synthetic domain adapters;
+they do not prove browser acceptance or live-model selection quality. Runs cannot
+be restored after process restart or populated with client-provided reports.
+A selected JSON value alone proves neither execution nor provenance.
 
 ## Where recipes live
 

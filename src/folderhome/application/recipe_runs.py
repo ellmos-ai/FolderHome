@@ -20,7 +20,10 @@ from folderhome.application.master_agent import (
     master_capability_catalog,
 )
 from folderhome.application.recipes import recipe_sha256, review_recipe
-from folderhome.application.workflow_execution import WorkflowExecutionGateway
+from folderhome.application.workflow_execution import (
+    WorkflowExecutionGateway,
+    WorkflowExecutionOutcomeUnknown,
+)
 from folderhome.contracts.master_agent import (
     MasterAgentPlan,
     MasterPlanApproval,
@@ -130,12 +133,22 @@ class RecipeRun:
                 "run_id": self._run_id,
                 "recipe_id": self._recipe.recipe_id,
                 "profile_id": self._profile_id,
+                "language": self._language,
                 "status": self._status,
                 "completed_step_refs": list(self._results),
                 "pending_plan_id": self._pending.plan_id if self._pending else None,
                 "cleanup_pending_count": len(self._cleanup_pending),
                 "last_execution": deepcopy(self._last_execution),
             }
+
+    def confirmed_reports(self, plan_id: str) -> tuple[WorkflowExecutionReport, ...]:
+        """Deliver only this run's verified reports to the application's result store."""
+        with self._lock:
+            self._verify_sources()
+            return tuple(
+                deepcopy(result.report) for result in self._results.values()
+                if result.plan_id == plan_id
+            )
 
     def plan_next(
         self,
@@ -283,6 +296,7 @@ class RecipeRun:
             self._stage_ids.append(plan.plan_id)
             outcomes = []
             reports = []
+            uncertain_steps = []
             failed = False
             for ref, step in pairs:
                 if failed:
@@ -306,8 +320,24 @@ class RecipeRun:
                     outcomes.append(
                         {"step_ref": ref, "status": "executed", "execution_id": report.execution_id}
                     )
-                except Exception:
+                except Exception as exc:
                     failed = True
+                    if isinstance(exc, WorkflowExecutionOutcomeUnknown):
+                        evidence_unavailable = False
+                        try:
+                            partial_evidence = deepcopy(exc.public_evidence())
+                            if not isinstance(partial_evidence, dict):
+                                raise ValueError("Invalid evidence shape")
+                            _digest(partial_evidence)
+                        except Exception:
+                            partial_evidence = {}
+                            evidence_unavailable = True
+                        uncertain_steps.append({
+                            "step_ref": ref,
+                            "envelope_id": step.execution_envelope.envelope_id,
+                            "evidence": partial_evidence,
+                            "evidence_unavailable": evidence_unavailable,
+                        })
                     outcomes.append(
                         {
                             "step_ref": ref,
@@ -344,12 +374,27 @@ class RecipeRun:
                 "completed_step_refs": list(self._results),
                 "outcomes": outcomes,
                 "execution_reports": reports,
+                "uncertain_steps": uncertain_steps,
                 "execution_outcome_unknown": failed,
                 "cleanup_incomplete": cleanup_incomplete,
                 "retry_safe": False,
             }
             self._last_execution = deepcopy(result)
             return result
+
+    def discard_pending(self) -> None:
+        """Cancel only an unexecuted proposal; keep confirmed sources for replanning."""
+        with self._lock:
+            if self._status not in {"ready", "awaiting_approval"}:
+                raise CapabilityRecipeError("Dieser Abschnitt kann nicht verworfen werden.")
+            pending = self._pending
+            self._pending = None
+            self._status = "aborted"  # A failed cleanup must not allow another preparation.
+            self._cleanup(tuple(
+                step.execution_envelope.envelope_id for step in pending.steps
+                if step.execution_envelope is not None
+            ) if pending else ())
+            self._status = "ready"
 
     def close(self) -> None:
         with self._lock:

@@ -362,29 +362,51 @@ def run_folderhome_agent_turn(
         record_tool("list_home_recipes", {"language": language}, result)
         return result
 
-    @tool(name="propose_home_recipe")
-    def propose_home_recipe(recipe_id: str, language: str = "en") -> dict[str, object]:
-        """Prepare a listed journey for separate whole-chain approval; never execute it."""
-
-        ensure_tool_budget()
-        recipe_plan = application.prepare_recipe(
-            profile_id=profile_id, recipe_id=recipe_id, language=language,
-        )
+    def record_recipe_proposal(recipe_plan, tool_name, tool_input):
         result = {
             "recipe_id": recipe_plan.recipe_id, "plan_id": recipe_plan.plan_id,
             "summary": recipe_plan.plan.summary, "step_count": len(recipe_plan.plan.steps),
-            "review": recipe_plan.endorsement.to_dict(), "execution_performed": False,
+            "review": recipe_plan.to_dict()["endorsement"], "execution_performed": False,
+            "approval_mode": (
+                "per_section" if recipe_plan.plan.approval_context.get("run_id")
+                else "whole_chain"
+            ),
+            "run_id": recipe_plan.plan.approval_context.get("run_id"),
         }
         try:
-            record_tool(
-                "propose_home_recipe", {"recipe_id": recipe_id, "language": language}, result,
-            )
+            record_tool(tool_name, tool_input, result)
         except BaseException:
             application.discard_recipe_preparations((recipe_plan,))
             raise
         proposed_plans.append(recipe_plan.plan)
         proposed_recipes.append(recipe_plan)
         return result
+
+    @tool(name="propose_home_recipe")
+    def propose_home_recipe(recipe_id: str, language: str = "en") -> dict[str, object]:
+        """Prepare a listed journey or its first concrete section; never execute it."""
+        ensure_tool_budget()
+        proposal = application.prepare_recipe(
+            profile_id=profile_id, recipe_id=recipe_id, language=language,
+        )
+        return record_recipe_proposal(
+            proposal, "propose_home_recipe", {"recipe_id": recipe_id, "language": language},
+        )
+
+    @tool(name="list_home_recipe_runs")
+    def list_home_recipe_runs() -> dict[str, object]:
+        """List this profile's process-local recipe runs; never infer a missing run."""
+        ensure_tool_budget()
+        result = application.recipe_runs_payload(profile_id=profile_id)
+        record_tool("list_home_recipe_runs", {}, result)
+        return result
+
+    @tool(name="propose_next_recipe_stage")
+    def propose_next_recipe_stage(run_id: str) -> dict[str, object]:
+        """Prepare a concrete next section from a listed run; require separate approval."""
+        ensure_tool_budget()
+        proposal = application.prepare_recipe_stage(profile_id=profile_id, run_id=run_id)
+        return record_recipe_proposal(proposal, "propose_next_recipe_stage", {"run_id": run_id})
 
     model = _build_model(settings)
     messages = _validated_prior_messages(
@@ -402,6 +424,8 @@ def run_folderhome_agent_turn(
             consult_home_specialist,
             list_home_recipes,
             propose_home_recipe,
+            list_home_recipe_runs,
+            propose_next_recipe_stage,
         ],
         system_prompt=_system_prompt(profile_id),
         callback_handler=None,
@@ -648,8 +672,10 @@ def plan_folderhome_agent(
             "consult_home_specialist",
             "list_home_capabilities",
             "list_home_recipes",
+            "list_home_recipe_runs",
             "list_home_resources",
             "propose_home_recipe",
+            "propose_next_recipe_stage",
             "search_home_documents",
         ],
         "tool_execution": "sequential",
@@ -788,9 +814,12 @@ def _system_prompt(profile_id: str) -> str:
         "tools for simple document work. For bounded domain planning, call "
         "consult_home_specialist with an expert and workflow from list_home_capabilities. "
         "For an entire multi-step journey, inspect list_home_recipes and use "
-        "propose_home_recipe only for an available listed recipe. It prepares the whole "
-        "chain behind one separate confirmation; the review is deterministic, not an "
+        "propose_home_recipe only for an available listed recipe. A v1 recipe prepares the "
+        "whole chain; v2 prepares only a concrete section and needs fresh approval for "
+        "each later section. The review is deterministic, not an "
         "independent human or model review. Never execute or confirm it through chat. "
+        "For an existing journey, inspect list_home_recipe_runs and use "
+        "propose_next_recipe_stage with its exact run_id, never restart it as a substitute. "
         "Use list_home_resources when a workflow needs configured local data or output; "
         "logical IDs never disclose or grant arbitrary paths. "
         "Respect each runtime executor status; never claim that not_connected or "
