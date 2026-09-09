@@ -885,8 +885,10 @@ def test_strands_agent_cli_plans_bounded_fixture_without_model_call(
         "consult_home_specialist",
         "list_home_capabilities",
         "list_home_recipes",
+        "list_home_recipe_runs",
         "list_home_resources",
         "propose_home_recipe",
+        "propose_next_recipe_stage",
         "search_home_documents",
     ]
     assert payload["agent_role"] == "folderhome_master"

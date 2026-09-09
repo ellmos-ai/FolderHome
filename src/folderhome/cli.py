@@ -336,6 +336,7 @@ from folderhome.contracts import (
     TaxExportApproval,
     TaxReceiptApproval,
 )
+from folderhome.contracts.recipe_results import ResultBoundRecipe
 from folderhome.contracts.recipes import CapabilityRecipeError
 from folderhome.demo_site import DemoSiteApplication
 from folderhome.local_server import LocalServerError, create_local_server
@@ -1257,6 +1258,7 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_local_app_arguments(agent_session)
     _add_strands_agent_arguments(agent_session)
     agent_session.add_argument("--profile-id", required=True)
+    agent_session.add_argument("--language", choices=("en", "de"), default="en")
     agent_session.add_argument("--json", action="store_true", dest="as_json")
 
     demo = commands.add_parser("demo")
@@ -4655,6 +4657,40 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
     except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
         return _print_error(str(exc))
 
+    try:
+        try:
+            status = _agent_session_loop(application, args)
+        finally:
+            application.close()
+    except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
+        if isinstance(exc, BrokenPipeError):
+            raise
+        _print_agent_session_error(
+            "Session ended with an error; cleanup is not confirmed. "
+            "Do not retry effects automatically.", as_json=args.as_json,
+        )
+        return 2
+    _print_agent_session_event(
+        _agent_session_event("closed", side_effects=[]), as_json=args.as_json,
+    )
+    return status
+
+
+_AGENT_SESSION_COMMANDS = {
+    "/help": "Show these bounded session commands.",
+    "/catalog": "Show exact workflow executor coverage without changes.",
+    "/recipes": "List this profile's recipes and availability; no model call.",
+    "/recipe <recipe_id>": "Prepare a recipe or its first section; never execute.",
+    "/runs": "List this profile's process-local recipe runs.",
+    "/next <run_id>": "Review the open or next section; never execute.",
+    "/close <run_id>": "Discard pending sections; completed effects are not undone.",
+    "/reset": "Clear this profile's process-local context and plans.",
+    "/confirm <plan_id>": "Confirm every approval-required step of one displayed plan.",
+    "/quit": "Close the in-process agent session and discard pending recipe sections.",
+}
+
+
+def _agent_session_loop(application: LocalApplication, args: argparse.Namespace) -> int:
     ready = _agent_session_event(
         "ready",
         profile_id=args.profile_id,
@@ -4662,13 +4698,7 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
         conversation=application.agent_conversation_payload(args.profile_id),
         chat_is_approval=False,
         confirmation_command="/confirm <plan_id>",
-        commands=[
-            "/help",
-            "/catalog",
-            "/reset",
-            "/confirm <plan_id>",
-            "/quit",
-        ],
+        commands=list(_AGENT_SESSION_COMMANDS),
         side_effects=[],
     )
     _print_agent_session_event(ready, as_json=args.as_json)
@@ -4694,20 +4724,21 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
             _print_agent_session_event(
                 _agent_session_event(
                     "help",
-                    commands={
-                        "/help": "Show these bounded session commands.",
-                        "/catalog": "Show exact workflow executor coverage without changes.",
-                        "/reset": "Clear this profile's process-local context and plans.",
-                        "/confirm <plan_id>": (
-                            "Confirm every approval-required step of one displayed plan."
-                        ),
-                        "/quit": "Close the in-process agent session.",
-                    },
+                    commands=_AGENT_SESSION_COMMANDS,
                     chat_is_approval=False,
                     side_effects=[],
                 ),
                 as_json=args.as_json,
             )
+            continue
+        if message.split()[0] in {"/recipes", "/recipe", "/runs", "/next", "/close"}:
+            try:
+                event = _recipe_session_command(application, args, message)
+            except (CapabilityRecipeError, *_LOCAL_APP_ERRORS) as exc:
+                encountered_error = True
+                _print_agent_session_error(str(exc), as_json=args.as_json)
+                continue
+            _print_agent_session_event(event, as_json=args.as_json)
             continue
         if message == "/catalog":
             _print_agent_session_event(
@@ -4741,15 +4772,16 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
                 )
                 continue
             plan = application.proposed_agent_plan(parts[1])
-            if plan is None:
+            if plan is None or plan.profile_id != args.profile_id:
                 encountered_error = True
                 _print_agent_session_error(
-                    "The plan is not known in this local process session.",
+                    "The plan is not known for this profile in this local process session.",
                     as_json=args.as_json,
                 )
                 continue
             step_ids = tuple(
-                step.step_id for step in plan.steps if step.confirmation_required
+                step.step_id for step in plan.steps
+                if step.confirmation_required or plan.approval_context.get("recipe_id")
             )
             if not step_ids:
                 encountered_error = True
@@ -4826,11 +4858,42 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
             as_json=args.as_json,
         )
 
-    _print_agent_session_event(
-        _agent_session_event("closed", side_effects=[]),
-        as_json=args.as_json,
-    )
     return 2 if encountered_error else 0
+
+
+def _recipe_session_command(
+    application: LocalApplication, args: argparse.Namespace, message: str,
+) -> dict[str, object]:
+    parts = message.split()
+    command = parts[0]
+    expected = 1 if command in {"/recipes", "/runs"} else 2
+    if len(parts) != expected:
+        raise LocalAppError("Invalid recipe command arguments. Use /help.")
+    if command == "/recipes":
+        return _agent_session_event(
+            "recipes", catalog=application.recipe_catalog_payload(
+                profile_id=args.profile_id, language=getattr(args, "language", "en"),
+            ), side_effects=[],
+        )
+    if command == "/runs":
+        return _agent_session_event(
+            "recipe_runs", runs=application.recipe_runs_payload(profile_id=args.profile_id),
+            side_effects=[],
+        )
+    if command == "/close":
+        return _agent_session_event(
+            "recipe_closed", result=application.close_recipe_run(
+                profile_id=args.profile_id, run_id=parts[1],
+            ), side_effects=[],
+        )
+    if command == "/recipe":
+        proposal = application.propose_recipe(
+            profile_id=args.profile_id, recipe_id=parts[1],
+            language=getattr(args, "language", "en"),
+        )
+    else:
+        proposal = application.propose_recipe_stage(profile_id=args.profile_id, run_id=parts[1])
+    return _agent_session_event("recipe_plan", recipe=proposal.to_dict(), side_effects=[])
 
 
 def _agent_session_event(event: str, **payload: object) -> dict[str, object]:
@@ -4862,13 +4925,25 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
             f"{payload['profile_id']}. Chat never counts as approval."
         )
         print(
-            "Commands: /help, /catalog, /reset, /confirm <plan_id>, /quit",
+            "Commands: " + ", ".join(_AGENT_SESSION_COMMANDS),
             flush=True,
         )
         return
     if event == "help":
         for command, description in payload["commands"].items():
             print(f"{command}: {description}")
+        sys.stdout.flush()
+        return
+    if event in {"recipes", "recipe_runs", "recipe_closed", "recipe_plan"}:
+        key = {"recipes": "catalog", "recipe_runs": "runs", "recipe_closed": "result",
+               "recipe_plan": "recipe"}[event]
+        # Print the complete public payload: goals alone omit domain values and lineage.
+        print(json.dumps(payload[key], ensure_ascii=False, sort_keys=True, indent=2))
+        if event == "recipe_plan":
+            print("Review all values above. Confirm only this displayed plan with: "
+                  f"/confirm {payload[key]['plan']['plan_id']}")
+        if event == "recipe_closed":
+            print("Pending sections discarded. Completed effects have not been undone.")
         sys.stdout.flush()
         return
     if event == "catalog":
@@ -4891,6 +4966,9 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         print(f"Conversation turn {conversation['turn']}:")
         print(report["response_text"])
         for plan in report["proposed_plans"]:
+            # Chat proposals need the same concrete review as direct /recipe proposals.
+            if plan.get("approval_context", {}).get("recipe_id"):
+                print(json.dumps(plan, ensure_ascii=False, sort_keys=True, indent=2))
             print(f"Plan {plan['plan_id']}  SHA-256 {plan['plan_sha256']}")
             for step in plan["steps"]:
                 approval = "approval required" if step["confirmation_required"] else "read-only"
@@ -4904,6 +4982,16 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         return
     if event == "confirmation":
         result = payload["result"]
+        if result.get("recipe_run"):
+            run = result["recipe_run"]
+            print(f"Recipe run {run['run_id']}: {run['status']}")
+            print(json.dumps(result.get("recipe_execution", {}), ensure_ascii=False,
+                             sort_keys=True, indent=2))
+            if run["status"] == "ready":
+                print(f"Review the next section with: /next {run['run_id']}. "
+                      "It requires a new confirmation.")
+        if result.get("result_delivery_incomplete"):
+            print("Warning: result delivery is incomplete. Do not retry effects automatically.")
         if result.get("execution_outcome_unknown"):
             _print_uncertain_session_results(result)
             return
@@ -5033,6 +5121,9 @@ def _run_recipes_list(args: argparse.Namespace) -> int:
                     "lead_expert_id": item.lead_expert_id,
                     "workflow_ids": list(item.workflow_ids),
                     "step_count": len(item.steps),
+                    "approval_mode": (
+                        "per_section" if isinstance(item, ResultBoundRecipe) else "whole_chain"
+                    ),
                     "grants_new_capability": False,
                 }
                 for item in load_bundled_recipes()
@@ -5059,6 +5150,12 @@ def _prepare_recipe_plan(args: argparse.Namespace):
     )
     statuses = {item.workflow_id: item.status for item in gateway.catalog()}
     recipe = load_bundled_recipe(args.recipe_id)
+    if isinstance(recipe, ResultBoundRecipe):
+        application.close()
+        raise CapabilityRecipeError(
+            "Rezept-v2 benötigt eine offene Sitzung: folderhome agent session; "
+            "danach /recipe <recipe_id> und eine neue /confirm-Freigabe je Abschnitt."
+        )
     recipe_plan = build_recipe_plan(
         recipe,
         profile_id=args.profile_id,

@@ -15,7 +15,8 @@ guaranteed that step three used the same letter as step two.
 A recipe is that journey written down. For v1, the master resolves it into
 **one** plan with several ordered steps, and you confirm the whole chain once.
 Result-bound v2 recipes require **separate approval for each concrete section**.
-The existing selector and CLI below currently offer v1 recipes.
+The packaged catalog currently contains v1 recipes; the app and session CLI also
+support result-bound v2 recipes.
 
 ## What a recipe is not
 
@@ -138,10 +139,44 @@ python -m folderhome recipes run `
   --confirm plan_<id> --approved-at 2026-08-25T09:05:00+02:00 --json
 ```
 
-A recipe plan is deterministic: preparing the same inputs and domain state with
+A v1 recipe plan is deterministic: preparing the same inputs and domain state with
 the same code yields the same plan ID.
 That is what lets a stateless command line confirm a plan it printed earlier
 without keeping a session open.
+
+For separately approved sections, keep one process alive. Use your existing
+profile, resource registry and state directory from setup; `--state-dir` must
+already exist:
+
+```powershell
+python -m folderhome agent session `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --resources-file $env:LOCALAPPDATA\FolderHome\resources.json `
+  --profile-id lukas --model-provider fixture --language en --json
+```
+
+Direct recipe commands do not call a model. Keep the same adapter-specific
+approval flags required by the intended recipe; this example grants none.
+
+| Session command | Meaning |
+| --- | --- |
+| `/recipes` | List this profile's recipes and availability |
+| `/recipe <recipe_id>` | Prepare a v1 journey or the first v2 section |
+| `/confirm <plan_id>` | Execute exactly the displayed plan, once |
+| `/runs` | Show process-local runs, confirmed steps and status |
+| `/next <run_id>` | Review the pending or next concrete section; no execution |
+| `/close <run_id>` | Discard pending sections without undoing completed effects |
+| `/reset`, `/quit` | Reset the profile or close the session and its pending runs |
+
+The text mode (omit `--json`) prints the complete public plan, including domain
+values and result lineage, before its confirmation command. JSON mode emits one
+event per line. A successful section may leave a run `ready`, not `completed`:
+use `/next` and inspect the new plan before a new `/confirm`. EOF and Ctrl+C
+while waiting for input close the session too. Cleanup runs even if output fails;
+a cleanup error must not be reported as a successfully closed session.
+
+`recipes plan|run` remains the stateless v1 interface. V2 runs cannot be resumed
+by importing a saved JSON report into a new process.
 
 ## When a step fails
 
@@ -252,8 +287,8 @@ same profile. Reset removes old visible approval buttons immediately. If a
 section stops with uncertain effects, the view still names completed, failed and
 unattempted steps and warns if result delivery is incomplete.
 
-**Still pending:** a useful bundled v2 recipe and a session-capable CLI.
-API/Strands integration tests use synthetic domain adapters; GUI behavior tests
+**Still pending:** a useful bundled v2 recipe.
+API/Strands/session CLI integration tests use synthetic domain adapters; GUI behavior tests
 execute the real script with inert DOM/network fixtures. Neither proves browser
 layout/keyboard acceptance or live-model selection quality. Runs cannot
 be restored after process restart or populated with client-provided reports.

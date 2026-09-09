@@ -16,7 +16,8 @@ Schreiben verwendet wie Schritt zwei.
 Ein Rezept ist diese Geschichte, aufgeschrieben. Bei v1 löst der Master sie in
 **einen** Plan mit mehreren geordneten Schritten auf; die ganze Kette wird einmal
 bestätigt. Ergebnisgebundene v2-Rezepte brauchen **eine eigene Freigabe für jeden
-konkreten Abschnitt**. Die unten beschriebene Auswahl und CLI bieten bisher v1 an.
+konkreten Abschnitt**. Der mitgelieferte Katalog enthält bisher v1-Rezepte;
+Anwendung und Sitzungs-CLI unterstützen auch ergebnisgebundene v2-Rezepte.
 
 ## Was ein Rezept nicht ist
 
@@ -148,10 +149,45 @@ python -m folderhome recipes run `
   --confirm plan_<id> --approved-at 2026-08-25T09:05:00+02:00 --json
 ```
 
-Ein Rezeptplan ist deterministisch: Gleiche Eingaben und gleicher Fachzustand
+Ein v1-Rezeptplan ist deterministisch: Gleiche Eingaben und gleicher Fachzustand
 ergeben mit demselben Code dieselbe Plan-ID. Genau das erlaubt einer zustandslosen
 Kommandozeile, einen zuvor
 ausgegebenen Plan zu bestätigen, ohne eine Sitzung offen zu halten.
+
+Für getrennt freigegebene Abschnitte bleibt ein Prozess geöffnet. Verwende das
+vorhandene Profil, Ressourcenregister und Zustandsverzeichnis aus der Einrichtung;
+`--state-dir` muss bereits existieren:
+
+```powershell
+python -m folderhome agent session `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --resources-file $env:LOCALAPPDATA\FolderHome\resources.json `
+  --profile-id lukas --model-provider fixture --language de --json
+```
+
+Direkte Rezeptbefehle rufen kein Modell auf. Die vom jeweiligen Rezept benötigten
+Adapterschreibfreigaben bleiben erforderlich; dieses Beispiel erteilt keine.
+
+| Sitzungsbefehl | Bedeutung |
+| --- | --- |
+| `/recipes` | Rezepte und Verfügbarkeit dieses Profils anzeigen |
+| `/recipe <recipe_id>` | v1-Ablauf oder ersten v2-Abschnitt vorbereiten |
+| `/confirm <plan_id>` | Genau den angezeigten Plan einmal ausführen |
+| `/runs` | Prozesslokale Läufe, bestätigte Schritte und Status anzeigen |
+| `/next <run_id>` | Offenen oder nächsten konkreten Abschnitt prüfen; keine Ausführung |
+| `/close <run_id>` | Offene Abschnitte verwerfen, bestätigte Wirkungen bleiben bestehen |
+| `/reset`, `/quit` | Profil zurücksetzen oder Sitzung samt offenen Läufen schließen |
+
+Der Textmodus (ohne `--json`) zeigt vor dem Bestätigungsbefehl den vollständigen
+öffentlichen Plan einschließlich Fachwerten und Ergebnisherkunft. Der JSON-Modus
+liefert ein Ereignis je Zeile. Ein erfolgreicher Abschnitt kann den Lauf `ready`
+statt `completed` hinterlassen: Mit `/next` den neuen Plan prüfen und separat
+mit `/confirm` freigeben. Auch EOF und Strg+C während der Eingabewartezeit schließen
+die Sitzung. Die Bereinigung läuft selbst bei Ausgabefehlern; ein Bereinigungsfehler
+darf nicht als erfolgreich geschlossene Sitzung erscheinen.
+
+`recipes plan|run` bleibt die zustandslose v1-Schnittstelle. V2-Läufe lassen sich
+nicht durch Import eines gespeicherten JSON-Berichts in einem neuen Prozess fortsetzen.
 
 ## Wenn ein Schritt scheitert
 
@@ -271,8 +307,8 @@ selben Profil enden. Reset entfernt alte sichtbare Freigabeknöpfe sofort.
 Stoppt ein Abschnitt mit unklarer Wirkung, zeigt die Ansicht trotzdem bestätigte,
 gescheiterte und unversuchte Schritte und warnt vor unvollständiger Ergebnisablage.
 
-**Noch offen:** ein sinnvolles paketiertes v2-Rezept und eine sitzungsfähige CLI.
-API-/Strands-Integrationstests verwenden synthetische Fachadapter; GUI-Verhaltenstests
+**Noch offen:** ein sinnvolles paketiertes v2-Rezept.
+API-/Strands-/Sitzungs-CLI-Integrationstests verwenden synthetische Fachadapter; GUI-Verhaltenstests
 führen das echte Skript mit wirkungslosen DOM-/Netzwerk-Testumgebungen aus.
 Beides belegt weder Layout-/Tastaturabnahme im Browser noch die Auswahlqualität
 eines Live-Modells. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
