@@ -92,6 +92,11 @@ const translations = {
     planConfirmed: "Plan confirmed; no workflow has been executed yet.",
     executionCompleted: "Workflow executed successfully ({id}).",
     executionReport: "Execution report",
+    confirmationInProgress: "Confirmation in progress…",
+    executionUncertainTitle: "Run incomplete or uncertain",
+    executionUncertain: "An effect may already exist. Check the affected target and private evidence before any new approval; do not repeat automatically. Confirmed entries below do not account for every possible effect.",
+    confirmedCalendarEntries: "Confirmed calendar entries: {count}",
+    confirmedCalendarReferences: "Show confirmed event references",
     workflowConnected: "Connected executor ready",
     workflowPlanningOnly: "This system endpoint is intentionally planning-only.",
     workflowNotConnected: "No typed chat executor is connected yet; confirmation creates a handoff only.",
@@ -209,6 +214,11 @@ const translations = {
     planConfirmed: "Plan freigegeben; noch wurde kein Workflow ausgeführt.",
     executionCompleted: "Workflow erfolgreich ausgeführt ({id}).",
     executionReport: "Ausführungsbericht",
+    confirmationInProgress: "Bestätigung läuft…",
+    executionUncertainTitle: "Lauf unvollständig oder unklar",
+    executionUncertain: "Eine Wirkung kann bereits bestehen. Vor einer neuen Freigabe betroffenes Zielsystem und privaten Nachweis prüfen; nicht automatisch wiederholen. Die bestätigten Einträge unten erfassen nicht jede mögliche Wirkung.",
+    confirmedCalendarEntries: "Bestätigte Kalendereinträge: {count}",
+    confirmedCalendarReferences: "Bestätigte Ereignisreferenzen anzeigen",
     workflowConnected: "Verbundener Executor ist bereit",
     workflowPlanningOnly: "Dieser Systemendpunkt ist absichtlich nur planend.",
     workflowNotConnected: "Noch ist kein typisierter Chat-Executor verbunden; die Freigabe erzeugt nur eine Übergabe.",
@@ -303,11 +313,13 @@ let modelConnection = null;
 let connectionStatus = "checking";
 let currentView = null;
 const planOutcomes = {};
+let resultsRequestVersion = 0;
 
 class LocalRequestError extends Error {
-  constructor(status) {
+  constructor(status, outcome = null) {
     super(`Local request failed with status ${status}`);
     this.status = status;
+    this.outcome = outcome;
   }
 }
 
@@ -408,7 +420,13 @@ async function api(path, options = {}) {
   if (options.body) headers.set("Content-Type", "application/json");
   const response = await fetch(path, { ...options, headers, credentials: "omit" });
   const payload = await response.json();
-  if (!response.ok) throw new LocalRequestError(response.status);
+  if (!response.ok) {
+    const outcome = response.status === 409
+      && payload?.schema === "folderhome.local-api-error.v1"
+      && payload.execution_outcome_unknown === true && payload.retry_safe === false
+      ? payload : null;
+    throw new LocalRequestError(response.status, outcome);
+  }
   return payload;
 }
 
@@ -557,7 +575,11 @@ function renderCurrentView(scroll = true) {
         const executionReady = (plan.steps || []).some((step) => step.execution_envelope);
         const button = textElement(
           "button",
-          outcome?.recipe_execution?.status === "aborted"
+          outcome?.confirmation_pending
+            ? t("confirmationInProgress")
+            : outcome?.execution_outcome_unknown
+            ? t("executionUncertainTitle")
+            : outcome?.recipe_execution?.status === "aborted"
             ? recipeOutcomeText(outcome.recipe_execution)
             : outcome?.execution_performed
             ? t("executionCompleted", {
@@ -574,6 +596,12 @@ function renderCurrentView(scroll = true) {
           button.addEventListener("click", () => confirmPlan(plan, button).catch(showError));
         }
         approvalCard.append(button);
+        if (outcome?.execution_outcome_unknown) {
+          const uncertainResults = outcome.uncertain_results || [];
+          for (const item of uncertainResults.length ? uncertainResults : [{}]) {
+            renderUncertainResult(approvalCard, item);
+          }
+        }
         cards.push(approvalCard);
         for (const report of outcome?.execution_reports || []) {
           const executionCard = document.createElement("article");
@@ -593,9 +621,27 @@ function renderCurrentView(scroll = true) {
 
 async function loadResults() {
   const profileId = profileSelect.value;
+  const version = ++resultsRequestVersion;
   if (!profileId) return;
   const payload = await api(`/api/v1/agent/results?profile_id=${encodeURIComponent(profileId)}`);
+  if (version !== resultsRequestVersion || profileSelect.value !== profileId) return;
   renderResults(payload.results || []);
+}
+
+function renderUncertainResult(card, item) {
+  const warning = textElement("p", t("executionUncertain"), "result-warning");
+  warning.setAttribute("role", "status");
+  card.append(warning);
+  const refs = item.evidence?.confirmed_event_references;
+  if (Array.isArray(refs)) {
+    card.append(textElement("strong", t("confirmedCalendarEntries", { count: refs.length })));
+    if (refs.length) {
+      const details = document.createElement("details");
+      details.append(textElement("summary", t("confirmedCalendarReferences")));
+      details.append(textElement("pre", JSON.stringify(refs, null, 2)));
+      card.append(details);
+    }
+  }
 }
 
 function renderResults(items) {
@@ -608,8 +654,10 @@ function renderResults(items) {
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "result-card";
-    card.append(textElement("h3", `${item.workflow_id} · ${item.status}`));
+    const status = item.status === "uncertain" ? t("executionUncertainTitle") : item.status;
+    card.append(textElement("h3", `${item.workflow_id} · ${status}`));
     card.append(textElement("p", `${item.executed_at} · ${(item.side_effects || []).join(", ")}`));
+    if (item.status === "uncertain") renderUncertainResult(card, item);
     const artifacts = item.artifacts || [];
     if (!artifacts.length) {
       card.append(textElement("p", t("resultNoArtifacts")));
@@ -648,17 +696,38 @@ async function downloadArtifact(executionId, index, filename) {
 
 async function confirmPlan(plan, button) {
   button.disabled = true;
-  const payload = await api("/api/v1/agent/confirm", {
-    method: "POST",
-    body: JSON.stringify({
-      schema: "folderhome.local-agent-confirmation-request.v1",
-      plan_id: plan.plan_id,
-      plan_sha256: plan.plan_sha256,
-      step_ids: (plan.steps || []).map((step) => step.step_id),
-    }),
-  });
+  if (planOutcomes[plan.plan_id]) return;
+  planOutcomes[plan.plan_id] = { confirmation_pending: true };
+  let payload;
+  try {
+    payload = await api("/api/v1/agent/confirm", {
+      method: "POST",
+      body: JSON.stringify({
+        schema: "folderhome.local-agent-confirmation-request.v1",
+        plan_id: plan.plan_id,
+        plan_sha256: plan.plan_sha256,
+        step_ids: (plan.steps || []).map((step) => step.step_id),
+      }),
+    });
+  } catch (error) {
+    if (error instanceof LocalRequestError && error.outcome) {
+      payload = error.outcome;
+    } else if (!(error instanceof LocalRequestError) || error.status >= 500) {
+      // No reliable acknowledgement: the POST may have committed before disconnect.
+      payload = {
+        execution_outcome_unknown: true, retry_safe: false,
+        confirmation_response_missing: true, uncertain_results: [],
+      };
+    } else {
+      delete planOutcomes[plan.plan_id];
+      throw error;
+    }
+  }
   planOutcomes[plan.plan_id] = payload;
-  if (payload.recipe_execution?.status === "aborted") {
+  if (profileSelect.value !== plan.profile_id) return;
+  if (payload.execution_outcome_unknown) {
+    appendChatMessage("assistant", t("executionUncertain"));
+  } else if (payload.recipe_execution?.status === "aborted") {
     appendChatMessage("assistant", recipeOutcomeText(payload.recipe_execution));
   } else if (payload.execution_performed) {
     const reports = payload.execution_reports || [];
@@ -668,7 +737,13 @@ async function confirmPlan(plan, button) {
     appendChatMessage("assistant", t("planConfirmed"));
   }
   renderCurrentView(false);
-  await loadResults();
+  if (payload.confirmation_response_missing) return;
+  if (payload.execution_outcome_unknown) {
+    // A failed list refresh must not hide the already displayed uncertainty.
+    try { await loadResults(); } catch (_error) { /* Manual refresh remains available. */ }
+  } else {
+    await loadResults();
+  }
 }
 
 function recipeOutcomeText(result) {

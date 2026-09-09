@@ -174,8 +174,8 @@ rekonstruiert den Plan aus aktuellen Profilen, Quellen, Konfigurationen und
 Ressourcenrechten vor der Zugangsdatenauflösung sowie vor/nach jeder Kalenderanfrage.
 Geänderte Eingaben oder entzogene Rechte stoppen weitere Wirkungen, auch lokale
 Bestätigungsschreibvorgänge. Unklare/teilweise Ergebnisse bleiben an der Workflow-
-Grenze typisiert; bestätigte Referenzen bleiben an der Ausnahme erhalten.
-Eigene Teilergebnisanzeige und Unterstützung bei der Konteneinrichtung bleiben offen.
+Grenze typisiert; bestätigte Referenzen bleiben an der Ausnahme erhalten und werden
+wie unten beschrieben zugestellt. Unterstützung bei der Konteneinrichtung bleibt offen.
 Der Adapter benötigt derzeit explizite Registerbindungen, keine nur im App-Speicher
 ergänzten Kalender-Defaults.
 
@@ -184,6 +184,30 @@ HTTPS-Grenze. Tests des normalen App-Einstiegs decken das separate Gate und den
 Entzug gespeicherter Registerrechte ab. Keine echte Google-Zustimmung oder echtes
 Konto wurde verwendet. Protokollreferenz:
 [Google-OAuth-Zugangsdaten](https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.credentials.html).
+
+### Unvollständige und unklare Läufe
+
+**Fehlender Erfolg ist kein Rollback.** Die normale Bestätigungs-API antwortet mit
+HTTP 409, `execution_outcome_unknown: true`, `retry_safe: false` und
+`uncertain_results`. Rezepte liefern ihren abgebrochenen Schrittbericht und dieselben
+Teilnachweise. Eine möglicherweise wirksame Workflow-Ausführung verbraucht ihre
+genaue Freigabe; deren Wiederholung löst keine weitere Provideranfrage aus.
+
+Die prozesslokale Ergebnisliste erhält einen `uncertain`-Versuch unter seinem Profil,
+ohne einen erfolgreichen Ausführungsbericht zu erfinden. `evidence` enthält nur
+typisierte, bestätigte Ereignisreferenzen, niemals OAuth-Zugangsdaten, Quellpfade oder
+rohe Providerfehler. Null bestätigte Einträge bedeutet **nicht** null externe
+Schreibvorgänge. Zurückgegebene Nachweise sind unabhängig vom gespeicherten Eintrag
+kopiert. Die bestehende Grenze von 128 Sitzungsergebnissen gilt; diese Liste ist
+kein dauerhaftes Auditarchiv.
+
+Die englische/deutsche Oberfläche zeigt eine Warnung und aufklappbare bestätigte
+Referenzen als inerten Text. Auch nach verlorener Antwort verhindert sie eine
+erneute Bestätigung; diese lokale Warnung behauptet weder eine Serverbestätigung
+noch bestätigte Ereignisse. Vor jeder neuen Schreibfreigabe Zielkalender und
+privaten Nachweis prüfen. Verspätete Ergebnisabrufe und Bestätigungsnachrichten sind
+gegen Profilwechsel abgesichert. Automatisierte API- und Node-Tests decken diese
+Übergänge ab; Browser-/Layoutabnahme bleibt offen.
 
 ### Verbleibende Grenzen
 

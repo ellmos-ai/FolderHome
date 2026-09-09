@@ -112,6 +112,12 @@ class GoogleCalendarWorkflowOutcomeUnknown(WorkflowExecutionOutcomeUnknown):
         )
         self.confirmed_references = tuple(confirmed_references)
 
+    def public_evidence(self) -> dict[str, object]:
+        return {
+            "schema": "folderhome.google-calendar-partial-evidence.v1",
+            "confirmed_event_references": [ref.to_dict() for ref in self.confirmed_references],
+        }
+
 
 class GoogleCalendarWorkflowAdapter:
     descriptor = WorkflowAdapterDescriptor(

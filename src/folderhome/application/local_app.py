@@ -10,6 +10,7 @@ import platform
 import re
 import secrets
 import threading
+from copy import deepcopy
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -530,6 +531,10 @@ class LocalApplication:
                 execution_reports.append(report)
         except WorkflowExecutionOutcomeUnknown as exc:
             unknown_outcome = exc
+            exc.uncertain_results = [self._retain_uncertain_result(
+                profile_id=plan.profile_id, plan_id=plan.plan_id,
+                envelope=step.execution_envelope, executed_at=approved_at, error=exc,
+            )]
             raise
         finally:
             # A rejected later step must not erase evidence of an earlier real effect.
@@ -582,6 +587,7 @@ class LocalApplication:
             reports = []
             delivery_incomplete = False
             execution_outcome_unknown = False
+            uncertain_results = []
             envelopes = {
                 step.execution_envelope.envelope_id: step.execution_envelope
                 for step in plan.steps if step.execution_envelope is not None
@@ -598,6 +604,10 @@ class LocalApplication:
                     if isinstance(exc, WorkflowExecutionOutcomeUnknown):
                         execution_outcome_unknown = True
                         delivery_incomplete = True
+                        uncertain_results.append(self._retain_uncertain_result(
+                            profile_id=plan.profile_id, plan_id=plan.plan_id,
+                            envelope=envelopes[envelope_id], executed_at=approved_at, error=exc,
+                        ))
                         raise WorkflowExecutionOutcomeUnknown(
                             "Ergebnis unklar; eine Wirkung ist möglich. "
                             "Nicht automatisch wiederholen."
@@ -640,11 +650,39 @@ class LocalApplication:
                 "execution_performed": bool(reports),
                 "result_delivery_incomplete": delivery_incomplete,
                 "execution_outcome_unknown": execution_outcome_unknown,
+                "uncertain_results": uncertain_results,
+                "retry_safe": False,
                 "invalidated_plan_ids": invalidated_ids,
                 "side_effects": list(dict.fromkeys(
                     effect for report in reports for effect in report.side_effects
                 )),
             }
+
+    def _retain_uncertain_result(
+        self, *, profile_id, plan_id, envelope, executed_at, error,
+    ) -> dict[str, object]:
+        """Retain an attempted run, without manufacturing a successful report."""
+        result = {
+            "execution_id": f"workflow_attempt_{secrets.token_hex(16)}",
+            "plan_id": plan_id,
+            "profile_id": profile_id,
+            "workflow_id": envelope.workflow_id,
+            "adapter_id": envelope.adapter_id,
+            "status": "uncertain",
+            "executed_at": executed_at,
+            "side_effects": [],
+            "possible_side_effects": list(envelope.side_effects),
+            "retry_safe": False,
+            "artifacts": [],
+            "evidence": error.public_evidence(),
+        }
+        with self._execution_results_lock:
+            self._execution_results[result["execution_id"]] = result
+            while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
+                oldest = next(iter(self._execution_results))
+                self._execution_results.pop(oldest)
+                self._execution_artifacts.pop(oldest, None)
+        return deepcopy(result)
 
     def _retain_execution_results(
         self,
@@ -729,7 +767,7 @@ class LocalApplication:
             raise LocalAppError("Unbekanntes organisatorisches Profil.")
         with self._execution_results_lock:
             results = [
-                dict(item)
+                deepcopy(item)
                 for item in self._execution_results.values()
                 if item["profile_id"] == profile_id
             ]
@@ -797,7 +835,7 @@ class LocalApplication:
             return self._error(exc.status_code, str(exc))
         except LocalAppError as exc:
             return self._error(400, str(exc))
-        except WorkflowExecutionOutcomeUnknown:
+        except WorkflowExecutionOutcomeUnknown as exc:
             return self._json_response(
                 {
                     "schema": "folderhome.local-api-error.v1",
@@ -808,6 +846,7 @@ class LocalApplication:
                         "Privaten Nachweis prüfen, nicht automatisch wiederholen."
                     ),
                     "execution_outcome_unknown": True,
+                    "uncertain_results": exc.uncertain_results,
                     "retry_safe": False,
                 },
                 status_code=409,

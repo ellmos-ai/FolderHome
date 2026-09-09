@@ -1123,6 +1123,14 @@ class WorkflowExecutionError(RuntimeError):
 class WorkflowExecutionOutcomeUnknown(WorkflowExecutionError):
     """An attempted effect may exist but has no conclusive success report."""
 
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.uncertain_results: list[dict[str, object]] = []
+
+    def public_evidence(self) -> dict[str, object]:
+        """Adapter-owned typed evidence only; never the raw exception message."""
+        return {}
+
 
 class WorkflowExecutorAdapter(Protocol):
     descriptor: WorkflowAdapterDescriptor
@@ -1518,11 +1526,16 @@ class WorkflowExecutionGateway:
                 )
             if envelope_id in self._executed:
                 raise WorkflowExecutionError("Ausführungshülle wurde bereits ausgeführt.")
-            report = prepared.adapter.execute(
-                envelope=prepared.envelope,
-                domain_plan=prepared.domain_plan,
-                approved_at=approved_at,
-            )
+            try:
+                report = prepared.adapter.execute(
+                    envelope=prepared.envelope,
+                    domain_plan=prepared.domain_plan,
+                    approved_at=approved_at,
+                )
+            except WorkflowExecutionOutcomeUnknown:
+                # A possibly committed effect consumes this exact approval too.
+                self._executed.add(envelope_id)
+                raise
             self._executed.add(envelope_id)
             return report
 

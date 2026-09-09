@@ -141,14 +141,36 @@ the plan from current profile, source, configuration and resource permissions
 before credential resolution and before/after each calendar request. Changed
 inputs or revoked rights stop further effects, including local confirmation writes.
 Uncertain/partial outcomes stay typed across the workflow boundary; confirmed
-references are retained on the exception. Dedicated partial-result UI and account
-setup assistance remain open. This adapter currently expects explicit registry
+references are retained on the exception and delivered as described below. Account
+setup assistance remains open. This adapter currently expects explicit registry
 bindings, not calendar defaults synthesized only in app memory.
 
 The OAuth tests use real `google-auth 2.57.1` behind a synthetic HTTPS boundary.
 Normal app-factory tests cover the separate gate and a persisted registry-rights
 revocation. No real Google grant or account was used. Protocol reference:
 [Google OAuth credentials](https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.credentials.html).
+
+### Incomplete and uncertain runs
+
+**Missing success is not a rollback.** The normal confirmation API returns HTTP
+409 with `execution_outcome_unknown: true`, `retry_safe: false` and
+`uncertain_results`. Recipes return their aborted step report and the same partial
+evidence. A possibly committed workflow consumes its exact execution approval;
+repeating that approval does not make another provider request.
+
+The process-local result list retains an `uncertain` attempt under its profile,
+without manufacturing a successful execution report. `evidence` contains only
+typed, confirmed event references, never OAuth credentials, source paths or raw
+provider errors. Zero confirmed entries does **not** mean zero remote writes.
+Returned evidence is copied independently of the retained record. The existing
+128-result session limit applies; this list is not a durable audit archive.
+
+The English/German UI shows a warning and expandable confirmed references as inert
+text. It also blocks repeat confirmation after a lost response; that local warning
+does not claim server acknowledgement or confirmed events. Check the target
+calendar and private ledger before preparing any new write approval. Late result
+reads and confirmation messages are guarded against profile changes. Automated
+API and Node tests cover these transitions; browser/layout acceptance remains open.
 
 ### Remaining boundaries
 

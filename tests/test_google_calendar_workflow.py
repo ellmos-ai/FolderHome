@@ -338,3 +338,100 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
             assert not service.calls
     finally:
         app.close()
+
+
+@pytest.mark.parametrize("route", ["ordinary", "recipe"])
+@pytest.mark.parametrize("confirmed_count", [0, 1])
+def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
+    setup, tmp_path, route, confirmed_count
+):
+    from test_calendar_handoff import _write_event
+    from test_local_app import _api_headers, _app
+
+    from folderhome.application.recipes import build_recipe_plan
+    from folderhome.application.workflow_execution import WorkflowExecutionGateway
+    from folderhome.contracts.recipes import CapabilityRecipe, CapabilityRecipeStep
+
+    build, request, service, source, accounts, secret, ledger, registry = setup
+    _write_event(source / "second.txt", title="Zweiter Termin", event_date="15.09.2026")
+    gateway = WorkflowExecutionGateway((build(),))
+    recipe = CapabilityRecipe(
+        recipe_id="synthetic-calendar", title_en="Calendar", title_de="Kalender",
+        summary_en="Two appointments", summary_de="Zwei Termine",
+        lead_expert_id="communication_expert",
+        steps=(CapabilityRecipeStep(
+            step_ref="calendar", workflow_id="calendar-connectors",
+            expert_id="communication_expert", goal_en="Create", goal_de="Erstellen",
+            request=request,
+        ),),
+    )
+    prepared = build_recipe_plan(
+        recipe, profile_id="lukas", language="en",
+        prepare=lambda workflow_id, request: gateway.prepare(
+            workflow_id=workflow_id, profile_id="lukas", request=request,
+        ),
+        endpoint_statuses={"calendar-connectors": "connected"},
+        known_resource_ids=frozenset(item.resource_id for item in registry.resources),
+    )
+    app = _app(tmp_path)
+    app.workflow_executor = gateway
+    app.resource_registry = registry
+    app._retain_agent_plan(prepared.plan)
+    if route == "recipe":
+        app._recipe_plans[prepared.plan_id] = prepared
+    actual = service.request
+
+    def lose_readback_after_write(method, path, **kwargs):
+        value = actual(method, path, **kwargs)
+        if method == "POST" and len(service.events) > confirmed_count:
+            service.unreadable = True
+        return value
+
+    service.request = lose_readback_after_write
+    body = json.dumps({
+        "schema": "folderhome.local-agent-confirmation-request.v1",
+        "plan_id": prepared.plan_id, "plan_sha256": prepared.plan.plan_sha256,
+        "step_ids": [step.step_id for step in prepared.plan.steps],
+    }).encode("utf-8")
+    try:
+        response = app.handle(
+            method="POST", target="/api/v1/agent/confirm",
+            headers=_api_headers(8765, app.session_token), body=body, server_port=8765,
+        )
+        assert response.status_code == (409 if route == "ordinary" else 200)
+        assert response.payload["execution_outcome_unknown"] is True
+        results = app.execution_results_payload(profile_id="lukas", limit=25)["results"]
+        assert len(results) == 1, "Uncertain runs must remain visible in the result list"
+        result = results[0]
+        assert result["status"] == "uncertain" and result["retry_safe"] is False
+        assert result["plan_id"] == prepared.plan_id
+        assert result["profile_id"] == "lukas"
+        assert result["workflow_id"] == "calendar-connectors"
+        assert result["artifacts"] == []
+        refs = result["evidence"]["confirmed_event_references"]
+        assert len(refs) == confirmed_count
+        assert all(ref["provider_event_id"] in service.events for ref in refs)
+        assert len(service.events) == confirmed_count + 1  # Not the confirmed count!
+        assert response.payload["uncertain_results"] == results
+        assert app.execution_results_payload(profile_id="hanna", limit=25)["results"] == []
+        public = json.dumps(response.payload) + json.dumps(results)
+        assert str(secret) not in public and "synthetic-token" not in public
+        assert "private readback text" not in public
+        if confirmed_count:
+            response.payload["uncertain_results"][0]["evidence"]["confirmed_event_references"][0][
+                "provider_event_id"
+            ] = "NEVER-CONFIRMED"
+            results[0]["evidence"]["confirmed_event_references"].clear()
+            retained = app.execution_results_payload(profile_id="lukas", limit=25)["results"]
+            retained_refs = retained[0]["evidence"]["confirmed_event_references"]
+            assert len(retained_refs) == 1, "Returned evidence must not mutate retained evidence"
+            assert retained_refs[0]["provider_event_id"] in service.events
+        calls = len(service.calls)
+        repeated = app.handle(
+            method="POST", target="/api/v1/agent/confirm",
+            headers=_api_headers(8765, app.session_token), body=body, server_port=8765,
+        )
+        assert repeated.status_code >= 400
+        assert len(service.calls) == calls
+    finally:
+        app.close()
