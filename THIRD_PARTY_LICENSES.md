@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./THIRD_PARTY_LICENSES.de.md)
 
-**Version:** 0.20  
+**Version:** 0.21  
 **Updated:** 2026-09-09  
-**Reason:** Google OAuth dependency and current correspondence integration disclosed  
+**Reason:** Installed dependency versions and bundled-license boundaries verified  
 **Purpose:** Documents external or pre‑existing components with exact revision.
 
 | Component | Repository | Revision | License | Integration |
@@ -23,7 +23,7 @@
 | UniversalInvoiceMail | `https://github.com/doc-bricks/UniversalInvoiceMail.git` | `c58be4cdf92d8265694037cf1dbf7f14c84b39f9` | MIT | Specialized invoice reference; no runtime import |
 | PDFtoPDFocr | `https://github.com/doc-bricks/PDFtoPDFocr.git` | `c89ae00982d7597b663c99527298363b9e2fce58` | MIT | Inventoried; GUI monolith and shifting merge function not directly integrated |
 | MarkItDown | `https://github.com/microsoft/markitdown.git` | `fd239d5d2be43d9b68329730206b9312c7d5a388` | MIT | Indirect via doc-services; no own FolderHome bridge |
-| pypdf | PyPI package `pypdf` | `>=4.0`, checked with `6.16.1` | BSD-3-Clause | Optional PDF assembly in `document_transform` |
+| pypdf | PyPI package `pypdf` | `>=4.0`, checked with `6.18.0` | BSD-3-Clause | Optional PDF assembly in `document_transform` |
 | Pillow | PyPI package `Pillow` | `>=10.0`, checked with `12.3.0` | MIT-CMU | Optional local image‑to‑PDF rasterization |
 | ReportLab | PyPI package `reportlab` | `>=4.0`, checked with `5.0.1` | BSD | Optional deterministic text‑to‑PDF re‑creation |
 | resvg-py | `https://github.com/baseplate-admin/resvg-py` | `resvg-py==0.5.0` | MIT | Development-only local SVG-to-PNG exporter; package source/binary and system fonts are not vendored |
@@ -40,10 +40,10 @@
 | project-docs | Local internal project-docs template | Status 2026-08-21 | Project‑internal asset | Documentation base skeleton |
 | ellmos mail-connector | Local module `.MODULES/.CONNECTORS/mail-connector` | Design reference, deliberately not pinned | MIT | Connection lifecycle, modified UTF-7 mailbox names and two-way credential lookup reused as patterns; no code imported and no revision pinned, so no checkout can drift |
 | Strands Agents SDK | `https://github.com/strands-agents/sdk-python.git` | PyPI `strands-agents==1.53.0` | Apache-2.0 | Mandatory agent loop; fixture by default without network, Bedrock only after gate |
-| MCP Python SDK | PyPI package `mcp` | `1.29.0`, transitive via `strands-agents`, now imported directly | MIT | stdio server for `folderhome mcp serve` |
+| MCP Python SDK | PyPI package `mcp` | Direct requirement `>=1.29,<2`, checked with `1.30.0` | MIT | stdio server for `folderhome mcp serve`; also required by Strands |
 | ollama | PyPI package `ollama` | `>=0.4`, checked with `0.6.2` | MIT | Optional extra `folderhome[ollama]`; HTTP client for the local Ollama provider, loaded only for `--model-provider ollama` |
 | anthropic | PyPI package `anthropic` | `>=0.40`, checked with `1.4.0` | MIT | Optional extra `folderhome[anthropic]`; SDK for the hosted Anthropic provider, loaded only for `--model-provider anthropic` |
-| openai | PyPI package `openai` | `>=1.60`, checked with `3.8.0` | Apache-2.0 | Optional extra `folderhome[openai]`; SDK for the hosted OpenAI provider and OpenAI-compatible endpoints, loaded only for `--model-provider openai` |
+| openai | PyPI package `openai` | `>=1.60`, checked with `3.10.0` | Apache-2.0 | Optional extra `folderhome[openai]`; SDK for the hosted OpenAI provider and OpenAI-compatible endpoints, loaded only for `--model-provider openai` |
 | tzdata | PyPI package `tzdata` | `==2026.3` on Windows | Apache-2.0 | IANA time‑zone data for reproducible calendar, medication, and scheduler contracts on Windows |
 | actions/checkout | `https://github.com/actions/checkout` | `11d5960a326750d5838078e36cf38b85af677262` (`v4`) | MIT | SHA-pinned Pages build action |
 | actions/configure-pages | `https://github.com/actions/configure-pages` | `983d7736d9b0ae728b81ab479565c72886d7745b` (`v5`) | MIT | SHA-pinned Pages configuration action |
@@ -51,7 +51,49 @@
 | actions/deploy-pages | `https://github.com/actions/deploy-pages` | `d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e` (`v4`) | MIT | SHA-pinned Pages deployment action |
 | Python Docker Official Image | `https://hub.docker.com/_/python` | `python:3.12.11-slim-bookworm@sha256:519591d6871b7bc437060736b9f7456b8731f1499a57e22e6c285135ae657bf7` | Python PSF and included Debian package licenses | Digest-pinned ARM64 build and runtime base; not vendored |
 
-The table is a registry, not a substitute for the full license texts of the respective components. If sources are later vendored or included as submodules, their original license files must be carried along.
+## Installed dependencies and distribution boundaries
+
+The table is a registry, not a substitute for the full license texts of the
+respective components. Package-level license labels do not describe every
+bundled font, native library or vendored module.
+
+The Windows/Python 3.12.10 acceptance installation was inspected on 2026-09-09
+with the `calendar`, `transform`, `ollama`, `anthropic` and `openai` extras.
+Following active dependency markers and requested transitive extras identified
+**64 external runtime distributions**, plus FolderHome. All had readable
+license/notice files. This excludes dev-only tools, separate provider checkouts,
+the Python/OS distribution and a complete native-library inventory. It is an
+installed-version snapshot, not a dependency lock or legal clearance.
+
+| Installed component | Additional license material to preserve when bundling |
+|---|---|
+| certifi 2026.7.22 | MPL-2.0 certificate-bundle notice; review covered-source obligations for the actual redistributed form |
+| ReportLab 5.0.1 | BSD library license **plus** `DarkGarden-copying.txt` / `DarkGarden-copying-gpl.txt` (GPL-2.0-or-later font with a document-embedding exception) and `bitstream-vera-license.txt` |
+| Pillow 12.3.0 | Its combined `LICENSE` includes native-library notices beyond MIT-CMU, including FreeType; preserve the complete file |
+| pywin32 312 | PSF package metadata plus component-specific notices, including Scintilla and MAPIStubLibrary |
+| anthropic 1.4.0 / openai 3.10.0 | Separate notices under `_vendor/httpx_aiohttp/`, in addition to the SDK license |
+| Strands / boto3 / botocore / s3transfer | Supplied `LICENSE` and `NOTICE` files, not just the registry label |
+
+The checked FolderHome wheel contains only `folderhome/` and its own
+`folderhome-0.3.0.dist-info/`; dependency packages and font files are not embedded.
+Pip installs dependencies separately with their own license material. The local
+text-to-PDF adapter selects Helvetica/Helvetica-Bold, not DarkGarden. Neither
+fact clears redistribution of an entire environment: before shipping a frozen
+app, dependency bundle or container, inventory that exact artifact, retain its
+original license/notice material and resolve any corresponding-source duties.
+See the [MPL FAQ](https://www.mozilla.org/en-US/MPL/2.0/FAQ/) for the distinction
+between using MPL software and distributing covered files.
+
+### Brand graphics and system fonts
+
+Brand PNGs use locally rendered Windows system fonts; font binaries are not
+shipped. SVG/CSS font-family names are references, not embedded webfonts.
+Microsoft's [font FAQ](https://learn.microsoft.com/en-us/typography/fonts/font-faq)
+permits text graphics such as logos and banners under its stated conditions;
+that does **not** grant permission to redistribute font files or bitmap fonts.
+This assessment does not cover a future embedded-font PDF or installer.
+
+## Runtime scope
 
 Current mandatory dependencies are `strands-agents`, `mcp` and, on Windows,
 `tzdata`; the exact constraints and optional extras are in
