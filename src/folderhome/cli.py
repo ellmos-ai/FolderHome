@@ -5379,6 +5379,9 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                 profile.profile_id for profile in profiles.profiles
             ),
         )
+    persisted_resource_ids = frozenset(
+        item.resource_id for item in resource_registry.resources
+    ) if resource_registry is not None else frozenset()
     resource_registry = bind_app_calendar_resources(
         resource_registry,
         calendar_config=args.calendar_config,
@@ -5572,6 +5575,13 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                     registry=resource_registry, profiles_dir=settings.profiles_dir,
                     extractor=resource_extractor, allow_calendar_write=args.approve_calendar_write,
                     resource_registry_file=configured_resources_file,
+                    launch_calendar_resources=tuple(
+                        item for item in resource_registry.resources
+                        if item.resource_id not in persisted_resource_ids
+                        and item.purposes & {
+                            "calendar.configuration", "calendar.connector_accounts",
+                        }
+                    ),
                 )
             )
         if any("scheduler.store" in resource.purposes for resource in resource_registry.resources):

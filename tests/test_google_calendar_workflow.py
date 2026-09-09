@@ -264,13 +264,31 @@ def test_changed_binding_during_final_get_cannot_commit_confirmation(setup, chan
         ]
 
 
-@pytest.mark.parametrize("gate,revoked", [(False, False), (True, False), (True, True)])
+@pytest.mark.parametrize("binding", ["explicit", "launch"])
+@pytest.mark.parametrize(
+    "gate,revoked",
+    [
+        (False, False),
+        (True, False),
+        (True, True),
+        (True, "shadow_other"),
+        (True, "shadow_same"),
+        (True, "remove_config"),
+        (True, "config_changed"),
+        (True, "other_profile"),
+    ],
+)
 def test_normal_app_factory_wires_google_resources_with_separate_gate(
-    setup, tmp_path, monkeypatch, gate, revoked
+    setup, tmp_path, monkeypatch, gate, revoked, binding
 ):
     from folderhome import cli
 
     build, request, service, source, accounts, secret, ledger, registry = setup
+    if revoked == "other_profile":
+        profiles = tmp_path / "profiles"
+        second = json.loads((profiles / "Lukas.json").read_text(encoding="utf-8"))
+        second.update(profile_id="hanna", display_name="Hanna Beispiel")
+        (profiles / "Hanna.json").write_text(json.dumps(second), encoding="utf-8")
     ledger.mkdir()
     registry_file = tmp_path / "resources.json"
     registry_file.write_text(
@@ -290,6 +308,8 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
                         "cloud_context": item.cloud_context,
                     }
                     for item in registry.resources
+                    if binding == "explicit"
+                    or item.resource_id not in {"google-config", "google-accounts"}
                 ],
             }
         ),
@@ -307,12 +327,29 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
             str(state),
             "--resources-file",
             str(registry_file),
+            *(
+                [
+                    "--calendar-config",
+                    str(tmp_path / "config" / "calendar-config.json"),
+                    "--connector-accounts",
+                    str(accounts),
+                ]
+                if binding == "launch" or revoked == "remove_config"
+                else []
+            ),
             *(["--approve-calendar-write"] if gate else []),
         ]
     )
     monkeypatch.setattr(api(), "GoogleCalendarTransport", lambda: service)
     app = cli._prepare_local_app(args)
     try:
+        if binding == "launch":
+            defaults = app.resource_registry.profile_defaults["lukas"]
+            request = {
+                **request,
+                "configuration_resource_id": defaults["calendar.configuration"],
+                "accounts_resource_id": defaults["calendar.connector_accounts"],
+            }
         assert app.workflow_executor.descriptor("calendar-connectors").status == "connected"
         envelope = app.workflow_executor.prepare(
             workflow_id="calendar-connectors", profile_id="lukas", request=request
@@ -320,10 +357,54 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
         assert not service.calls
         if revoked:
             current = json.loads(registry_file.read_text(encoding="utf-8"))
-            for resource in current["resources"]:
-                if resource["resource_id"] == "google-ledger":
-                    resource["operations"] = ["read"]
-            registry_file.write_text(json.dumps(current), encoding="utf-8")
+            if revoked is True:
+                for resource in current["resources"]:
+                    if resource["resource_id"] == "google-ledger":
+                        resource["operations"] = ["read"]
+            elif revoked in {"shadow_other", "shadow_same", "other_profile"}:
+                rid = request["configuration_resource_id"]
+                config = next(
+                    item for item in registry.resources if item.resource_id == "google-config"
+                )
+                if revoked != "other_profile":
+                    current["resources"] = [
+                        item for item in current["resources"] if item["resource_id"] != rid
+                    ]
+                current["resources"].append(
+                    {
+                        "resource_id": rid if revoked == "shadow_same" else "new-config-owner",
+                        "kind": "file",
+                        "locator": {"type": "local_path", "path": str(config.local_path)},
+                        "operations": ["read"] if revoked == "other_profile" else ["create"],
+                        "purposes": ["calendar.configuration"],
+                        "profile_ids": ["hanna"] if revoked == "other_profile" else ["lukas"],
+                        "cloud_context": "deny",
+                    }
+                )
+            elif revoked == "remove_config":
+                # If the binding was persisted at startup, launch options cannot restore it.
+                current["resources"] = [
+                    item
+                    for item in current["resources"]
+                    if item["resource_id"] != request["configuration_resource_id"]
+                ]
+                if binding == "launch":
+                    # Removing the file is not permission to use its cached bytes either.
+                    (tmp_path / "config" / "calendar-config.json").unlink()
+            elif revoked == "config_changed":
+                path = tmp_path / "config" / "calendar-config.json"
+                data = json.loads(path.read_text(encoding="utf-8"))
+                data["default_timezone"] = "UTC"
+                path.write_text(json.dumps(data), encoding="utf-8")
+            if revoked != "config_changed":
+                registry_file.write_text(json.dumps(current), encoding="utf-8")
+            if revoked not in {"config_changed", "other_profile"}:
+                with pytest.raises(WorkflowExecutionError):
+                    app.workflow_executor.prepare(
+                        workflow_id="calendar-connectors",
+                        profile_id="lukas",
+                        request=request,
+                    )
         if gate and not revoked:
             report = app.workflow_executor.execute(
                 envelope_id=envelope.envelope_id, approved_at=request["planned_at"]
@@ -336,6 +417,17 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
                     envelope_id=envelope.envelope_id, approved_at=request["planned_at"]
                 )
             assert not service.calls
+        if revoked == "other_profile":
+            # Hanna's persisted override must not erase Lukas's shared launch binding.
+            # Changed registry bytes still invalidate the old approval above.
+            fresh = app.workflow_executor.prepare(
+                workflow_id="calendar-connectors", profile_id="lukas", request=request
+            )
+            report = app.workflow_executor.execute(
+                envelope_id=fresh.envelope_id, approved_at=request["planned_at"]
+            )
+            assert report.domain_report["status"] == "executed"
+            assert len(service.events) == 1
     finally:
         app.close()
 
@@ -352,19 +444,31 @@ def prepare_uncertain_calendar_app(setup, tmp_path, route, confirmed_count):
     _write_event(source / "second.txt", title="Zweiter Termin", event_date="15.09.2026")
     gateway = WorkflowExecutionGateway((build(),))
     recipe = CapabilityRecipe(
-        recipe_id="synthetic-calendar", title_en="Calendar", title_de="Kalender",
-        summary_en="Two appointments", summary_de="Zwei Termine",
+        recipe_id="synthetic-calendar",
+        title_en="Calendar",
+        title_de="Kalender",
+        summary_en="Two appointments",
+        summary_de="Zwei Termine",
         lead_expert_id="communication_expert",
-        steps=(CapabilityRecipeStep(
-            step_ref="calendar", workflow_id="calendar-connectors",
-            expert_id="communication_expert", goal_en="Create", goal_de="Erstellen",
-            request=request,
-        ),),
+        steps=(
+            CapabilityRecipeStep(
+                step_ref="calendar",
+                workflow_id="calendar-connectors",
+                expert_id="communication_expert",
+                goal_en="Create",
+                goal_de="Erstellen",
+                request=request,
+            ),
+        ),
     )
     prepared = build_recipe_plan(
-        recipe, profile_id="lukas", language="en",
+        recipe,
+        profile_id="lukas",
+        language="en",
         prepare=lambda workflow_id, request: gateway.prepare(
-            workflow_id=workflow_id, profile_id="lukas", request=request,
+            workflow_id=workflow_id,
+            profile_id="lukas",
+            request=request,
         ),
         endpoint_statuses={"calendar-connectors": "connected"},
         known_resource_ids=frozenset(item.resource_id for item in registry.resources),
@@ -384,11 +488,14 @@ def prepare_uncertain_calendar_app(setup, tmp_path, route, confirmed_count):
         return value
 
     service.request = lose_readback_after_write
-    body = json.dumps({
-        "schema": "folderhome.local-agent-confirmation-request.v1",
-        "plan_id": prepared.plan_id, "plan_sha256": prepared.plan.plan_sha256,
-        "step_ids": [step.step_id for step in prepared.plan.steps],
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "schema": "folderhome.local-agent-confirmation-request.v1",
+            "plan_id": prepared.plan_id,
+            "plan_sha256": prepared.plan.plan_sha256,
+            "step_ids": [step.step_id for step in prepared.plan.steps],
+        }
+    ).encode("utf-8")
     return app, prepared, service, body, secret
 
 
@@ -400,12 +507,18 @@ def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
     from test_local_app import _api_headers
 
     app, prepared, service, body, secret = prepare_uncertain_calendar_app(
-        setup, tmp_path, route, confirmed_count,
+        setup,
+        tmp_path,
+        route,
+        confirmed_count,
     )
     try:
         response = app.handle(
-            method="POST", target="/api/v1/agent/confirm",
-            headers=_api_headers(8765, app.session_token), body=body, server_port=8765,
+            method="POST",
+            target="/api/v1/agent/confirm",
+            headers=_api_headers(8765, app.session_token),
+            body=body,
+            server_port=8765,
         )
         assert response.status_code == (409 if route == "ordinary" else 200)
         assert response.payload["execution_outcome_unknown"] is True
@@ -437,8 +550,11 @@ def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
             assert retained_refs[0]["provider_event_id"] in service.events
         calls = len(service.calls)
         repeated = app.handle(
-            method="POST", target="/api/v1/agent/confirm",
-            headers=_api_headers(8765, app.session_token), body=body, server_port=8765,
+            method="POST",
+            target="/api/v1/agent/confirm",
+            headers=_api_headers(8765, app.session_token),
+            body=body,
+            server_port=8765,
         )
         assert repeated.status_code >= 400
         assert len(service.calls) == calls

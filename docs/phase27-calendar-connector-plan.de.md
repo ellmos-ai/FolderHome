@@ -152,7 +152,7 @@ Zugangsdaten nicht zurück. Die Erneuerung ist auf eine Anfrage an
 übergroße Antworten werden abgewiesen. Angefragte und ausdrücklich gewährte Scopes
 müssen `https://www.googleapis.com/auth/calendar.events` enthalten.
 
-Deklariere diese fünf Ressourcen ausdrücklich im privaten Register:
+Der Workflow benötigt diese fünf Ressourcenzwecke:
 
 | Zweck | Art | Operationen |
 |---|---|---|
@@ -161,6 +161,20 @@ Deklariere diese fünf Ressourcen ausdrücklich im privaten Register:
 | `calendar.connector_accounts` | `file` | `read` |
 | `calendar.google_credentials` | `file` | `read` |
 | `calendar.connector_ledger` | `directory` | `read`, `state_write` |
+
+Deklariere Quelle, Zugangsdaten und Ledger ausdrücklich im privaten Register.
+Konfigurations- und Kontendateien können stattdessen über `--calendar-config` und
+`--connector-accounts` angegeben werden, auch über gespeicherte Einrichtungsoptionen.
+Diese Optionen ergänzen ausschließlich lesbare Bindungen für die jeweiligen Profile;
+sie speichern keine neuen Registereinträge und erteilen keine Google-Schreibfreigabe.
+
+Jede Vorbereitung liest das private Register erneut. Eine gespeicherte Ressource
+mit gleicher ID ersetzt die gesamte Startbindung. Ein überlappender Zweck ersetzt
+sie nur für die angegebenen Profile; andere Profile bleiben nutzbar. Auch schwächere
+gespeicherte Rechte haben Vorrang. Bereits beim Start gespeicherte Ressourcen werden
+nach Entfernen niemals aus Startoptionen wiederhergestellt. Geänderte Dateien oder
+Registerinhalte machen eine alte Freigabe ungültig: Einen frisch vorbereiteten Plan
+prüfen und bestätigen.
 
 Die Kontoreferenz muss `connector://google-calendar/<credential_resource_id>` lauten.
 Das konfigurierte Konto benötigt `google-calendar@v3` und eine konkrete Kalender-ID
@@ -176,8 +190,9 @@ Geänderte Eingaben oder entzogene Rechte stoppen weitere Wirkungen, auch lokale
 Bestätigungsschreibvorgänge. Unklare/teilweise Ergebnisse bleiben an der Workflow-
 Grenze typisiert; bestätigte Referenzen bleiben an der Ausnahme erhalten und werden
 wie unten beschrieben zugestellt. Unterstützung bei der Konteneinrichtung bleibt offen.
-Der Adapter benötigt derzeit explizite Registerbindungen, keine nur im App-Speicher
-ergänzten Kalender-Defaults.
+Nur ausdrücklich beim Start gebundene lesbare Konfigurations- und Kontendateien
+bleiben beim erneuten Registerlesen erhalten; Rechte für Zugangsdaten, Quellen und
+Ledger ergänzt dieser Adapter niemals automatisch.
 
 Die OAuth-Tests verwenden echtes `google-auth 2.57.1` hinter einer synthetischen
 HTTPS-Grenze. Tests des normalen App-Einstiegs decken das separate Gate und den

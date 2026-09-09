@@ -119,7 +119,7 @@ one request to `https://oauth2.googleapis.com/token`; redirected, failed or over
 responses are rejected. Both requested and explicitly granted scopes must include
 `https://www.googleapis.com/auth/calendar.events`.
 
-Declare these five resources explicitly in the private registry:
+The workflow requires these five resource purposes:
 
 | Purpose | Kind | Operations |
 |---|---|---|
@@ -128,6 +128,19 @@ Declare these five resources explicitly in the private registry:
 | `calendar.connector_accounts` | `file` | `read` |
 | `calendar.google_credentials` | `file` | `read` |
 | `calendar.connector_ledger` | `directory` | `read`, `state_write` |
+
+Declare source, credentials and ledger explicitly in the private registry.
+Configuration and account files can instead be supplied through `--calendar-config`
+and `--connector-accounts` (including saved setup launch options). These options
+add read-only bindings for the relevant profiles; they do not persist new registry
+entries or grant Google write access.
+
+Every preparation reloads the private registry. A persisted resource with the same
+ID replaces the entire launch binding. An overlapping purpose replaces it only for
+the declared profiles, leaving other profiles usable. Even a weaker persisted
+permission wins. Resources already persisted at startup are never restored from
+launch options after removal. Changed files or registry content invalidate an old
+approval: review and confirm a freshly prepared plan.
 
 The account reference must be `connector://google-calendar/<credential_resource_id>`.
 The configured account needs `google-calendar@v3` and a concrete calendar ID, not
@@ -142,8 +155,9 @@ before credential resolution and before/after each calendar request. Changed
 inputs or revoked rights stop further effects, including local confirmation writes.
 Uncertain/partial outcomes stay typed across the workflow boundary; confirmed
 references are retained on the exception and delivered as described below. Account
-setup assistance remains open. This adapter currently expects explicit registry
-bindings, not calendar defaults synthesized only in app memory.
+setup assistance remains open. Only explicitly launched read-only configuration
+and account bindings survive registry reloads; credentials, source and ledger
+permissions are never synthesized by this adapter.
 
 The OAuth tests use real `google-auth 2.57.1` behind a synthetic HTTPS boundary.
 Normal app-factory tests cover the separate gate and a persisted registry-rights

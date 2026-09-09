@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from hashlib import sha256
 from pathlib import Path
 
@@ -139,6 +139,7 @@ class GoogleCalendarWorkflowAdapter:
         extractor,
         allow_calendar_write,
         resource_registry_file=None,
+        launch_calendar_resources=(),
         transport_factory=None,
     ):
         self._registry = registry
@@ -146,6 +147,15 @@ class GoogleCalendarWorkflowAdapter:
         self._extractor = extractor
         self._allowed = allow_calendar_write is True
         self._registry_file = resource_registry_file
+        self._launch_resources = tuple(launch_calendar_resources)
+        if any(
+            item.kind != "file"
+            or item.operations != frozenset({"read"})
+            or not item.purposes
+            or not item.purposes <= {"calendar.configuration", "calendar.connector_accounts"}
+            for item in self._launch_resources
+        ):
+            raise WorkflowExecutionError("Kalenderstart darf nur Konfigurationsdateien binden.")
         self._transport_factory = transport_factory or GoogleCalendarTransport
 
     def prepare(self, *, profile_id, request):
@@ -165,6 +175,21 @@ class GoogleCalendarWorkflowAdapter:
                     expected_os_account=registry.os_account,
                     known_profile_ids=registry.known_profile_ids,
                 )
+                # Only explicit launch additions survive the reload. Persisted bindings
+                # and overlapping declarations always take precedence, even if weaker.
+                additions = []
+                for item in self._launch_resources:
+                    if any(
+                        current.resource_id == item.resource_id for current in registry.resources
+                    ):
+                        continue
+                    profiles = item.profile_ids
+                    for current in registry.resources:
+                        if current.purposes & item.purposes:
+                            profiles = profiles - current.profile_ids
+                    if profiles:
+                        additions.append(replace(item, profile_ids=profiles))
+                registry = replace(registry, resources=registry.resources + tuple(additions))
             resources = {}
             for key, (purpose, kind, operations) in _RESOURCES.items():
                 required = set(operations)
