@@ -63,9 +63,29 @@ watch do not invalidate this configuration snapshot. Planning creates no store,
 ledger, or consumer. The shared provider loader supports pinned `src` layouts
 and rejects preloaded foreign modules throughout the named package family.
 
-This is not yet job registration: the confirmation adapter, persistent attempt
-ledger, provider write/readback, limited consumer, and app/CLI integration remain
-under development. The existing `scheduler plan/run` behavior is unchanged.
+The private `register_scheduler_job` API now requires the exact plan ID and a
+separate boolean write approval. It publishes an immutable attempt record before
+opening the provider store, inserts one deterministic job through the pinned
+`ellmos-scheduler` 0.3.1 API, then checks the stored definition and due time.
+Registration does **not** start a consumer; `consumer_status` remains
+`not_observed`. Store, ledger and runner outputs cannot be inside watched inputs.
+
+Repeated confirmations only read back the same job. A lost response after a
+committed insert can be reconciled; an absent job after an earlier attempt stays
+`uncertain`, with no automatic second insert. Unknown existing databases and
+orphaned SQLite companion files are preserved, not initialized or migrated.
+Each later observation gets its own immutable receipt. Failing to persist the
+result is reported as uncertain even when the job might already exist.
+
+Due-time verification reads the job and run history in one transaction. It
+accepts provider-evidenced interval progression and abandoned retry slots, not
+arbitrary manual rescheduling. These are cooperative-process safeguards, not
+protection against malicious code with the same operating-system permissions.
+
+The confirmation adapter, limited consumer, resource setup and app/CLI wiring
+remain under development. The existing `scheduler plan/run` behavior and the
+public capability catalog are unchanged. Integration tests use temporary stores
+and require the clean pinned scheduler checkout; no real user job is registered.
 
 ### USECASE 015-1: Verify Installation‑Free Handoff
 

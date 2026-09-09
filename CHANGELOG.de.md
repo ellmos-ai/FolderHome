@@ -16,8 +16,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - Grundlage der Scheduler-Registrierung: Ein schreibfreier Plan bindet
   Konfigurationsdateiauswahl/-inhalte und Provider-/Store-Identität. Gepinnte
   Python-Provider können ein `src`-Layout verwenden; fremde vorab geladene
-  Paketmodule werden abgewiesen. Registrierung, Ausführungsdienst und
-  App-/CLI-Anbindung sind noch nicht verfügbar.
+  Paketmodule werden abgewiesen. Die private Registrierungs-API sichert jetzt
+  einen echten Provider-Insert mit Freigabe und vorherigem Versuchsnachweis;
+  unklare Ergebnisse werden ohne blinden Retry zurückgelesen. Fälligkeiten
+  werden gegen einen konsistenten Laufhistorien-Snapshot geprüft; fremde
+  Stores und SQLite-Begleitdateien bleiben unverändert. Ausführungsdienst und
+  App-/CLI-Anbindung fehlen noch; der öffentliche Katalog bleibt unverändert.
 - Die Architekturdokumentation trennt die synthetische Vier-Adapter-Demo von
   der vollständigen Laufzeit, sieben Master-Werkzeugen, Setup-/MCP-Grenzen und
   Modellprovidern. Die zweisprachige Anleitung erläutert Kalenderintegrität und

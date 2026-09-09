@@ -76,10 +76,33 @@ nicht. Die Planung erzeugt weder Store noch Ledger oder Ausführungsdienst.
 Der gemeinsame Provider-Loader unterstützt gepinnte `src`-Layouts und weist
 vorab geladene fremde Module der gesamten benannten Paketfamilie zurück.
 
-Das ist noch keine Jobregistrierung: Bestätigungsadapter, persistenter
-Versuchsnachweis, Provider-Schreibzugriff mit Rückleseprüfung, begrenzter
-Ausführungsdienst und App-/CLI-Anbindung bleiben in Arbeit. Das bisherige
-Verhalten von `scheduler plan/run` bleibt unverändert.
+Die private API `register_scheduler_job` verlangt jetzt die genaue Plan-ID und
+eine getrennte boolesche Schreibfreigabe. Vor Öffnen des Provider-Stores wird ein
+unveränderlicher Versuchsnachweis veröffentlicht. Anschließend trägt die gepinnte
+API von `ellmos-scheduler` 0.3.1 einen deterministischen Job ein und liest dessen
+Definition und Fälligkeit zurück. Die Registrierung startet **keinen**
+Ausführungsdienst; `consumer_status` bleibt `not_observed`. Store, Nachweise und
+Laufberichte dürfen nicht innerhalb beobachteter Eingaben liegen.
+
+Wiederholte Bestätigungen lesen ausschließlich denselben Job zurück. Eine
+verlorene Antwort nach erfolgreichem Einfügen lässt sich so aufklären; fehlt der
+Job nach einem früheren Versuch, bleibt der Ausgang `uncertain`, ohne zweiten
+automatischen Insert. Unbekannte vorhandene Datenbanken und verwaiste
+SQLite-Begleitdateien bleiben erhalten und werden nicht initialisiert oder
+migriert. Jede spätere Beobachtung erhält einen eigenen unveränderlichen
+Nachweis. Scheitert dessen Speicherung, wird der Ausgang auch dann als unklar
+gemeldet, wenn der Job bereits vorhanden sein könnte.
+
+Die Fälligkeitsprüfung liest Job und Laufhistorie in einer Transaktion. Sie
+akzeptiert belegte Intervallfortschreibungen und verlassene Wiederholungsslots,
+keine beliebige manuelle Neuplanung. Das schützt kooperierende Prozesse, nicht
+vor bösartigem Code mit denselben Betriebssystemrechten.
+
+Bestätigungsadapter, begrenzter Ausführungsdienst, Ressourceneinrichtung und
+App-/CLI-Anbindung bleiben in Arbeit. Das bisherige Verhalten von
+`scheduler plan/run` und der öffentliche Capability-Katalog bleiben unverändert.
+Integrationstests verwenden temporäre Stores und benötigen den sauberen gepinnten
+Scheduler-Checkout; es wird kein echter Nutzerjob registriert.
 
 ### USECASE 015-1: Installationsfreien Handoff prüfen
 

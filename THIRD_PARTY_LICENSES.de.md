@@ -2,13 +2,14 @@
 
 [English](./THIRD_PARTY_LICENSES.md) | **Deutsch**
 
-**Version:** 0.18
+**Version:** 0.19
 **Aktualisiert:** 2026-09-09
-**Grund:** Lokaler Diagrammrenderer erfasst
+**Grund:** Gepinnten Scheduler-Provider offengelegt
 **Zweck:** Dokumentiert externe oder vorbestehende Komponenten mit genauer Revision.
 
 | Komponente | Repository | Revision | Lizenz | Einbindung |
 |---|---|---|---|---|
+| ellmos-scheduler 0.3.1 | `https://github.com/ellmos-ai/ellmos-scheduler.git` | `d5103b9a733701f6db80dd08cfae408bf0af8ac5` | MIT | Unveränderter optionaler Provider; freigabegesicherte Registrierungs-API und lesende Job-/Historienschnittstelle; kein kopierter Code, noch keine Consumer- oder App-Anbindung |
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Gepinntes Plugin-Manifest |
 | HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c` | MIT | Gepinntes Plugin-Manifest |
 | Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `94ae1f1e028be5aaf100baafadc18b64ff0940a2` | MIT | Gepinntes Plugin-Manifest |

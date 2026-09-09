@@ -2,9 +2,9 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.39
+**Version:** 0.40
 **Aktualisiert:** 2026-09-09
-**Grund:** Lokaler Architekturrenderer eingeordnet; Verweis auf fehlenden Pages-Workflow entfernt
+**Grund:** Scheduler-Registrierung und unveränderte Provider-Nutzung eingeordnet
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
 
 > Wenn du veraltete Passagen oder Verweise entdeckst, korrigiere diese Datei
@@ -28,6 +28,12 @@
 
 ## Wettbewerbsgrenze
 
+- `application.scheduler_registration` ist neuer Freigabe-, Nachweis- und
+  Abgleichcode (`NEW_CORE` / `NEW_BRIDGE`). Er importiert `ellmos-scheduler` 0.3.1
+  unverändert auf Revision `d5103b9a733701f6db80dd08cfae408bf0af8ac5`; Quellcode
+  wird nicht kopiert. Jobs schreibt die Provider-API; eine schemafeste
+  Lesetransaktion verbindet Job- und Laufnachweise. Die private API ist noch
+  kein verbundener App-Endpunkt.
 - FCSA, HungryCall und Ringedingeding bleiben eigene Repositories.
 - UpToday bleibt eine lokale, revisionsgenau dokumentierte Designreferenz. Der
   vorhandene Inventar-Engine wird nicht importiert und kein Quellcode kopiert.
@@ -83,8 +89,9 @@
   `contracts.daily_briefing` sowie die Orchestrierung unter
   `application.daily_briefing` sind `NEW_CORE`. BACH bleibt
   `REUSED_DESIGN_REFERENCE`: Der monolithische Code wird weder kopiert noch
-  geladen. Live-Connectoren und Schedulerregistrierung werden nicht als
-  Wettbewerbscode ausgegeben.
+  geladen. Diese Briefingphase enthält weder Live-Connectoren noch
+  Schedulerregistrierung; die getrennte Registrierungserweiterung ist oben
+  eingeordnet.
 - Bescheid-, Evidenz-, Konflikt- und Ausgabeverträge unter
   `contracts.official_notices` sowie die Orchestrierung unter
   `application.official_notices` sind `NEW_CORE`. law-checker bleibt

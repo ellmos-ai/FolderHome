@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.39  
+**Version:** 0.40  
 **Updated:** 2026-09-09  
-**Reason:** Local architecture renderer classified; absent Pages workflow reference removed  
+**Reason:** Scheduler registration and unmodified provider reuse classified  
 **Purpose:** Assigns each relevant repository area to an origin class.
 
 > If you discover outdated passages or references, correct this file and the associated manifests. The Git history remains the technical evidence.
@@ -27,6 +27,11 @@
 
 ## Competition Boundary
 
+- `application.scheduler_registration` is new approval, receipt and reconciliation
+  code (`NEW_CORE` / `NEW_BRIDGE`). It imports unchanged `ellmos-scheduler` 0.3.1
+  at revision `d5103b9a733701f6db80dd08cfae408bf0af8ac5`; provider source is not
+  copied. Job writes use the provider API; a pinned-schema read transaction
+  joins job and run evidence. This private API is not yet a connected app endpoint.
 - FCSA, HungryCall, and Ringedingeding remain separate repositories.  
 - UpToday remains a local, revision‑accurate documented design reference. The existing inventory engine is not imported and no source code is copied.  
 - The public health skill remains a revision‑accurate design reference for organizational and security boundaries; it stores nothing itself in the FolderHome run.  
@@ -40,7 +45,7 @@
 - Calendar connector contracts, routing, and synthetic gateway under `contracts.calendar_connectors`, `application.calendar_connectors`, and `capabilities.calendar_connector_gateway` are `NEW_CORE`. UpToday, Routinika, and the Google‑Calendar skill remain unchanged or hash‑bound references. The existing Phase‑17 handoff is referenced, not duplicated.  
 - Personal note contracts, leadership, and approval logic under `contracts.personal_notes`, `application.personal_notes`, and `capabilities.personal_note_guide` are `NEW_CORE`. `bridges.llm_note` is `NEW_BRIDGE`; the provider remains unchanged on the manifest revision and its source code is not copied. The bridge uses its public Write‑API and a tightly limited read‑only schema seam.  
 - Tax receipt, approval, and export contracts under `contracts.tax` and the orchestration under `application.tax_workpaper` are `NEW_CORE`. `bridges.tax_assistant` is `NEW_BRIDGE`; the provider remains unchanged on the manifest revision. FolderHome uses its public Write and Export APIs, separates stores per profile, and does not add tax advice or portal transmission.  
-- Weather, news, briefing, render, and desktop contracts under `contracts.daily_briefing` and the orchestration under `application.daily_briefing` are `NEW_CORE`. BACH remains `REUSED_DESIGN_REFERENCE`: the monolithic code is neither copied nor loaded. Live connectors and scheduler registration are not emitted as competition code.  
+- Weather, news, briefing, render, and desktop contracts under `contracts.daily_briefing` and the orchestration under `application.daily_briefing` are `NEW_CORE`. BACH remains `REUSED_DESIGN_REFERENCE`: the monolithic code is neither copied nor loaded. That briefing phase includes neither live connectors nor scheduler registration; the separate registration extension is classified above.  
 - Notice, evidence, conflict, and output contracts under `contracts.official_notices` and the orchestration under `application.official_notices` are `NEW_CORE`. law‑checker remains `REUSED_DESIGN_REFERENCE`: the historic, externally modified checkout is neither copied nor loaded. Phase 31 performs no legal review or statutory deadline calculation.  
 - Administrative draft, fact, approval, and output contracts under `contracts.administrative_drafts` and the connection under `application.administrative_drafts` are `NEW_CORE`. Phase 24 is reused via its public correspondence API; no letter generator is copied or duplicated. Legal review and dispatch are not part of this phase's competition code.  
 - Benefit profile, source, routing, catalog, and report contracts under `contracts.benefit_screening` and the evaluation under `application.benefit_screening` are `NEW_CORE`. Social benefit finder, KiZ‑Lodge, and housing‑benefit‑plus calculator are external official `REUSED_DESIGN_REFERENCE` handoffs; no portal code is copied, loaded, or invoked automatically.  
