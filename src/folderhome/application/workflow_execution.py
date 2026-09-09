@@ -1410,6 +1410,14 @@ class WorkflowExecutionGateway:
         self._executed: set[str] = set()
         self._lock = threading.RLock()
 
+    def new_preparation_scope(self) -> WorkflowExecutionGateway:
+        """Share adapter configuration, never another run's pending approvals.
+
+        Adapter-level durable idempotency and fresh resource checks still apply.
+        The scope has its own bounded preparations and single-use execution set.
+        """
+        return WorkflowExecutionGateway(tuple(self._adapters.values()))
+
     def catalog(self) -> tuple[WorkflowAdapterDescriptor, ...]:
         """Expose exact coverage for every declared FolderHome workflow."""
 

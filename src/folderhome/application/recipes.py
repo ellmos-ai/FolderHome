@@ -25,6 +25,7 @@ from collections.abc import Callable, Mapping
 from copy import deepcopy
 from hashlib import sha256
 from importlib import resources
+from typing import TYPE_CHECKING
 
 from folderhome.application.master_agent import (
     master_capability_catalog,
@@ -56,6 +57,10 @@ from folderhome.contracts.workflow_execution import (
     WorkflowExecutionReport,
 )
 
+if TYPE_CHECKING:
+    from folderhome.application.recipe_runs import RecipeRun
+    from folderhome.application.workflow_execution import WorkflowExecutionGateway
+
 _RECIPE_PACKAGE = "folderhome.recipes"
 _RESOURCE_FIELD_SUFFIX = "_resource_id"
 
@@ -75,6 +80,19 @@ _HANDOFF_FIELDS = {"from_step", "to_step", "from_field", "to_field"}
 
 PrepareStep = Callable[[str, dict[str, object]], WorkflowExecutionEnvelope]
 ExecuteStep = Callable[[str, str], WorkflowExecutionReport]
+
+
+def create_recipe_run(
+    recipe: ResultBoundRecipe,
+    *,
+    profile_id: str,
+    language: str,
+    gateway: WorkflowExecutionGateway,
+) -> RecipeRun:
+    """Create a process-local v2 run; no preparation, execution or report import."""
+    from folderhome.application.recipe_runs import RecipeRun
+
+    return RecipeRun(recipe, profile_id=profile_id, language=language, gateway=gateway)
 
 
 def parse_recipe(payload: object) -> CapabilityRecipe:
@@ -507,6 +525,7 @@ __all__ = [
     "ExecuteStep",
     "PrepareStep",
     "build_recipe_plan",
+    "create_recipe_run",
     "bundled_recipe_ids",
     "execute_recipe_plan",
     "load_bundled_recipe",

@@ -176,7 +176,7 @@ verlangen, Anfragen erst während der Ausführung aufzulösen, und würde den ei
 Hash über die Kette brechen. Bestehende Ressourcenübergaben bleiben unverändert;
 Ergebnisfelder verwenden ein eigenes versioniertes Format.
 
-## Ergebnisübergaben: v2-Grundlage, noch nicht ausführbar
+## Ergebnisübergaben: v2-Laufzeit, Produktanbindung noch offen
 
 Der Parser erkennt zusätzlich `folderhome.capability-recipe.v2` mit einer
 expliziten Liste `result_bindings`. Jede Übergabe nennt einen früheren
@@ -197,12 +197,39 @@ sind unabhängige Kopien, begrenzt auf 64 KiB UTF-8-JSON, 16 Verschachtelungsebe
 und 4.096 besuchte Knoten einschließlich Objektschlüsseln. Pfade haben höchstens
 acht Segmente; v2-Rezepte höchstens 32 Schritte und 32 Übergaben.
 
-**Die Ausführung steht noch aus:** Der bisherige Planer mit einer Bestätigung
-lehnt v2 vor jeder Adaptervorbereitung ab. Die nächste Integration muss geprüfte
-Berichte desselben Laufs behalten, den nächsten ausführbaren Abschnitt auflösen
-und einen neuen vollständig gebundenen Plan zur erneuten Freigabe vorlegen.
-Ein ausgewählter JSON-Wert allein belegt weder Ausführung noch Herkunft.
-Im Katalog wird derzeit kein v2-Rezept ausgeliefert.
+Der bisherige Planer mit einer Bestätigung lehnt v2 vor jeder Adaptervorbereitung
+ab. Die getrennte Python-Laufzeit `create_recipe_run()` führt v2 jetzt in
+Abschnitten aus:
+
+1. `plan_next()` bereitet nur die nächsten zusammenhängenden Schritte vor, deren
+   Eingabewerte bereits bekannt sind. Ein innerhalb dieses Abschnitts erzeugtes
+   Ergebnis steht erst für einen späteren Abschnitt bereit.
+2. `confirm()` verlangt die exakte Freigabe dieses Abschnitts und verbraucht sie
+   vor dem Adapteraufruf. Passende Ausführungsberichte bleiben erhalten; Fehler
+   oder unklare Wirkungen stoppen die Kette. Der nächste Abschnitt wird weder
+   automatisch geplant noch ausgeführt.
+3. Ein weiterer Aufruf von `plan_next()` löst Ergebnisfelder aus gespeicherten
+   Berichten desselben Laufs auf. Der neue Plan bindet Lauf, Profil, Rezept,
+   vorherige Pläne, Berichtsherkunft und ausgewählte Werte. Rohe Anfragen werden
+   gehasht, nicht entgegen einer absichtlichen Adapterredaktion erneut offengelegt.
+   Der neue Plan benötigt eine eigene Freigabe.
+
+Jeder Lauf hat einen unabhängigen Vorbereitungsspeicher und nutzt die
+konfigurierten Fachadapter. Das Schließen eines Laufs kann identische Hüllen
+eines anderen Laufs nicht verwerfen. Dauerhafte Idempotenz, Ressourcenprüfungen
+und Effektfreigaben der Adapter gelten weiter. Gescheiterte Bereinigung behält
+ihre Ziele für einen weiteren `close()`-Versuch; sie erlaubt keine Wiederholung
+unklarer Wirkungen. Zustandsansichten sind unabhängige Kopien.
+
+Diese Python-Laufzeit wurde mit dem echten lokalen Notizadapter geprüft:
+Notiz anlegen, bestätigte ID und Revision in eine Änderung übernehmen und
+Revision 2 getrennt freigeben. Kein Netzwerk oder externer Abgleich ist beteiligt.
+
+**Die Produktanbindung steht noch aus:** Im Katalog wird kein v2-Rezept
+ausgeliefert, und normale API, CLI, Chat und GUI bieten diese Abschnittssteuerung
+noch nicht an. Läufe lassen sich nach einem Prozessneustart nicht wiederherstellen
+oder mit vom Client gelieferten Berichten befüllen. Ein ausgewählter JSON-Wert
+allein belegt weder Ausführung noch Herkunft.
 
 ## Wo Rezepte liegen
 

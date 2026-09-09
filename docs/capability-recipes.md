@@ -165,7 +165,7 @@ resolving requests after execution starts and would break the single hash over
 the chain. Existing resource handoffs remain unchanged; result-value slots use
 a separate versioned format.
 
-## Result bindings: v2 groundwork, not yet executable
+## Result bindings: v2 runtime, product integration pending
 
 The parser also recognizes `folderhome.capability-recipe.v2` with an explicit
 `result_bindings` list. Each binding names an earlier `from_step`, a later
@@ -185,11 +185,34 @@ copies bounded to 64 KiB of UTF-8 JSON, 16 levels of nesting and 4,096 visited
 nodes (including object keys). Paths have at most eight segments; v2 recipes
 have at most 32 steps and 32 bindings.
 
-**Execution is still pending:** the existing single-confirmation planner rejects
-v2 before preparing an adapter. The next integration must retain verified
-same-run reports, resolve the next executable section, and present a new
-fully bound plan for fresh approval. A selected JSON value alone proves neither
-execution nor provenance. No v2 recipe is currently shipped in the catalog.
+The existing single-confirmation planner rejects v2 before preparing an adapter.
+The separate Python `create_recipe_run()` runtime now executes v2 in sections:
+
+1. `plan_next()` prepares only the next consecutive steps whose input values are
+   already known. A result produced inside that section is available only to a
+   later section.
+2. `confirm()` requires exact approval of that section and consumes it before
+   calling an adapter. It retains matching execution reports, stops on failure
+   or uncertain effects, and does not automatically plan or run another section.
+3. Calling `plan_next()` again resolves result slots from retained same-run
+   reports. A new plan binds the run, profile, recipe, preceding plans, report
+   lineage and selected values. Raw requests are hashed, not re-exposed where an
+   adapter deliberately redacted them. The new plan needs its own approval.
+
+Each run has an independent in-memory preparation store using the configured
+domain adapters. Closing one run cannot discard another run's identical
+envelopes. Adapter-level durable idempotency, resource checks and effect gates
+still apply. Failed cleanup retains its targets for another `close()` attempt;
+it does not permit restarting uncertain effects. Snapshots are detached copies.
+
+This Python runtime has been tested through the real local notes adapter:
+create a note, carry its confirmed ID and revision into an edit, then separately
+approve revision 2. No network or external synchronization is involved.
+
+**Product integration is still pending:** no v2 recipe is shipped in the catalog,
+and the normal API, CLI, chat and GUI do not yet offer these section controls.
+Runs cannot be restored after process restart or populated with client-provided
+reports. A selected JSON value alone proves neither execution nor provenance.
 
 ## Where recipes live
 
