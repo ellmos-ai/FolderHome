@@ -1,0 +1,74 @@
+{
+  "schema": "folderhome.capability-recipe.v2",
+  "recipe_id": "letter-to-mail-draft",
+  "title_en": "Review a letter, then save its mail draft",
+  "title_de": "Brief prüfen, dann als Mailentwurf ablegen",
+  "summary_en": "Save your configured letter locally first. Review the files, then separately approve a matching text-only draft in your own mailbox. Changed letter inputs stop the handoff; nothing is sent.",
+  "summary_de": "Das konfigurierte Schreiben zuerst lokal speichern. Dateien prüfen, dann einen passenden reinen Textentwurf im eigenen Postfach separat freigeben. Geänderte Briefeingaben stoppen die Übergabe; es wird nichts gesendet.",
+  "lead_expert_id": "communication_expert",
+  "steps": [
+    {
+      "step_ref": "letter",
+      "workflow_id": "correspondence-studio",
+      "expert_id": "communication_expert",
+      "goal_en": "Save the configured letter as local Markdown and text files for review.",
+      "goal_de": "Das konfigurierte Schreiben als lokale Markdown- und Textdateien zur Prüfung speichern.",
+      "request": {
+        "request_resource_id": "letter_request",
+        "designs_resource_id": "letter_designs",
+        "templates_resource_id": "letter_templates",
+        "output_resource_id": "claim_output",
+        "output_basename": "Briefentwurf"
+      }
+    },
+    {
+      "step_ref": "draft",
+      "workflow_id": "mail-connector",
+      "expert_id": "communication_expert",
+      "goal_en": "Place a text-only draft matching the confirmed letter into your own mailbox; do not send it.",
+      "goal_de": "Einen zum bestätigten Schreiben passenden Textentwurf im eigenen Postfach ablegen; nicht versenden.",
+      "request": {
+        "account_resource_id": "mail_draft_account",
+        "request_resource_id": "letter_request",
+        "designs_resource_id": "letter_designs",
+        "templates_resource_id": "letter_templates"
+      }
+    }
+  ],
+  "handoffs": [
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "request_resource_id",
+      "to_field": "request_resource_id"
+    },
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "designs_resource_id",
+      "to_field": "designs_resource_id"
+    },
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "from_field": "templates_resource_id",
+      "to_field": "templates_resource_id"
+    }
+  ],
+  "result_bindings": [
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "source_path": ["preview_id"],
+      "target_field": "expected_preview_id",
+      "value_type": "string"
+    },
+    {
+      "from_step": "letter",
+      "to_step": "draft",
+      "source_path": ["approved_at"],
+      "target_field": "planned_at",
+      "value_type": "string"
+    }
+  ]
+}

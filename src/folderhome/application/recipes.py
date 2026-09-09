@@ -1,11 +1,15 @@
-"""Resolve a declarative capability recipe into one hash-bound multi-step plan.
+"""Load and review declarative capability recipes; plan whole v1 journeys.
 
 This is the agentic chaining layer. It does not add powers: every step is an
 existing typed endpoint with its own adapter, its own gates and its own request
 schema. What changes is the unit of consent — the user confirms one plan for the
 whole journey instead of confirming four unrelated plans in a row.
 
-Three rules keep that safe:
+The v2 factory below uses a separate, process-local section runner, passing only
+verified results to later requests and requiring fresh approval per section.
+The single-confirmation v1 planner deliberately rejects v2 input.
+
+Three rules keep v1 safe:
 
 * Every step is validated against the capability catalog, so an endpoint can
   only appear under the expert that actually owns it.

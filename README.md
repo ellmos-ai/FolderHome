@@ -160,7 +160,7 @@ recipe review context, and execution rechecks it before each step. Changed plans
 are rejected; completed-step evidence remains available. After upgrading from the
 older hash formula, propose and review pending plans again.
 
-A capability recipe turns a whole journey into one plan. `recipes list` shows
+A v1 capability recipe turns a whole journey into one plan. `recipes list` shows
 what ships, `recipes plan` resolves one into a single hash-bound multi-step plan,
 and `recipes run` executes the confirmed chain in order. The packaged
 `accident-aftercare` recipe reads the responsible contact, renders the claim
@@ -171,9 +171,18 @@ an endpoint that is not connected makes the recipe fail closed instead of
 silently skipping it. Details:
 [`docs/capability-recipes.md`](./docs/capability-recipes.md).
 
+**Result-bound v2 recipes use a new approval for each section.** The packaged
+`letter-to-mail-draft` first saves a local letter for review, then prepares a
+text-only mailbox draft bound to that confirmed letter's preview ID. Changed
+letter inputs stop the handoff; nothing is sent. Use the app's section controls
+or `agent session` with `/recipe`, `/next` and separate `/confirm` commands.
+The mail gate remains required; the [recipe guide](./docs/capability-recipes.md)
+includes the five-resource configuration example. Runs stay in one process.
+
 Recipes are also available below the local chat as **Multi-step journey** and
 through the master's `list_home_recipes` / `propose_home_recipe` tools. Preparation
-never executes: review the exact steps, then confirm the whole chain separately.
+never executes: review the exact steps, then separately confirm the v1 chain or
+the current v2 section.
 Failed chains preserve completed-step results and stop the rest. The app requires
 the recipe's configured resources and every individual adapter gate.
 

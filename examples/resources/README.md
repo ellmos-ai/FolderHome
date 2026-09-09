@@ -10,6 +10,11 @@ separate. Physical paths and secrets must never be committed.
 
 ## Purpose groups used by the master agent
 
+For the separately approved letter-to-draft journey, use
+[`letter-to-mail-draft.example.json`](./letter-to-mail-draft.example.json) and the
+[recipe guide](../../docs/capability-recipes.md). Its five IDs match the packaged
+recipe; the generic starter registry above uses different IDs.
+
 | Group | Logical purposes | Required kind and operations |
 |---|---|---|
 | Document input | `documents.bundle.source`, `document_package.source`, `health.source`, `finance.source`, `inventory.source`, `contacts.source`, `calendar.source` | directory; `list`, `read`, and `sensitive_read` where the adapter requests it |

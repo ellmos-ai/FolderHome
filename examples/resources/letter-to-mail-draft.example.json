@@ -1,0 +1,67 @@
+{
+  "schema": "folderhome.resource-registry.v1",
+  "os_account": "synthetic-family-account",
+  "resources": [
+    {
+      "resource_id": "letter_request",
+      "kind": "file",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\letter-request.json"
+      },
+      "operations": ["read"],
+      "purposes": ["correspondence.request"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    },
+    {
+      "resource_id": "letter_designs",
+      "kind": "file",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\letter-designs.json"
+      },
+      "operations": ["read"],
+      "purposes": ["correspondence.designs"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    },
+    {
+      "resource_id": "letter_templates",
+      "kind": "file",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\letter-templates.json"
+      },
+      "operations": ["read"],
+      "purposes": ["correspondence.templates"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    },
+    {
+      "resource_id": "claim_output",
+      "kind": "directory",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\Documents\\FolderHome\\ReviewedLetters"
+      },
+      "operations": ["create"],
+      "purposes": ["correspondence.output"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    },
+    {
+      "resource_id": "mail_draft_account",
+      "kind": "file",
+      "locator": {
+        "type": "local_path",
+        "path": "C:\\Users\\Demo\\AppData\\Local\\FolderHome\\mail-draft-account.json"
+      },
+      "operations": ["read"],
+      "purposes": ["mail.draft_account"],
+      "profile_ids": ["lukas"],
+      "cloud_context": "deny"
+    }
+  ],
+  "profile_defaults": {}
+}

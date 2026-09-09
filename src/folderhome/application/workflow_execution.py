@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import secrets
 import threading
 from collections.abc import Callable
@@ -542,6 +543,10 @@ _MAIL_DRAFT_REQUEST_SCHEMA: dict[str, object] = {
         "designs_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
         "templates_resource_id": {"type": "string", "minLength": 2, "maxLength": 64},
         "planned_at": {"type": "string", "minLength": 20, "maxLength": 40},
+        "expected_preview_id": {
+            "type": "string", "pattern": "^correspondence_preview_[0-9a-f]{64}$",
+            "description": "When supplied, require the exact previously confirmed letter preview.",
+        },
     },
 }
 
@@ -6371,6 +6376,7 @@ class CorrespondenceWorkflowAdapter:
             "text_name": report.text_file.name,
             "markdown_sha256": report.markdown_sha256,
             "text_sha256": report.text_sha256,
+            "approved_at": approved_at,
             "paths_disclosed": False,
         }
         digest = sha256(
@@ -6452,7 +6458,7 @@ class MailDraftWorkflowAdapter:
             "templates_resource_id",
             "planned_at",
         }
-        unknown = sorted(set(request).difference(expected))
+        unknown = sorted(set(request).difference(expected | {"expected_preview_id"}))
         missing = sorted(expected.difference(request))
         if unknown:
             raise WorkflowExecutionError(
@@ -6462,6 +6468,12 @@ class MailDraftWorkflowAdapter:
             raise WorkflowExecutionError(
                 "Mailentwurfsanfrage fehlt Feld: " + missing[0]
             )
+        expected_preview_id = request.get("expected_preview_id")
+        if "expected_preview_id" in request and (
+            not isinstance(expected_preview_id, str)
+            or re.fullmatch(r"correspondence_preview_[0-9a-f]{64}", expected_preview_id) is None
+        ):
+            raise WorkflowExecutionError("expected_preview_id benötigt eine gültige Vorschau-ID.")
         resource_ids = {
             name: _text(request[name], name)
             for name in (
@@ -6526,6 +6538,11 @@ class MailDraftWorkflowAdapter:
                 ),
                 report_forge_runtime_version=self._report_forge_runtime_version,
             )
+            if expected_preview_id is not None and preview.preview_id != expected_preview_id:
+                raise WorkflowExecutionError(
+                    "Briefauftrag oder Vorlage weichen von der bestätigten Vorschau ab. "
+                    "Das Schreiben erneut prüfen; die Entwurfsübergabe wurde nicht vorbereitet."
+                )
             message = build_mail_draft_message(
                 preview,
                 account=account,
@@ -6548,6 +6565,8 @@ class MailDraftWorkflowAdapter:
             "live_effect_approved": self._allow_mail_draft,
             "paths_disclosed": False,
         }
+        if expected_preview_id is not None:
+            public_plan["expected_preview_id"] = expected_preview_id
         plan_sha256 = sha256(_canonical_json(public_plan)).hexdigest()
         material = _canonical_json(
             {

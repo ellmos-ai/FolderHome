@@ -15,8 +15,66 @@ guaranteed that step three used the same letter as step two.
 A recipe is that journey written down. For v1, the master resolves it into
 **one** plan with several ordered steps, and you confirm the whole chain once.
 Result-bound v2 recipes require **separate approval for each concrete section**.
-The packaged catalog currently contains v1 recipes; the app and session CLI also
-support result-bound v2 recipes.
+The packaged catalog includes `accident-aftercare` (v1) and
+`letter-to-mail-draft` (v2). Both work through the app; v2 uses the session CLI.
+
+## Bundled v2 journey: review a letter, then save its mail draft
+
+Choose **Review a letter, then save its mail draft**, or enter
+`/recipe letter-to-mail-draft` in `agent session`:
+
+1. Review and confirm the first section. It saves the configured letter as
+   `Briefentwurf.md` and `Briefentwurf.txt` in your private `claim_output` folder.
+   **Open and read these files** from the result list before proceeding.
+2. Prepare the next section. The confirmed letter's `preview_id` becomes the
+   mail request's `expected_preview_id`. Its `approved_at` supplies `planned_at`,
+   so the draft date comes from the first approval, not a fixed example date.
+3. Review and confirm this new section separately. With the independent
+   `--approve-mail-draft` gate enabled, it appends a **text-only draft to your
+   own mailbox**. Nothing is sent, and no attachment is added.
+
+The preview ID binds the complete correspondence request (including its
+recipient), template/design selection, and rendered Markdown/text hashes.
+The mail adapter reconstructs the preview from the same resources and rejects a
+mismatch **before preparing the draft**. Changed inputs between sections therefore
+cannot silently change the letter. After the second review, execution uses the
+already prepared message bytes; editing the input file does not replace them.
+Changing the intended letter requires a new review, not editing a pending plan.
+
+The handoff does not expose the body, recipient address, password or physical
+paths to the model. The separately displayed local letter and hash-bound plan
+provide the review surfaces. The saved files are not email attachments. The
+recipient's email address remains in the private `letter_request` file; verify
+it there before the mailbox approval. A letter
+request declaring attachments is currently rejected by the mail-draft adapter.
+Existing output files are not overwritten; choose a separate private output
+folder for a different letter if the fixed output names already exist.
+
+Configure these exact logical IDs for your profile:
+
+| Resource ID | Kind / operation | Purpose |
+| --- | --- | --- |
+| `letter_request` | file / `read` | `correspondence.request` |
+| `letter_designs` | file / `read` | `correspondence.designs` |
+| `letter_templates` | file / `read` | `correspondence.templates` |
+| `claim_output` | directory / `create` | `correspondence.output` |
+| `mail_draft_account` | file / `read` | `mail.draft_account` |
+
+Start from the [five-resource example](../examples/resources/letter-to-mail-draft.example.json).
+Replace its dummy paths, OS-account name and profile IDs in a **private copy**;
+merge the entries into an existing registry without overwriting unrelated bindings.
+The [correspondence examples](../examples/correspondence/README.md) provide request,
+template and design formats; the [draft-account example](../examples/mail/draft-account.example.json)
+shows the separate mailbox configuration. Create the output directory and match
+the letter's profile/sender to the configured profile/account. Keep credentials
+outside the repository. Enable the mail gate only when you intend to allow the
+separately confirmed mailbox write; without it the letter can still be saved,
+but the mail section fails without appending anything.
+
+This journey has been tested through the normal API and session CLI with real
+local letter/mail adapters and a synthetic mailbox transport, including changes
+between sections, missing mail approval and duplicate confirmations. Actual
+mailbox behavior and browser acceptance remain separate checks.
 
 ## What a recipe is not
 
@@ -85,7 +143,8 @@ the current recipe attempt cannot be started again.
 ## In the app and chat
 
 Choose an organizational profile, then a **Multi-step journey** below the chat.
-**Prepare whole journey** creates a proposal only. Read the prepared steps and
+**Prepare whole journey** (v1) or **Prepare first section** (v2) creates a proposal only.
+Read the prepared steps and
 their exact domain plans, then use the separate **Confirm and execute** button.
 An unavailable journey remains visible but cannot be prepared from the selector.
 The resource IDs in the packaged recipe must be configured for that profile;
@@ -202,7 +261,7 @@ resolving requests after execution starts and would break the single hash over
 the chain. Existing resource handoffs remain unchanged; result-value slots use
 a separate versioned format.
 
-## Result bindings: v2 runtime, API, chat and GUI
+## Result bindings: v2 runtime, API, chat, GUI and CLI
 
 The parser also recognizes `folderhome.capability-recipe.v2` with an explicit
 `result_bindings` list. Each binding names an earlier `from_step`, a later
@@ -287,7 +346,6 @@ same profile. Reset removes old visible approval buttons immediately. If a
 section stops with uncertain effects, the view still names completed, failed and
 unattempted steps and warns if result delivery is incomplete.
 
-**Still pending:** a useful bundled v2 recipe.
 API/Strands/session CLI integration tests use synthetic domain adapters; GUI behavior tests
 execute the real script with inert DOM/network fixtures. Neither proves browser
 layout/keyboard acceptance or live-model selection quality. Runs cannot

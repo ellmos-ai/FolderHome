@@ -16,8 +16,70 @@ Schreiben verwendet wie Schritt zwei.
 Ein Rezept ist diese Geschichte, aufgeschrieben. Bei v1 löst der Master sie in
 **einen** Plan mit mehreren geordneten Schritten auf; die ganze Kette wird einmal
 bestätigt. Ergebnisgebundene v2-Rezepte brauchen **eine eigene Freigabe für jeden
-konkreten Abschnitt**. Der mitgelieferte Katalog enthält bisher v1-Rezepte;
-Anwendung und Sitzungs-CLI unterstützen auch ergebnisgebundene v2-Rezepte.
+konkreten Abschnitt**. Der mitgelieferte Katalog enthält `accident-aftercare` (v1)
+und `letter-to-mail-draft` (v2). Beide laufen in der Anwendung; v2 nutzt die Sitzungs-CLI.
+
+## Mitgelieferter v2-Ablauf: Brief prüfen, dann als Mailentwurf ablegen
+
+Wähle **Brief prüfen, dann als Mailentwurf ablegen** oder gib in `agent session`
+`/recipe letter-to-mail-draft` ein:
+
+1. Den ersten Abschnitt prüfen und bestätigen. Er speichert das konfigurierte
+   Schreiben als `Briefentwurf.md` und `Briefentwurf.txt` im privaten Ordner
+   `claim_output`. **Diese Dateien vor der Fortsetzung über die Ergebnisliste
+   öffnen und lesen.**
+2. Den nächsten Abschnitt vorbereiten. Die bestätigte Brief-ID `preview_id`
+   wird zu `expected_preview_id` in der Mailanfrage. `approved_at` liefert
+   `planned_at`: Das Entwurfsdatum stammt aus der ersten Freigabe, nicht aus
+   einem festen Beispieldatum.
+3. Diesen neuen Abschnitt separat prüfen und bestätigen. Bei zusätzlich gesetztem
+   `--approve-mail-draft` wird ein **reiner Textentwurf im eigenen Postfach**
+   abgelegt. Es wird nichts versendet und kein Anhang hinzugefügt.
+
+Die Vorschau-ID bindet den vollständigen Briefauftrag einschließlich Empfänger,
+Vorlagen-/Designauswahl sowie die Hashes von Markdown und Text. Der Mailadapter
+rekonstruiert die Vorschau aus denselben Ressourcen und weist eine Abweichung
+**vor der Entwurfsvorbereitung** ab. Geänderte Eingaben zwischen den Abschnitten
+können den Brief somit nicht still ändern. Nach der zweiten Vorschau verwendet
+die Ausführung die bereits vorbereiteten Nachrichtenbytes; eine Änderung der
+Eingabedatei ersetzt sie nicht. Ein anderes beabsichtigtes Schreiben braucht
+eine neue Prüfung, keine Bearbeitung eines wartenden Plans.
+
+Die Übergabe legt dem Modell weder Brieftext, Empfängeradresse, Passwort noch
+physische Pfade offen. Der separat sichtbare lokale Brief und der hashgebundene
+Plan dienen der Prüfung. Die gespeicherten Dateien sind keine Mailanhänge.
+Die Empfänger-Mailadresse bleibt in der privaten Datei `letter_request`;
+sie vor der Postfachfreigabe dort prüfen.
+Ein Briefauftrag mit deklarierten Anlagen wird vom Mailentwurfsadapter derzeit
+abgewiesen. Vorhandene Ausgabedateien werden nicht überschrieben; für einen
+anderen Brief einen getrennten privaten Ausgabeordner wählen, wenn die festen
+Ausgabenamen bereits existieren.
+
+Diese logischen IDs müssen für das Profil eingerichtet sein:
+
+| Ressourcen-ID | Art / Operation | Zweck |
+| --- | --- | --- |
+| `letter_request` | Datei / `read` | `correspondence.request` |
+| `letter_designs` | Datei / `read` | `correspondence.designs` |
+| `letter_templates` | Datei / `read` | `correspondence.templates` |
+| `claim_output` | Verzeichnis / `create` | `correspondence.output` |
+| `mail_draft_account` | Datei / `read` | `mail.draft_account` |
+
+Als Ausgangspunkt dient das [Beispiel mit fünf Ressourcen](../examples/resources/letter-to-mail-draft.example.json).
+Platzhalterpfade, OS-Kontonamen und Profil-IDs in einer **privaten Kopie** ersetzen;
+die Einträge in ein bestehendes Register integrieren, ohne andere Bindungen zu
+überschreiben. Die [Korrespondenzbeispiele](../examples/correspondence/README.de.md)
+zeigen Auftrag, Vorlage und Gestaltung; das [Entwurfskontobeispiel](../examples/mail/draft-account.example.json)
+beschreibt die separate Postfachkonfiguration. Ausgabeordner anlegen und Profil/
+Absender des Briefs mit Profil/Konto abstimmen. Zugangsdaten bleiben außerhalb
+des Repositorys. Das Mail-Gate nur setzen, wenn die separat bestätigte Postfachablage
+gewünscht ist. Ohne dieses Gate kann der Brief gespeichert werden, der Mailabschnitt
+scheitert jedoch ohne Postfachänderung.
+
+Der Ablauf wurde über normale API und Sitzungs-CLI mit echten lokalen Brief-/
+Mailadaptern und synthetischem Postfachtransport getestet, einschließlich Änderungen
+zwischen Abschnitten, fehlender Mailfreigabe und doppelter Bestätigung. Echtes
+Postfachverhalten und Browserabnahme bleiben getrennte Prüfungen.
 
 ## Was ein Rezept nicht ist
 
@@ -92,7 +154,8 @@ der aktuelle Rezeptversuch lässt sich nicht erneut starten.
 ## In App und Chat
 
 Ein organisatorisches Profil und darunter eine **Mehrschritt-Aufgabe** auswählen.
-**Gesamte Aufgabe vorbereiten** erzeugt nur einen Vorschlag. Die vorbereiteten
+**Gesamte Aufgabe vorbereiten** (v1) oder **Ersten Abschnitt vorbereiten** (v2)
+erzeugt nur einen Vorschlag. Die vorbereiteten
 Schritte und ihre genauen Fachpläne prüfen und anschließend getrennt
 **Freigeben und ausführen** wählen. Eine nicht verfügbare Aufgabe bleibt sichtbar,
 kann aber nicht über die Auswahl vorbereitet werden. Die Ressourcen-IDs des
@@ -213,7 +276,7 @@ verlangen, Anfragen erst während der Ausführung aufzulösen, und würde den ei
 Hash über die Kette brechen. Bestehende Ressourcenübergaben bleiben unverändert;
 Ergebnisfelder verwenden ein eigenes versioniertes Format.
 
-## Ergebnisübergaben: v2-Laufzeit, API, Chat und GUI
+## Ergebnisübergaben: v2-Laufzeit, API, Chat, GUI und CLI
 
 Der Parser erkennt zusätzlich `folderhome.capability-recipe.v2` mit einer
 expliziten Liste `result_bindings`. Jede Übergabe nennt einen früheren
@@ -307,7 +370,6 @@ selben Profil enden. Reset entfernt alte sichtbare Freigabeknöpfe sofort.
 Stoppt ein Abschnitt mit unklarer Wirkung, zeigt die Ansicht trotzdem bestätigte,
 gescheiterte und unversuchte Schritte und warnt vor unvollständiger Ergebnisablage.
 
-**Noch offen:** ein sinnvolles paketiertes v2-Rezept.
 API-/Strands-/Sitzungs-CLI-Integrationstests verwenden synthetische Fachadapter; GUI-Verhaltenstests
 führen das echte Skript mit wirkungslosen DOM-/Netzwerk-Testumgebungen aus.
 Beides belegt weder Layout-/Tastaturabnahme im Browser noch die Auswahlqualität

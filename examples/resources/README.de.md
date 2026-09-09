@@ -11,6 +11,11 @@ dürfen niemals committet werden.
 
 ## Vom Masteragenten verwendete Zweckgruppen
 
+Für den getrennt freigegebenen Brief-zu-Entwurf-Ablauf dienen
+[`letter-to-mail-draft.example.json`](./letter-to-mail-draft.example.json) und die
+[Rezeptanleitung](../../docs/capability-recipes.de.md). Seine fünf IDs passen zum
+mitgelieferten Rezept; das allgemeine Startregister oben verwendet andere IDs.
+
 | Gruppe | Logische Zwecke | Erforderliche Art und Operationen |
 |---|---|---|
 | Dokumenteingang | `documents.bundle.source`, `document_package.source`, `health.source`, `finance.source`, `inventory.source`, `contacts.source`, `calendar.source` | Verzeichnis; `list`, `read` und, falls vom Adapter verlangt, `sensitive_read` |

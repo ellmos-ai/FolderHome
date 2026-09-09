@@ -165,7 +165,7 @@ Veränderte Pläne werden abgelehnt, Nachweise abgeschlossener Schritte bleiben
 verfügbar. Nach einem Update von der älteren Hashformel ausstehende Pläne neu
 vorschlagen und prüfen lassen.
 
-Ein Fähigkeitsrezept macht aus einer ganzen Geschichte einen Plan.
+Ein v1-Fähigkeitsrezept macht aus einer ganzen Geschichte einen Plan.
 `recipes list` zeigt die mitgelieferten, `recipes plan` löst eines in einen
 hashgebundenen Mehrschrittplan auf, und `recipes run` führt die bestätigte Kette
 der Reihe nach aus. Das mitgelieferte Rezept `accident-aftercare` liest den
@@ -177,10 +177,19 @@ Endpunkt lässt das Rezept fail-closed scheitern, statt still übersprungen zu
 werden. Details:
 [`docs/capability-recipes.md`](./docs/capability-recipes.de.md).
 
+**Ergebnisgebundene v2-Rezepte brauchen für jeden Abschnitt eine neue Freigabe.**
+Das mitgelieferte `letter-to-mail-draft` speichert zuerst einen lokalen Brief zur
+Prüfung. Danach bereitet es einen reinen Textentwurf im Postfach vor, gebunden
+an die bestätigte Vorschau-ID dieses Briefs. Geänderte Briefeingaben stoppen
+die Übergabe; es wird nichts versendet. Bedienung über die Abschnittssteuerung
+der App oder `agent session` mit `/recipe`, `/next` und getrennten `/confirm`-
+Befehlen. Das Mail-Gate bleibt erforderlich; die [Rezeptanleitung](./docs/capability-recipes.de.md)
+enthält ein Konfigurationsbeispiel mit fünf Ressourcen. Läufe bleiben in einem Prozess.
+
 Rezepte stehen außerdem unter dem lokalen Chat als **Mehrschritt-Aufgabe** und
 über die Master-Werkzeuge `list_home_recipes` / `propose_home_recipe` bereit.
 Vorbereiten führt nichts aus: Die genauen Schritte prüfen und anschließend die
-ganze Kette getrennt bestätigen. Bei Fehlern bleiben abgeschlossene Ergebnisse
+v1-Kette oder den aktuellen v2-Abschnitt getrennt bestätigen. Bei Fehlern bleiben abgeschlossene Ergebnisse
 erhalten; der Rest stoppt. Die App benötigt die Ressourcen des Rezepts und jede
 einzelne Adapterfreigabe.
 
