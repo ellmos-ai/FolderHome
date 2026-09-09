@@ -172,6 +172,14 @@ calendar and private ledger before preparing any new write approval. Late result
 reads and confirmation messages are guarded against profile changes. Automated
 API and Node tests cover these transitions; browser/layout acceptance remains open.
 
+In `agent session`, ordinary uncertain executions emit the NDJSON event
+`execution_uncertain` with plan ID/hash, `retry_safe: false` and the same
+`uncertain_results`. Recipe outcomes retain the `confirmation` event and expose
+uncertainty or abortion inside `result`. Text mode prints the warning and confirmed
+references; a rejected recipe is labelled aborted, not uncertain. Both uncertain
+and aborted execution make the session exit with code **2**, even when `/quit`
+follows normally. Neither output mode repeats execution to retrieve evidence.
+
 ### Remaining boundaries
 
 - `ready` or `review_required` does not mean that a calendar was modified.  

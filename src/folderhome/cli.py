@@ -267,6 +267,7 @@ from folderhome.application.workflow_execution import (
     TaxWorkpaperWorkflowAdapter,
     WorkflowExecutionError,
     WorkflowExecutionGateway,
+    WorkflowExecutionOutcomeUnknown,
 )
 from folderhome.bridges._provider import (
     ProviderCheckoutError,
@@ -4754,10 +4755,30 @@ def _run_strands_agent_session(args: argparse.Namespace) -> int:
                     plan_sha256=plan.plan_sha256,
                     step_ids=step_ids,
                 )
+            except WorkflowExecutionOutcomeUnknown as exc:
+                encountered_error = True
+                _print_agent_session_event(
+                    _agent_session_event(
+                        "execution_uncertain",
+                        plan_id=plan.plan_id,
+                        plan_sha256=plan.plan_sha256,
+                        execution_outcome_unknown=True,
+                        retry_safe=False,
+                        uncertain_results=exc.uncertain_results,
+                        side_effects=[],
+                    ),
+                    as_json=args.as_json,
+                )
+                continue
             except (*_LOCAL_APP_ERRORS, FolderHomeAgentError) as exc:
                 encountered_error = True
                 _print_agent_session_error(str(exc), as_json=args.as_json)
                 continue
+            if (
+                result.get("execution_outcome_unknown")
+                or result.get("recipe_execution", {}).get("status") == "aborted"
+            ):
+                encountered_error = True
             _print_agent_session_event(
                 _agent_session_event(
                     "confirmation",
@@ -4823,6 +4844,9 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         print(json.dumps(payload, ensure_ascii=False, sort_keys=True), flush=True)
         return
     event = payload["event"]
+    if event == "execution_uncertain":
+        _print_uncertain_session_results(payload)
+        return
     if event == "ready":
         print(
             "FolderHome master agent ready for profile "
@@ -4871,6 +4895,16 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         return
     if event == "confirmation":
         result = payload["result"]
+        if result.get("execution_outcome_unknown"):
+            _print_uncertain_session_results(result)
+            return
+        if result.get("recipe_execution", {}).get("status") == "aborted":
+            print("Recipe aborted; do not repeat the complete plan automatically.")
+            report = result["recipe_execution"]
+            for key in ("executed_step_refs", "failed_step_refs", "not_attempted_step_refs"):
+                print(f"{key}: " + json.dumps(report.get(key, []), ensure_ascii=False))
+            sys.stdout.flush()
+            return
         print(
             f"Confirmed plan {payload['plan_id']}; "
             f"execution_performed={str(result['execution_performed']).lower()}."
@@ -4884,6 +4918,20 @@ def _print_agent_session_event(payload: dict[str, object], *, as_json: bool) -> 
         return
     if event == "closed":
         print("FolderHome agent session closed.", flush=True)
+
+
+def _print_uncertain_session_results(payload: dict[str, object]) -> None:
+    print(
+        "Run incomplete or uncertain. Do not retry automatically. "
+        "Check the affected target and private evidence before any new approval. "
+        "Confirmed entries do not account for every possible effect."
+    )
+    for result in payload.get("uncertain_results", []):
+        refs = result.get("evidence", {}).get("confirmed_event_references")
+        if isinstance(refs, list):
+            print(f"Confirmed calendar entries: {len(refs)}")
+        print(json.dumps(result, ensure_ascii=False, sort_keys=True, indent=2))
+    sys.stdout.flush()
 
 
 def _run_competition_demo(args: argparse.Namespace) -> int:

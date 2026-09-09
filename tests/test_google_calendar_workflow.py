@@ -340,13 +340,9 @@ def test_normal_app_factory_wires_google_resources_with_separate_gate(
         app.close()
 
 
-@pytest.mark.parametrize("route", ["ordinary", "recipe"])
-@pytest.mark.parametrize("confirmed_count", [0, 1])
-def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
-    setup, tmp_path, route, confirmed_count
-):
+def prepare_uncertain_calendar_app(setup, tmp_path, route, confirmed_count):
     from test_calendar_handoff import _write_event
-    from test_local_app import _api_headers, _app
+    from test_local_app import _app
 
     from folderhome.application.recipes import build_recipe_plan
     from folderhome.application.workflow_execution import WorkflowExecutionGateway
@@ -393,6 +389,19 @@ def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
         "plan_id": prepared.plan_id, "plan_sha256": prepared.plan.plan_sha256,
         "step_ids": [step.step_id for step in prepared.plan.steps],
     }).encode("utf-8")
+    return app, prepared, service, body, secret
+
+
+@pytest.mark.parametrize("route", ["ordinary", "recipe"])
+@pytest.mark.parametrize("confirmed_count", [0, 1])
+def test_app_retains_only_confirmed_calendar_references_after_uncertain_write(
+    setup, tmp_path, route, confirmed_count
+):
+    from test_local_app import _api_headers
+
+    app, prepared, service, body, secret = prepare_uncertain_calendar_app(
+        setup, tmp_path, route, confirmed_count,
+    )
     try:
         response = app.handle(
             method="POST", target="/api/v1/agent/confirm",

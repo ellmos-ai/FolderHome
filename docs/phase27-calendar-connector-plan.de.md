@@ -209,6 +209,15 @@ privaten Nachweis prüfen. Verspätete Ergebnisabrufe und Bestätigungsnachricht
 gegen Profilwechsel abgesichert. Automatisierte API- und Node-Tests decken diese
 Übergänge ab; Browser-/Layoutabnahme bleibt offen.
 
+In `agent session` erzeugen gewöhnliche unklare Ausführungen das NDJSON-Ereignis
+`execution_uncertain` mit Plan-ID/-Hash, `retry_safe: false` und denselben
+`uncertain_results`. Rezeptergebnisse behalten das Ereignis `confirmation` und
+weisen Unsicherheit oder Abbruch unter `result` aus. Im Textmodus erscheinen Warnung
+und bestätigte Referenzen; ein abgelehntes Rezept heißt abgebrochen, nicht unklar.
+Unklare wie abgebrochene Ausführungen führen zum Sitzungs-Exitcode **2**, auch wenn
+anschließend regulär `/quit` folgt. Kein Ausgabemodus wiederholt die Ausführung,
+um Nachweise abzurufen.
+
 ### Verbleibende Grenzen
 
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
