@@ -271,6 +271,8 @@ Finanzberatung, entscheidet keinen Leistungsanspruch und garantiert weder
 Vollständigkeit noch die Erkennung jedes Termins.
 
 Details und Meldungsweg: [`SECURITY.md`](SECURITY.de.md).
+Was lokal bleibt, was optionale Provider erhalten und was ein Reset nicht
+löscht: [Datenschutz und Datenflüsse](./PRIVACY.de.md).
 
 ## Private logische Ressourcen
 

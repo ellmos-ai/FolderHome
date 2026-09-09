@@ -255,6 +255,8 @@ FolderHome does not diagnose, does not provide legal, tax or financial advice,
 does not determine any benefit entitlement and guarantees neither completeness nor the detection of every appointment.
 
 Details and reporting path: [`SECURITY.md`](./SECURITY.md).
+What remains local, what optional providers receive, and what reset does not
+erase: [Privacy and data flows](./PRIVACY.md).
 
 ## Private logical resources
 

@@ -26,9 +26,10 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
 - Datei-, Parser- und Rendererarbeit ist durch nicht abschaltbare Budgets für
   Einträge, Dateien, Bytes, PDF-Seiten, Bildframes, Pixel, Text und Ausgaben
   begrenzt.
-- Der Strands-Master besitzt fünf begrenzte Werkzeuge: zwei profilgebundene
+- Der Strands-Master besitzt neun begrenzte Werkzeuge: zwei profilgebundene
   Nur-Lese-Dokumentwerkzeuge, die Fähigkeitssuche, die Suche nach logischen
-  Ressourcen und die Fachagentenberatung. Physische Ressourcen-Locator gelangen
+  Ressourcen, Fachagentenberatung, Rezept-/Lauflisten und Rezept-/Abschnittsplanung.
+  Physische Ressourcen-Locator gelangen
   weder in den öffentlichen Katalog noch in einen ressourcengebundenen Plan.
   Ein Fachagent erhält genau einen Planungsendpunkt und keinen Executor. Turns,
   Toolaufrufe, Prompt, Toolergebnis und Antwort sind endlich begrenzt;
@@ -41,10 +42,16 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   und nicht verbunden sind verschiedene Zustände. Fehlende Adapter blockieren
   und fallen weder auf Shell noch auf beliebige Pfade, allgemeines HTTP oder
   allgemeine CLI-Ausführung zurück.
+- Rezept-v2 bindet Werte aus verifizierten, zuvor bestätigten Berichten desselben
+  Laufs in einen neuen konkreten Plan. Jeder Abschnitt braucht eine neue exakte
+  Freigabe; Ergebniswerte dürfen keine Ressourcenidentitäten oder Berechtigungen
+  wählen. Importierte Berichte, automatische Folgeabschnitte und automatische
+  Wiederholungen unklarer Wirkungen erteilen keine Befugnis.
 - Der Gesprächsverlauf lebt ausschließlich im Prozessspeicher, ist nach Profil
   organisiert, aber keine Autorisierungsgrenze, und standardmäßig auf 24
   Nachrichten begrenzt. Ein ausdrücklicher Reset verwirft zusätzlich die
-  unbestätigten Pläne dieses Profils.
+  unbestätigten Pläne dieses Profils und schließt seine Rezeptläufe. Gespeicherte
+  Dokumente, Ausgaben und dauerhafte Effekt-Ledger werden dadurch nicht gelöscht.
 - Das deterministische Agenten-Fixture verwendet kein Netzwerk. Amazon
   Bedrock benötigt Modell-ID, Region sowie getrennte ausdrückliche Freigaben
   für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
@@ -90,9 +97,33 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   Chat-Schreibpfade umfassen append-only persönliche Notizen,
   Medikamenteneinnahme-Evidenz, ressourcengebundene Dokumentbündel,
   Kontakt-State, lokale Korrespondenzdateien und den eigenen
-  FolderHome-Kalender. Vollständige Korrespondenzinhalte bleiben lokal.
+  FolderHome-Kalender. Korrespondenz-Rendering bleibt lokal; ausdrücklich
+  freigegebene Mailentwürfe übertragen die vorbereitete Nachricht an den
+  konfigurierten Postfachanbieter.
 - Live-Mail, Live-Kalender, Telefon, Banking, Upload und Veröffentlichung sind
   keine impliziten Agentenfähigkeiten.
+
+## Optionale Connectoren und gespeicherte Nachweise
+
+- Google-Kalenderausführung braucht private Ressourcen, eine vorhandene
+  OAuth-Zustimmung, `--approve-calendar-write` und eine getrennte exakte
+  Bestätigung. Ändern/Löschen bindet zusätzlich einen zuvor bestätigten eigenen
+  Termin und starken ETag. Metadatenabfrage besitzt ein eigenes Lesegate und
+  OAuth-Scope. Setup kann vorhandene Zugangsdaten binden, holt aber keine
+  Zustimmung ein und erteilt keine Workflow-Freigabe.
+- Eigene Mailentwürfe brauchen `--approve-mail-draft` und exakte Bestätigung.
+  Es gibt keinen Versandvorgang; auch ein ungesendeter Entwurf wird extern
+  offengelegt, sobald er im Postfach gespeichert wird.
+- Scheduler-Registrierung und App-eigener Consumer-Start besitzen getrennte
+  Gates und Bestätigungen. Der Consumer liest freigegebene Dokumentqueues und
+  schreibt Betriebszustand; er erlaubt keine Dokumentbereinigung und
+  installiert keinen Dienst.
+- Dauerhafte Kalender-/Mail-Ledger erhalten Versuchs- und Ergebnisnachweise
+  über App-Neustarts hinweg. Fehlende oder unklare Belege beweisen kein Rollback.
+  Diese Ledger nicht löschen, um einen Vorgang erneut zu versuchen: Zuerst den
+  tatsächlichen Providerzustand abgleichen.
+- Der [Leitfaden zu Datenschutz und Datenflüssen](./PRIVACY.de.md) erläutert
+  lokale Speicherung, optionale externe Offenlegung und Grenzen von Reset/Schließen.
 
 ## Vertraulichkeit und Testdaten
 

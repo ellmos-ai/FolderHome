@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./THIRD_PARTY_LICENSES.de.md)
 
-**Version:** 0.19  
+**Version:** 0.20  
 **Updated:** 2026-09-09  
-**Reason:** Pinned scheduler provider disclosed  
+**Reason:** Google OAuth dependency and current correspondence integration disclosed  
 **Purpose:** Documents external or pre‑existing components with exact revision.
 
 | Component | Repository | Revision | License | Integration |
@@ -15,7 +15,7 @@
 | Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `94ae1f1e028be5aaf100baafadc18b64ff0940a2` | MIT | Pinned plugin manifest |
 | doc-services | Local checkout without remote | `e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2` | MIT | Pinned plugin manifest and extraction bridge |
 | KnowledgeDigest | `https://github.com/file-bricks/knowledgedigest.git` | `7040c66aa9326975ad81c156acf0d49fd5dca60f` | MIT | Pinned plugin manifest and index/search bridge |
-| report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Inventoried; runtime version to be cleaned up before bridge integration |
+| report-forge | `https://github.com/ellmos-ai/report-forge.git` | `355acb5ff1abe41b384a0d1e3a00925e6ac86215` | MIT | Pinned local correspondence rendering; distribution version 1.1.4 and runtime version 1.1.0 checked separately; no source copied |
 | ai-media-editor | `https://github.com/ellmos-ai/ai-media-editor.git` | `4e4c79d8c16a117bf69c0f72ad946575110a6b84` | MIT | Revision‑bound media handoff; no media execution in artifact plan |
 | MailProcessor | `https://github.com/doc-bricks/MailProcessor.git` | `704575901b8b526dcd1436a86d6f42818b4079cd` | MIT | Suite launcher; no FolderHome runtime connector |
 | UniversalDocsGrabber | `https://github.com/doc-bricks/UniversalDocsGrabber.git` | `0ccd03455b63acbca6e71cc48ba464f208a759cd` | MIT | Intended IMAP document provider; local checkout currently blocked |
@@ -34,6 +34,7 @@
 | UpToday | Local checkout without remote | `7582ca87e17e458bb99a7379d2c54003c15415a4` | MIT | Design reference for inventory/medication and tested ICS file handoff; no runtime import |
 | Routinika | Local OneDrive inventory | `portable_bundle.py` SHA-256 `3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2` | to be checked before distribution | Hash‑bound bundle design reference; no live connector and no copied code |
 | Google Calendar Skill 1.2.5 | Local plugin package | `google-calendar-skill@1.2.5` | package‑bound asset | Agentic handoff; no copied code and no live call in phase 27 |
+| google-auth | `https://github.com/googleapis/google-cloud-python/tree/main/packages/google-auth` | `>=2.38,<3`, checked with `2.57.1` | Apache-2.0 | Optional `folderhome[calendar]`; loads an existing private OAuth grant and performs gated token refresh; native Calendar-v3 HTTPS transport is FolderHome code, not copied skill code |
 | gesundheit-Skill 2.0.0 | `https://github.com/ellmos-ai/skills.git` | `0317f32310eed11d21f603cb6f22a689485af226` | MIT | Design reference for provided health information and organizational boundaries |
 | docs-analysis 1.0.0 | Local skill extracted from BACH | Status 2026-03-15 | MIT / project‑internal asset | Requirement and code‑difference method for phase 22; no runtime import |
 | project-docs | Local internal project-docs template | Status 2026-08-21 | Project‑internal asset | Documentation base skeleton |
@@ -52,6 +53,16 @@
 
 The table is a registry, not a substitute for the full license texts of the respective components. If sources are later vendored or included as submodules, their original license files must be carried along.
 
-The local app from phase 35 itself continues to use only the Python standard library and the new FolderHome code. Phase 36 adds the Apache‑2.0‑licensed Strands Agents SDK as an exactly pinned project dependency. The fixture model adapter requires no cloud; the optional Bedrock provider remains behind an explicit network gate. Windows additionally installs the exactly pinned `tzdata` package, because the Python standard installation there does not guarantee a system‑wide IANA database. Microsoft Edge and Playwright were used solely for local visual acceptance; they are neither shipped nor imported at runtime by FolderHome.
+Current mandatory dependencies are `strands-agents`, `mcp` and, on Windows,
+`tzdata`; the exact constraints and optional extras are in
+[`pyproject.toml`](./pyproject.toml). Connected local providers may require
+separate pinned checkouts. The earlier standard-library-only app description
+applied to phase 35, not to the complete current installation.
+
+The fixture model adapter requires no cloud. External model providers remain
+behind explicit network and data-disclosure gates; calendar OAuth is optional
+and separately gated. Microsoft Edge and Playwright were used for earlier local
+visual checks; neither is shipped or imported by FolderHome at runtime. Those
+earlier checks do not establish browser acceptance of later features.
 
 ---

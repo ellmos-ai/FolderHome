@@ -18,9 +18,10 @@ Security fixes are maintained on the current competition state on branch
   It rejects filesystem roots, symbolic links, and pre-existing non-empty
   directories that do not carry the exact FolderHome ownership marker.
 - File, parser, and renderer work is limited by non‑disableable budgets for entries, files, bytes, PDF pages, image frames, pixels, text, and outputs.
-- The Strands master has five bounded tools: two profile-bound read-only
+- The Strands master has nine bounded tools: two profile-bound read-only
   document tools, capability discovery, logical-resource discovery, and
-  specialist consultation. Physical resource locators never enter the public
+  specialist consultation, recipe/run listing and recipe/next-section planning.
+  Physical resource locators never enter the public
   catalog or a resource-bound plan. A
   specialist receives exactly one planning endpoint and no executor. Turns,
   tool calls, prompt, tool result, and response are finitely limited; tool
@@ -32,9 +33,15 @@ Security fixes are maintained on the current competition state on branch
 - Runtime coverage is explicit: connected, direct-read-only, planning-only and
   not-connected are different states. Missing adapters fail closed and cannot
   fall back to shell, arbitrary paths, generic HTTP or generic CLI execution.
+- Recipe-v2 binds values from verified, previously confirmed reports in the
+  same run into a new concrete plan. Each section needs new exact approval;
+  result values cannot select resource identities or permissions. No imported
+  reports, automatic next section or automatic replay of an uncertain effect
+  grants authority.
 - Conversation history is process-memory-only, profile-organized but not an
   authorization boundary, and bounded to 24 messages by default. An explicit
-  reset also discards that profile's unconfirmed plans.
+  reset also discards that profile's unconfirmed plans and closes its recipe
+  runs. It does not erase saved documents, outputs or durable effect ledgers.
 - The deterministic agent fixture uses no network. Amazon Bedrock requires a
   model ID, region, separate explicit approvals for network access and sharing
   potentially sensitive local search results, bounded connect/read timeouts,
@@ -70,8 +77,27 @@ Security fixes are maintained on the current competition state on branch
   hashes, and do not overwrite existing targets. Connected chat writes include
   append-only personal notes, medication intake evidence, resource-bound
   document bundles, contact state, local correspondence files and the own
-  FolderHome calendar. Full correspondence content remains local.
+  FolderHome calendar. Correspondence rendering is local; explicitly approved
+  mail drafts disclose the prepared message to the configured mailbox provider.
 - Live mail, live calendar, phone, banking, upload, and publishing are not implicit agent capabilities.
+
+## Optional Connectors and Retained Evidence
+
+- Google calendar execution needs private resources, an existing OAuth grant,
+  `--approve-calendar-write` and a separate exact confirmation. Updates and
+  deletions additionally bind a previously confirmed own event and strong ETag.
+  Metadata lookup has a distinct read gate and OAuth scope. Setup can bind
+  existing credentials but does not obtain consent or grant workflow effects.
+- Own-mail drafts need `--approve-mail-draft` and exact confirmation. There is
+  no send operation; storing an unsent draft is still an external disclosure.
+- Scheduler registration and app-owned consumer start have distinct gates and
+  confirmations. The consumer reads authorized document queues and writes
+  operational state; it does not authorize document cleanup or install a service.
+- Durable calendar/mail ledgers retain attempt and result evidence across app
+  restarts. Missing or uncertain receipts do not prove rollback. Do not erase
+  these ledgers to retry an operation: reconcile the provider's state first.
+- The [privacy and data-flow guide](./PRIVACY.md) explains local persistence,
+  optional external disclosure and the limits of reset/close.
 
 ## Confidentiality and Test Data
 
