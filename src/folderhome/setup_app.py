@@ -105,7 +105,10 @@ PROFILE_RULE_SCOPES = (RuleScope.PROFILE.value, RuleScope.PROFILE_AREA.value)
 HOUSEHOLD_RULE_SCOPES = (RuleScope.GLOBAL.value, RuleScope.AREA.value)
 # The file name always comes from the validated id, never from typed text.
 _PROFILE_ID = re.compile(r"[a-z][a-z0-9_-]{1,63}")
+_SETUP_TEMPLATES_DIRECTORY = Path(__file__).parent / "setup_templates" / "profiles"
+# Protected locations, not alternative input sources for setup templates.
 _TEMPLATE_DIRECTORIES = (
+    _SETUP_TEMPLATES_DIRECTORY,
     Path(__file__).parents[2] / "examples" / "profiles",
     Path(__file__).parent / "demo_data" / "profiles",
 )
@@ -1076,27 +1079,20 @@ def is_template_directory(directory: Path) -> bool:
 
 
 def profile_templates() -> dict[str, Any]:
-    """Return the shipped example household and profiles as plain documents."""
+    """Return one canonical shipped template set, independent of checkout layout."""
 
-    for directory in _TEMPLATE_DIRECTORIES:
-        household = directory / HOUSEHOLD_FILENAME
-        if not household.is_file():
-            continue
-        try:
-            documents = {
-                path.stem: json.loads(path.read_text(encoding="utf-8"))
-                for path in sorted(
-                    directory.glob("*.json"), key=lambda item: item.name.casefold()
-                )
-                if path.name.casefold() != HOUSEHOLD_FILENAME
-            }
-            return {
-                "household": json.loads(household.read_text(encoding="utf-8")),
-                "profiles": documents,
-            }
-        except (OSError, json.JSONDecodeError):
-            continue
-    return {"household": None, "profiles": {}}
+    directory = _SETUP_TEMPLATES_DIRECTORY
+    try:
+        documents = {
+            name: json.loads((directory / f"{name}.json").read_text(encoding="utf-8"))
+            for name in ("Hanna", "Lukas", "Simon")
+        }
+        return {
+            "household": json.loads((directory / HOUSEHOLD_FILENAME).read_text(encoding="utf-8")),
+            "profiles": documents,
+        }
+    except (OSError, json.JSONDecodeError):
+        return {"household": None, "profiles": {}}
 
 
 def _profile_form(configuration: ProfileConfiguration) -> list[dict[str, Any]]:

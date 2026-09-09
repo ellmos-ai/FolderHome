@@ -1,0 +1,23 @@
+{
+  "schema": "folderhome.user-profile.v1",
+  "profile_id": "simon",
+  "display_name": "Simon Beispiel",
+  "os_account": "synthetic-family-account",
+  "organizational_only": true,
+  "rules": [
+    {
+      "rule_id": "rule_simon_medication_format",
+      "key": "format.required",
+      "value": "pdf",
+      "scope": "profile_area",
+      "area": "medikamente"
+    },
+    {
+      "rule_id": "rule_simon_medication_delete",
+      "key": "delete.mode",
+      "value": "disabled",
+      "scope": "profile_area",
+      "area": "medikamente"
+    }
+  ]
+}

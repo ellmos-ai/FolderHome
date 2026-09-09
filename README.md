@@ -457,9 +457,12 @@ Section 1 owns the profiles. A profile organises documents inside one operating
 system account; it is not an access boundary. You add one there, rename it, edit
 its rules and delete it, and the profile folder itself is a field: by default
 `<configuration folder>\profiles`, not the `examples\profiles` of this
-repository. Those examples stay a template and are refused as a write target; a
-first run offers to copy them into your own folder or to start with an empty
-list. A household written for the first time takes the name of the running
+repository. Setup ships its own complete Hanna/Lukas/Simon template set in the
+Python package, so an installed wheel offers the same family as the checkout.
+The separate one-profile demo is not a setup fallback. Shipped templates are
+refused as a write target; a first run offers to copy the setup templates into
+your own folder or to start with an empty list. A household written for the
+first time takes the name of the running
 operating system account, while an existing one keeps the account label it
 already carries.
 

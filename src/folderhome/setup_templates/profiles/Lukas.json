@@ -1,0 +1,22 @@
+{
+  "schema": "folderhome.user-profile.v1",
+  "profile_id": "lukas",
+  "display_name": "Lukas Beispiel",
+  "os_account": "synthetic-family-account",
+  "organizational_only": true,
+  "rules": [
+    {
+      "rule_id": "rule_lukas_naming",
+      "key": "naming.template",
+      "value": "Lukas_{date}_{name}",
+      "scope": "profile"
+    },
+    {
+      "rule_id": "rule_lukas_insurance_archive",
+      "key": "archive.after_days",
+      "value": 1825,
+      "scope": "profile_area",
+      "area": "versicherungen"
+    }
+  ]
+}

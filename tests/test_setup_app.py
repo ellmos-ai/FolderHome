@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from folderhome import setup_app
 from folderhome.application.profile_rules import (
     ProfileConfigurationError,
     load_profile_configuration,
@@ -2117,22 +2118,30 @@ def test_a_folder_for_a_profile_added_in_the_same_plan_is_accepted(
     assert "mika" in plan["resources_json"]["profile_defaults"]
 
 
-def test_the_example_folder_is_never_written_into(tmp_path: Path) -> None:
+@pytest.mark.parametrize("template_kind", ["setup_templates", "demo_data"])
+def test_the_example_folder_is_never_written_into(tmp_path: Path, template_kind: str) -> None:
     """The shipped profiles are a template; a write is refused at the field."""
 
     app = _app(tmp_path)
     templates = profile_templates()
+    template_dir = Path(setup_app.__file__).parent / template_kind / "profiles"
+    before = {path.name: path.read_bytes() for path in template_dir.glob("*.json")}
+    assert before, "Exercise a shipped template, not a missing or unwritable directory"
     request = _request(
         tmp_path,
         profiles=_profile_rows(templates["profiles"]),
         household_rules=_household_rows(templates["household"]),
-        profiles_dir=str(PROFILE_DIR),
+        profiles_dir=str(template_dir),
     )
 
     plan = app.plan(request)
 
     assert plan["valid"] is False
-    assert any(item["field"] == "profiles_dir" for item in plan["errors"])
+    assert any(
+        item["field"] == "profiles_dir" and "Vorlage" in item["message"]
+        for item in plan["errors"]
+    )
+    assert before == {path.name: path.read_bytes() for path in template_dir.glob("*.json")}
 
 
 def test_setup_script_parses(tmp_path: Path) -> None:

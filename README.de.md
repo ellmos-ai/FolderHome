@@ -484,9 +484,12 @@ Abschnitt 1 gehört den Profilen. Ein Profil organisiert Dokumente innerhalb
 eines Betriebssystemkontos; es ist keine Zugriffsgrenze. Dort legst du eines an,
 benennst es um, bearbeitest seine Regeln und löschst es, und der Profilordner
 selbst ist ein Feld: standardmäßig `<Konfigurationsordner>\profiles`, nicht das
-`examples\profiles` dieses Repositorys. Diese Beispiele bleiben eine Vorlage und
-werden als Schreibziel abgelehnt; ein erster Lauf bietet an, sie in den eigenen
-Ordner zu kopieren oder mit einer leeren Liste zu beginnen. Ein erstmals
+`examples\profiles` dieses Repositorys. Die Einrichtung liefert ihre vollständigen
+Hanna-/Lukas-/Simon-Vorlagen im Python-Paket mit: Ein installiertes Wheel bietet
+dieselbe Familie wie der Checkout. Die getrennte Einprofil-Demo ist kein Fallback
+für die Einrichtung. Mitgelieferte Vorlagen werden als Schreibziel abgelehnt;
+ein erster Lauf bietet an, die Einrichtungsvorlagen in den eigenen Ordner zu
+kopieren oder mit einer leeren Liste zu beginnen. Ein erstmals
 geschriebener Haushalt übernimmt den Namen des laufenden Betriebssystemkontos,
 ein bestehender behält das Kontolabel, das er bereits trägt.
 
