@@ -158,17 +158,11 @@ def analyze_document_calendar(
             status="blocked",
             issues=("Datenschutzstatus blockiert die lokale Terminerfassung.",),
         )
-    if (
-        document.privacy_status is PrivacyStatus.REVIEW_REQUIRED
-        and not allow_sensitive_local_read
-    ):
+    if document.privacy_status is PrivacyStatus.REVIEW_REQUIRED and not allow_sensitive_local_read:
         return _analysis(
             document,
             status="review_required",
-            issues=(
-                "Datenschutzstatus erfordert eine Freigabe für die lokale "
-                "Terminerfassung.",
-            ),
+            issues=("Datenschutzstatus erfordert eine Freigabe für die lokale Terminerfassung.",),
         )
     try:
         ZoneInfo(default_timezone)
@@ -376,8 +370,7 @@ def build_calendar_handoff_plan(
         policy,
     )
     if any(
-        candidate.timezone_basis == "configuration_or_profile"
-        and candidate.timezone != timezone
+        candidate.timezone_basis == "configuration_or_profile" and candidate.timezone != timezone
         for candidate in analysis.candidates
     ):
         raise CalendarWorkflowError(
@@ -393,9 +386,7 @@ def build_calendar_handoff_plan(
         if len({candidate.event_uid for candidate in candidates}) > 1:
             conflicts.update(candidate.candidate_id for candidate in candidates)
 
-    existing_uids = {
-        event.event_uid for event in existing_events if event.status == "active"
-    }
+    existing_uids = {event.event_uid for event in existing_events if event.status == "active"}
     existing_conflicts = {
         event.conflict_key: event.event_uid
         for event in existing_events
@@ -406,6 +397,7 @@ def build_calendar_handoff_plan(
     for candidate in sorted(analysis.candidates, key=lambda item: item.candidate_id):
         target_path = None
         content_sha256 = None
+        external_connector_required = False
         if candidate.candidate_id in conflicts:
             status = "blocked"
             side_effect = "none"
@@ -452,6 +444,7 @@ def build_calendar_handoff_plan(
             status = "blocked"
             side_effect = "none"
             message = "Google Calendar benötigt einen separaten externen Connectorvertrag."
+            external_connector_required = True
         actions.append(
             CalendarHandoffAction(
                 action_id=_action_id(candidate, backend, status, target_path, content_sha256),
@@ -462,6 +455,7 @@ def build_calendar_handoff_plan(
                 target_path=target_path,
                 content_sha256=content_sha256,
                 message=message,
+                external_connector_required=external_connector_required,
             )
         )
     action_tuple = tuple(actions)
@@ -527,9 +521,8 @@ def apply_calendar_handoff_plan(
         raise CalendarWorkflowError(
             "Kalender-State und Dokumentquelle dürfen sich nicht überlappen."
         )
-    if (
-        plan.backend is CalendarBackend.UPTODAY_ICS
-        and _paths_overlap(store.state_dir, plan.configuration.uptoday_ics_directory)
+    if plan.backend is CalendarBackend.UPTODAY_ICS and _paths_overlap(
+        store.state_dir, plan.configuration.uptoday_ics_directory
     ):
         raise CalendarWorkflowError("Kalender-State und ICS-Ausgabe dürfen sich nicht überlappen.")
 
@@ -577,16 +570,13 @@ def apply_calendar_handoff_plan(
                 raise CalendarWorkflowError(
                     f"ICS-Zieldatei existiert bereits: {action.target_path}"
                 )
-            artifacts.append(
-                IcsArtifact(action.target_path, content, action.content_sha256)
-            )
+            artifacts.append(IcsArtifact(action.target_path, content, action.content_sha256))
         try:
             published = publish_ics_batch(tuple(artifacts))
         except CalendarIcsError as exc:
             raise CalendarWorkflowError(str(exc)) from exc
         receipts = tuple(
-            (output.target_path, output.content_sha256)
-            for output in published.outputs
+            (output.target_path, output.content_sha256) for output in published.outputs
         )
         try:
             revision_after = store.record_external(

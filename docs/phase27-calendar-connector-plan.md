@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./phase27-calendar-connector-plan.de.md)
 
-**Status:** planning and synthetic execution implemented; live integration open  
+**Status:** Google-v3 gateway and plan execution implemented; app/credential integration open  
 **Updated:** 2026-09-09 (original phase acceptance: 233 tests on 2026-08-22)  
 **Product name in competition:** FolderHome
 
@@ -68,14 +68,44 @@ afterward, including when unapproved reminders were removed.
 
 **Older approvals require a fresh proposal and review.** A failure detected
 after a gateway call does not undo a possible effect. Do not automatically retry
-or treat missing success evidence as proof that nothing happened. A future live
-adapter still needs persistent idempotency, uncertain-outcome handling and
-provider readback; these tests do not establish a live integration.
+or treat missing success evidence as proof that nothing happened. The gateway
+implementation below adds persistent idempotency, uncertain-outcome handling
+and provider readback. App/credential wiring and live acceptance remain open.
 
 Local verification: 19 new red-to-green integrity regressions, 38 focused
 calendar tests, and a full suite of **831 passed in 251.39 seconds** with
 warnings treated as errors. The real `calendar connector-simulate` CLI returned
 one synthetic event reference with both live-calendar and network flags false.
+
+### Google-v3 implementation — 9 September 2026
+
+The application can execute exact `create`/`remind` approvals through
+`folderhome.bridges.google_calendar.GoogleCalendarGateway`. Only the native
+`google-calendar@v3` route with a concrete calendar ID becomes executable;
+historical skill routes remain review-only. A typed
+`external_connector_required` marker allows replacing a missing route without
+lifting document time-conflict blocks. Unknown or unmarked blocks stay blocked.
+
+The gateway reads a stable remote event ID, atomically reserves a write in a
+private SQLite ledger, attempts at most one POST, then compares the returned
+event's actual fields. A failed initial GET consumes no write attempt. A possibly
+completed POST is never automatically repeated. Renaming local accounts or
+rotating credential references does not reset the ledger. The token-dependent
+`primary` alias must first be resolved to a concrete calendar ID by the future
+account integration.
+
+Both the exact approval and the separate gateway network gate must explicitly
+allow execution. The transport pins the Google HTTPS host, does not follow
+redirects, limits response bodies to 1 MiB, and keeps credential/provider error
+details out of user-visible exceptions. Tokens and event text are not stored in
+the ledger. `CalendarConnectorOutcomeUnknown` preserves confirmed references
+when a later event fails; missing success is not a rollback.
+
+Local verification: **107 calendar tests** and **102 workflow, recipe and resource
+tests passed**, with warnings treated as errors. Tests use the real gateway,
+executor and temporary ledger behind an in-memory HTTP boundary. They do not
+establish OAuth or live-account acceptance. App/CLI resource binding, private
+credential resolution, live testing, and reference/ETag-based updates remain open.
 
 ### Remaining boundaries
 

@@ -9,6 +9,10 @@ class CalendarConnectorGatewayError(RuntimeError):
     """Raised when a calendar connector would violate its execution contract."""
 
 
+class CalendarConnectorGatewayOutcomeUnknown(CalendarConnectorGatewayError):
+    """A remote effect may exist and must not be blindly retried."""
+
+
 class SyntheticCalendarConnectorGateway:
     """No-network gateway used only for local acceptance."""
 

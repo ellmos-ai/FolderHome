@@ -2,7 +2,7 @@
 
 [English](./phase27-calendar-connector-plan.md) | **Deutsch**
 
-**Status:** Planung und synthetische Ausführung implementiert; Live-Anbindung offen  
+**Status:** Google-v3-Gateway und Planausführung implementiert; App-/Zugangsdatenanbindung offen  
 **Aktualisiert:** 2026-09-09 (ursprüngliche Phasenabnahme: 233 Tests am 2026-08-22)  
 **Produktname im Wettbewerb:** FolderHome
 
@@ -97,15 +97,47 @@ Erinnerungen daraus entfernt wurden.
 **Ältere Freigaben benötigen einen neuen Vorschlag und eine erneute Prüfung.**
 Ein nach dem Gateway-Aufruf erkannter Fehler macht eine mögliche Wirkung nicht
 rückgängig. Nicht automatisch wiederholen oder fehlende Erfolgsnachweise als
-Beweis ausbleibender Wirkung behandeln. Ein zukünftiger Live-Adapter benötigt
-weiterhin dauerhafte Idempotenz, Behandlung unklarer Ergebnisse und Provider-
-Readback; diese Tests belegen keine Live-Anbindung.
+Beweis ausbleibender Wirkung behandeln. Die nachfolgende Gateway-Implementierung
+ergänzt dauerhafte Idempotenz, Behandlung unklarer Ergebnisse und Provider-
+Readback. App-/Zugangsdatenanbindung und Live-Abnahme bleiben offen.
 
 Lokale Verifikation: 19 neue Rot-Grün-Integritätsregressionen, 38 fokussierte
 Kalendertests und eine Gesamtsuite mit **831 bestanden in 251,39 Sekunden**,
 Warnungen als Fehler behandelt. Die reale CLI `calendar connector-simulate`
 lieferte eine synthetische Ereignisreferenz mit beiden Live-Kalender- und
 Netzwerkflags auf false.
+
+### Google-v3-Implementierung — 9. September 2026
+
+Die Anwendung kann genaue `create`/`remind`-Freigaben über
+`folderhome.bridges.google_calendar.GoogleCalendarGateway` ausführen. Nur die native
+Route `google-calendar@v3` mit konkreter Kalender-ID wird ausführbar;
+historische Skillrouten bleiben prüfpflichtig. Ein typisierter Marker
+`external_connector_required` erlaubt das Ersetzen einer fehlenden Route, ohne
+Zeitkonfliktsperren der Dokumente aufzuheben. Unbekannte oder unmarkierte Sperren
+bleiben bestehen.
+
+Der Gateway liest eine stabile entfernte Ereignis-ID, reserviert einen Versuch
+atomar in einem privaten SQLite-Ledger, versucht höchstens ein POST und vergleicht
+danach die tatsächlichen Ereignisfelder. Ein fehlgeschlagenes erstes GET verbraucht
+keinen Schreibversuch. Ein möglicherweise ausgeführtes POST wird niemals automatisch
+wiederholt. Umbenannte lokale Konten oder gewechselte Zugangsdatenreferenzen setzen
+das Ledger nicht zurück. Der tokenabhängige Alias `primary` muss durch die spätere
+Kontenanbindung zunächst in eine konkrete Kalender-ID aufgelöst werden.
+
+Sowohl die genaue Freigabe als auch das getrennte Netzwerk-Gate des Gateways müssen
+die Ausführung ausdrücklich erlauben. Der Transport bindet den Google-HTTPS-Host,
+folgt keinen Redirects, begrenzt Antwortinhalte auf 1 MiB und hält vertrauliche
+Zugangsdaten-/Providerfehler aus sichtbaren Fehlermeldungen heraus. Tokens und
+Ereignistexte werden nicht im Ledger gespeichert. `CalendarConnectorOutcomeUnknown`
+erhält bestätigte Referenzen, wenn ein späteres Ereignis fehlschlägt; fehlender
+Erfolg bedeutet kein Zurückrollen.
+
+Lokale Verifikation: **107 Kalendertests** und **102 Workflow-, Rezept- und
+Ressourcentests bestanden**, Warnungen als Fehler behandelt. Die Tests verwenden
+echten Gateway, Executor und temporäres Ledger hinter einer HTTP-In-Memory-Grenze.
+Das belegt keine OAuth- oder Live-Kontenabnahme. App-/CLI-Ressourcenbindung, private
+Zugangsdatenauflösung, Live-Tests und Referenz-/ETag-basierte Änderungen bleiben offen.
 
 ### Verbleibende Grenzen
 

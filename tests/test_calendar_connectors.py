@@ -9,6 +9,7 @@ import pytest
 
 from folderhome.application.calendar_connectors import (
     CalendarConnectorError,
+    CalendarConnectorOutcomeUnknown,
     build_calendar_connector_plan,
     execute_calendar_connector_plan,
     load_calendar_connector_accounts,
@@ -34,6 +35,189 @@ from folderhome.contracts import (
 REPO_ROOT = Path(__file__).parents[1]
 UPTODAY_REVISION = "7582ca87e17e458bb99a7379d2c54003c15415a4"
 ROUTINIKA_BUNDLE_SHA256 = "3168d7bca9d1fdfcb8cf437a60fa475fa39fa58a6804fe50a132ea03df35b7e2"
+
+
+def _native_google_plan(tmp_path, *, second_start=None):
+    from test_calendar_handoff import _write_profile_configuration
+
+    from folderhome.application.calendar_handoff import build_calendar_handoff_plan
+    from folderhome.application.profile_rules import (
+        load_profile_configuration,
+        resolve_profile_policy,
+    )
+
+    account = replace(
+        next(
+            item
+            for item in load_calendar_connector_accounts(_accounts_file(tmp_path))
+            if item.backend is CalendarBackend.GOOGLE
+        ),
+        provider_id="google-calendar",
+        provider_revision="v3",
+        calendar_id="synthetic@example.invalid",
+    )
+    original = _handoff_plan(tmp_path, CalendarBackend.GOOGLE)
+    analysis = original.analysis
+    if second_start is not None:
+        first_item = analysis.items[0]
+        first_analysis = first_item.analysis
+        second_candidate = replace(
+            first_analysis.candidate,
+            candidate_id="calendar_candidate_" + "e" * 64,
+            event_uid="f" * 64 + "@folderhome.local",
+            title="Zweiter Termin",
+            start_time=second_start,
+            end_time="12:00",
+        )
+        analysis = replace(
+            analysis,
+            items=(
+                first_item,
+                replace(
+                    first_item,
+                    relative_path="Second.txt",
+                    analysis=replace(first_analysis, candidate=second_candidate),
+                ),
+            ),
+        )
+    profiles = tmp_path / "native-profiles"
+    _write_profile_configuration(profiles, backend="google")
+    handoff = build_calendar_handoff_plan(
+        analysis,
+        configuration=original.configuration,
+        policy=resolve_profile_policy(
+            load_profile_configuration(profiles), profile_id="lukas", area="gesundheit"
+        ),
+        planned_at="2026-09-09T09:00:00+02:00",
+    )
+    plan = build_calendar_connector_plan(
+        handoff,
+        request=load_calendar_connector_request(_request_file(tmp_path)),
+        account=account,
+        provider_ready=True,
+    )
+    approval = CalendarConnectorApproval(
+        approval_id="native-google-approved",
+        plan_id=plan.plan_id,
+        plan_sha256=plan.plan_sha256,
+        action_ids=tuple(item.action_id for item in plan.actions),
+        allowed_operations=(CalendarConnectorOperation.CREATE, CalendarConnectorOperation.REMIND),
+        approved_at="2026-09-09T09:00:00+02:00",
+        allow_network_write=True,
+    )
+    return account, plan, approval
+
+
+def test_native_google_preserves_conflict_blocks_from_real_handoff(tmp_path):
+    account, plan, approval = _native_google_plan(tmp_path, second_start="10:30")
+    assert len(plan.events) == 2
+    assert plan.status == "blocked"
+    assert all(action.status == "blocked" for action in plan.actions)
+
+
+def test_native_google_partial_effect_keeps_confirmed_references(tmp_path):
+    from test_google_calendar_gateway import CalendarService
+
+    from folderhome.application import calendar_connectors as module
+    from folderhome.bridges.google_calendar import GoogleCalendarGateway
+
+    account, plan, approval = _native_google_plan(tmp_path, second_start="11:30")
+    service = CalendarService()
+    resolutions = []
+
+    def token(reference):
+        resolutions.append(reference)
+        if len(resolutions) > 1:
+            raise KeyError("private credential detail")
+        return "synthetic-token"
+
+    gateway = GoogleCalendarGateway(
+        account=account,
+        ledger_path=tmp_path / "ledger.sqlite3",
+        token_provider=token,
+        allow_network_write=True,
+        transport=service,
+    )
+    with pytest.raises(module.CalendarConnectorOutcomeUnknown) as failure:
+        execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert len(failure.value.confirmed_references) == 1
+    assert failure.value.confirmed_references[0].provider_event_id in service.events
+    assert sum(method == "POST" for method, _, _ in service.calls) == 1
+
+
+def test_native_google_plan_executes_real_gateway_and_returns_confirmed_reference(tmp_path):
+    from test_google_calendar_gateway import CalendarService
+
+    from folderhome.bridges.google_calendar import GoogleCalendarGateway
+
+    account, plan, approval = _native_google_plan(tmp_path)
+    assert plan.status == "ready"
+    assert plan.route.status == "ready"
+    assert {operation.value for operation in plan.route.supported_operations} == {
+        "create",
+        "remind",
+    }
+    service = CalendarService()
+    gateway = GoogleCalendarGateway(
+        account=account,
+        ledger_path=tmp_path / "ledger.sqlite3",
+        token_provider=lambda reference: "synthetic-token",
+        allow_network_write=True,
+        transport=service,
+    )
+    report = execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert report.status == "executed"
+    assert len(report.event_references) == 1
+    assert report.event_references[0].provider_event_id in service.events
+    assert report.event_references[0].calendar_id == "synthetic@example.invalid"
+    assert report.provider_id == "google-calendar"
+    assert [method for method, _, _ in service.calls] == ["GET", "POST", "GET"]
+
+
+def test_native_google_unknown_survives_application_boundary(tmp_path):
+    from test_google_calendar_gateway import CalendarService
+
+    from folderhome.application import calendar_connectors as module
+    from folderhome.bridges.google_calendar import GoogleCalendarGateway
+
+    assert hasattr(module, "CalendarConnectorOutcomeUnknown"), (
+        "Unknown effects need a typed application error"
+    )
+    account, plan, approval = _native_google_plan(tmp_path)
+    service = CalendarService()
+    service.timeout_before_write = True
+    gateway = GoogleCalendarGateway(
+        account=account,
+        ledger_path=tmp_path / "ledger.sqlite3",
+        token_provider=lambda reference: "synthetic-token",
+        allow_network_write=True,
+        transport=service,
+    )
+    with pytest.raises(module.CalendarConnectorOutcomeUnknown):
+        execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
+    assert sum(method == "POST" for method, _, _ in service.calls) == 1
+
+
+@pytest.mark.parametrize("flag", [False, 1, "true"])
+def test_native_google_network_approval_requires_literal_true(tmp_path, flag):
+    from test_google_calendar_gateway import CalendarService
+
+    from folderhome.bridges.google_calendar import GoogleCalendarGateway
+
+    account, plan, approval = _native_google_plan(tmp_path)
+    service = CalendarService()
+    gateway = GoogleCalendarGateway(
+        account=account,
+        ledger_path=tmp_path / "ledger.sqlite3",
+        token_provider=lambda reference: "synthetic-token",
+        allow_network_write=True,
+        transport=service,
+    )
+    with pytest.raises((CalendarConnectorError, ValueError)):
+        execute_calendar_connector_plan(
+            plan, approval=replace(approval, allow_network_write=flag), gateway=gateway
+        )
+    assert not service.calls
 
 
 def _write_json(path: Path, payload: dict[str, object]) -> Path:
@@ -474,7 +658,7 @@ def test_connector_does_not_report_success_after_gateway_effect_mode_changes(tmp
             return result
 
     gateway = MutatingGateway()
-    with pytest.raises(CalendarConnectorError, match="Gateway"):
+    with pytest.raises(CalendarConnectorOutcomeUnknown):
         execute_calendar_connector_plan(plan, approval=approval, gateway=gateway)
     assert gateway.create_count == 1
 

@@ -12,6 +12,7 @@ from zoneinfo import ZoneInfo
 
 from folderhome.capabilities.calendar_connector_gateway import (
     CalendarConnectorGatewayError,
+    CalendarConnectorGatewayOutcomeUnknown,
 )
 from folderhome.contracts.calendar import CalendarBackend, CalendarCandidate, CalendarHandoffPlan
 from folderhome.contracts.calendar_connectors import (
@@ -31,6 +32,14 @@ from folderhome.contracts.calendar_connectors import (
 
 class CalendarConnectorError(RuntimeError):
     """Raised when a connector route, request, or approval is unsafe."""
+
+
+class CalendarConnectorOutcomeUnknown(CalendarConnectorError):
+    """The connector may have written; reconciliation is required before more work."""
+
+    def __init__(self, message: str, *, confirmed_references=()):
+        super().__init__(message)
+        self.confirmed_references = tuple(confirmed_references)
 
 
 class CalendarConnectorGateway(Protocol):
@@ -133,6 +142,8 @@ def build_calendar_connector_plan(
             source_status=source_action.status,
             provider_ready=provider_ready,
             synthetic=synthetic_override,
+            native_google_ready=route.status == "ready" and route.live_supported,
+            source_connector_required=source_action.external_connector_required,
         )
         for source_action, event in zip(handoff.actions, events, strict=True)
         for operation in request.operations
@@ -195,7 +206,7 @@ def _verify_connector_gateway(
         raise CalendarConnectorError(
             "Kalendergateway stimmt nicht mit dem freigegebenen Provider überein."
         )
-    if gateway.network_required and not approval.allow_network_write:
+    if gateway.network_required and approval.allow_network_write is not True:
         raise CalendarConnectorError("Netzwerk-Kalenderfreigabe fehlt.")
     synthetic = plan.route.provider_id == "folderhome.synthetic-calendar"
     if (
@@ -245,6 +256,7 @@ def execute_calendar_connector_plan(
         )
     event_by_uid = {item.event_uid: item for item in plan.events}
     references = []
+    confirmed_effect = False
     try:
         for event_uid, operations in sorted(by_event.items()):
             _verify_connector_content(plan)
@@ -270,6 +282,7 @@ def execute_calendar_connector_plan(
                 event,
                 idempotency_key=idempotency_key,
             )
+            confirmed_effect = confirmed_effect or not gateway.simulated
             _verify_connector_content(plan)
             _verify_connector_gateway(plan, gateway, approval)
             if _json_hash(event.to_dict()) != payload_sha256:
@@ -295,7 +308,17 @@ def execute_calendar_connector_plan(
                     payload_sha256=payload_sha256,
                 )
             )
-    except CalendarConnectorGatewayError as exc:
+    except CalendarConnectorGatewayOutcomeUnknown:
+        raise CalendarConnectorOutcomeUnknown(
+            "Kalenderergebnis unklar; vor weiteren Schreibaktionen rücklesen.",
+            confirmed_references=references,
+        ) from None
+    except (CalendarConnectorGatewayError, CalendarConnectorError, ValueError) as exc:
+        if confirmed_effect:
+            raise CalendarConnectorOutcomeUnknown(
+                "Kalenderlauf unvollständig; bestätigte Teilergebnisse bleiben erhalten.",
+                confirmed_references=references,
+            ) from None
         raise CalendarConnectorError(str(exc)) from exc
     status = "simulated" if gateway.simulated else "executed"
     report_material = {
@@ -342,13 +365,26 @@ def _build_route(
         CalendarBackend.GOOGLE: tuple(CalendarConnectorOperation),
     }[account.backend]
     if account.backend is CalendarBackend.GOOGLE:
-        status = "review_required" if provider_ready else "blocked"
+        native_google = (
+            account.provider_id == "google-calendar"
+            and account.provider_revision == "v3"
+            and account.calendar_id != "primary"
+        )
+        status = ("ready" if native_google else "review_required") if provider_ready else "blocked"
         reason = (
             "Google-Calendar-Skill ist verfügbar; jede Mutation bleibt gesondert freizugeben."
             if provider_ready
             else "Google-Calendar-Connector ist nicht nachweisbar verfügbar."
         )
         live_supported = provider_ready
+        if native_google:
+            supported = (CalendarConnectorOperation.CREATE, CalendarConnectorOperation.REMIND)
+            reason = (
+                "Google-v3-Erstellung ist verfügbar; "
+                "genaue Plan- und Netzwerkfreigabe erforderlich."
+                if provider_ready
+                else "Google-v3-Connector ist nicht verfügbar."
+            )
     elif account.backend is CalendarBackend.UPTODAY_ICS:
         status = "ready" if provider_ready else "blocked"
         reason = (
@@ -424,6 +460,8 @@ def _build_action(
     source_status: str,
     provider_ready: bool,
     synthetic: bool,
+    native_google_ready: bool = False,
+    source_connector_required: bool = False,
 ) -> CalendarConnectorAction:
     delegated = False
     if operation in {
@@ -446,6 +484,16 @@ def _build_action(
         else:
             status = "blocked"
             reason = "Dieses lokale Backend besitzt keinen geprüften Reminder-Connector."
+    elif backend is CalendarBackend.GOOGLE and native_google_ready:
+        if source_status == "blocked" and source_connector_required is True:
+            status = "planned"
+            reason = "Google-Operation benötigt eine exakte gesonderte Connectorfreigabe."
+        else:
+            status = "blocked"
+            reason = (
+                "Fachliche Handoff-Sperre bleibt bestehen; "
+                "Connector ersetzt nur die fehlende Route."
+            )
     elif backend is CalendarBackend.GOOGLE and provider_ready:
         status = "review_required"
         reason = "Google-Operation benötigt eine exakte gesonderte Connectorfreigabe."

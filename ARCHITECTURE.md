@@ -288,8 +288,10 @@ The detailed policy is in [`SECURITY.md`](./SECURITY.md).
 Master and calendar connector execution recompute complete plan content,
 instead of trusting stored hash strings. Calendar input snapshots and gateway
 effects are bound as well. A failure after an attempted effect is not evidence
-of rollback or permission to retry. Live calendar idempotency and readback are
-still unimplemented; see [calendar limits](./docs/phase27-calendar-connector-plan.md).
+of rollback or permission to retry. The Google-v3 gateway now provides persistent
+idempotency, field-level readback and typed uncertain/partial outcomes through
+the calendar plan executor. App/CLI resource and credential wiring remains open;
+see [calendar limits](./docs/phase27-calendar-connector-plan.md).
 
 The optional AWS demo proxy now has a local, reviewed micro-USD reservation
 contract: cumulative UTC entitlement, atomic daily-count/money admission,

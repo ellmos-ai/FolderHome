@@ -324,8 +324,10 @@ Die ausführliche Richtlinie steht in [`SECURITY.md`](SECURITY.de.md).
 Master- und Kalenderconnector-Ausführung berechnen den vollständigen Planinhalt
 neu, statt gespeicherten Hashstrings zu vertrauen. Kalender-Eingabesnapshots und
 Gateway-Effekte sind ebenfalls gebunden. Ein Fehler nach einem Wirkungsversuch
-belegt weder eine Rücknahme noch die Erlaubnis zur Wiederholung. Dauerhafte
-Live-Kalender-Idempotenz und Readback sind noch nicht implementiert; siehe
+belegt weder eine Rücknahme noch die Erlaubnis zur Wiederholung. Der Google-v3-
+Gateway bietet jetzt dauerhafte Idempotenz, feldweises Rücklesen und typisierte
+unklare/teilweise Ergebnisse über den Kalenderplan-Executor. App-/CLI-Ressourcen-
+und Zugangsdatenanbindung bleiben offen; siehe
 [Kalendergrenzen](./docs/phase27-calendar-connector-plan.de.md).
 
 Der optionale AWS-Demo-Proxy besitzt jetzt einen lokalen Vertrag zur geprüften

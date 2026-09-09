@@ -51,9 +51,7 @@ class CalendarConfiguration:
         try:
             ZoneInfo(self.default_timezone)
         except ZoneInfoNotFoundError as exc:
-            raise ValueError(
-                f"Unbekannte Standardzeitzone: {self.default_timezone}"
-            ) from exc
+            raise ValueError(f"Unbekannte Standardzeitzone: {self.default_timezone}") from exc
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -267,6 +265,7 @@ class CalendarHandoffAction:
     target_path: Path | None
     content_sha256: str | None
     message: str
+    external_connector_required: bool = False
 
     def __post_init__(self) -> None:
         if _ACTION_ID_PATTERN.fullmatch(self.action_id) is None:
@@ -284,6 +283,7 @@ class CalendarHandoffAction:
             "target_path": str(self.target_path) if self.target_path else None,
             "content_sha256": self.content_sha256,
             "message": self.message,
+            "external_connector_required": self.external_connector_required,
         }
 
 
@@ -417,9 +417,7 @@ class CalendarHandoffApproval:
         try:
             timestamp = datetime.fromisoformat(self.approved_at.replace("Z", "+00:00"))
         except ValueError as exc:
-            raise ValueError(
-                f"approved_at ist kein ISO-Zeitpunkt: {self.approved_at}"
-            ) from exc
+            raise ValueError(f"approved_at ist kein ISO-Zeitpunkt: {self.approved_at}") from exc
         if timestamp.tzinfo is None:
             raise ValueError("approved_at benötigt eine Zeitzone.")
 
