@@ -33,6 +33,33 @@ class MailDraftError(RuntimeError):
     """Raised when a drafts mailbox, its credential, or its ledger is unsafe."""
 
 
+class MailDraftNotApplied(MailDraftError):
+    """The transport proves it did not append this message."""
+
+
+class MailDraftOutcomeUnknown(MailDraftError):
+    """An append may exist even though its response or receipt is incomplete."""
+
+    def __init__(self, draft: MailDraftMessage, *, mailbox_acknowledged: bool = False):
+        super().__init__(
+            "Entwurfsablage unklar; Wirkung möglich. Postfach und privaten Nachweis "
+            "prüfen, nicht automatisch wiederholen."
+        )
+        self._evidence = {
+            "schema": "folderhome.mail-draft-attempt.v1",
+            "draft_id": draft.draft_id,
+            "idempotency_key": draft.idempotency_key,
+            "message_sha256": draft.message_sha256,
+            "mailbox_acknowledged": mailbox_acknowledged,
+            "status": "uncertain",
+            "retry_safe": False,
+            "email_sent": False,
+        }
+
+    def public_evidence(self) -> dict[str, object]:
+        return dict(self._evidence)
+
+
 class MailDraftTransport(Protocol):
     """Minimal append-only seam; real IMAP transports stay replaceable."""
 
@@ -157,7 +184,7 @@ class ImapDraftTransport:
             self._connection.login(self._username, self._password)
         except (imaplib.IMAP4.error, OSError) as exc:
             self._close()
-            raise MailDraftError(
+            raise MailDraftNotApplied(
                 f"Postfachverbindung ist fehlgeschlagen: {_redact(exc)}"
             ) from None
 
@@ -201,9 +228,12 @@ class ImapDraftTransport:
 
     def append_draft(self, *, folder: str, message_bytes: bytes) -> str:
         with self:
-            known = self.available_folders()
+            try:
+                known = self.available_folders()
+            except MailDraftError as exc:
+                raise MailDraftNotApplied(str(exc)) from None
             if folder not in known:
-                raise MailDraftError(
+                raise MailDraftNotApplied(
                     f"Das Postfach kennt keinen Ordner {folder!r}. Vorhanden sind: "
                     + ", ".join(sorted(known))
                 )
@@ -219,10 +249,9 @@ class ImapDraftTransport:
                     f"Entwurf konnte nicht im Postfach abgelegt werden: {_redact(exc)}"
                 ) from None
         if status != "OK":
-            raise MailDraftError(
-                "Postfach hat die Entwurfsablage abgelehnt: "
-                f"{_decode_response(response)}"
-            )
+            if status in {"NO", "BAD"}:
+                raise MailDraftNotApplied("Postfach hat die Entwurfsablage abgelehnt.")
+            raise MailDraftError("Postfach lieferte keinen eindeutigen Ablagestatus.")
         return _decode_response(response)
 
 
@@ -310,6 +339,13 @@ class MailDraftLedger:
                 (message.idempotency_key,),
             ).fetchone()
             if replay is not None:
+                if replay[0] not in {"drafted", "not_applied"}:
+                    # Legacy 'failed' did not distinguish refusal from a lost reply.
+                    raise MailDraftOutcomeUnknown(message)
+                if replay[0] == "not_applied":
+                    raise MailDraftNotApplied(
+                        "Entwurf wurde bereits ohne Ablage versucht; kein automatischer Retry."
+                    )
                 raise MailDraftError(
                     "Dieser Entwurf wurde in diesem Postfach bereits abgelegt."
                 )
@@ -346,7 +382,7 @@ class MailDraftLedger:
         status: str,
         mailbox_reference: str,
     ) -> None:
-        if status not in {"drafted", "failed"}:
+        if status not in {"drafted", "failed", "not_applied", "uncertain"}:
             raise MailDraftError("Entwurfs-Ledger erhielt einen ungültigen Status.")
         connection = sqlite3.connect(self.path)
         try:

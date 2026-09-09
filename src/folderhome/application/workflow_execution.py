@@ -196,6 +196,7 @@ from folderhome.capabilities.mail_draft import (
     ImapDraftTransport,
     MailDraftError,
     MailDraftLedger,
+    MailDraftOutcomeUnknown,
     MailDraftTransport,
     read_mailbox_password,
 )
@@ -1135,6 +1136,17 @@ class WorkflowExecutionOutcomeUnknown(WorkflowExecutionError):
     def public_evidence(self) -> dict[str, object]:
         """Adapter-owned typed evidence only; never the raw exception message."""
         return {}
+
+
+class MailDraftWorkflowOutcomeUnknown(WorkflowExecutionOutcomeUnknown):
+    """Carry only bounded draft identifiers across API and recipe boundaries."""
+
+    def __init__(self, cause: MailDraftOutcomeUnknown):
+        super().__init__(str(cause))
+        self._evidence = cause.public_evidence()
+
+    def public_evidence(self) -> dict[str, object]:
+        return dict(self._evidence)
 
 
 class WorkflowExecutorAdapter(Protocol):
@@ -6645,35 +6657,28 @@ class MailDraftWorkflowAdapter:
                 allow_mailbox_write=True,
                 appended_at=approved_at,
             )
+        except MailDraftOutcomeUnknown as exc:
+            raise MailDraftWorkflowOutcomeUnknown(exc) from None
         except (MailDraftError, ResourceRegistryError, OSError, TypeError, ValueError) as exc:
             raise WorkflowExecutionError(str(exc)) from exc
-        public_report = dict(report.to_dict())
-        public_report.update(
-            {
-                "schema": "folderhome.mail-draft-resource-report.v1",
-                "account_resource_id": domain_plan.account_resource_id,
-                "provider_id": MAIL_DRAFT_PROVIDER_ID,
-                "paths_disclosed": False,
-            }
-        )
-        digest = sha256(
-            _canonical_json(
+        try:
+            public_report = dict(report.to_dict())
+            public_report.update(
                 {
-                    "envelope_id": envelope.envelope_id,
-                    "approved_at": approved_at,
-                    "domain_report": public_report,
+                    "schema": "folderhome.mail-draft-resource-report.v1",
+                    "account_resource_id": domain_plan.account_resource_id,
+                    "provider_id": MAIL_DRAFT_PROVIDER_ID,
+                    "paths_disclosed": False,
                 }
             )
-        ).hexdigest()
-        return WorkflowExecutionReport(
-            execution_id=f"workflow_execution_{digest}",
-            envelope_id=envelope.envelope_id,
-            workflow_id=self.descriptor.workflow_id,
-            adapter_id=self.descriptor.adapter_id or "mail_draft_resource.v1",
-            domain_report_schema=str(public_report["schema"]),
-            domain_report=public_report,
-            side_effects=self.descriptor.side_effects,
-        )
+            return _resource_execution_report(
+                envelope=envelope, descriptor=self.descriptor,
+                approved_at=approved_at, public_report=public_report,
+            )
+        except Exception:
+            raise MailDraftWorkflowOutcomeUnknown(MailDraftOutcomeUnknown(
+                domain_plan.message, mailbox_acknowledged=True,
+            )) from None
 
 
 def _mail_draft_account_binding(account: MailDraftAccount, resource_path: Path) -> str:

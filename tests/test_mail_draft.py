@@ -20,6 +20,7 @@ from folderhome.capabilities.mail_draft import (
     ImapDraftTransport,
     MailDraftError,
     MailDraftLedger,
+    MailDraftNotApplied,
     SyntheticDraftTransport,
     decode_modified_utf7,
     encode_modified_utf7,
@@ -38,7 +39,7 @@ class _FailingTransport:
     network_required = True
 
     def append_draft(self, *, folder: str, message_bytes: bytes) -> str:
-        raise MailDraftError("Postfach hat die Entwurfsablage abgelehnt: NO.")
+        raise MailDraftNotApplied("Postfach hat die Entwurfsablage abgelehnt: NO.")
 
 
 def _preview(
@@ -345,7 +346,7 @@ def test_append_places_exactly_one_draft_and_refuses_a_replay(tmp_path: Path) ->
     assert len(transport.appended) == 1
 
 
-def test_failed_append_is_recorded_and_does_not_block_a_later_retry(
+def test_proven_rejection_is_recorded_and_blocks_automatic_replay(
     tmp_path: Path,
 ) -> None:
     account = load_mail_draft_account(
@@ -365,7 +366,18 @@ def test_failed_append_is_recorded_and_does_not_block_a_later_retry(
             appended_at=PLANNED_AT,
         )
 
-    assert ledger.status(message.idempotency_key) == "failed"
+    assert ledger.status(message.idempotency_key) == "not_applied"
+    transport = SyntheticDraftTransport()
+    with pytest.raises(MailDraftNotApplied, match="kein automatischer Retry"):
+        append_mail_draft(
+            message,
+            account=account,
+            transport=transport,
+            ledger=MailDraftLedger(tmp_path / "state"),
+            allow_mailbox_write=True,
+            appended_at=PLANNED_AT,
+        )
+    assert transport.appended == []
 
 
 def test_password_is_read_from_the_configured_file_only(tmp_path: Path) -> None:

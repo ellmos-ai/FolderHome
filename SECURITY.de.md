@@ -120,6 +120,13 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   erfordert einen neuen Plan und eine neue Bestätigung. Passwortrotation am
   gleichen Fundort ändert den Plan nicht; Passwortinhalte werden weder in den
   Plan gehasht noch bei der Vorbereitung gelesen.
+  Eine verlorene Ablageantwort oder ein fehlgeschlagener Ergebnisnachweis wird
+  als unklar gemeldet, nicht als Beleg ausgebliebener Wirkung. Die dauerhafte
+  Reservierung sperrt Wiederholungen auch nach Neustart und bei alten
+  Fehlversuchen. Scheitert die Ablage eines Teilnachweises, liefert die
+  Bestätigungsantwort weiterhin verfügbare begrenzte Belege und markiert die
+  unvollständige Rückgabe; fehlende Evidenz bleibt ausdrücklich unbekannt.
+  Vor einem neuen Versuch den Entwurfsordner abgleichen. Kein automatischer Retry.
 - Scheduler-Registrierung und App-eigener Consumer-Start besitzen getrennte
   Gates und Bestätigungen. Der Consumer liest freigegebene Dokumentqueues und
   schreibt Betriebszustand; er erlaubt keine Dokumentbereinigung und

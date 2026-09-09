@@ -19,6 +19,8 @@ from pathlib import Path
 from folderhome.capabilities.mail_draft import (
     MailDraftError,
     MailDraftLedger,
+    MailDraftNotApplied,
+    MailDraftOutcomeUnknown,
     MailDraftTransport,
 )
 from folderhome.contracts.correspondence import CorrespondencePreview
@@ -212,30 +214,32 @@ def append_mail_draft(
             folder=message.drafts_folder,
             message_bytes=message.message_bytes,
         )
-    except Exception as exc:
-        with suppress(MailDraftError):
+    except MailDraftNotApplied:
+        with suppress(Exception):
             ledger.finish(
                 message.idempotency_key,
-                status="failed",
+                status="not_applied",
                 mailbox_reference="",
             )
-        if isinstance(exc, MailDraftError):
-            raise
-        raise MailDraftError(f"Entwurfsablage ist fehlgeschlagen: {exc}") from exc
-    ledger.finish(
-        message.idempotency_key,
-        status="drafted",
-        mailbox_reference=mailbox_reference,
-    )
-    report_material = _canonical_json(
-        {
-            "draft_id": message.draft_id,
-            "idempotency_key": message.idempotency_key,
-            "message_sha256": message.message_sha256,
-            "appended_at": appended_at,
-        }
-    )
+        raise
+    except Exception:
+        with suppress(Exception):
+            ledger.finish(message.idempotency_key, status="uncertain", mailbox_reference="")
+        raise MailDraftOutcomeUnknown(message) from None
     try:
+        ledger.finish(
+            message.idempotency_key,
+            status="drafted",
+            mailbox_reference=mailbox_reference,
+        )
+        report_material = _canonical_json(
+            {
+                "draft_id": message.draft_id,
+                "idempotency_key": message.idempotency_key,
+                "message_sha256": message.message_sha256,
+                "appended_at": appended_at,
+            }
+        )
         return MailDraftReport(
             report_id=f"mail_draft_report_{sha256(report_material).hexdigest()}",
             draft_id=message.draft_id,
@@ -247,8 +251,8 @@ def append_mail_draft(
             mailbox_reference=mailbox_reference,
             appended_at=appended_at,
         )
-    except ValueError as exc:
-        raise MailDraftError(f"Entwurfsbericht ist ungültig: {exc}") from exc
+    except Exception:
+        raise MailDraftOutcomeUnknown(message, mailbox_acknowledged=True) from None
 
 
 def _text(payload: dict[str, object], key: str) -> str:

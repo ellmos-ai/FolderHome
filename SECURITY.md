@@ -95,6 +95,12 @@ Security fixes are maintained on the current competition state on branch
   account or credential location requires a new plan and confirmation. Password
   rotation at the same locator does not change the plan; password contents are
   neither hashed into the plan nor read during preparation.
+  A lost append response or failed result receipt is reported as uncertain,
+  not as proof that nothing happened. The durable reservation blocks replay
+  after restart, including legacy failed attempts. If retaining a partial result
+  fails, the confirmation response still carries available bounded evidence and
+  marks delivery incomplete; missing evidence remains explicitly unavailable.
+  Reconcile the drafts folder before any new attempt. There is no automatic retry.
 - Scheduler registration and app-owned consumer start have distinct gates and
   confirmations. The consumer reads authorized document queues and writes
   operational state; it does not authorize document cleanup or install a service.

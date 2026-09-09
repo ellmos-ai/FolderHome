@@ -687,7 +687,7 @@ class LocalApplication:
                 execution_reports.append(report)
         except WorkflowExecutionOutcomeUnknown as exc:
             unknown_outcome = exc
-            exc.uncertain_results = [self._retain_uncertain_result(
+            exc.uncertain_results = [self._capture_uncertain_result(
                 profile_id=plan.profile_id, plan_id=plan.plan_id,
                 envelope=step.execution_envelope, executed_at=approved_at, error=exc,
             )]
@@ -762,7 +762,7 @@ class LocalApplication:
                     if isinstance(exc, WorkflowExecutionOutcomeUnknown):
                         execution_outcome_unknown = True
                         delivery_incomplete = True
-                        uncertain_results.append(self._retain_uncertain_result(
+                        uncertain_results.append(self._capture_uncertain_result(
                             profile_id=plan.profile_id, plan_id=plan.plan_id,
                             envelope=envelopes[envelope_id], executed_at=approved_at, error=exc,
                         ))
@@ -870,6 +870,42 @@ class LocalApplication:
         self, *, profile_id, plan_id, envelope, executed_at, error=None, evidence=None,
     ) -> dict[str, object]:
         """Retain an attempted run, without manufacturing a successful report."""
+        result = self._uncertain_result(
+            profile_id=profile_id, plan_id=plan_id, envelope=envelope,
+            executed_at=executed_at, error=error, evidence=evidence,
+        )
+        with self._execution_results_lock:
+            self._execution_results[result["execution_id"]] = result
+            while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
+                oldest = next(iter(self._execution_results))
+                self._execution_results.pop(oldest)
+                self._execution_artifacts.pop(oldest, None)
+        return deepcopy(result)
+
+    def _capture_uncertain_result(self, **kwargs) -> dict[str, object]:
+        """Return partial evidence even when retaining it fails."""
+        try:
+            return self._retain_uncertain_result(**kwargs)
+        except Exception:
+            result = self._uncertain_result(**kwargs)
+            result["result_delivery_incomplete"] = True
+            return result
+
+    @staticmethod
+    def _uncertain_result(
+        *, profile_id, plan_id, envelope, executed_at, error=None, evidence=None,
+    ) -> dict[str, object]:
+        evidence_unavailable = False
+        try:
+            partial_evidence = deepcopy(
+                evidence if evidence is not None else error.public_evidence()
+            )
+            if not isinstance(partial_evidence, dict):
+                raise ValueError("Partial evidence must be an object.")
+            json.dumps(partial_evidence, allow_nan=False)
+        except Exception:
+            partial_evidence = {}
+            evidence_unavailable = True
         result = {
             "execution_id": f"workflow_attempt_{secrets.token_hex(16)}",
             "plan_id": plan_id,
@@ -882,15 +918,11 @@ class LocalApplication:
             "possible_side_effects": list(envelope.side_effects),
             "retry_safe": False,
             "artifacts": [],
-            "evidence": deepcopy(evidence) if evidence is not None else error.public_evidence(),
+            "evidence": partial_evidence,
+            "evidence_unavailable": evidence_unavailable,
+            "result_delivery_incomplete": evidence_unavailable,
         }
-        with self._execution_results_lock:
-            self._execution_results[result["execution_id"]] = result
-            while len(self._execution_results) > _MAX_RETAINED_EXECUTION_RESULTS:
-                oldest = next(iter(self._execution_results))
-                self._execution_results.pop(oldest)
-                self._execution_artifacts.pop(oldest, None)
-        return deepcopy(result)
+        return result
 
     def _retain_execution_results(
         self,
@@ -1073,6 +1105,10 @@ class LocalApplication:
                     ),
                     "execution_outcome_unknown": True,
                     "uncertain_results": exc.uncertain_results,
+                    "result_delivery_incomplete": any(
+                        item.get("result_delivery_incomplete", False)
+                        for item in exc.uncertain_results
+                    ),
                     "retry_safe": False,
                 },
                 status_code=409,
