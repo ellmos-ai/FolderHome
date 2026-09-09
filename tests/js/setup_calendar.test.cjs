@@ -33,7 +33,7 @@ class Element {
   }
 }
 
-function form() {
+function form({readEnabled = false, lookup} = {}) {
   const controls = new Map();
   const element = key => {
     if (!controls.has(key)) controls.set(key, new Element(key === "#calendar-backend" ? "select" : "div"));
@@ -48,11 +48,13 @@ function form() {
   const context = vm.createContext({
     document: { createElement: tag => new Element(tag), querySelector: element },
     state: { profiles: [{profile_id: "lukas", display_name: "Lukas"}, {profile_id: "hanna", display_name: "Hanna"}],
-      calendar_backends: ["folderhome_local", "google"], current_calendar: saved },
+      calendar_backends: ["folderhome_local", "google"], current_calendar: saved,
+      google_calendar_read_enabled: readEnabled },
     calendarAccounts: element("#calendar-accounts"), calendarEnabled: element("#calendar-enabled"),
     calendarDirty: false, invalidate() {}, t: key => key,
     async pickFolder(input) { if (context.chosenPath) input.value = context.chosenPath; },
     textElement: tag => new Element(tag), showError(error) { throw error; },
+    api: lookup || (async () => { throw new Error("Unexpected network request"); }),
   });
   const source = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.js"), "utf8");
   vm.runInContext(source.slice(source.indexOf("function calendarAccountRow("), source.indexOf("// ------------------------------------------------------------------ profiles")), context);
@@ -77,7 +79,8 @@ test("editing a calendar retains each existing account profile, backend and secr
 
 test("removing the last account is an explicit edit with an empty accounts list", () => {
   const {context} = form();
-  context.calendarAccounts.querySelectorAll("button")[0].listeners.click();
+  context.calendarAccounts.querySelectorAll("button")
+    .find(control => control.dataset.i18n === "removeSource").listeners.click();
   assert.equal(context.calendarDirty, true);
   assert.deepEqual(JSON.parse(JSON.stringify(context.buildCalendar().accounts)), []);
 });
@@ -127,3 +130,92 @@ test("private Google paths enter the setup request only with their separate bind
   context.calendarDirty = true;
   assert.equal(context.buildCalendar().accounts[0].bind_private_resources, undefined);
 });
+
+test("calendar lookup is disabled unless the setup start allowed metadata reads", () => {
+  const {context} = form();
+  const button = context.calendarAccounts.querySelectorAll("button")
+    .find(control => control.dataset.action === "google-lookup");
+  assert.ok(button);
+  assert.equal(button.disabled, true);
+});
+
+test("an explicit calendar lookup updates only the form and does not grant private binding", async () => {
+  const calls = [];
+  const {context} = form({readEnabled: true, lookup: async (path, options) => {
+    calls.push({path, body: JSON.parse(options.body)});
+    return {schema: "folderhome.google-calendar-identity.v1", requested_calendar_id: "primary",
+      calendar_id: "resolved@example.invalid", provider_id: "google-calendar", provider_revision: "v3", read_only: true};
+  }});
+  const privateFields = context.calendarAccounts.querySelectorAll("[data-google-field]");
+  privateFields.find(control => control.dataset.googleField === "credential_file").value = "C:/private/oauth.json";
+  const button = context.calendarAccounts.querySelectorAll("button")
+    .find(control => control.dataset.action === "google-lookup");
+  assert.ok(button);
+  assert.deepEqual(calls, []);
+  await button.listeners.click();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/api/v1/setup/google-calendar-id");
+  assert.equal(calls[0].body.confirm, true);
+  assert.equal(calls[0].body.profile_id, "hanna");
+  assert.equal(context.buildCalendar().accounts[0].calendar_id, "resolved@example.invalid");
+  assert.equal(context.buildCalendar().accounts[0].bind_private_resources, undefined);
+});
+
+test("changed account fields discard a late calendar lookup response and double clicks do not duplicate reads", async () => {
+  let finish;
+  let calls = 0;
+  const {context} = form({readEnabled: true, lookup: () => {
+    calls += 1;
+    return new Promise(resolve => {finish = resolve;});
+  }});
+  const button = context.calendarAccounts.querySelectorAll("button")
+    .find(control => control.dataset.action === "google-lookup");
+  assert.ok(button);
+  const pending = button.listeners.click();
+  await button.listeners.click();
+  const id = context.calendarAccounts.querySelectorAll("[data-calendar-field]")
+    .find(control => control.dataset.calendarField === "calendar_id");
+  id.value = "manually-edited@example.invalid";
+  finish({schema: "folderhome.google-calendar-identity.v1", requested_calendar_id: "primary",
+    calendar_id: "stale@example.invalid", provider_id: "google-calendar", provider_revision: "v3", read_only: true});
+  await pending;
+  assert.equal(id.value, "manually-edited@example.invalid");
+  assert.equal(calls, 1);
+});
+
+test("a rerender discards lookup responses even when the new fields have identical values", async () => {
+  let finish;
+  const {context} = form({readEnabled: true, lookup: () => new Promise(resolve => {finish = resolve;})});
+  const button = context.calendarAccounts.querySelectorAll("button")
+    .find(control => control.dataset.action === "google-lookup");
+  const pending = button.listeners.click();
+  context.renderCalendar();
+  finish({schema: "folderhome.google-calendar-identity.v1", requested_calendar_id: "primary",
+    calendar_id: "stale@example.invalid", provider_id: "google-calendar", provider_revision: "v3", read_only: true});
+  await pending;
+  assert.equal(context.calendarAccounts.querySelectorAll("[data-calendar-field]")
+    .find(control => control.dataset.calendarField === "calendar_id").value, "primary");
+  assert.equal(context.buildCalendar(), null);
+});
+
+for (const mutation of [
+  {read_only: false}, {calendar_id: "primary"}, {calendar_id: "bad\nvalue"},
+  {requested_calendar_id: "another@example.invalid"}, {provider_revision: "v4"},
+  {schema: "unknown"},
+]) {
+  test(`invalid lookup response does not mutate the form: ${JSON.stringify(mutation)}`, async () => {
+    const errors = [];
+    const {context} = form({readEnabled: true, lookup: async () => ({
+      schema: "folderhome.google-calendar-identity.v1", requested_calendar_id: "primary",
+      calendar_id: "resolved@example.invalid", provider_id: "google-calendar", provider_revision: "v3", read_only: true,
+      ...mutation,
+    })});
+    context.showError = error => errors.push(error.message);
+    const button = context.calendarAccounts.querySelectorAll("button")
+      .find(control => control.dataset.action === "google-lookup");
+    await button.listeners.click();
+    assert.deepEqual(errors, ["googleLookupFailed"]);
+    assert.equal(context.buildCalendar(), null);
+    assert.equal(button.disabled, false);
+  });
+}

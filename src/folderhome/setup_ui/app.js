@@ -119,6 +119,9 @@ const translations = {
     googleLedgerDir: "Existing private receipt folder (absolute path; no database created by setup)",
     googleBind: "Explicitly bind these private Google resources (no login or calendar access)",
     googleExecutionHint: "Install FolderHome with the calendar extra. Later start the app with --approve-calendar-write and confirm the exact calendar plan separately. Saving setup does neither. Initial Google login and live acceptance remain separate steps.",
+    googleLookup: "Read calendar ID from Google (uses the OAuth file above)",
+    googleLookupHint: "Optional: start setup serve with --approve-calendar-read and use an existing grant containing calendar.calendars.readonly. This button reads calendar metadata only (possibly refreshing the token once); it does not log in, save files or grant calendar writes. Save new profiles first. The returned ID changes only this form until you review and save setup.",
+    googleLookupFailed: "Calendar ID could not be verified. Check the private file, metadata scope and selected account.",
     cloudTitle: "Cloud variant",
     cloudHint: "In the AWS or browser variant there are no local output folders. There the results view is the delivery path: files are downloaded into the download folder of the browser.",
   },
@@ -240,6 +243,9 @@ const translations = {
     googleLedgerDir: "Vorhandener privater Nachweisordner (absoluter Pfad; Setup erzeugt keine Datenbank)",
     googleBind: "Diese privaten Google-Ressourcen ausdrücklich binden (keine Anmeldung oder Kalenderabfrage)",
     googleExecutionHint: "FolderHome mit dem Kalenderextra installieren. Die App später mit --approve-calendar-write starten und den genauen Kalenderplan separat bestätigen. Das Speichern der Einrichtung erledigt beides nicht. Erste Google-Anmeldung und Live-Abnahme bleiben eigene Schritte.",
+    googleLookup: "Kalender-ID bei Google lesen (verwendet die OAuth-Datei oben)",
+    googleLookupHint: "Optional: setup serve mit --approve-calendar-read starten und eine vorhandene Zustimmung mit calendar.calendars.readonly verwenden. Dieser Knopf liest nur Kalendermetadaten, gegebenenfalls mit einmaliger Token-Erneuerung; er meldet sich nicht neu an, speichert keine Dateien und erteilt keine Kalender-Schreibrechte. Neue Profile zuerst speichern. Die gelesene ID ändert bis zur Prüfung und Speicherung nur dieses Formular.",
+    googleLookupFailed: "Kalender-ID konnte nicht geprüft werden. Private Datei, Metadaten-Scope und ausgewähltes Konto prüfen.",
     cloudTitle: "Cloud-Variante",
     cloudHint: "In der AWS- oder Browser-Variante gibt es keine lokalen Ausgabeordner. Dort ist die Ergebnisansicht der Zustellweg: Dateien landen im Download-Ordner des Browsers.",
   },
@@ -548,6 +554,52 @@ function calendarAccountRow(account) {
   bind.dataset.googleField = "bind_private_resources";
   googleFields.append(labelled(t("googleBind"), bind));
   googleFields.append(textElement("p", t("googleExecutionHint")));
+  googleFields.append(textElement("p", t("googleLookupHint")));
+  const lookup = document.createElement("button");
+  lookup.type = "button";
+  lookup.className = "button compact";
+  lookup.dataset.action = "google-lookup";
+  lookup.textContent = t("googleLookup");
+  lookup.disabled = state.google_calendar_read_enabled !== true;
+  const values = () => Object.fromEntries([
+    ...block.querySelectorAll("[data-calendar-field]"),
+    ...googleFields.querySelectorAll("[data-google-field]"),
+  ].map(control => [control.dataset.calendarField || control.dataset.googleField, control.value.trim()]));
+  lookup.addEventListener("click", async () => {
+    if (lookup.disabled || backend.value !== "google" || state.google_calendar_read_enabled !== true) return;
+    const before = values();
+    const current = () => [...calendarAccounts.querySelectorAll("fieldset")].includes(block)
+      && JSON.stringify(values()) === JSON.stringify(before);
+    lookup.disabled = true;
+    try {
+      if (before.provider_id !== "google-calendar" || before.provider_revision !== "v3") {
+        throw new Error(t("googleLookupFailed"));
+      }
+      const result = await api("/api/v1/setup/google-calendar-id", {
+        method: "POST", body: JSON.stringify({
+          schema: "folderhome.google-calendar-lookup-request.v1", profile_id: before.profile_id,
+          credential_file: before.credential_file, credential_ref: before.credential_ref,
+          calendar_id: before.calendar_id, confirm: true,
+        }),
+      });
+      if (!current()) return;
+      if (result.schema !== "folderhome.google-calendar-identity.v1" || result.read_only !== true
+          || result.provider_id !== "google-calendar" || result.provider_revision !== "v3"
+          || result.requested_calendar_id !== before.calendar_id
+          || typeof result.calendar_id !== "string" || !/^[\x21-\x7e]{1,1024}$/.test(result.calendar_id)
+          || result.calendar_id.toLowerCase() === "primary") throw new Error(t("googleLookupFailed"));
+      const id = [...block.querySelectorAll("[data-calendar-field]")]
+        .find(control => control.dataset.calendarField === "calendar_id");
+      id.value = result.calendar_id;
+      calendarDirty = true;
+      invalidate();
+    } catch (error) {
+      if (current()) showError(new Error(t("googleLookupFailed")));
+    } finally {
+      lookup.disabled = state.google_calendar_read_enabled !== true;
+    }
+  });
+  googleFields.append(lookup);
   const updateGoogleFields = () => {
     googleFields.hidden = backend.value !== "google";
     if (googleFields.hidden) bind.checked = false;

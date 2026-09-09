@@ -40,7 +40,20 @@ class _RefreshRequest:
 class GoogleCalendarCredentialResolver:
     """Read Google authorized-user JSON; no login, token persistence or ambient auth."""
 
-    def __init__(self, *, credential_file: Path, credential_ref: str, allow_network: bool):
+    def __init__(
+        self,
+        *,
+        credential_file: Path,
+        credential_ref: str,
+        allow_network: bool,
+        required_scope: str = "https://www.googleapis.com/auth/calendar.events",
+    ):
+        if required_scope not in {
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/calendar.calendars.readonly",
+        }:
+            raise GoogleCalendarCredentialError("Unbekannter Google-Kalenderzugriff.")
+        self._required_scope = required_scope
         self._path = Path(credential_file)
         self._reference = credential_ref
         self._allowed = allow_network is True
@@ -71,12 +84,12 @@ class GoogleCalendarCredentialResolver:
             from google.oauth2.credentials import Credentials
 
             credentials = Credentials.from_authorized_user_info(payload)
-            if not credentials.has_scopes(["https://www.googleapis.com/auth/calendar.events"]):
+            if not credentials.has_scopes([self._required_scope]):
                 raise ValueError("Calendar grant missing")
             if not credentials.valid:
                 credentials.refresh(_RefreshRequest())
             if credentials.granted_scopes is not None and (
-                "https://www.googleapis.com/auth/calendar.events" not in credentials.granted_scopes
+                self._required_scope not in credentials.granted_scopes
             ):
                 raise ValueError("Actual calendar grant missing")
             token = credentials.token

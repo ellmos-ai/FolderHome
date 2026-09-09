@@ -167,6 +167,7 @@ class SetupApplication:
         profiles: ProfileConfiguration | None,
         config_dir: Path,
         session_token: str | None = None,
+        allow_calendar_read: bool = False,
     ) -> None:
         token = session_token or secrets.token_urlsafe(32)
         if len(token) < 32:
@@ -178,6 +179,7 @@ class SetupApplication:
         self.profiles_configured = profiles is not None
         self.config_dir = config_dir.resolve()
         self.session_token = token
+        self.allow_calendar_read = allow_calendar_read is True
         self._lock = threading.RLock()
         self._dialog_lock = threading.Lock()
         self._asset_root = Path(__file__).parent / "setup_ui"
@@ -242,6 +244,7 @@ class SetupApplication:
             "household_rule_scopes": list(HOUSEHOLD_RULE_SCOPES),
             "calendar_backends": list(CALENDAR_BACKENDS),
             "calendar_read_by_app": True,
+            "google_calendar_read_enabled": self.allow_calendar_read,
             "current_calendar": current_calendar,
             "current_schedulers": current_schedulers,
             "scheduler_load_error": scheduler_load_error,
@@ -888,6 +891,26 @@ class SetupApplication:
             return None
 
     # ------------------------------------------------------------------- HTTP
+    def lookup_google_calendar_id(self, request: dict[str, Any]) -> dict[str, Any]:
+        from folderhome.application.google_calendar_lookup import resolve_google_calendar_id
+
+        if self.allow_calendar_read is not True:
+            raise SetupAppError(
+                "Kalenderabfrage beim Setup-Start nicht freigegeben.", status_code=403
+            )
+        if set(request) != {
+            "schema", "profile_id", "credential_file", "credential_ref", "calendar_id", "confirm",
+        } or request.get("confirm") is not True:
+            raise SetupAppError("Kalenderabfrage benötigt die genauen Angaben und Bestätigung.")
+        if not isinstance(request["profile_id"], str) or request["profile_id"] not in {
+            item.profile_id for item in self.profiles.profiles
+        }:
+            raise SetupAppError("Kalenderprofil zuerst speichern und Einrichtung neu laden.")
+        return resolve_google_calendar_id(
+            credential_file=request["credential_file"], credential_ref=request["credential_ref"],
+            calendar_id=request["calendar_id"], allow_network_read=self.allow_calendar_read,
+        )
+
     def handle(
         self,
         *,
@@ -953,16 +976,25 @@ class SetupApplication:
             return self._json_response(self.save(self._json_request(headers, body)))
         if method == "POST" and parsed.path == "/api/v1/setup/pick-folder":
             return self._json_response(self.pick_folder())
+        if method == "POST" and parsed.path == "/api/v1/setup/google-calendar-id":
+            request = self._json_request(
+                headers, body, schema="folderhome.google-calendar-lookup-request.v1",
+            )
+            return self._json_response(self.lookup_google_calendar_id(request))
         if parsed.path in {
             "/api/v1/setup/state",
             "/api/v1/setup/validate",
             "/api/v1/setup/save",
             "/api/v1/setup/pick-folder",
+            "/api/v1/setup/google-calendar-id",
         }:
             return self._error(405, "Einrichtungsendpunkt erwartet eine andere Methode.")
         return self._error(404, "Unbekannter Einrichtungsendpunkt.")
 
-    def _json_request(self, headers: dict[str, str], body: bytes) -> dict[str, Any]:
+    def _json_request(
+        self, headers: dict[str, str], body: bytes, *,
+        schema: str = "folderhome.setup-plan-request.v1",
+    ) -> dict[str, Any]:
         if len(body) > self.settings.max_body_bytes:
             raise SetupAppError("Anfrage überschreitet die lokale Größenbegrenzung.")
         content_type = headers.get("content-type", "").split(";", 1)[0].strip().casefold()
@@ -972,9 +1004,7 @@ class SetupApplication:
             payload = json.loads(body.decode("utf-8"))
         except (UnicodeError, json.JSONDecodeError) as exc:
             raise SetupAppError(f"JSON-Anfrage ist ungültig: {exc}") from exc
-        if not isinstance(payload, dict) or payload.get("schema") != (
-            "folderhome.setup-plan-request.v1"
-        ):
+        if not isinstance(payload, dict) or payload.get("schema") != schema:
             raise SetupAppError("Einrichtungsanfrage verwendet ein unbekanntes Schema.")
         return payload
 

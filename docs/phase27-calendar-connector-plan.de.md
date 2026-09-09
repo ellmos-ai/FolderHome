@@ -189,7 +189,7 @@ Ressourcenrechten vor der Zugangsdatenauflösung sowie vor/nach jeder Kalenderan
 Geänderte Eingaben oder entzogene Rechte stoppen weitere Wirkungen, auch lokale
 Bestätigungsschreibvorgänge. Unklare/teilweise Ergebnisse bleiben an der Workflow-
 Grenze typisiert; bestätigte Referenzen bleiben an der Ausnahme erhalten und werden
-wie unten beschrieben zugestellt. Unterstützung bei der Konteneinrichtung bleibt offen.
+wie unten beschrieben zugestellt. Die Unterstützung bei der Konteneinrichtung folgt unten.
 Nur ausdrücklich beim Start gebundene lesbare Konfigurations- und Kontendateien
 bleiben beim erneuten Registerlesen erhalten; Rechte für Zugangsdaten, Quellen und
 Ledger ergänzt dieser Adapter niemals automatisch.
@@ -205,15 +205,46 @@ Setup-, Profil-, Dokument- und Ausgabeordnern liegen; Nachweise getrennt von
 Zugangsdaten und Dokument-/Ausgabeordnern. Diese Prüfung umfasst neue
 Schedulerordner und spätere Ordneränderungen auch bei unveränderten Google-Einstellungen.
 
-Das Setup prüft nur Dateimetadaten: Es öffnet die OAuth-Datei nicht, validiert kein
+Die Setup-Planung prüft nur Dateimetadaten: Sie öffnet die OAuth-Datei nicht, validiert kein
 Token, erzeugt keine Kalenderdatenbank und meldet sich weder an noch fragt es
 Google ab. Pfade sind private Einrichtungsdaten, kein Modellkontext. Bestehende
 widersprüchliche Rechte oder Aliasbindungen ersetzt dieses Formular nicht. Beim
 erneuten Öffnen ist der Bindungsschalter aus; nicht ausgewählte Felder verändern
 bestehende Rechte nicht. Das Entfernen eines Kontos löscht weder seine privaten
-Dateien noch seinen Ausführungsnachweis. Erste OAuth-Anmeldung und automatische
-Auflösung von `primary` bleiben offen; die Metadatenabfrage benötigt einen
-zusätzlichen Scope neben `calendar.events`.
+Dateien noch seinen Ausführungsnachweis. Die erste OAuth-Anmeldung bleibt offen.
+Die Auflösung von `primary` ist jetzt eine ausdrückliche, separat freigegebene
+Metadatenabfrage, keine Nebenwirkung der Setup-Planung oder Speicherung.
+
+### Konkrete Google-Kalender-ID lesen
+
+Starte `folderhome setup serve --approve-loopback-server --approve-calendar-read` mit der gewünschten
+vorhandenen Setup-Konfiguration. Trage im Google-Kontoformular die private
+OAuth-Datei, Zugangsreferenz und `primary` ein und wähle **Kalender-ID bei Google
+lesen**. Das ausgewählte Profil muss bereits gespeichert sein. Die konkrete ID
+ändert nur das Formular; prüfe und speichere die Einrichtung separat. Weder dieser
+Knopf noch das Speichern erlaubt das Erzeugen von Kalenderereignissen. Geänderte
+Kontofelder und ein neu aufgebautes Formular verwerfen verspätete Antworten;
+erneute Klicks während einer laufenden Abfrage werden ignoriert.
+
+Derselbe Dienst ist ohne Oberfläche verfügbar:
+
+```powershell
+folderhome calendar resolve-id --credential-file "C:\private\google-oauth.json" --credential-ref connector://google-calendar/google_private --calendar-id primary --approve-calendar-read --json
+```
+
+**Getrennter OAuth-Scope:** Die vorhandene Zustimmung muss
+`https://www.googleapis.com/auth/calendar.calendars.readonly` enthalten.
+`calendar.events` allein erlaubt diesen Endpunkt nicht. FolderHome holt keine
+Zustimmung automatisch ein und erweitert sie nicht. Ereignisausführung benötigt
+weiterhin ihren eigenen Ereignis-Scope, `--approve-calendar-write` und die genaue
+Planbestätigung.
+
+Nach ausdrücklicher Freigabe liest der Abruf die private Datei und führt einen
+GET für Kalendermetadaten aus; ein abgelaufenes Token kann vorher eine begrenzte
+OAuth-Erneuerung auslösen. Fehlt der erforderliche Scope ausdrücklich in deren
+Antwort, wird der GET blockiert. Weder Zugangsdaten noch Konfiguration werden
+geschrieben, Ereignisse weder abgerufen noch verändert, Providerfehler bleiben
+redigiert. Die festen Google-Endpunkte erlauben keine eigenen Hosts oder Umleitungen.
 [Google-Berechtigungen für Kalendermetadaten](https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get).
 
 Die OAuth-Tests verwenden echtes `google-auth 2.57.1` hinter einer synthetischen

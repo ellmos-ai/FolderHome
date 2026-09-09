@@ -596,6 +596,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_local_app_plan(args)
     if args.command == "app" and args.app_command == "serve":
         return _run_local_app_serve(args)
+    if args.command == "calendar" and args.calendar_command == "resolve-id":
+        return _run_google_calendar_lookup(args)
     if args.command == "setup" and args.setup_command == "plan":
         return _run_setup_plan(args)
     if args.command == "setup" and args.setup_command == "serve":
@@ -822,6 +824,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     calendar = commands.add_parser("calendar")
     calendar_commands = calendar.add_subparsers(dest="calendar_command", required=True)
+    calendar_lookup = calendar_commands.add_parser("resolve-id")
+    calendar_lookup.add_argument("--credential-file", type=Path, required=True)
+    calendar_lookup.add_argument("--credential-ref", required=True)
+    calendar_lookup.add_argument("--calendar-id", required=True)
+    calendar_lookup.add_argument("--approve-calendar-read", action="store_true")
+    calendar_lookup.add_argument("--json", action="store_true", dest="as_json")
     calendar_plan = calendar_commands.add_parser("plan")
     _add_calendar_plan_arguments(calendar_plan)
     calendar_plan.add_argument("--output-file", type=Path)
@@ -1308,6 +1316,7 @@ def _build_parser() -> argparse.ArgumentParser:
         parser_.add_argument("--port", type=int, default=8766)
         parser_.add_argument("--json", action="store_true", dest="as_json")
     setup_serve.add_argument("--approve-loopback-server", action="store_true")
+    setup_serve.add_argument("--approve-calendar-read", action="store_true")
 
     mcp = commands.add_parser("mcp")
     mcp_commands = mcp.add_subparsers(dest="mcp_command", required=True)
@@ -5117,6 +5126,23 @@ def _run_local_app_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_google_calendar_lookup(args: argparse.Namespace) -> int:
+    from folderhome.application.google_calendar_lookup import (
+        GoogleCalendarLookupError,
+        resolve_google_calendar_id,
+    )
+
+    try:
+        result = resolve_google_calendar_id(
+            credential_file=args.credential_file, credential_ref=args.credential_ref,
+            calendar_id=args.calendar_id, allow_network_read=args.approve_calendar_read,
+        )
+    except GoogleCalendarLookupError as exc:
+        return _print_error(str(exc))
+    print(json.dumps(result, ensure_ascii=False) if args.as_json else result["calendar_id"])
+    return 0
+
+
 def _build_setup_app(args: argparse.Namespace) -> SetupApplication:
     config_dir = Path(args.config_dir or default_config_dir())
     profiles_dir = Path(args.profiles_dir or config_dir / "profiles")
@@ -5136,6 +5162,7 @@ def _build_setup_app(args: argparse.Namespace) -> SetupApplication:
         ),
         profiles=profiles,
         config_dir=config_dir,
+        allow_calendar_read=getattr(args, "approve_calendar_read", False),
     )
 
 

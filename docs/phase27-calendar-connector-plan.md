@@ -155,7 +155,7 @@ before credential resolution and before/after each calendar request. Changed
 inputs or revoked rights stop further effects, including local confirmation writes.
 Uncertain/partial outcomes stay typed across the workflow boundary; confirmed
 references are retained on the exception and delivered as described below. Account
-setup assistance remains open. Only explicitly launched read-only configuration
+setup assistance is described below. Only explicitly launched read-only configuration
 and account bindings survive registry reloads; credentials, source and ledger
 permissions are never synthesized by this adapter.
 
@@ -169,13 +169,41 @@ profile, document and output folders; receipts must be separate from credentials
 and document/output folders. These checks include newly configured scheduler
 folders and later folder edits, even when Google settings are unchanged.
 
-Setup checks file metadata only: it does not open the OAuth file, validate a token,
+Setup planning checks file metadata only: it does not open the OAuth file, validate a token,
 create a calendar database, log in or call Google. Paths are private setup data,
 not model context. Existing conflicting rights or aliases cannot be replaced by
 this form. On reopen, the binding checkbox resets; unselected fields do not change
 existing grants. Removing an account does not erase its private files or ledger.
-Initial OAuth login and automatic `primary` resolution remain open; metadata
-lookup requires an additional scope beyond `calendar.events`.
+Initial OAuth login remains open. Resolving `primary` is now an explicit, separately
+approved metadata read, not a side effect of setup planning or saving.
+
+### Read a concrete Google calendar ID
+
+Start `folderhome setup serve --approve-loopback-server --approve-calendar-read` with the desired existing
+setup configuration. In the Google account form, enter the private OAuth file,
+credential reference and `primary`, then choose **Read calendar ID from Google**.
+The selected profile must already be saved. The returned concrete ID updates only
+the form; review and save setup separately. Neither this button nor setup saving
+grants permission to create calendar events. Changed account fields and a rebuilt
+form discard late responses; repeated clicks while a read is pending are ignored.
+
+The same service is available without the UI:
+
+```powershell
+folderhome calendar resolve-id --credential-file "C:\private\google-oauth.json" --credential-ref connector://google-calendar/google_private --calendar-id primary --approve-calendar-read --json
+```
+
+**Separate OAuth scope:** the existing grant must include
+`https://www.googleapis.com/auth/calendar.calendars.readonly`.
+`calendar.events` alone cannot authorize this endpoint. FolderHome does not obtain
+or broaden consent automatically. Event execution still requires its own events
+scope, `--approve-calendar-write` and exact plan confirmation.
+
+After explicit approval, lookup reads the private file and performs one calendar
+metadata GET; an expired token can cause one bounded OAuth refresh first. A refresh
+that explicitly omits the required scope blocks the GET. Neither credentials nor
+configuration are written, no events are fetched or changed, and provider errors
+are redacted. The fixed Google endpoints do not accept custom hosts or redirects.
 [Google calendar metadata authorization](https://developers.google.com/workspace/calendar/api/v3/reference/calendars/get).
 
 The OAuth tests use real `google-auth 2.57.1` behind a synthetic HTTPS boundary.
