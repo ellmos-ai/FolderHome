@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
 import json
 import re
@@ -14,10 +15,17 @@ import urllib.error
 import urllib.request
 import uuid
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
+
+from folderhome.cloud_demo.budget import CloudDemoBudget
+from folderhome.cloud_demo.proxy import (
+    CloudDemoProxySettings,
+    budget_policy_sha256,
+    initial_budget_item,
+)
 
 try:
     from .prepare_site import main as prepare_site
@@ -50,20 +58,32 @@ class DeploymentError(RuntimeError):
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("cost-profile", help="Print the runtime cost profile and hash offline.")
     subparsers.add_parser("preflight", help="Run read-only local and AWS checks.")
     deploy = subparsers.add_parser("deploy", help="Create the explicitly approved demo.")
     deploy.add_argument("--budget-alert-email", required=True)
     deploy.add_argument("--budget-usd", default="5")
     deploy.add_argument("--approval-token", required=True)
+    deploy.add_argument("--budget-review", type=Path, required=True)
     verify = subparsers.add_parser(
         "verify",
         help="Run one approved live E2E journey and read back all deployment gates.",
     )
     verify.add_argument("--budget-usd", default="5")
     verify.add_argument("--approval-token", required=True)
+    verify.add_argument("--budget-review", type=Path, required=True)
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[2]
-    if args.command == "preflight":
+    if args.command == "cost-profile":
+        profile = runtime_cost_profile()
+        result = {
+            "schema": "folderhome.cloud-runtime-cost-profile.v1",
+            "profile": profile,
+            "sha256": hashlib.sha256(
+                json.dumps(profile, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        }
+    elif args.command == "preflight":
         result = preflight(repository)
     elif args.command == "deploy":
         require_cost_approval(args.approval_token, args.budget_usd)
@@ -71,10 +91,13 @@ def main(argv: list[str] | None = None) -> int:
             repository,
             budget_alert_email=args.budget_alert_email,
             budget_usd=args.budget_usd,
+            budget_review=args.budget_review,
         )
     else:
         require_cost_approval(args.approval_token, args.budget_usd)
-        result = verify_demo(repository, budget_usd=args.budget_usd)
+        result = verify_demo(
+            repository, budget_usd=args.budget_usd, budget_review=args.budget_review
+        )
     print(json.dumps(result, sort_keys=True))
     return 0
 
@@ -92,6 +115,127 @@ def require_cost_approval(token: str, budget_usd: str) -> None:
         )
 
 
+def load_budget_review(
+    repository: Path,
+    path: Path | None,
+    *,
+    budget_usd: str,
+) -> dict[str, str]:
+    """Validate an explicit, artifact-bound monetary review without any AWS call.
+
+    This validates the record, not the truth of its cost derivation. A human
+    deployment review still has to substantiate the available funds and bounds.
+    """
+    if path is None:
+        raise DeploymentError("Budget review is required before any AWS operation.")
+    fields = {
+        "schema",
+        "approved",
+        "available_funds_microusd",
+        "other_costs_reserved_microusd",
+        "total_microusd",
+        "forward_microusd",
+        "start_utc",
+        "end_utc",
+        "agentcore_zip_sha256",
+        "proxy_zip_sha256",
+        "runtime_profile_sha256",
+        "basis",
+    }
+    try:
+        with path.open("rb") as handle:
+            raw = handle.read(16_385)
+        if len(raw) > 16_384:
+            raise ValueError("Review exceeds 16 KiB.")
+        review = json.loads(raw.decode("utf-8"), object_pairs_hook=_unique_review_fields)
+        if not isinstance(review, dict) or set(review) != fields:
+            raise ValueError("Review fields do not match the closed schema.")
+        if (
+            review["schema"] != "folderhome.cloud-budget-review.v1"
+            or review["approved"] is not True
+        ):
+            raise ValueError("Review must be explicitly approved.")
+        for key in (
+            "available_funds_microusd",
+            "other_costs_reserved_microusd",
+            "total_microusd",
+            "forward_microusd",
+        ):
+            if type(review[key]) is not int or not 0 <= review[key] <= 1_000_000_000_000:
+                raise ValueError("Review amounts must be bounded integer micro-USD.")
+        if not isinstance(review["basis"], str) or not review["basis"].strip():
+            raise ValueError("Review must identify the cost derivation and evidence.")
+        profile_sha256 = hashlib.sha256(
+            json.dumps(runtime_cost_profile(), sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        ).hexdigest()
+        if review["runtime_profile_sha256"] != profile_sha256:
+            raise ValueError("Runtime model or lifecycle differs from the reviewed cost profile.")
+        for key in ("start_utc", "end_utc"):
+            if (
+                not isinstance(review[key], str)
+                or re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", review[key]) is None
+            ):
+                raise ValueError("Review dates require YYYY-MM-DD UTC.")
+        budget = CloudDemoBudget(
+            review["total_microusd"],
+            review["forward_microusd"],
+            date.fromisoformat(review["start_utc"]),
+            date.fromisoformat(review["end_utc"]),
+        )
+        funds = review["available_funds_microusd"]
+        alert = Decimal(budget_usd) * 1_000_000
+        if not alert.is_finite() or funds != alert:
+            raise ValueError("Available allocation and approved budget alert must agree.")
+        if budget.total_microusd + review["other_costs_reserved_microusd"] > funds:
+            raise ValueError("Invocation allocation plus other-cost reserve exceeds funds.")
+        for key, filename in (
+            ("agentcore_zip_sha256", "agentcore-direct.zip"),
+            ("proxy_zip_sha256", "aws-demo-proxy.zip"),
+        ):
+            if review[key] != _zip_evidence(repository / "build" / filename)["sha256"]:
+                raise ValueError("Build artifact differs from the reviewed cost profile.")
+    except (OSError, UnicodeError, ValueError, TypeError, InvalidOperation) as exc:
+        raise DeploymentError(
+            "Budget review is invalid or does not cover these artifacts."
+        ) from exc
+    return {
+        "FOLDERHOME_BUDGET_TOTAL_MICROUSD": str(budget.total_microusd),
+        "FOLDERHOME_BUDGET_FORWARD_MICROUSD": str(budget.forward_microusd),
+        "FOLDERHOME_BUDGET_START_UTC": budget.start_utc.isoformat(),
+        "FOLDERHOME_BUDGET_END_UTC": budget.end_utc.isoformat(),
+        "FOLDERHOME_BUDGET_REVIEW_SHA256": hashlib.sha256(raw).hexdigest(),
+    }
+
+
+def _unique_review_fields(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate budget review field.")
+        result[key] = value
+    return result
+
+
+def runtime_cost_profile() -> dict[str, Any]:
+    """Canonical deployable model/lifecycle limits, hashed into the cost review."""
+    return {
+        "networkConfiguration": {"networkMode": "PUBLIC"},
+        "protocolConfiguration": {"serverProtocol": "HTTP"},
+        "lifecycleConfiguration": {"idleRuntimeSessionTimeout": 60, "maxLifetime": 1800},
+        "environmentVariables": {
+            "FOLDERHOME_AGENTCORE_MODEL_PROVIDER": "bedrock",
+            "FOLDERHOME_AGENTCORE_ALLOW_BEDROCK": "1",
+            "FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA": "1",
+            "FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID": _MODEL_ID,
+            "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
+            "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
+            "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
+        },
+    }
+
+
 def preflight(repository: Path) -> dict[str, object]:
     """Verify packages, templates, identity, model access, and name availability."""
 
@@ -99,9 +243,7 @@ def preflight(repository: Path) -> dict[str, object]:
         "agentcore": repository / "build" / "agentcore-direct.zip",
         "proxy": repository / "build" / "aws-demo-proxy.zip",
     }
-    artifact_evidence = {
-        name: _zip_evidence(path) for name, path in artifacts.items()
-    }
+    artifact_evidence = {name: _zip_evidence(path) for name, path in artifacts.items()}
     for template in (
         repository / "deploy" / "aws_demo" / "bootstrap.yaml",
         repository / "deploy" / "aws_demo" / "application.yaml",
@@ -146,14 +288,27 @@ def deploy_demo(
     *,
     budget_alert_email: str,
     budget_usd: str,
+    budget_review: Path | None = None,
 ) -> dict[str, object]:
     """Create a fresh runtime and application after the explicit cost gate."""
 
+    budget_environment = load_budget_review(repository, budget_review, budget_usd=budget_usd)
+    try:
+        CloudDemoBudget.from_environment(budget_environment).accrued_microusd(datetime.now(UTC))
+    except ValueError as exc:
+        raise DeploymentError("Budget review window is not currently active.") from exc
     if re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", budget_alert_email) is None:
         raise DeploymentError("Budget notification email is invalid.")
     evidence = preflight(repository)
     if evidence["status"] != "ready":
         raise DeploymentError("FolderHome runtime name already exists; refusing replacement.")
+    stacks = _aws_json(["cloudformation", "list-stacks"]).get("StackSummaries")
+    if not isinstance(stacks, list):
+        raise DeploymentError("Existing application history could not be verified.")
+    if any(item.get("StackName") == _APPLICATION_STACK for item in stacks):
+        raise DeploymentError(
+            "Existing application requires a reviewed ledger migration, not a fresh budget."
+        )
     profile = _model_profile()
     model_arns = profile["model_arns"]
     if len(model_arns) != 4:
@@ -166,10 +321,7 @@ def deploy_demo(
             "BudgetLimitUsd": budget_usd,
             "BudgetAlertEmail": budget_alert_email,
             "InferenceProfileArn": profile["profile_arn"],
-            **{
-                f"FoundationModelArn{index}": arn
-                for index, arn in enumerate(model_arns, start=1)
-            },
+            **{f"FoundationModelArn{index}": arn for index, arn in enumerate(model_arns, start=1)},
         },
         capabilities=("CAPABILITY_IAM",),
     )
@@ -186,24 +338,10 @@ def deploy_demo(
         version_id=direct_version,
     )
     runtime_common = {
+        **runtime_cost_profile(),
         "agentRuntimeArtifact": artifact,
         "roleArn": runtime_role_arn,
-        "networkConfiguration": {"networkMode": "PUBLIC"},
         "description": "FolderHome synthetic accident demo with a Strands master agent",
-        "protocolConfiguration": {"serverProtocol": "HTTP"},
-        "lifecycleConfiguration": {
-            "idleRuntimeSessionTimeout": 60,
-            "maxLifetime": 1800,
-        },
-        "environmentVariables": {
-            "FOLDERHOME_AGENTCORE_MODEL_PROVIDER": "bedrock",
-            "FOLDERHOME_AGENTCORE_ALLOW_BEDROCK": "1",
-            "FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA": "1",
-            "FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID": _MODEL_ID,
-            "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
-            "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
-            "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
-        },
     }
     created = _aws_json(
         [
@@ -250,11 +388,32 @@ def deploy_demo(
     endpoint = _wait_endpoint(runtime_id, "DEFAULT", expected_version=updated_version)
     if endpoint.get("status") != "READY":
         raise DeploymentError("AgentCore DEFAULT endpoint did not become ready.")
+    budget_endpoint = f"budget_v{updated_version}"
+    _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "create-agent-runtime-endpoint",
+            "--agent-runtime-id",
+            runtime_id,
+            "--agent-runtime-version",
+            updated_version,
+            "--name",
+            budget_endpoint,
+        ]
+    )
+    _wait_endpoint(runtime_id, budget_endpoint, expected_version=updated_version)
     _cloudformation_deploy(
         stack_name=_APPLICATION_STACK,
         template=repository / "deploy" / "aws_demo" / "application.yaml",
         parameters={
             "AgentRuntimeArn": runtime_arn,
+            "AgentRuntimeEndpoint": budget_endpoint,
+            "AgentRuntimeVersion": updated_version,
+            "BudgetReviewSha256": budget_environment["FOLDERHOME_BUDGET_REVIEW_SHA256"],
+            "BudgetTotalMicrousd": budget_environment["FOLDERHOME_BUDGET_TOTAL_MICROUSD"],
+            "BudgetForwardMicrousd": budget_environment["FOLDERHOME_BUDGET_FORWARD_MICROUSD"],
+            "BudgetStartUtc": budget_environment["FOLDERHOME_BUDGET_START_UTC"],
+            "BudgetEndUtc": budget_environment["FOLDERHOME_BUDGET_END_UTC"],
             "ProxyCodeBucket": artifact_bucket,
             "ProxyCodeKey": proxy_key,
             "ProxyCodeVersion": proxy_version,
@@ -262,6 +421,19 @@ def deploy_demo(
         capabilities=("CAPABILITY_IAM",),
     )
     application = _stack_outputs(_APPLICATION_STACK)
+    settings = CloudDemoProxySettings.from_environment(
+        {
+            **budget_environment,
+            "AWS_REGION": _REGION,
+            "FOLDERHOME_AGENT_RUNTIME_ARN": runtime_arn,
+            "FOLDERHOME_AGENT_RUNTIME_ENDPOINT": budget_endpoint,
+            "FOLDERHOME_AGENT_RUNTIME_VERSION": updated_version,
+            "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
+            "FOLDERHOME_DAILY_QUOTA_TABLE": application["DailyQuotaTableName"],
+            "FOLDERHOME_PUBLIC_ORIGIN": application["SiteUrl"].removesuffix("/"),
+        }
+    )
+    _initialize_budget_ledger(settings)
     api_key = _aws_json(
         [
             "apigateway",
@@ -309,6 +481,10 @@ def deploy_demo(
         {
             "phase": "deployed",
             "runtime_id": runtime_id,
+            "runtime_endpoint": budget_endpoint,
+            "runtime_version": updated_version,
+            "runtime_artifact": artifact,
+            "budget_review_sha256": budget_environment["FOLDERHOME_BUDGET_REVIEW_SHA256"],
             "site_url": application["SiteUrl"],
             "api_base_url": application["ApiBaseUrl"],
             "distribution_id": application["CloudFrontDistributionId"],
@@ -325,19 +501,183 @@ def deploy_demo(
         "daily_request_quota": 20,
         "hard_agentcore_forward_limit": 20,
         "budget_limit_usd": budget_usd,
+        "budget_ledger_initialized": True,
+        "budget_total_microusd": settings.budget.total_microusd,
+        "budget_forward_microusd": settings.budget.forward_microusd,
+        "budget_end_utc_exclusive": settings.budget.end_utc.isoformat(),
         "api_key_value_logged": False,
     }
 
 
-def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
+def _initialize_budget_ledger(settings: CloudDemoProxySettings) -> None:
+    item = initial_budget_item(settings)
+    _aws_json(
+        [
+            "dynamodb",
+            "put-item",
+            "--table-name",
+            settings.daily_quota_table,
+            "--item",
+            json.dumps(item, separators=(",", ":")),
+            "--condition-expression",
+            "attribute_not_exists(quota_day)",
+        ]
+    )
+    readback = _aws_json(
+        [
+            "dynamodb",
+            "get-item",
+            "--table-name",
+            settings.daily_quota_table,
+            "--key",
+            json.dumps({"quota_day": {"S": "_budget_v1"}}, separators=(",", ":")),
+            "--consistent-read",
+        ]
+    )
+    if readback.get("Item") != item:
+        raise DeploymentError("Initial budget ledger readback does not match approval.")
+
+
+def verify_budget_before_invocation(
+    application: dict[str, str],
+    state: dict[str, Any],
+    budget_environment: dict[str, str],
+    *,
+    proxy_zip_sha256: str,
+) -> CloudDemoProxySettings:
+    """Read the deployed policy, ledger, endpoint and concurrency before paid probes."""
+    configuration = _aws_json(
+        [
+            "lambda",
+            "get-function-configuration",
+            "--function-name",
+            application["ProxyFunctionName"],
+        ]
+    )
+    try:
+        if configuration.get("CodeSha256") != base64.b64encode(
+            bytes.fromhex(proxy_zip_sha256)
+        ).decode("ascii"):
+            raise ValueError("Deployed proxy code differs from the reviewed ZIP.")
+        environment = {**configuration["Environment"]["Variables"], "AWS_REGION": _REGION}
+        settings = CloudDemoProxySettings.from_environment(environment)
+        if any(environment.get(key) != value for key, value in budget_environment.items()):
+            raise ValueError("Deployed monetary policy differs from the reviewed artifact.")
+        if (
+            settings.daily_quota_table != application["DailyQuotaTableName"]
+            or settings.public_origin != application["SiteUrl"].removesuffix("/")
+            or settings.agent_runtime_arn.rsplit("/", 1)[-1] != state["runtime_id"]
+            or settings.runtime_endpoint != state["runtime_endpoint"]
+            or settings.runtime_version != state["runtime_version"]
+            or settings.budget_review_sha256 != state["budget_review_sha256"]
+            or settings.daily_quota_limit != 20
+        ):
+            raise ValueError("Deployment identity differs from approved budget state.")
+        remaining = settings.budget.accrued_microusd(datetime.now(UTC)) - _read_budget_reserved(
+            settings
+        )
+        if remaining < 2 * settings.budget.forward_microusd:
+            raise ValueError("Budget cannot reserve the two live verification forwards.")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise DeploymentError("Deployed budget policy is unavailable or inconsistent.") from exc
+    endpoint = _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "get-agent-runtime-endpoint",
+            "--agent-runtime-id",
+            state["runtime_id"],
+            "--endpoint-name",
+            settings.runtime_endpoint,
+        ]
+    )
+    if (
+        endpoint.get("status") != "READY"
+        or endpoint.get("liveVersion") != settings.runtime_version
+        or endpoint.get("targetVersion", settings.runtime_version) != settings.runtime_version
+    ):
+        raise DeploymentError("Reviewed budget runtime endpoint has drifted.")
+    concurrency = _aws_json(
+        [
+            "lambda",
+            "get-function-concurrency",
+            "--function-name",
+            application["ProxyFunctionName"],
+        ]
+    )
+    if concurrency.get("ReservedConcurrentExecutions") is not None:
+        raise DeploymentError("Lambda concurrency differs from the reviewed unreserved template.")
+    runtime = _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "get-agent-runtime",
+            "--agent-runtime-id",
+            state["runtime_id"],
+            "--agent-runtime-version",
+            settings.runtime_version,
+        ]
+    )
+    if (
+        runtime.get("status") != "READY"
+        or runtime.get("agentRuntimeVersion") != settings.runtime_version
+        or runtime.get("metadataConfiguration", {}).get("requireMMDSV2") is not True
+        or not state.get("runtime_artifact")
+        or runtime.get("agentRuntimeArtifact") != state["runtime_artifact"]
+        or any(runtime.get(key) != value for key, value in runtime_cost_profile().items())
+    ):
+        raise DeploymentError("Deployed runtime artifact or cost profile differs from approval.")
+    return settings
+
+
+def _read_budget_reserved(settings: CloudDemoProxySettings) -> int:
+    item = _aws_json(
+        [
+            "dynamodb",
+            "get-item",
+            "--table-name",
+            settings.daily_quota_table,
+            "--key",
+            json.dumps({"quota_day": {"S": "_budget_v1"}}, separators=(",", ":")),
+            "--consistent-read",
+        ]
+    ).get("Item", {})
+    try:
+        raw = item["reserved_microusd"]["N"]
+        if not isinstance(raw, str) or re.fullmatch(r"[0-9]{1,13}", raw) is None:
+            raise ValueError("Invalid reservation amount.")
+        reserved = int(raw)
+        if (
+            item.get("policy_sha256") != {"S": budget_policy_sha256(settings)}
+            or "expires_at" in item
+            or reserved > settings.budget.total_microusd
+        ):
+            raise ValueError("Ledger differs from approved persistent budget.")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise DeploymentError("Persistent monetary ledger is missing or invalid.") from exc
+    return reserved
+
+
+def verify_demo(
+    repository: Path,
+    *,
+    budget_usd: str,
+    budget_review: Path | None = None,
+) -> dict[str, object]:
     """Exercise one live synthetic journey and verify every operational boundary."""
 
+    budget_environment = load_budget_review(repository, budget_review, budget_usd=budget_usd)
     state = _load_state(repository)
     if state.get("phase") != "deployed":
         raise DeploymentError("Deployment state is not ready for live verification.")
     runtime_id = _required_text(state, "runtime_id")
     bootstrap = _stack_outputs(_BOOTSTRAP_STACK)
     application = _stack_outputs(_APPLICATION_STACK)
+    settings = verify_budget_before_invocation(
+        application,
+        state,
+        budget_environment,
+        proxy_zip_sha256=_zip_evidence(repository / "build" / "aws-demo-proxy.zip")["sha256"],
+    )
+    reserved_before = _read_budget_reserved(settings)
     api_key = _aws_json(
         [
             "apigateway",
@@ -384,6 +724,8 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
             "get-agent-runtime",
             "--agent-runtime-id",
             runtime_id,
+            "--agent-runtime-version",
+            settings.runtime_version,
         ]
     )
     endpoint = _aws_json(
@@ -393,13 +735,16 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
             "--agent-runtime-id",
             runtime_id,
             "--endpoint-name",
-            "DEFAULT",
+            settings.runtime_endpoint,
         ]
     )
     if runtime.get("status") != "READY" or endpoint.get("status") != "READY":
-        raise DeploymentError("AgentCore runtime or DEFAULT endpoint is not ready.")
-    if endpoint.get("liveVersion") != runtime.get("agentRuntimeVersion"):
-        raise DeploymentError("DEFAULT endpoint is not serving the latest runtime version.")
+        raise DeploymentError("AgentCore runtime or reviewed endpoint is not ready.")
+    if (
+        endpoint.get("liveVersion") != settings.runtime_version
+        or runtime.get("agentRuntimeVersion") != settings.runtime_version
+    ):
+        raise DeploymentError("Runtime is not serving the reviewed cost-profile version.")
     if runtime.get("metadataConfiguration", {}).get("requireMMDSV2") is not True:
         raise DeploymentError("AgentCore runtime does not require IMDSv2.")
     usage_plan = _aws_json(
@@ -436,8 +781,11 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
             application["ProxyFunctionName"],
         ]
     )
-    if concurrency.get("ReservedConcurrentExecutions") != 2:
-        raise DeploymentError("Lambda reserved concurrency is not two.")
+    if concurrency.get("ReservedConcurrentExecutions") is not None:
+        raise DeploymentError("Lambda concurrency differs from the reviewed unreserved template.")
+    reserved_after = _read_budget_reserved(settings)
+    if reserved_after < reserved_before + 2 * settings.budget.forward_microusd:
+        raise DeploymentError("Live journey lacks its two monetary reservations.")
     proxy_logs = _aws_json(
         [
             "logs",
@@ -447,9 +795,7 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
         ]
     ).get("logGroups", [])
     exact_proxy_logs = [
-        item
-        for item in proxy_logs
-        if item.get("logGroupName") == application["ProxyLogGroupName"]
+        item for item in proxy_logs if item.get("logGroupName") == application["ProxyLogGroupName"]
     ]
     if len(exact_proxy_logs) != 1 or exact_proxy_logs[0].get("retentionInDays") != 7:
         raise DeploymentError("Lambda log retention is not seven days.")
@@ -493,9 +839,7 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
             bootstrap["BudgetName"],
         ]
     ).get("Budget", {})
-    if Decimal(str(budget.get("BudgetLimit", {}).get("Amount"))) != Decimal(
-        budget_usd
-    ):
+    if Decimal(str(budget.get("BudgetLimit", {}).get("Amount"))) != Decimal(budget_usd):
         raise DeploymentError("AWS budget warning threshold does not match approval.")
     _write_state(
         repository,
@@ -520,7 +864,10 @@ def verify_demo(repository: Path, *, budget_usd: str) -> dict[str, object]:
         "daily_request_quota": 20,
         "hard_agentcore_forward_limit": 20,
         "agentcore_forwards_today": forwarded_today,
-        "lambda_reserved_concurrency": 2,
+        "lambda_reserved_concurrency": None,
+        "budget_reserved_microusd": reserved_after,
+        "budget_total_microusd": settings.budget.total_microusd,
+        "budget_review_sha256": settings.budget_review_sha256,
         "log_retention_days": 7,
         "site_bucket_private": True,
         "budget_alert_usd": budget_usd,
@@ -688,10 +1035,7 @@ def _set_runtime_log_retention(runtime_id: str) -> list[str]:
                     prefix,
                 ]
             ).get("logGroups", [])
-            readback = {
-                item.get("logGroupName"): item.get("retentionInDays")
-                for item in verified
-            }
+            readback = {item.get("logGroupName"): item.get("retentionInDays") for item in verified}
             if all(readback.get(name) == 7 for name in names):
                 return names
             raise DeploymentError("AgentCore log retention readback failed.")
@@ -725,9 +1069,7 @@ def _model_profile() -> dict[str, object]:
 def _runtime_artifact(*, bucket: str, key: str, version_id: str) -> dict[str, object]:
     return {
         "codeConfiguration": {
-            "code": {
-                "s3": {"bucket": bucket, "prefix": key, "versionId": version_id}
-            },
+            "code": {"s3": {"bucket": bucket, "prefix": key, "versionId": version_id}},
             "runtime": "PYTHON_3_12",
             "entryPoint": ["agentcore_entrypoint.py"],
         }
@@ -807,9 +1149,7 @@ def _cloudformation_deploy(
 
 
 def _stack_outputs(stack_name: str) -> dict[str, str]:
-    payload = _aws_json(
-        ["cloudformation", "describe-stacks", "--stack-name", stack_name]
-    )
+    payload = _aws_json(["cloudformation", "describe-stacks", "--stack-name", stack_name])
     stacks = payload.get("Stacks", [])
     if len(stacks) != 1 or stacks[0].get("StackStatus") not in {
         "CREATE_COMPLETE",

@@ -62,6 +62,10 @@ def main(argv: list[str] | None = None) -> int:
         source_package / "cloud_demo" / "proxy.py",
         destination_cloud_demo / "proxy.py",
     )
+    shutil.copy2(
+        source_package / "cloud_demo" / "budget.py",
+        destination_cloud_demo / "budget.py",
+    )
     if output.exists():
         output.unlink()
     with zipfile.ZipFile(

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from datetime import UTC, datetime
 
 import boto3
@@ -45,6 +46,20 @@ def _environment(monkeypatch) -> None:
     monkeypatch.setenv("FOLDERHOME_DAILY_QUOTA_TABLE", "folderhome-daily-quota")
     monkeypatch.setenv("FOLDERHOME_DAILY_QUOTA_LIMIT", "20")
     monkeypatch.setenv("AWS_REGION", "eu-central-1")
+    monkeypatch.setenv("FOLDERHOME_BUDGET_TOTAL_MICROUSD", "1000000")
+    monkeypatch.setenv("FOLDERHOME_BUDGET_FORWARD_MICROUSD", "100000")
+    monkeypatch.setenv("FOLDERHOME_BUDGET_START_UTC", "2026-08-24")
+    monkeypatch.setenv("FOLDERHOME_BUDGET_END_UTC", "2026-09-24")
+    monkeypatch.setenv("FOLDERHOME_AGENT_RUNTIME_ENDPOINT", "budget_v4")
+    monkeypatch.setenv("FOLDERHOME_AGENT_RUNTIME_VERSION", "4")
+    monkeypatch.setenv("FOLDERHOME_BUDGET_REVIEW_SHA256", "c" * 64)
+
+    class RuntimeControl:
+        def get_agent_runtime_endpoint(self, **kwargs):
+            assert kwargs == {"agentRuntimeId": "demo", "endpointName": "budget_v4"}
+            return {"status": "READY", "liveVersion": "4", "targetVersion": "4"}
+
+    monkeypatch.setattr(proxy, "_runtime_control_client", lambda _region: RuntimeControl())
 
 
 def test_cloud_demo_proxy_relays_one_bounded_synthetic_invocation(monkeypatch) -> None:
@@ -65,6 +80,7 @@ def test_cloud_demo_proxy_relays_one_bounded_synthetic_invocation(monkeypatch) -
     assert len(client.calls) == 1
     assert len(quota_calls) == 1
     assert client.calls[0]["runtimeSessionId"] == SESSION_ID
+    assert client.calls[0]["qualifier"] == "budget_v4"
     assert json.loads(client.calls[0]["payload"])["prompt"] == "Find my synthetic policy."
 
 
@@ -161,29 +177,24 @@ def test_cloud_demo_proxy_consumes_one_atomic_utc_daily_slot(monkeypatch) -> Non
     captured = {}
 
     class DynamoDBClient:
-        def update_item(self, **kwargs):
+        def transact_write_items(self, **kwargs):
             captured.update(kwargs)
 
     monkeypatch.setattr(proxy, "_dynamodb_client", lambda _region: DynamoDBClient())
-    settings = proxy.CloudDemoProxySettings(
-        RUNTIME_ARN,
-        ORIGIN,
-        "eu-central-1",
-        "folderhome-daily-quota",
-        20,
-    )
+    _environment(monkeypatch)
+    monkeypatch.setenv("FOLDERHOME_BUDGET_FORWARD_MICROUSD", "1")
+    settings = proxy.CloudDemoProxySettings.from_environment(os.environ)
 
     proxy._consume_daily_quota(
         settings,
         now=datetime(2026, 8, 24, 23, 59, tzinfo=UTC),
     )
 
-    assert captured["TableName"] == "folderhome-daily-quota"
-    assert captured["Key"] == {"quota_day": {"S": "2026-08-24"}}
-    assert captured["ConditionExpression"] == (
-        "attribute_not_exists(request_count) OR request_count < :limit"
-    )
-    assert captured["ExpressionAttributeValues"][":limit"] == {"N": "20"}
+    assert len(captured["TransactItems"]) == 2
+    daily = captured["TransactItems"][0]["Update"]
+    assert daily["TableName"] == "folderhome-daily-quota"
+    assert daily["Key"] == {"quota_day": {"S": "2026-08-24"}}
+    assert daily["ExpressionAttributeValues"][":limit"] == {"N": "20"}
 
 
 def test_cloud_demo_proxy_returns_429_without_agentcore_after_hard_quota(

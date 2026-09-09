@@ -12,6 +12,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- The public-demo proxy atomically reserves reviewed micro-USD alongside its
+  daily forward limit. UTC entitlement carries over without exceeding the finite
+  allocation. Missing/changed/expired policies fail closed; timeouts are not
+  refunded. A persistent ledger and reviewed runtime endpoint replace count-only
+  admission. Deployment requires an artifact-bound cost review; local tests do
+  not establish prices, funding, existing-demo migration or live AWS acceptance.
 - Plan confirmation recomputes the full public content hash, including recipe
   review metadata, instead of trusting stored hash strings. Execution rechecks
   the binding before each step and preserves evidence of completed steps on a

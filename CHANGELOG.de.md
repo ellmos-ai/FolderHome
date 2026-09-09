@@ -13,6 +13,13 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Der öffentliche Demo-Proxy reserviert geprüfte Mikro-USD atomar zusammen mit
+  seinem täglichen Aufruflimit. UTC-Tagesmittel werden ohne Überschreiten des
+  endlichen Guthabens übertragen. Fehlende/geänderte/abgelaufene Policies sperren;
+  Timeouts werden nicht erstattet. Ein dauerhaftes Ledger und ein geprüfter
+  Runtime-Endpunkt ersetzen die reine Zählgrenze. Das Deployment benötigt eine
+  artefaktgebundene Kostenprüfung; lokale Tests belegen weder Preise, Guthaben,
+  Migration der bestehenden Demo noch eine AWS-Live-Abnahme.
 - Die Planbestätigung berechnet den Hash des vollständigen öffentlichen Inhalts
   einschließlich Rezeptabnahme neu, statt gespeicherten Hashwerten zu vertrauen.
   Die Ausführung prüft die Bindung vor jedem Schritt erneut und erhält bei einem

@@ -18,6 +18,10 @@ bleiben.
 - Eine atomare DynamoDB-Bedingung erlaubt höchstens 20 gültige Weiterleitungen an
   AgentCore pro UTC-Tag. Das entspricht zehn vollständigen Demonstrationen mit jeweils
   zwei Anfragen.
+- Dieselbe Transaktion reserviert einen geprüften Höchstbetrag in ganzzahligen
+  **Mikro-USD**. Das endliche Guthaben wird über UTC-Kalendertage freigegeben;
+  ungenutzte Mittel werden auch über Tage ohne Aufrufe übertragen. Das Enddatum
+  ist exklusiv. Abgelaufene Zeitfenster, fehlende Ledger und geänderte Policy-Hashes sperren.
 - Quote und Drosselung des API-Gateway-Nutzungsplans sind zusätzliche
   Best-effort-Schutzschichten und nicht die harte Kostengrenze.
 - API Gateway begrenzt Lastspitzen auf zwei Anfragen und 0,2 Anfragen pro Sekunde.
@@ -33,7 +37,22 @@ bleiben.
 - Das Anlegen oder Aktualisieren von AWS-Ressourcen benötigt eine ausdrückliche
   Kostenfreigabe durch einen Menschen.
 
-## Lokale Vorabprüfung
+**Das Ledger reserviert Geld für Weiterleitungen; es sperrt nicht die gesamte Kontorechnung.**
+Die Reserve muss sämtliche abrechenbaren Folgearbeiten der geprüften Runtime
+abdecken, einschließlich Modellaufrufen, Ein-/Ausgabelimits und Runtime-Lebensdauer.
+Ein Proxy-Timeout beweist keinen Abbruch dieser Arbeiten; Reservierungen werden
+deshalb nie erstattet. Statisches Hosting, abgelehnte Anfragen, Logs, DynamoDB-Zugriffe
+und sonstige Infrastrukturkosten benötigen eine gesondert geprüfte Reserve und
+Überwachung. Grüne lokale Tests belegen weder aktuelle Credits oder Preise noch
+eine Live-Abnahme des Deployments.
+
+Der Proxy verwendet einen eigenen Endpunkt mit geprüfter Runtime-Version statt
+`DEFAULT` und kontrolliert dessen aktuelle Version vor der Zulassung. Betreiber
+dürfen diesen Endpunkt im Betrieb nicht umstellen: Prüfung und Aufruf sind keine
+gemeinsame AWS-Transaktion. Administrative Änderungen und kompromittierte
+IAM-Zugangsdaten liegen außerhalb dieser Schutzschicht der Anwendung.
+
+## Build und Vorabprüfung
 
 ```powershell
 python deploy/agentcore/build_direct_code.py
@@ -41,9 +60,51 @@ python deploy/aws_demo/build_proxy.py
 python deploy/aws_demo/manage.py preflight
 ```
 
+Die beiden Build-Befehle paketieren lokal; dabei können Abhängigkeiten heruntergeladen
+werden. **`preflight` liest zusätzlich AWS-Identität, Templates sowie Runtime-/Modellstatus**;
+es ist kein Offline-Test. Bei aufgeschobener AWS-Arbeit nicht ausführen.
+
 Build-Ausgaben verbleiben im ignorierten Ordner `build/`. API-Keys,
 AWS-Konto-IDs, E-Mail-Adressen, generierte Laufzeitkonfiguration und Stack-Ausgaben
 dürfen nicht committet werden.
+
+## Erforderliche Kostenprüfung
+
+Vor dem Deployment eine private `build/budget-review.json` nach dem Schema
+`folderhome.cloud-budget-review.v1` vorbereiten. Pflichtfelder:
+
+- `approved`: ausdrücklich der boolesche Wert `true`, erst nach Prüfung durch den Kontoinhaber.
+- `available_funds_microusd`: geprüftes, unverbrauchtes Teilbudget; es muss der
+  freigegebenen Billing-Warnschwelle entsprechen. Das bestehende Deployment-Gate bleibt bei 5 USD.
+- `other_costs_reserved_microusd`: für Kosten außerhalb der Weiterleitungen zurückbehaltene Mittel.
+- `total_microusd`, `forward_microusd`: positives ganzzahliges Aufrufbudget und
+  belegbare Höchstreserve je Weiterleitung. Einheit ist ein Millionstel USD;
+  Geldbeträge werden nicht als Gleitkommazahlen verarbeitet.
+- `start_utc`, `end_utc`: `YYYY-MM-DD`, Anfang inklusiv und Ende exklusiv,
+  ein bis 366 Tage. Das Ende liegt **nach der Gewinnerverkündung**, nicht der Einreichung.
+- `agentcore_zip_sha256`, `proxy_zip_sha256`: vollständige Hashes der exakt geprüften
+  Dateien `build/agentcore-direct.zip` und `build/aws-demo-proxy.zip`.
+- `runtime_profile_sha256`: Hash des kanonischen Modell-/Umgebungs-/Lebensdauerprofils
+  aus dem Offline-Befehl `python deploy/aws_demo/manage.py cost-profile`.
+  Genau dieses Profil wird deployt; ein geändertes Modell oder Limit entwertet die Prüfung.
+- `basis`: Herleitung mit datierten Preisen, maximaler Modellarbeit und Runtime-
+  Lebensdauer, Infrastrukturreserve, aktuellem Guthaben und Abschaltnachweisen.
+
+Der Loader verwirft unbekannte/doppelte Felder, veraltete Artefakte, ungültige
+Beträge und überbuchte Mittel. Er prüft das Dokument, **nicht die Wahrheit der
+Kostenschätzung**. Es gibt keine aktivierungsfertigen Beispielbeträge. Der Hash
+des Prüfdokuments gehört zur Ledger-Policy. Jede Änderung benötigt eine ausdrückliche
+Prüfung und Migration unter Erhalt bereits verbrauchter Mittel; sie darf das Ledger nie nullsetzen.
+
+Das feste Ledger `_budget_v1` hat keine TTL. CloudFormation erhält die Tabelle bei
+Löschung/Ersetzung; der Proxy darf keine Ledger-Einträge anlegen oder löschen.
+Ein neues Deployment legt den Anfangsstand bedingt an und liest ihn konsistent
+zurück, bevor die Browserkonfiguration veröffentlicht wird. Der Fresh-Deploy-Befehl
+verweigert bestehende Anwendungen einschließlich sichtbarer gelöschter Stack-Historie.
+**Eine bestehende Demo benötigt eine gesondert geprüfte Migration; Tabellenlöschen ist keine Migration.**
+
+Die zugrunde liegende Atomarität und Wiederholungssemantik stehen in der
+[DynamoDB-Transaktions-API](https://docs.aws.amazon.com/amazondynamodb/latest/APIReference/API_TransactWriteItems.html).
 
 ## Deployment-Reihenfolge
 
@@ -55,7 +116,8 @@ dürfen nicht committet werden.
    anlegen.
 4. Die Runtime unmittelbar so aktualisieren, dass IMDSv2 erforderlich ist, und auf
    `READY` warten.
-5. Den Anwendungs-Stack mit der Runtime-ARN und der Proxy-Objektversion anlegen.
+5. Einen eigenen versionsgebundenen Endpunkt und den Anwendungs-Stack mit den
+   geprüften Geld-/Zeitfensterparametern anlegen. Das dauerhafte Ledger initialisieren und zurücklesen.
 6. `runtime-config.js` ausschließlich im ignorierten Site-Build-Ordner erzeugen, die
    statische Site in den privaten S3-Bucket synchronisieren und CloudFront
    invalidieren.
@@ -76,6 +138,7 @@ das Budget nur warnt, statt Ausgaben hart zu sperren:
 python deploy/aws_demo/manage.py deploy `
   --budget-alert-email "ACCOUNT-OWNER-EMAIL" `
   --budget-usd 5 `
+  --budget-review build/budget-review.json `
   --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
 ```
 
@@ -85,5 +148,15 @@ mit zwei Anfragen und das anschließende Zurücklesen der Betriebsgrenzen:
 ```powershell
 python deploy/aws_demo/manage.py verify `
   --budget-usd 5 `
+  --budget-review build/budget-review.json `
   --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
 ```
+
+`verify` prüft vor kostenpflichtigen Proben die deployte Geld-Policy, das verbleibende
+Guthaben, die Runtime-Version und die bewusst unreservierte Lambda-Konfiguration.
+Es vergleicht außerdem den deployten Lambda-Codehash, das versionierte Runtime-Artefakt,
+IMDSv2 und das vollständige Runtime-Kostenprofil mit dem freigegebenen Material.
+Danach liest es die beiden Reservierungen zurück. Dies aktiviert oder migriert keine
+bestehende statische Demo und bestätigt weder die gesamte Kontorechnung noch das Aufräumen.
+Am geprüften Ende stoppt die Zulassung; Ressourcenabschaltung, Umgang mit der erhaltenen
+Tabelle und Restguthabenprüfung bleiben Teil des gesondert freizugebenden AWS-Abschlusses.
