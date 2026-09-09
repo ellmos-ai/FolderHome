@@ -12,6 +12,13 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- Plan confirmation recomputes the full public content hash, including recipe
+  review metadata, instead of trusting stored hash strings. Execution rechecks
+  the binding before each step and preserves evidence of completed steps on a
+  later failure. Nested request/plan/report exports no longer alias their source;
+  plans using the older hash formula require a fresh proposal and review.
+  Execution reports must match the requested envelope, workflow and adapter;
+  mismatches stop the chain and are not retained as successful evidence.
 - Loopback Ollama now reports `local_model` / `local_only_model` instead of a
   network/hybrid topology; remote and hosted models retain their distinct
   provider and inference-location fields.

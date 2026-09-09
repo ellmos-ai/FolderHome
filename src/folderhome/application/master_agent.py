@@ -373,22 +373,12 @@ def build_master_agent_plan(
         for sequence, workflow_id in enumerate(workflow_ids, start=1)
     )
     request_sha256 = sha256(normalized.encode("utf-8")).hexdigest()
-    hash_material = {
-        "request_sha256": request_sha256,
-        "profile_id": profile_id,
-        "language": language,
-        "route": route.to_dict(),
-        "steps": [item.to_dict() for item in steps],
-    }
-    plan_sha256 = sha256(_json_bytes(hash_material)).hexdigest()
     summary = (
         f"{len(steps)} geprüfte Workflow-Schritte wurden vorgeschlagen."
         if language == "de"
         else f"{len(steps)} verified workflow steps were proposed."
     )
-    return MasterAgentPlan(
-        plan_id=f"plan_{plan_sha256[:20]}",
-        plan_sha256=plan_sha256,
+    return MasterAgentPlan.create(
         request_sha256=request_sha256,
         profile_id=profile_id,
         language=language,
@@ -408,6 +398,10 @@ def confirm_master_agent_plan(
         raise MasterAgentError("Freigabe gehört nicht zu diesem Plan.")
     if approval.plan_sha256 != plan.plan_sha256:
         raise MasterAgentError("Freigabe enthält nicht den aktuellen Plan-Hash.")
+    try:
+        plan.verify_integrity()
+    except ValueError as exc:
+        raise MasterAgentError(str(exc)) from exc
     known = {item.step_id for item in plan.steps}
     if any(step_id not in known for step_id in approval.step_ids):
         raise MasterAgentError("Freigabe enthält einen unbekannten Planschritt.")

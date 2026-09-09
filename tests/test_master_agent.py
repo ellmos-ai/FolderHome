@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,37 @@ from folderhome.application.master_agent import (
 from folderhome.contracts.master_agent import MasterPlanApproval
 
 REPOSITORY_ROOT = Path(__file__).parents[1]
+
+
+@pytest.mark.parametrize("changed_field", [
+    "profile", "language", "summary", "route", "goal", "boundary", "plan_id",
+])
+def test_confirmation_recomputes_content_instead_of_trusting_stored_hash(changed_field):
+    plan = build_master_agent_plan(
+        "Clean up the inbox.", profile_id="hanna", language="en",
+        expert_id="document_expert", workflow_ids=("folder-cleanup",),
+        confidence="high", why="The user selected folder cleanup.",
+    )
+    approval = MasterPlanApproval(
+        approval_id="approval_integrity_check", plan_id=plan.plan_id,
+        plan_sha256=plan.plan_sha256, step_ids=tuple(s.step_id for s in plan.steps),
+        approved_at="2026-09-09T01:50:00+02:00",
+    )
+    changes = {
+        "profile": {"profile_id": "lukas"},
+        "language": {"language": "de"},
+        "summary": {"summary": "Only a harmless read."},
+        "route": {"route": replace(plan.route, why="A different instruction.")},
+        "goal": {"steps": (replace(plan.steps[0], goal="Clean a different folder."),)},
+        "boundary": {"profiles_are_authorization_boundaries": True},
+        "plan_id": {"plan_id": "plan_relabelled"},
+    }
+    tampered = replace(plan, **changes[changed_field])
+    if changed_field == "plan_id":
+        # Matching strings alone must not let a relabelled plan pass.
+        approval = replace(approval, plan_id=tampered.plan_id)
+    with pytest.raises(MasterAgentError):
+        confirm_master_agent_plan(tampered, approval)
 
 
 def _workflow_ids() -> set[str]:

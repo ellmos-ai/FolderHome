@@ -13,6 +13,15 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Die Planbestätigung berechnet den Hash des vollständigen öffentlichen Inhalts
+  einschließlich Rezeptabnahme neu, statt gespeicherten Hashwerten zu vertrauen.
+  Die Ausführung prüft die Bindung vor jedem Schritt erneut und erhält bei einem
+  späteren Fehler Nachweise abgeschlossener Schritte. Verschachtelte Anfrage-,
+  Plan- und Berichtsexporte teilen keine Datenobjekte mehr mit ihrer Quelle;
+  Pläne nach der älteren Hashformel benötigen einen neuen Vorschlag und Prüfung.
+  Ausführungsberichte müssen zur angeforderten Hülle, zum Workflow und zum
+  Adapter gehören; Abweichungen stoppen die Kette und werden nicht als
+  Erfolgsnachweise gespeichert.
 - Loopback-Ollama meldet jetzt `local_model` / `local_only_model` statt einer
   Netzwerk-/Hybridtopologie. Entfernte und fremdgehostete Modelle behalten ihre
   unterscheidbaren Provider- und Inferenzort-Felder.

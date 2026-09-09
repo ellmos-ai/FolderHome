@@ -109,6 +109,7 @@ class WorkflowExecutionEnvelope:
             raise ValueError("Neue Ausführungshülle muss prepared sein.")
         if not self.side_effects:
             raise ValueError("Ausführungshülle benötigt sichtbare Side Effects.")
+        object.__setattr__(self, "domain_plan", deepcopy(self.domain_plan))
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -119,7 +120,7 @@ class WorkflowExecutionEnvelope:
             "domain_plan_id": self.domain_plan_id,
             "domain_plan_schema": self.domain_plan_schema,
             "domain_plan_sha256": self.domain_plan_sha256,
-            "domain_plan": dict(self.domain_plan),
+            "domain_plan": deepcopy(self.domain_plan),
             "approval_kind": self.approval_kind,
             "side_effects": list(self.side_effects),
             "status": self.status,
@@ -153,6 +154,18 @@ class WorkflowExecutionReport:
             raise ValueError("Domainbericht und Schema stimmen nicht überein.")
         if not self.side_effects:
             raise ValueError("Ausführungsbericht benötigt sichtbare Side Effects.")
+        object.__setattr__(self, "domain_report", deepcopy(self.domain_report))
+
+    def verify_envelope(self, envelope: WorkflowExecutionEnvelope) -> None:
+        if (
+            self.envelope_id != envelope.envelope_id
+            or self.workflow_id != envelope.workflow_id
+            or self.adapter_id != envelope.adapter_id
+        ):
+            raise ValueError(
+                "Ausführungsbericht gehört nicht zum angeforderten Schritt; "
+                "Wirkung unklar, nicht automatisch wiederholen."
+            )
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -162,7 +175,7 @@ class WorkflowExecutionReport:
             "workflow_id": self.workflow_id,
             "adapter_id": self.adapter_id,
             "domain_report_schema": self.domain_report_schema,
-            "domain_report": dict(self.domain_report),
+            "domain_report": deepcopy(self.domain_report),
             "side_effects": list(self.side_effects),
             "status": self.status,
             "execution_performed": self.execution_performed,

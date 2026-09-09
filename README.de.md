@@ -6,12 +6,12 @@
 
 > Assistantify your home.
 
-**Current concise README:** Phase 36 / 2026-08-23  
-**Direct predecessor:**
+**Aktuelle Kurzfassung:** lokale Abnahme / 2026-09-09  
+**Direkter Vorläufer:**
 [`docs/archive/README-phase36-draft.md`](docs/archive/README-phase36-draft.de.md)
 
-FolderHome is a local-first Strands agent that turns scattered household
-documents into searchable, explainable and safely actionable workflows.
+FolderHome ist ein local-first Strands-Agent, der verstreute Haushaltsdokumente
+in durchsuchbare, nachvollziehbare und kontrolliert ausführbare Abläufe überführt.
 
 FolderHome ist ein lokaler Dokument- und Assistenzservice-Agent. Er verbindet
 Dokumentensuche, reversible Dateiarbeit und gekapselte Alltagsdienste, ohne
@@ -20,24 +20,23 @@ Cloudberechtigungen zu geben.
 
 ## Status
 
-- 36 von 36 lokalen Wettbewerbsphasen umgesetzt
-- ein echter `strands.Agent`-Master mit vier begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- vollständige Feature-Suite: 503 bestanden, 0 fehlgeschlagen; nach dem
-  Provenienz-Repin vom 27.08.2026 erneut 503/503 bestanden, auch die
-  Manifestprüfung bestand 10/10
+- lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
+- ein echter `strands.Agent`-Master mit sieben begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
+- letzter lokaler Gesamtlauf: **726 bestanden**, 0 fehlgeschlagen in 240,31 Sekunden
+  am 09.09.2026, Warnungen als Fehler behandelt; keine Browser- oder AWS-Abnahme
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,
   bestätigungspflichtige FolderHome-Workflowadapter
 - zweisprachiger öffentlicher Showcase mit Hell-/Dunkelmodus in
   [`site/`](./site/) und eine bereitgestellte, quotenbegrenzte
   AgentCore-HTTP-Runtime; ihr öffentlicher Browserpfad bleibt deaktiviert,
-  solange Bedrocks angewandte On-Demand-Quoten null sind
-- vollständiger Baseline-Scan über 12/12 Oberflächen plus aktueller
-  66-Dateien-Delta-Audit; vier Befunde behoben
+  bis zur erneuten AWS-Abnahme
+- historischer Baseline-Audit über 12/12 Oberflächen und 66 geänderte Dateien;
+  die erweiterte Implementierung benötigt noch ihre abschließende Bereichsprüfung
 - öffentliches MIT-Repository, [dreiminütiges öffentliches Demovideo](https://youtu.be/wPb1wBJcLjQ)
   und eine eingereichte [Agents-for-Humans-Teilnahme](https://devpost.com/software/folderhome)
 
-Der kanonische Nachweis steht im
+Der historische Nachweis der Wettbewerbsbasis steht im
 [`Phase-36-Completion-Audit`](docs/phase36-completion-audit.de.md). Während des
 Wettbewerbs heißt das Projekt ausschließlich **FolderHome**. Ein späteres
 Light-/Sovereign-Rebranding ist nicht Teil dieses Builds.
@@ -154,6 +153,12 @@ verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema. Eine
 Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
 verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten
 ihre eigene Konfiguration und getrennten Live-Effekt-Freigaben.
+
+Die Freigabe berechnet den vollständigen Planhash einschließlich angezeigter
+Zusammenfassung und Rezeptabnahme neu; vor jedem Schritt wird er erneut geprüft.
+Veränderte Pläne werden abgelehnt, Nachweise abgeschlossener Schritte bleiben
+verfügbar. Nach einem Update von der älteren Hashformel ausstehende Pläne neu
+vorschlagen und prüfen lassen.
 
 Ein Fähigkeitsrezept macht aus einer ganzen Geschichte einen Plan.
 `recipes list` zeigt die mitgelieferten, `recipes plan` löst eines in einen

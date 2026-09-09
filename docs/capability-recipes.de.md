@@ -57,6 +57,36 @@ Jede beteiligte Fachrolle zeichnet das Ergebnis: eine bei einem Rezept aus einer
 Domäne, alle bei einem domänenübergreifenden Rezept. Die Abnahme geht in den
 Planhash ein; wer den Plan bestätigt, bestätigt die Abnahme mit.
 
+## Planintegrität
+
+Bei der Bestätigung wird der Hash aus dem aktuellen Planinhalt neu berechnet;
+übereinstimmende gespeicherte Hashwerte reichen nicht aus. Der Hash umfasst das
+vollständige öffentliche Masterplan-Objekt außer `plan_id` und `plan_sha256`,
+kodiert als UTF-8-JSON mit sortierten Schlüsseln, ohne zusätzliche Leerzeichen
+und ohne nichtendliche Zahlen. `approval_context` enthält Rezept-ID und
+Rezepthash, Übergabekanten, Abnahme und geordnete Schrittverweise.
+
+Die App prüft diese Bindung vor Annahme der Freigabe, die Kette erneut vor jedem
+Schritt. Veränderte Inhalte stoppen den nächsten Schritt; bereits ausgeführte
+Wirkungen und ihre Berichte bleiben erhalten. Verschachtelte Anfrage-, Plan- und
+Berichtsdaten werden an ihren Eingabe-/Exportgrenzen kopiert. Ein exportiertes
+Objekt lässt sich dadurch bearbeiten, ohne seine Quelle still zu verändern.
+Das ist eine Integritätsprüfung, keine zusätzliche Sicherheitsgrenze gegenüber
+Code unter demselben Betriebssystemkonto.
+
+Pläne nach der älteren Hashformel müssen nach dem Update neu vorgeschlagen und
+geprüft werden. Sie werden weder still umgerechnet noch unter dem neuen Hash
+freigegeben.
+
+Ein Ausführungsbericht muss außerdem zur angeforderten Hülle, zum Workflow und
+zum Adapter gehören. Ein fremder Bericht wird weder gespeichert noch diesem
+Schritt als Erfolg zugerechnet; die Kette stoppt. Die lokale API kennzeichnet
+diesen Fall mit `execution_outcome_unknown: true` und
+`result_delivery_incomplete: true`. `execution_performed` zählt nur verifizierte
+Berichte: Bei unklarem Ergebnis beweist `false` **nicht**, dass nichts gewirkt hat.
+Vor einem manuellen Wiederholungsversuch den tatsächlichen Fachzustand prüfen;
+der aktuelle Rezeptversuch lässt sich nicht erneut starten.
+
 ## In App und Chat
 
 Ein organisatorisches Profil und darunter eine **Mehrschritt-Aufgabe** auswählen.
@@ -117,18 +147,21 @@ python -m folderhome recipes run `
   --confirm plan_<id> --approved-at 2026-08-25T09:05:00+02:00 --json
 ```
 
-Ein Rezeptplan ist deterministisch; eine erneute Vorbereitung ergibt dieselbe
-Plan-ID. Genau das erlaubt einer zustandslosen Kommandozeile, einen zuvor
+Ein Rezeptplan ist deterministisch: Gleiche Eingaben und gleicher Fachzustand
+ergeben mit demselben Code dieselbe Plan-ID. Genau das erlaubt einer zustandslosen
+Kommandozeile, einen zuvor
 ausgegebenen Plan zu bestätigen, ohne eine Sitzung offen zu halten.
 
 ## Wenn ein Schritt scheitert
 
-Die Kette hält beim ersten Fehler an. Der Bericht wird zurückgegeben statt
+Ungültige Planintegrität vor dem Kettenstart wird ohne Ausführung abgelehnt.
+Nach dem Start hält die Kette beim ersten Fehler an. Ein Bericht wird zurückgegeben
+statt
 geworfen, denn wer nur eine Ausnahme sähe, wüsste nicht, was bereits gewirkt hat.
 Er benennt drei Gruppen ausdrücklich:
 
 - `executed_step_refs` — diese liefen, ihre Wirkung bleibt bestehen
-- `failed_step_refs` — genau ein Schritt, mit der Meldung des Adapters
+- `failed_step_refs` — genau ein Schritt, mit Adapter- oder Integritätsfehler
 - `not_attempted_step_refs` — alles danach, unberührt
 
 Über Schrittgrenzen hinweg wird nichts zurückgenommen: Jeder Adapter behält

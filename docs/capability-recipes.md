@@ -53,6 +53,32 @@ Every involved expert signs the result: one for a single-domain recipe, all of
 them for a recipe that spans domains. The endorsement goes into the plan hash,
 so confirming the plan confirms the review with it.
 
+## Plan integrity
+
+Confirmation recomputes the hash from the current plan content; matching stored
+hash strings is not enough. The hash covers the complete public master-plan
+object except `plan_id` and `plan_sha256`, encoded as UTF-8 JSON with sorted keys,
+no extra whitespace and no non-finite numbers. `approval_context` includes the
+recipe ID and digest, handoffs, endorsement and ordered step references.
+
+The app checks this binding before accepting approval, and the chain checks it
+again before each step. Changed content stops the next step; already completed
+effects and their reports remain. Nested request, plan and report data are
+copied at their input/export boundaries, so editing an exported object cannot
+silently change its source. This is an integrity check, not a new security
+boundary against code running under the same operating-system account.
+
+Plans created using the older hash formula must be proposed and reviewed again
+after updating. They are not silently converted or approved under the new hash.
+
+An execution report must also match the requested envelope, workflow and adapter.
+A mismatched report is not stored or credited to that step; the chain stops.
+At the local API, `execution_outcome_unknown: true` and
+`result_delivery_incomplete: true` mark that case. `execution_performed` counts
+verified reports only: when the outcome is unknown, `false` does **not** prove
+that no effect happened. Inspect the underlying state before any manual retry;
+the current recipe attempt cannot be started again.
+
 ## In the app and chat
 
 Choose an organizational profile, then a **Multi-step journey** below the chat.
@@ -110,18 +136,21 @@ python -m folderhome recipes run `
   --confirm plan_<id> --approved-at 2026-08-25T09:05:00+02:00 --json
 ```
 
-A recipe plan is deterministic, so preparing it again yields the same plan ID.
+A recipe plan is deterministic: preparing the same inputs and domain state with
+the same code yields the same plan ID.
 That is what lets a stateless command line confirm a plan it printed earlier
 without keeping a session open.
 
 ## When a step fails
 
-The chain stops at the first failure. The report is returned rather than thrown,
+Invalid plan integrity before the chain starts is rejected without execution.
+Once started, the chain stops at the first failure. A report is returned rather
+than thrown,
 because a caller that only saw an exception could not tell what already took
 effect. It names three groups explicitly:
 
 - `executed_step_refs` — these ran and their effects stand
-- `failed_step_refs` — exactly one step, with the adapter's own message
+- `failed_step_refs` — exactly one step, with its adapter or integrity-check error
 - `not_attempted_step_refs` — everything after it, untouched
 
 Nothing is rolled back across steps: each adapter keeps its own atomicity

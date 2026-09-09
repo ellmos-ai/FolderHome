@@ -502,21 +502,31 @@ class LocalApplication:
             raise LocalAppError(str(exc)) from exc
         approved_step_ids = set(receipt.approved_step_ids)
         execution_reports = []
-        for step in plan.steps:
-            if step.step_id not in approved_step_ids or step.execution_envelope is None:
-                continue
-            execution_reports.append(
-                self.workflow_executor.execute(
+        try:
+            for step in plan.steps:
+                if step.step_id not in approved_step_ids or step.execution_envelope is None:
+                    continue
+                try:
+                    plan.verify_integrity()
+                except ValueError as exc:
+                    raise LocalAppError(str(exc)) from exc
+                report = self.workflow_executor.execute(
                     envelope_id=step.execution_envelope.envelope_id,
                     approved_at=approved_at,
                 )
+                try:
+                    report.verify_envelope(step.execution_envelope)
+                except ValueError as exc:
+                    raise LocalAppError(str(exc)) from exc
+                execution_reports.append(report)
+        finally:
+            # A rejected later step must not erase evidence of an earlier real effect.
+            self._retain_execution_results(
+                profile_id=plan.profile_id,
+                plan_id=plan.plan_id,
+                reports=execution_reports,
+                executed_at=approved_at,
             )
-        self._retain_execution_results(
-            profile_id=plan.profile_id,
-            plan_id=plan.plan_id,
-            reports=execution_reports,
-            executed_at=approved_at,
-        )
         return {
             "schema": "folderhome.local-agent-confirmation-response.v1",
             "receipt": receipt.to_dict(),
@@ -542,6 +552,7 @@ class LocalApplication:
                 raise LocalAppError("Ein Rezept benötigt die Bestätigung aller Schritte.")
             approved_at = datetime.now(UTC).isoformat()
             try:
+                recipe_plan.verify_integrity()
                 receipt = confirm_master_agent_plan(plan, MasterPlanApproval(
                     approval_id=f"approval_{secrets.token_hex(10)}",
                     plan_id=request["plan_id"], plan_sha256=request["plan_sha256"],
@@ -552,9 +563,14 @@ class LocalApplication:
             self._started_recipe_plans.add(plan.plan_id)
             reports = []
             delivery_incomplete = False
+            execution_outcome_unknown = False
+            envelopes = {
+                step.execution_envelope.envelope_id: step.execution_envelope
+                for step in plan.steps if step.execution_envelope is not None
+            }
 
             def execute(envelope_id, timestamp):
-                nonlocal delivery_incomplete
+                nonlocal delivery_incomplete, execution_outcome_unknown
                 try:
                     report = self.workflow_executor.execute(
                         envelope_id=envelope_id, approved_at=timestamp,
@@ -564,6 +580,12 @@ class LocalApplication:
                     raise WorkflowExecutionError(
                         "Rezeptschritt gescheitert; keine weiteren Schritte gestartet."
                     ) from exc
+                try:
+                    report.verify_envelope(envelopes[envelope_id])
+                except ValueError as exc:
+                    execution_outcome_unknown = True
+                    delivery_incomplete = True
+                    raise WorkflowExecutionError(str(exc)) from exc
                 reports.append(report)
                 try:
                     self._retain_execution_results(
@@ -592,6 +614,7 @@ class LocalApplication:
                 "execution_reports": [item.to_dict() for item in reports],
                 "execution_performed": bool(reports),
                 "result_delivery_incomplete": delivery_incomplete,
+                "execution_outcome_unknown": execution_outcome_unknown,
                 "invalidated_plan_ids": invalidated_ids,
                 "side_effects": list(dict.fromkeys(
                     effect for report in reports for effect in report.side_effects

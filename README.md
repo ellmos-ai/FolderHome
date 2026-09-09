@@ -6,7 +6,7 @@
 
 > Assistantify your home.
 
-**Current concise README:** Phase 36 / 2026-08-23  
+**Current concise README:** local acceptance / 2026-09-09  
 **Direct predecessor:**  
 [`docs/archive/README-phase36-draft.md`](./docs/archive/README-phase36-draft.md)
 
@@ -19,21 +19,22 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 ## Status
 
-- 36 of 36 local competition phases implemented
-- one real `strands.Agent` master with four bounded tools and on-demand planning specialists
-- full feature suite: 503 passed, zero failed; repeated after the 2026-08-27
-  provenance repin with 503/503 passing, while the manifest check passed 10/10
+- 36-phase local competition baseline implemented; expanded final acceptance is ongoing
+- one real `strands.Agent` master with seven bounded tools and on-demand planning specialists
+- latest local full suite: **726 passed**, zero failed in 240.31 seconds on
+  2026-09-09, with warnings treated as errors; this is not browser or AWS acceptance
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated
   FolderHome workflow adapters
 - bilingual light/dark public showcase in [`site/`](./site/) and a deployed,
   quota-bounded AgentCore HTTP runtime; its public browser path stays disabled
-  while Bedrock's applied on-demand quotas remain zero
-- complete baseline scan over 12/12 surfaces plus current 66-file delta audit; four findings resolved
+  pending fresh AWS acceptance
+- historical baseline audit covered 12/12 surfaces and a 66-file delta;
+  the expanded implementation still needs its final cross-area audit
 - public MIT repository, [three-minute public demo video](https://youtu.be/wPb1wBJcLjQ)
   and a submitted [Agents for Humans entry](https://devpost.com/software/folderhome)
 
-The canonical evidence is in
+The historical competition-baseline evidence is in
 [`Phase-36-Completion-Audit`](./docs/phase36-completion-audit.md). During the competition the
 project is called **FolderHome** exclusively. A later Light-/Sovereign rebranding
 is not part of this build.
@@ -148,6 +149,11 @@ gaps. Each connected adapter publishes a closed request schema. A chat
 message never writes; exact confirmation returns a separate domain execution
 report for a connected plan. External effects retain their own configuration
 and live-effect approvals.
+
+Approval recomputes the complete plan hash, including its displayed summary and
+recipe review context, and execution rechecks it before each step. Changed plans
+are rejected; completed-step evidence remains available. After upgrading from the
+older hash formula, propose and review pending plans again.
 
 A capability recipe turns a whole journey into one plan. `recipes list` shows
 what ships, `recipes plan` resolves one into a single hash-bound multi-step plan,

@@ -62,6 +62,7 @@ class CapabilityRecipeStep:
                 raise CapabilityRecipeError(
                     f"Schrittanfrage besitzt ein ungültiges Feld: {key}"
                 )
+        object.__setattr__(self, "request", deepcopy(self.request))
 
     def goal(self, *, language: str) -> str:
         return self.goal_de if language == "de" else self.goal_en
@@ -271,6 +272,22 @@ class CapabilityRecipePlan:
     @property
     def plan_id(self) -> str:
         return self.plan.plan_id
+
+    def verify_integrity(self) -> None:
+        try:
+            self.plan.verify_integrity()
+        except ValueError as exc:
+            raise CapabilityRecipeError(str(exc)) from exc
+        if self.plan.approval_context != {
+            "recipe_id": self.recipe_id,
+            "recipe_sha256": self.recipe_sha256,
+            "handoffs": [item.to_dict() for item in self.handoffs],
+            "endorsement": self.endorsement.to_dict(),
+            "step_refs": list(self.step_refs),
+        }:
+            raise CapabilityRecipeError(
+                "Rezeptkontext stimmt nicht mit dem gebundenen Plan-Hash überein."
+            )
 
     def to_dict(self) -> dict[str, object]:
         return {

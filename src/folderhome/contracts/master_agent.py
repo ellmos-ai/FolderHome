@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import re
-from dataclasses import dataclass
+from copy import deepcopy
+from dataclasses import dataclass, field, replace
 from datetime import datetime
+from hashlib import sha256
 
 from folderhome.contracts.workflow_execution import WorkflowExecutionEnvelope
 
@@ -343,6 +346,7 @@ class MasterAgentPlan:
     side_effects: tuple[str, ...] = ()
     security_boundary: str = "operating_system_account"
     profiles_are_authorization_boundaries: bool = False
+    approval_context: dict[str, object] = field(default_factory=dict)
 
     SCHEMA = "folderhome.master-agent-plan.v2"
 
@@ -368,6 +372,40 @@ class MasterAgentPlan:
     def confirmation_required(self) -> bool:
         return any(item.confirmation_required for item in self.steps)
 
+    @classmethod
+    def create(
+        cls, *, request_sha256: str, profile_id: str, language: str,
+        summary: str, steps: tuple[MasterPlanStep, ...], route: SemanticRouteReceipt,
+        approval_context: dict[str, object] | None = None,
+    ) -> MasterAgentPlan:
+        """Bind all public consent material, using the same encoding as verification."""
+        draft = cls(
+            plan_id="plan_unbound", plan_sha256="0" * 64,
+            request_sha256=request_sha256, profile_id=profile_id, language=language,
+            summary=summary, steps=steps, route=route,
+            approval_context=deepcopy(approval_context or {}),
+        )
+        digest = draft.content_sha256()
+        return replace(draft, plan_id=f"plan_{digest[:20]}", plan_sha256=digest)
+
+    def content_sha256(self) -> str:
+        material = self.to_dict()
+        del material["plan_id"]
+        del material["plan_sha256"]
+        return sha256(json.dumps(
+            material, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+            allow_nan=False,
+        ).encode("utf-8")).hexdigest()
+
+    def verify_integrity(self) -> None:
+        """Reject stale stored hashes, including mutations of nested domain data."""
+        try:
+            digest = self.content_sha256()
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise ValueError("Planinhalt ist nicht als gültiger Plan-Hash prüfbar.") from exc
+        if self.plan_sha256 != digest or self.plan_id != f"plan_{digest[:20]}":
+            raise ValueError("Planinhalt stimmt nicht mit dem gebundenen Plan-Hash überein.")
+
     def to_dict(self) -> dict[str, object]:
         return {
             "schema": self.SCHEMA,
@@ -385,6 +423,7 @@ class MasterAgentPlan:
             "side_effects": list(self.side_effects),
             "security_boundary": self.security_boundary,
             "profiles_are_authorization_boundaries": self.profiles_are_authorization_boundaries,
+            "approval_context": deepcopy(self.approval_context),
         }
 
 

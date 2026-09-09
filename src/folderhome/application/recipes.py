@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
+from copy import deepcopy
 from hashlib import sha256
 from importlib import resources
 
@@ -235,7 +236,7 @@ def build_recipe_plan(
     steps: list[MasterPlanStep] = []
     for sequence, step in enumerate(recipe.steps, start=1):
         capability = capabilities[step.workflow_id]
-        envelope = prepare(step.workflow_id, dict(step.request))
+        envelope = prepare(step.workflow_id, deepcopy(step.request))
         if envelope.workflow_id != step.workflow_id:
             raise CapabilityRecipeError(
                 "Vorbereitete Hülle gehört nicht zum geplanten Endpunkt."
@@ -273,18 +274,13 @@ def build_recipe_plan(
     request_sha256 = sha256(
         f"recipe:{recipe.recipe_id}".encode()
     ).hexdigest()
-    hash_material = {
-        "request_sha256": request_sha256,
-        "profile_id": profile_id,
-        "language": language,
-        "route": route.to_dict(),
-        "steps": [item.to_dict() for item in steps],
+    approval_context = {
         "recipe_id": recipe.recipe_id,
         "recipe_sha256": digest,
         "handoffs": [item.to_dict() for item in recipe.handoffs],
         "endorsement": endorsement.to_dict(),
+        "step_refs": [item.step_ref for item in recipe.steps],
     }
-    plan_sha256 = sha256(_canonical(hash_material)).hexdigest()
     summary = (
         f"{recipe.title(language=language)}: {len(steps)} verkettete Schritte, "
         "eine Bestätigung."
@@ -292,15 +288,14 @@ def build_recipe_plan(
         else f"{recipe.title(language=language)}: {len(steps)} chained steps, "
         "one confirmation."
     )
-    plan = MasterAgentPlan(
-        plan_id=f"plan_{plan_sha256[:20]}",
-        plan_sha256=plan_sha256,
+    plan = MasterAgentPlan.create(
         request_sha256=request_sha256,
         profile_id=profile_id,
         language=language,
         summary=summary,
         steps=tuple(steps),
         route=route,
+        approval_context=approval_context,
     )
     return CapabilityRecipePlan(
         plan=plan,
@@ -324,6 +319,7 @@ def execute_recipe_plan(
     exception could not tell which steps already took effect.
     """
 
+    recipe_plan.verify_integrity()
     outcomes: list[RecipeStepOutcome] = []
     aborted = False
     for step_ref, step in zip(
@@ -341,13 +337,15 @@ def execute_recipe_plan(
                 )
             )
             continue
-        envelope = step.execution_envelope
-        if envelope is None:
-            raise CapabilityRecipeError(
-                "Rezeptschritt besitzt keine vorbereitete Ausführungshülle."
-            )
         try:
+            recipe_plan.verify_integrity()
+            envelope = step.execution_envelope
+            if envelope is None:
+                raise CapabilityRecipeError(
+                    "Rezeptschritt besitzt keine vorbereitete Ausführungshülle."
+                )
             report = execute(envelope.envelope_id, approved_at)
+            report.verify_envelope(envelope)
         except Exception as exc:  # noqa: BLE001 - the chain reports every failure
             aborted = True
             outcomes.append(

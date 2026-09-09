@@ -4,12 +4,14 @@ import json
 import os
 import subprocess
 import sys
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 
 import pytest
 
 from folderhome.application.master_agent import (
+    MasterAgentError,
     confirm_master_agent_plan,
     master_capability_catalog,
 )
@@ -113,6 +115,143 @@ def _plan(gateway: _Gateway, **kwargs: object):
         endpoint_statuses=kwargs.pop("endpoint_statuses", None) or _statuses(),
         known_resource_ids=kwargs.pop("known_resource_ids", None) or RESOURCE_IDS,
     )
+
+
+@pytest.mark.parametrize("changed_field", ["handoffs", "step_refs", "endorsement", "content"])
+def test_recipe_refuses_changed_approval_material_before_any_effect(changed_field):
+    gateway = _Gateway()
+    prepared = _plan(gateway)
+    if changed_field == "handoffs":
+        prepared = replace(prepared, handoffs=())
+    elif changed_field == "step_refs":
+        prepared = replace(prepared, step_refs=tuple(reversed(prepared.step_refs)))
+    elif changed_field == "endorsement":
+        prepared = replace(prepared, endorsement=replace(
+            prepared.endorsement, checks=("unreviewed_replacement",),
+        ))
+    else:
+        prepared.plan.steps[0].execution_envelope.domain_plan["unapproved"] = True
+
+    with pytest.raises(CapabilityRecipeError):
+        execute_recipe_plan(prepared, execute=gateway.execute, approved_at=APPROVED_AT)
+    assert gateway.executed == []
+
+
+def test_confirmation_refuses_changed_nested_domain_plan():
+    prepared = _plan(_Gateway())
+    approval = MasterPlanApproval(
+        approval_id="approval_nested_integrity", plan_id=prepared.plan_id,
+        plan_sha256=prepared.plan.plan_sha256,
+        step_ids=tuple(step.step_id for step in prepared.plan.steps), approved_at=APPROVED_AT,
+    )
+    prepared.plan.steps[0].execution_envelope.domain_plan["unapproved"] = {"value": 1}
+    with pytest.raises(MasterAgentError):
+        confirm_master_agent_plan(prepared.plan, approval)
+
+
+def test_public_plan_export_does_not_allow_nested_mutation_of_approved_plan():
+    gateway = _Gateway()
+
+    def prepare(workflow_id, request):
+        envelope = gateway.prepare(workflow_id, request)
+        return replace(envelope, domain_plan={
+            "schema": envelope.domain_plan_schema, "actions": [{"target": "original"}],
+        })
+
+    prepared = build_recipe_plan(
+        load_bundled_recipe("accident-aftercare"), profile_id="lukas", language="en",
+        prepare=prepare, endpoint_statuses=_statuses(), known_resource_ids=RESOURCE_IDS,
+    )
+    payload = prepared.to_dict()
+    payload["plan"]["steps"][0]["execution_envelope"]["domain_plan"]["actions"][0][
+        "target"
+    ] = "unapproved"
+    assert prepared.plan.steps[0].execution_envelope.domain_plan["actions"] == [
+        {"target": "original"},
+    ]
+
+
+def test_recipe_stops_if_later_plan_content_changes_during_execution():
+    gateway = _Gateway()
+    prepared = _plan(gateway)
+
+    def execute(envelope_id, approved_at):
+        report = gateway.execute(envelope_id, approved_at)
+        prepared.plan.steps[1].execution_envelope.domain_plan["unapproved"] = True
+        return report
+
+    report = execute_recipe_plan(prepared, execute=execute, approved_at=APPROVED_AT)
+    assert [outcome.status for outcome in report.outcomes] == [
+        "executed", "failed", "not_attempted", "not_attempted",
+    ]
+    assert gateway.executed == ["contact-register"]
+
+
+def test_recipe_parser_owns_nested_requests_independently_of_input():
+    raw = _raw_recipe()
+    raw["steps"][0]["request"]["options"] = {"labels": ["original"]}
+    recipe = parse_recipe(raw)
+    raw["steps"][0]["request"]["options"]["labels"].append("unapproved")
+    assert recipe.steps[0].request["options"] == {"labels": ["original"]}
+
+
+def test_preparing_a_recipe_cannot_mutate_its_reviewed_request():
+    raw = _raw_recipe()
+    raw["steps"][0]["request"]["options"] = {"labels": ["original"]}
+    recipe = parse_recipe(raw)
+    gateway = _Gateway()
+
+    def prepare(workflow_id, request):
+        if "options" in request:
+            request["options"]["labels"].append("adapter_normalization")
+        return gateway.prepare(workflow_id, request)
+
+    build_recipe_plan(
+        recipe, profile_id="lukas", language="en", prepare=prepare,
+        endpoint_statuses=_statuses(), known_resource_ids=RESOURCE_IDS,
+    )
+    assert recipe.steps[0].request["options"] == {"labels": ["original"]}
+
+
+@pytest.mark.parametrize("direction", ["input", "export"])
+def test_domain_report_keeps_its_nested_evidence_independent(direction):
+    gateway = _Gateway()
+    prepared = _plan(gateway)
+    envelope_id = prepared.plan.steps[0].execution_envelope.envelope_id
+    original = gateway.execute(envelope_id, APPROVED_AT)
+    evidence = {"schema": original.domain_report_schema, "events": [{"note_id": "original"}]}
+    report = replace(original, domain_report=evidence)
+    if direction == "input":
+        evidence["events"][0]["note_id"] = "unrelated"
+    else:
+        report.to_dict()["domain_report"]["events"][0]["note_id"] = "unrelated"
+    assert report.to_dict()["domain_report"]["events"] == [{"note_id": "original"}]
+
+
+def test_domain_envelope_owns_its_nested_public_plan():
+    envelope = _plan(_Gateway()).plan.steps[0].execution_envelope
+    source = {"schema": envelope.domain_plan_schema, "actions": [{"target": "original"}]}
+    copied = replace(envelope, domain_plan=source)
+    source["actions"][0]["target"] = "unapproved"
+    assert copied.to_dict()["domain_plan"]["actions"] == [{"target": "original"}]
+
+
+@pytest.mark.parametrize("field", ["envelope_id", "workflow_id", "adapter_id"])
+def test_recipe_cannot_credit_a_report_from_another_execution(field):
+    gateway = _Gateway()
+    prepared = _plan(gateway)
+    other = prepared.plan.steps[-1].execution_envelope
+
+    def execute(envelope_id, approved_at):
+        report = gateway.execute(envelope_id, approved_at)
+        return replace(report, **{field: getattr(other, field)})
+
+    report = execute_recipe_plan(prepared, execute=execute, approved_at=APPROVED_AT)
+    assert report.status == "aborted"
+    assert report.to_dict()["executed_step_refs"] == []
+    assert report.to_dict()["failed_step_refs"] == ["contacts"]
+    assert report.to_dict()["not_attempted_step_refs"] == ["letter", "draft", "appointment"]
+    assert gateway.executed == ["contact-register"]
 
 
 def test_the_accident_recipe_ships_inside_the_package() -> None:

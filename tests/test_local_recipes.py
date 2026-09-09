@@ -2,6 +2,7 @@
 
 import json
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,6 +11,7 @@ from test_local_app import _app
 from test_recipes import RESOURCE_IDS, _Gateway, _statuses
 
 from folderhome.application.local_app import LocalAppError
+from folderhome.application.master_agent import build_master_agent_plan
 from folderhome.application.recipes import load_bundled_recipe
 from folderhome.application.workflow_execution import WorkflowExecutionError
 from folderhome.contracts import LogicalResource, ResourceRegistry
@@ -290,6 +292,121 @@ def test_local_recipe_api_runs_real_local_adapters_with_synthetic_mail(tmp_path,
     retained = app.execution_results_payload(profile_id="lukas", limit=25)["results"]
     assert len(retained) == (4 if mail_gate else 2)
     assert any(item["artifacts"] for item in retained)
+
+
+def test_changed_recipe_context_cannot_consume_confirmation_or_write_real_artifacts(tmp_path):
+    from test_workflow_execution import _recipe_environment
+
+    app = _app(tmp_path)
+    gateway, registry, transport, export, output = _recipe_environment(
+        tmp_path, allow_mail_draft=True,
+    )
+    app.workflow_executor = gateway
+    app.resource_registry = registry
+    prepared = propose(app)
+    changed = replace(prepared, handoffs=())
+    app._recipe_plans[prepared.plan_id] = changed
+
+    with pytest.raises(LocalAppError):
+        confirm(app, changed)
+    assert not (output / "Schadensmeldung.txt").exists()
+    assert not (export / "Unfall-Folgetermin.ics").exists()
+    assert transport.appended == []
+
+    # Rejected validation is not an execution attempt and must not burn the valid plan.
+    app._recipe_plans[prepared.plan_id] = prepared
+    result = confirm(app, prepared)
+    assert result["recipe_execution"]["status"] == "executed"
+    assert (output / "Schadensmeldung.txt").is_file()
+    assert (export / "Unfall-Folgetermin.ics").is_file()
+    assert len(transport.appended) == 1
+
+
+def test_ordinary_chain_rechecks_content_and_keeps_completed_evidence(tmp_path, monkeypatch):
+    from test_workflow_execution import _recipe_environment
+
+    app = _app(tmp_path)
+    gateway, registry, transport, export, output = _recipe_environment(
+        tmp_path, allow_mail_draft=True,
+    )
+    app.workflow_executor = gateway
+    app.resource_registry = registry
+    prepared = propose(app)
+    steps = prepared.plan.steps[:2]
+    plan = build_master_agent_plan(
+        "Prepare contact and letter.", profile_id="lukas", language="en",
+        expert_id="communication_expert", workflow_ids=tuple(s.workflow_id for s in steps),
+        confidence="high", why="Two explicitly selected communication workflows.",
+        execution_envelopes={s.workflow_id: s.execution_envelope for s in steps},
+    )
+    app._retain_agent_plan(plan)
+    real_execute = gateway.execute
+
+    def execute(*, envelope_id, approved_at):
+        report = real_execute(envelope_id=envelope_id, approved_at=approved_at)
+        steps[1].execution_envelope.domain_plan["unapproved_change"] = True
+        return report
+
+    monkeypatch.setattr(gateway, "execute", execute)
+    with pytest.raises(LocalAppError):
+        app.confirm_agent_plan(
+            plan_id=plan.plan_id, plan_sha256=plan.plan_sha256,
+            step_ids=tuple(s.step_id for s in plan.steps),
+        )
+    assert not (output / "Schadensmeldung.txt").exists()
+    assert transport.appended == []
+    retained = app.execution_results_payload(profile_id="lukas", limit=25)["results"]
+    assert len(retained) == 1
+    assert retained[0]["workflow_id"] == "contact-register"
+
+
+def test_local_recipe_does_not_store_an_unrelated_report_as_success(tmp_path, monkeypatch):
+    app = recipe_app(tmp_path)
+    prepared = propose(app)
+    gateway = app.workflow_executor
+    real_execute = gateway.execute
+    other = prepared.plan.steps[-1].execution_envelope
+
+    def execute(*, envelope_id, approved_at):
+        report = real_execute(envelope_id=envelope_id, approved_at=approved_at)
+        return replace(report, envelope_id=other.envelope_id)
+
+    monkeypatch.setattr(gateway, "execute", execute)
+    result = confirm(app, prepared)
+    assert result["recipe_execution"]["status"] == "aborted"
+    assert result["execution_reports"] == []
+    assert result["execution_outcome_unknown"] is True
+    assert result["result_delivery_incomplete"] is True
+    assert app.execution_results_payload(profile_id="lukas", limit=25)["results"] == []
+    with pytest.raises(LocalAppError):
+        confirm(app, prepared)
+    assert gateway.executed == ["contact-register"]
+
+
+def test_ordinary_plan_refuses_unrelated_execution_evidence(tmp_path, monkeypatch):
+    app = recipe_app(tmp_path)
+    prepared = propose(app)
+    step = prepared.plan.steps[0]
+    plan = build_master_agent_plan(
+        "Prepare contact.", profile_id="lukas", language="en",
+        expert_id=step.expert_id, workflow_ids=(step.workflow_id,), confidence="high",
+        why="One explicitly selected workflow.",
+        execution_envelopes={step.workflow_id: step.execution_envelope},
+    )
+    app._retain_agent_plan(plan)
+    real_execute = app.workflow_executor.execute
+
+    def execute(*, envelope_id, approved_at):
+        report = real_execute(envelope_id=envelope_id, approved_at=approved_at)
+        return replace(report, workflow_id="calendar-handoff")
+
+    monkeypatch.setattr(app.workflow_executor, "execute", execute)
+    with pytest.raises(LocalAppError):
+        app.confirm_agent_plan(
+            plan_id=plan.plan_id, plan_sha256=plan.plan_sha256,
+            step_ids=tuple(item.step_id for item in plan.steps),
+        )
+    assert app.execution_results_payload(profile_id="lukas", limit=25)["results"] == []
 
 
 def test_web_recipe_controls_have_bilingual_review_and_aborted_outcomes():
