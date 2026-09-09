@@ -1,0 +1,12 @@
+{
+  "watches_resource_id": "sched_watches",
+  "bindings_resource_id": "sched_bindings",
+  "store_resource_id": "sched_store",
+  "ledger_resource_id": "sched_ledger",
+  "state_resource_id": "sched_state",
+  "task_name": "synthetic_queue",
+  "interval_minutes": 30,
+  "start_at": "2026-09-10T08:00:00+02:00",
+  "timezone": "Europe/Berlin",
+  "allow_sensitive_local_read": true
+}

@@ -137,6 +137,7 @@ def test_plugins_validate_reports_all_pinned_manifests_as_json() -> None:
         "valid": True,
         "plugins": [
             "doc-services",
+            "ellmos-scheduler",
             "file-collect-sort-action",
             "hungrycall",
             "KnowledgeDigest",

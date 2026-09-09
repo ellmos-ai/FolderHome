@@ -1120,6 +1120,10 @@ class WorkflowExecutionError(RuntimeError):
     """Raised before an untyped, stale, repeated or unsupported execution."""
 
 
+class WorkflowExecutionOutcomeUnknown(WorkflowExecutionError):
+    """An attempted effect may exist but has no conclusive success report."""
+
+
 class WorkflowExecutorAdapter(Protocol):
     descriptor: WorkflowAdapterDescriptor
 

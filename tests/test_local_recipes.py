@@ -383,6 +383,54 @@ def test_local_recipe_does_not_store_an_unrelated_report_as_success(tmp_path, mo
     assert gateway.executed == ["contact-register"]
 
 
+def test_ordinary_unknown_outcome_survives_secondary_result_retention_failure(
+    tmp_path, monkeypatch
+):
+    from test_local_app import _api_headers
+
+    from folderhome.application.workflow_execution import WorkflowExecutionOutcomeUnknown
+
+    app = recipe_app(tmp_path)
+    prepared = propose(app)
+    steps = prepared.plan.steps[:2]
+    plan = build_master_agent_plan(
+        "Prepare contact and letter.", profile_id="lukas", language="en",
+        expert_id="communication_expert", workflow_ids=tuple(s.workflow_id for s in steps),
+        confidence="high", why="Two explicitly selected communication workflows.",
+        execution_envelopes={s.workflow_id: s.execution_envelope for s in steps},
+    )
+    app._retain_agent_plan(plan)
+    original_execute = app.workflow_executor.execute
+    calls = []
+
+    def execute(*, envelope_id, approved_at):
+        calls.append(envelope_id)
+        if len(calls) == 2:
+            raise WorkflowExecutionOutcomeUnknown("Private uncertain effect")
+        return original_execute(envelope_id=envelope_id, approved_at=approved_at)
+
+    def fail_retention(**kwargs):
+        assert len(kwargs["reports"]) == 1
+        raise OSError("C:/private/vanished-artifact.txt")
+
+    monkeypatch.setattr(app.workflow_executor, "execute", execute)
+    monkeypatch.setattr(app, "_retain_execution_results", fail_retention)
+    response = app.handle(
+        method="POST", target="/api/v1/agent/confirm",
+        headers=_api_headers(8765, app.session_token), server_port=8765,
+        body=json.dumps({
+            "schema": "folderhome.local-agent-confirmation-request.v1",
+            "plan_id": plan.plan_id, "plan_sha256": plan.plan_sha256,
+            "step_ids": [step.step_id for step in plan.steps],
+        }).encode("utf-8"),
+    )
+    assert len(calls) == 2
+    assert response.status_code == 409
+    assert response.payload["execution_outcome_unknown"] is True
+    assert response.payload["retry_safe"] is False
+    assert "vanished-artifact" not in json.dumps(response.payload)
+
+
 def test_ordinary_plan_refuses_unrelated_execution_evidence(tmp_path, monkeypatch):
     app = recipe_app(tmp_path)
     prepared = propose(app)

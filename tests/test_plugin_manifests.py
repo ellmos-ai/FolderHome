@@ -47,6 +47,7 @@ def test_repository_manifests_pin_the_reused_components() -> None:
     plugins = plugin_host.load_manifests(MANIFEST_ROOT)
 
     assert {plugin.plugin_id: plugin.source_revision for plugin in plugins} == {
+        "ellmos-scheduler": "d5103b9a733701f6db80dd08cfae408bf0af8ac5",
         "doc-services": "e5f46f53d0a19c7d49229bcf049c1b5f0045f0c2",
         "file-collect-sort-action": "8ebac2739c11c6a041abdd7b30131cef648b4753",
         "hungrycall": "9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c",

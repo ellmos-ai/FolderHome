@@ -22,7 +22,7 @@ Cloudberechtigungen zu geben.
 
 - lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
 - ein echter `strands.Agent`-Master mit sieben begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- letzter lokaler Gesamtlauf: **877 bestanden**, 0 fehlgeschlagen in 577,90 Sekunden
+- letzter lokaler Gesamtlauf: **954 bestanden**, 0 fehlgeschlagen in 672,88 Sekunden
   am 09.09.2026, Warnungen als Fehler behandelt; keine Browser- oder AWS-Abnahme
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,
@@ -145,10 +145,13 @@ Briefing-, Design-, FCSA- und Routinenstack hinzu. Ein Register, das zusätzlich
 ein Entwurfspostfach (`mail.draft_account`) deklariert, verbindet auch den
 reinen Entwurfsendpunkt für Mail. Damit sind 27 Endpunkte verbunden; hinzu
 kommen ein direkter Nur-Lese-Pfad, drei absichtlich nur planende
-Systemendpunkte und lediglich zwei sichtbare, fail-closed externe
-Connectorlücken: externe Kalender und Scheduler-Registrierung. Ohne
-konfiguriertes Postfach bleibt der Mailendpunkt ehrlich unverbunden; der
-Katalog meldet dann 26 verbundene Endpunkte und drei Lücken. Jeder
+Systemendpunkte und zwei nicht konfigurierte externe Endpunkte: externe Kalender
+und Scheduler-Registrierung. Die optionalen Scheduler-Ressourcen verbinden einen
+weiteren Endpunkt; mit Mail und Scheduler sind es 28 verbundene Endpunkte.
+Registrierung benötigt weiterhin Startgate und genaue Bestätigung und startet
+keinen Ausführungsdienst. Ohne Mailpostfach und ohne Scheduler-Konfiguration
+bleiben beide Endpunkte unverbunden; der Katalog meldet dann 26 verbundene
+Endpunkte und drei Lücken. Jeder
 verbundene Adapter veröffentlicht ein geschlossenes Anfrageschema. Eine
 Chatnachricht schreibt nie; die exakte Bestätigung liefert für einen
 verbundenen Plan einen eigenen Fach-Ausführungsbericht. Externe Effekte behalten
@@ -276,10 +279,12 @@ FolderHome-Kalender, Gesundheitsdossiers, Finanzimport, Bescheidberichte,
 ungeprüfte Verwaltungsentwürfe und Leistungsvorchecks ausführen. Jeder
 Schreibvorgang benötigt weiterhin die getrennte exakte Planbestätigung. Reine
 IMAP-Mailentwürfe stehen nur mit einer Ressource `mail.draft_account` und dem
-getrennten Gate `--approve-mail-draft` bereit. Externe Kalenderconnectoren und
-Scheduler-Registrierung bleiben unverbunden und separat gegatet.
-Das vollständige Register weist 27 verbundene, einen direkt nur lesenden, drei
-rein planende und zwei unverbundene Endpunkte aus.
+getrennten Gate `--approve-mail-draft` bereit. Scheduler-Registrierung wird über
+private Ressourcen und das getrennte Gate `--approve-scheduler-write` verbunden;
+siehe [Registrierungsanleitung](docs/phase15-scheduler-handoff-plan.de.md).
+Externe Kalenderconnectoren bleiben unverbunden. Mit Mail, aber ohne Scheduler-
+Ressourcen meldet der Katalog 27 verbundene, einen direkt nur lesenden, drei rein
+planende und zwei unverbundene Endpunkte; mit Scheduler gilt 28/1/3/1.
 
 ## Lokales Modell über Ollama
 

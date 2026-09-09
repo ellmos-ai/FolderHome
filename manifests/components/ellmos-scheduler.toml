@@ -1,0 +1,28 @@
+schema = "folderhome.component-manifest.v1"
+id = "ellmos-scheduler"
+name = "ellmos-scheduler"
+version = "0.3.1"
+license = "MIT"
+interface_version = "folderhome.plugin.v1"
+classification = "REUSED_UNCHANGED"
+default_mode = "dry-run"
+live_enabled = false
+
+[source]
+repository = "https://github.com/ellmos-ai/ellmos-scheduler.git"
+revision = "d5103b9a733701f6db80dd08cfae408bf0af8ac5"
+committed_at = "2026-08-25"
+
+[[capabilities]]
+id = "scheduler.jobs.register"
+title = "Genau bestätigten lokalen Scheduler-Job registrieren"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true
+
+[[capabilities]]
+id = "scheduler.jobs.consume"
+title = "Freigegebene Jobs mit separatem Dienststart ausführen"
+side_effects = ["filesystem.write"]
+dry_run_supported = true
+gate_required = true

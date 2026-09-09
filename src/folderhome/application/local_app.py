@@ -29,6 +29,7 @@ from folderhome.application.recipes import (
 from folderhome.application.workflow_execution import (
     WorkflowExecutionError,
     WorkflowExecutionGateway,
+    WorkflowExecutionOutcomeUnknown,
 )
 from folderhome.contracts.local_app import (
     LocalApiResponse,
@@ -502,6 +503,7 @@ class LocalApplication:
             raise LocalAppError(str(exc)) from exc
         approved_step_ids = set(receipt.approved_step_ids)
         execution_reports = []
+        unknown_outcome = None
         try:
             for step in plan.steps:
                 if step.step_id not in approved_step_ids or step.execution_envelope is None:
@@ -519,14 +521,23 @@ class LocalApplication:
                 except ValueError as exc:
                     raise LocalAppError(str(exc)) from exc
                 execution_reports.append(report)
+        except WorkflowExecutionOutcomeUnknown as exc:
+            unknown_outcome = exc
+            raise
         finally:
             # A rejected later step must not erase evidence of an earlier real effect.
-            self._retain_execution_results(
-                profile_id=plan.profile_id,
-                plan_id=plan.plan_id,
-                reports=execution_reports,
-                executed_at=approved_at,
-            )
+            try:
+                self._retain_execution_results(
+                    profile_id=plan.profile_id,
+                    plan_id=plan.plan_id,
+                    reports=execution_reports,
+                    executed_at=approved_at,
+                )
+            except Exception:
+                # Secondary evidence failure must not hide a possibly committed effect.
+                if unknown_outcome is not None:
+                    raise unknown_outcome from None
+                raise
         return {
             "schema": "folderhome.local-agent-confirmation-response.v1",
             "receipt": receipt.to_dict(),
@@ -577,6 +588,13 @@ class LocalApplication:
                     )
                 except Exception as exc:
                     # Adapter messages may contain private filesystem paths or mailbox data.
+                    if isinstance(exc, WorkflowExecutionOutcomeUnknown):
+                        execution_outcome_unknown = True
+                        delivery_incomplete = True
+                        raise WorkflowExecutionOutcomeUnknown(
+                            "Ergebnis unklar; eine Wirkung ist möglich. "
+                            "Nicht automatisch wiederholen."
+                        ) from exc
                     raise WorkflowExecutionError(
                         "Rezeptschritt gescheitert; keine weiteren Schritte gestartet."
                     ) from exc
@@ -772,6 +790,21 @@ class LocalApplication:
             return self._error(exc.status_code, str(exc))
         except LocalAppError as exc:
             return self._error(400, str(exc))
+        except WorkflowExecutionOutcomeUnknown:
+            return self._json_response(
+                {
+                    "schema": "folderhome.local-api-error.v1",
+                    "status": "uncertain",
+                    "status_code": 409,
+                    "message": (
+                        "Ergebnis unklar; eine Wirkung ist möglich. "
+                        "Privaten Nachweis prüfen, nicht automatisch wiederholen."
+                    ),
+                    "execution_outcome_unknown": True,
+                    "retry_safe": False,
+                },
+                status_code=409,
+            )
         except WorkflowExecutionError as exc:
             return self._error(409, str(exc))
         except ValueError as exc:

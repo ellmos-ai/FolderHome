@@ -20,8 +20,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   Due times are verified against a consistent run-history snapshot; foreign
   stores and SQLite sidecars remain untouched. A separately approved private
   consumer now reuses the provider loop, claims only its own job and checks
-  fresh child-run evidence. No automatic service start; app/CLI integration
-  remains open and the public catalog is unchanged.
+  fresh child-run evidence. The normal app/CLI factory now connects registration
+  through logical resources and `--approve-scheduler-write`, without starting
+  a consumer. Resource-file changes revoke later runs. Uncertain writes remain
+  explicitly unknown across HTTP and recipe boundaries. Setup/consumer controls
+  remain open; configured scheduler resources add one connected endpoint.
 - Architecture documentation now separates the four-adapter synthetic demo
   from the full runtime, seven master tools, setup/MCP boundaries and model
   providers. The bilingual guide includes calendar integrity and the local

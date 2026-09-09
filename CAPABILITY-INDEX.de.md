@@ -18,7 +18,7 @@ Laufzeit `connected`, wenn seine Ressourcen deklariert sind.
 ## Endpunkte (auto-generiert)
 
 <!-- @auto-generated:capability-index -->
-<!-- last-updated: 2026-08-25 01:03 UTC -->
+<!-- last-updated: 2026-09-09 05:00 UTC -->
 <!-- tool: _tools/capability-index -->
 <!-- count: 33 endpoints -->
 
@@ -55,7 +55,7 @@ Laufzeit `connected`, wenn seine Ressourcen deklariert sind.
 | `official-notice-understanding` | `rights_benefits_expert` | Einen Sozialrechtsbescheid nachprüfbar aus seinem eigenen gelabelten Inhalt erklären. | `as_of`, `output_basename`, `output_resource_id`, `received_on`, `source_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `local-app` | `system_expert` | Die lokale FolderHome-Anwendungsoberfläche erklären und planen. | — | `none` | `planning_only` |
 | `master-agent` | `system_expert` | Den Master-Agenten, seine Fachrollen und seinen Endpunktkatalog erklären und planen. | — | `none` | `planning_only` |
-| `scheduler-handoff` | `system_expert` | Ein portables Scheduler-Artefakt vorbereiten, ohne eine Systemaufgabe zu registrieren. | — | `external_effect` | `no_typed_adapter` |
+| `scheduler-handoff` | `system_expert` | Scheduler-Handoff planen oder konfigurierte Queue getrennt freigegeben registrieren; kein automatischer Dienststart. | `allow_sensitive_local_read`, `bindings_resource_id`, `interval_minutes`, `ledger_resource_id`, `start_at`, `state_resource_id`, `store_resource_id`, `task_name`, `timezone`, `watches_resource_id` | `external_effect` | `typed_adapter_available` |
 | `strands-agent` | `system_expert` | Einen begrenzten Lauf der echten Strands-Agentenschleife mit synthetischen Daten planen. | — | `none` | `planning_only` |
 
 <!-- @end:capability-index -->

@@ -202,12 +202,18 @@ def _plan_from_payload(payload):
                 raise SchedulerRegistrationError("Ungültiger Konfigurationspfad.")
             values[name] = Path(values[name])
         values["portable_argv"] = tuple(values["portable_argv"])
+        authorization_files = payload["authorization_files"]
+        if not isinstance(authorization_files, list) or any(
+            not isinstance(path, str) for path in authorization_files
+        ):
+            raise SchedulerRegistrationError("Ungültige Ressourcenfreigabedateien.")
         plan = build_scheduler_registration_plan(
             handoff=SchedulerHandoffPlan(**values),
             store_path=Path(payload["store_path"]),
             ledger_dir=Path(payload["ledger_dir"]),
             provider_root=Path(payload["provider_root"]),
             provider_revision=payload["provider_revision"],
+            authorization_files=tuple(Path(path) for path in authorization_files),
         )
         if plan.to_dict() != payload:
             raise SchedulerRegistrationError(

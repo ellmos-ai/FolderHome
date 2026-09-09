@@ -60,7 +60,13 @@ def test_index_states_code_availability_not_runtime_connection() -> None:
     assert index["mail-connector"].implementation == "typed_adapter_available"
     assert index["document-library"].implementation == "direct_read_only_tool"
     assert index["master-agent"].implementation == "planning_only"
-    assert index["scheduler-handoff"].implementation == "no_typed_adapter"
+    scheduler = index["scheduler-handoff"]
+    assert scheduler.implementation == "typed_adapter_available"
+    assert set(scheduler.required_inputs) == {
+        "watches_resource_id", "bindings_resource_id", "store_resource_id",
+        "ledger_resource_id", "state_resource_id", "task_name", "interval_minutes",
+        "start_at", "timezone", "allow_sensitive_local_read",
+    }
 
 
 def test_side_effect_classes_stay_within_the_known_vocabulary() -> None:

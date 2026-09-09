@@ -16,6 +16,7 @@ from dataclasses import dataclass
 
 from folderhome.application import workflow_execution
 from folderhome.application.master_agent import master_capability_catalog
+from folderhome.application.scheduler_workflow import SchedulerRegistrationWorkflowAdapter
 from folderhome.contracts.workflow_execution import WorkflowAdapterDescriptor
 
 SCHEMA = "folderhome.capability-index.v1"
@@ -142,8 +143,10 @@ _PURPOSES: dict[str, tuple[str, str]] = {
         "Alle aktivierten Beobachtungen nur lesend auswerten und übergreifende Konflikte zeigen.",
     ),
     "scheduler-handoff": (
-        "Prepare a portable scheduler artifact without registering any system task.",
-        "Ein portables Scheduler-Artefakt vorbereiten, ohne eine Systemaufgabe zu registrieren.",
+        "Plan a scheduler handoff or register a configured queue with separate approval; "
+        "no automatic consumer start.",
+        "Scheduler-Handoff planen oder konfigurierte Queue getrennt freigegeben registrieren; "
+        "kein automatischer Dienststart.",
     ),
     "strands-agent": (
         "Plan a bounded run of the real Strands agent loop with synthetic data.",
@@ -204,7 +207,8 @@ class CapabilityIndexEntry:
 def adapter_descriptors() -> dict[str, WorkflowAdapterDescriptor]:
     """Collect every typed adapter descriptor without instantiating an adapter."""
 
-    descriptors: dict[str, WorkflowAdapterDescriptor] = {}
+    scheduler = SchedulerRegistrationWorkflowAdapter.descriptor
+    descriptors: dict[str, WorkflowAdapterDescriptor] = {scheduler.workflow_id: scheduler}
     for name in workflow_execution.__all__:
         if not name.endswith("WorkflowAdapter"):
             continue

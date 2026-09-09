@@ -67,6 +67,21 @@ def test_registration_plan_is_deterministic_and_has_no_store_or_state_effects(re
     assert not registration_inputs["handoff"].state_dir.exists()
 
 
+def test_registration_binds_optional_resource_authority_file(registration_inputs):
+    api = _api()
+    authority = registration_inputs["handoff"].config_file.parent / "resources.json"
+    authority.write_text('{"grants": "synthetic"}', encoding="utf-8")
+    plan = api.build_scheduler_registration_plan(
+        **registration_inputs,
+        authorization_files=(authority,),
+    )
+    assert str(authority) in dict(plan.configuration_files)
+    authority.write_text('{"grants": "revoked"}', encoding="utf-8")
+    with pytest.raises(api.SchedulerRegistrationError):
+        api.validate_scheduler_registration_plan(plan)
+    assert not plan.store_path.exists()
+
+
 @pytest.mark.parametrize(
     "kind", ["watch", "bindings", "profile", "manifest", "new_profile", "deleted_profile"]
 )

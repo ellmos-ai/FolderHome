@@ -18,7 +18,7 @@ whether your installation has it configured. An endpoint only becomes
 ## Endpoints (auto-generated)
 
 <!-- @auto-generated:capability-index -->
-<!-- last-updated: 2026-08-25 01:03 UTC -->
+<!-- last-updated: 2026-09-09 05:00 UTC -->
 <!-- tool: _tools/capability-index -->
 <!-- count: 33 endpoints -->
 
@@ -55,7 +55,7 @@ whether your installation has it configured. An endpoint only becomes
 | `official-notice-understanding` | `rights_benefits_expert` | Explain a social-law notice from its own labeled content, verifiably. | `as_of`, `output_basename`, `output_resource_id`, `received_on`, `source_resource_id` | `local_file_write` | `typed_adapter_available` |
 | `local-app` | `system_expert` | Explain and plan the local FolderHome application surface. | — | `none` | `planning_only` |
 | `master-agent` | `system_expert` | Explain and plan the master agent, its experts and its endpoint catalog. | — | `none` | `planning_only` |
-| `scheduler-handoff` | `system_expert` | Prepare a portable scheduler artifact without registering any system task. | — | `external_effect` | `no_typed_adapter` |
+| `scheduler-handoff` | `system_expert` | Plan a scheduler handoff or register a configured queue with separate approval; no automatic consumer start. | `allow_sensitive_local_read`, `bindings_resource_id`, `interval_minutes`, `ledger_resource_id`, `start_at`, `state_resource_id`, `store_resource_id`, `task_name`, `timezone`, `watches_resource_id` | `external_effect` | `typed_adapter_available` |
 | `strands-agent` | `system_expert` | Plan a bounded run of the real Strands agent loop with synthetic data. | — | `none` | `planning_only` |
 
 <!-- @end:capability-index -->

@@ -3,7 +3,7 @@
 **English** | [Deutsch](./phase15-scheduler-handoff-plan.de.md)
 
 **As of:** 2026-09-09  
-**Status:** handoff and runner implemented; registration integration remains open
+**Status:** handoff, runner and gated app registration implemented; consumer setup remains open
 
 ## User Goal
 
@@ -97,9 +97,37 @@ cannot establish a new run. Timeouts and missing evidence are not success; a
 failed observation write is marked `uncertain` separately from the run result.
 Documents remain unchanged, and no checkpoint or cleanup action is released.
 
-The confirmation adapter, resource setup and app/CLI wiring remain under
-development. The existing `scheduler plan/run` behavior and the
-public capability catalog are unchanged. Integration tests use temporary stores
+The `scheduler-handoff` adapter is connected in the normal app/agent/recipe
+factory when a private `scheduler.store` resource is configured. The startup
+flag `--approve-scheduler-write` and a separate exact plan confirmation are both
+required for registration. A launch file cannot grant the startup flag. The
+result distinguishes registered from consumer observed; no daemon starts.
+
+The request contains resource IDs, task name, interval, start time, timezone and
+`allow_sensitive_local_read=true`, never arbitrary paths or executables. See the
+[synthetic request](../examples/observation/scheduler-request.json). Declare these
+resources in the existing private resource registry:
+
+| Request field / directory | Purpose | Kind | Required operations |
+|---|---|---|---|
+| `watches_resource_id` | `scheduler.watches` | file | read |
+| `bindings_resource_id` | `scheduler.bindings` | file | read |
+| `store_resource_id` | `scheduler.store` | sqlite_store | read, state_write |
+| `ledger_resource_id` | `scheduler.ledger` | directory | read, state_write |
+| `state_resource_id` | `scheduler.state` | directory | read, state_write |
+| Every enabled watch source | `routine_queue.source` | directory | read, sensitive_read, list |
+| Every enabled binding target | `routine_queue.target` | directory | read, list |
+
+Each active watch must belong to the requested profile and match an explicitly
+registered source/target. Directories must already exist when loading the
+registry. The app binds the exact registry file bytes into the registration
+plan and rereads authority before confirmation. Later changes invalidate the
+consumer before another claim. Earlier private proposals require a new preview.
+An uncertain provider response remains explicitly unknown in ordinary HTTP and
+recipe confirmation; it is never presented as proof that no job was written.
+
+The Setup UI and visible consumer start/status controls remain under development.
+The existing `scheduler plan/run` behavior is unchanged. Tests use temporary stores
 and require the clean pinned scheduler checkout; no real user job is registered.
 
 ### USECASE 015-1: Verify Installation‑Free Handoff

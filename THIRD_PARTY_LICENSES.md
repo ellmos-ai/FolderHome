@@ -9,7 +9,7 @@
 
 | Component | Repository | Revision | License | Integration |
 |---|---|---|---|---|
-| ellmos-scheduler 0.3.1 | `https://github.com/ellmos-ai/ellmos-scheduler.git` | `d5103b9a733701f6db80dd08cfae408bf0af8ac5` | MIT | Unmodified optional provider; gated registration API and read-only job/history schema seam; no copied code, consumer or app integration yet |
+| ellmos-scheduler 0.3.1 | `https://github.com/ellmos-ai/ellmos-scheduler.git` | `d5103b9a733701f6db80dd08cfae408bf0af8ac5` | MIT | Unmodified optional provider; gated app registration, single-job consumer and read-only job/history schema seam; no copied code or automatic service start |
 | file-collect-sort-action | `https://github.com/ellmos-ai/file-collect-sort-action.git` | `8ebac2739c11c6a041abdd7b30131cef648b4753` | MIT | Pinned plugin manifest |
 | HungryCall | `https://github.com/ellmos-ai/hungrycall.git` | `9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c` | MIT | Pinned plugin manifest |
 | Ringedingeding | `https://github.com/ellmos-ai/ringedingeding.git` | `94ae1f1e028be5aaf100baafadc18b64ff0940a2` | MIT | Pinned plugin manifest |

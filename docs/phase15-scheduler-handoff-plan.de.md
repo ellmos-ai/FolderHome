@@ -3,7 +3,7 @@
 [English](./phase15-scheduler-handoff-plan.md) | **Deutsch**
 
 **Stand:** 2026-09-09  
-**Status:** Handoff und Runner implementiert; Registrierungsanbindung bleibt offen
+**Status:** Handoff, Runner und freigabegesicherte App-Registrierung implementiert; Consumer-Einrichtung offen
 
 ## Nutzerziel
 
@@ -116,10 +116,39 @@ Timeouts und fehlende Nachweise sind kein Erfolg; ein gescheiterter
 Beobachtungsnachweis wird getrennt vom Laufergebnis als `uncertain` gemeldet.
 Dokumente bleiben unverändert; weder Checkpoint noch Aufräumaktion werden freigegeben.
 
-Bestätigungsadapter, Ressourceneinrichtung und App-/CLI-Anbindung bleiben in Arbeit.
-Das bisherige Verhalten von
-`scheduler plan/run` und der öffentliche Capability-Katalog bleiben unverändert.
-Integrationstests verwenden temporäre Stores und benötigen den sauberen gepinnten
+Der Adapter `scheduler-handoff` wird beim normalen App-/Agenten-/Rezeptstart
+verbunden, wenn eine private Ressource `scheduler.store` konfiguriert ist.
+Registrierung benötigt sowohl das Startflag `--approve-scheduler-write` als auch
+eine getrennte genaue Planbestätigung. Eine Startdatei kann das Flag nicht erteilen.
+Das Ergebnis unterscheidet Registrierung und beobachteten Ausführungsdienst;
+es startet kein Daemon.
+
+Die Anfrage enthält Ressourcen-IDs, Taskname, Intervall, Startzeit, Zeitzone und
+`allow_sensitive_local_read=true`, niemals beliebige Pfade oder Interpreter.
+Siehe [synthetische Anfrage](../examples/observation/scheduler-request.json).
+Im vorhandenen privaten Ressourcenregister werden folgende Ressourcen deklariert:
+
+| Anfragefeld / Verzeichnis | Zweck | Art | Benötigte Operationen |
+|---|---|---|---|
+| `watches_resource_id` | `scheduler.watches` | file | read |
+| `bindings_resource_id` | `scheduler.bindings` | file | read |
+| `store_resource_id` | `scheduler.store` | sqlite_store | read, state_write |
+| `ledger_resource_id` | `scheduler.ledger` | directory | read, state_write |
+| `state_resource_id` | `scheduler.state` | directory | read, state_write |
+| Jede aktive Watch-Quelle | `routine_queue.source` | directory | read, sensitive_read, list |
+| Jedes aktive Bindungsziel | `routine_queue.target` | directory | read, list |
+
+Jeder aktive Watch muss zum gewählten Profil gehören und explizit registrierte
+Quell-/Zielordner verwenden. Verzeichnisse müssen beim Laden des Registers bereits
+existieren. Die App bindet die genauen Registerdatei-Bytes in den Registrierungsplan
+und liest die Rechte vor Bestätigung erneut. Spätere Änderungen sperren den
+Consumer vor einer weiteren Übernahme. Frühere private Vorschläge benötigen eine
+neue Vorschau. Ein unklarer Providerrückgabewert bleibt bei gewöhnlicher HTTP-
+und Rezeptbestätigung ausdrücklich unklar; er belegt nicht, dass kein Job entstand.
+
+Setup-Oberfläche und sichtbare Consumer-Start-/Statusbedienung bleiben in Arbeit.
+Das bisherige Verhalten von `scheduler plan/run` bleibt unverändert.
+Tests verwenden temporäre Stores und benötigen den sauberen gepinnten
 Scheduler-Checkout; es wird kein echter Nutzerjob registriert.
 
 ### USECASE 015-1: Installationsfreien Handoff prüfen

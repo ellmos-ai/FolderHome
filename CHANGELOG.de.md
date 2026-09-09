@@ -23,7 +23,11 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   Stores und SQLite-Begleitdateien bleiben unverändert. Ein getrennt freigegebener
   privater Ausführungsdienst nutzt jetzt die Providerschleife, übernimmt nur
   seinen eigenen Job und prüft frische Kindprozessnachweise. Kein automatischer
-  Dienststart; App-/CLI-Anbindung bleibt offen, der öffentliche Katalog unverändert.
+  Dienststart. Der normale App-/CLI-Start verbindet Registrierung jetzt über
+  logische Ressourcen und `--approve-scheduler-write`. Registerdateiänderungen
+  sperren spätere Läufe. Unklare Schreibausgänge bleiben über HTTP- und
+  Rezeptgrenzen ausdrücklich unklar. Setup-/Consumer-Bedienung bleibt offen;
+  konfigurierte Scheduler-Ressourcen verbinden einen weiteren Endpunkt.
 - Die Architekturdokumentation trennt die synthetische Vier-Adapter-Demo von
   der vollständigen Laufzeit, sieben Master-Werkzeugen, Setup-/MCP-Grenzen und
   Modellprovidern. Die zweisprachige Anleitung erläutert Kalenderintegrität und

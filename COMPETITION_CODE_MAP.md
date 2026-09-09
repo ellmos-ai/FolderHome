@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.41
+**Version:** 0.42
 **Updated:** 2026-09-09  
-**Reason:** Scheduler registration and unmodified provider reuse classified  
+**Reason:** Resource-bound scheduler app adapter and unmodified provider reuse classified  
 **Purpose:** Assigns each relevant repository area to an origin class.
 
 > If you discover outdated passages or references, correct this file and the associated manifests. The Git history remains the technical evidence.
@@ -31,7 +31,12 @@
   code (`NEW_CORE` / `NEW_BRIDGE`). It imports unchanged `ellmos-scheduler` 0.3.1
   at revision `d5103b9a733701f6db80dd08cfae408bf0af8ac5`; provider source is not
   copied. Job writes use the provider API; a pinned-schema read transaction
-  joins job and run evidence. This private API is not yet a connected app endpoint.
+  joins job and run evidence.
+- `application.scheduler_workflow` is new resource-bound app integration
+  (`NEW_CORE` / `NEW_BRIDGE`), exposed only when scheduler resources are configured.
+  The existing app/CLI gateway requires separate scheduler-write approval and an
+  exact confirmed plan. Resource-authority bytes are included in the private
+  registration plan. Setup UI and visible consumer controls remain unfinished.
 - `application.scheduler_consumer` is new single-job integration and child-report
   verification (`NEW_CORE` / `NEW_BRIDGE`). Scheduling, claims, leases, run history
   and the polling loop reuse the same unmodified provider; no second scheduler

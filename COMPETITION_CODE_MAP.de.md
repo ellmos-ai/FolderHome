@@ -2,9 +2,9 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.41
+**Version:** 0.42
 **Aktualisiert:** 2026-09-09
-**Grund:** Scheduler-Registrierung und unveränderte Provider-Nutzung eingeordnet
+**Grund:** Ressourcengebundener Scheduler-App-Adapter und unveränderte Provider-Nutzung eingeordnet
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
 
 > Wenn du veraltete Passagen oder Verweise entdeckst, korrigiere diese Datei
@@ -32,8 +32,13 @@
   Abgleichcode (`NEW_CORE` / `NEW_BRIDGE`). Er importiert `ellmos-scheduler` 0.3.1
   unverändert auf Revision `d5103b9a733701f6db80dd08cfae408bf0af8ac5`; Quellcode
   wird nicht kopiert. Jobs schreibt die Provider-API; eine schemafeste
-  Lesetransaktion verbindet Job- und Laufnachweise. Die private API ist noch
-  kein verbundener App-Endpunkt.
+  Lesetransaktion verbindet Job- und Laufnachweise.
+- `application.scheduler_workflow` ist neue ressourcengebundene App-Anbindung
+  (`NEW_CORE` / `NEW_BRIDGE`), nur bei konfigurierten Scheduler-Ressourcen verfügbar.
+  Der bestehende App-/CLI-Zugang verlangt getrennte Scheduler-Schreibfreigabe und
+  einen exakt bestätigten Plan. Die Bytes der Ressourcenberechtigung gehören zum
+  privaten Registrierungsplan. Setup-Oberfläche und sichtbare Dienststeuerung
+  sind weiterhin unvollständig.
 - `application.scheduler_consumer` ist neue Einzeljob-Anbindung und
   Kindprozessbericht-Prüfung (`NEW_CORE` / `NEW_BRIDGE`). Zeitplanung, Übernahmen,
   Leases, Laufhistorie und Ausführungsschleife stammen vom selben unveränderten

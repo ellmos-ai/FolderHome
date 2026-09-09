@@ -41,6 +41,7 @@ class SchedulerRegistrationPlan:
     provider_revision: str
     configuration_files: tuple[tuple[str, str], ...]
     resolved_directories: tuple[tuple[str, str], ...]
+    authorization_files: tuple[Path, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -51,6 +52,7 @@ class SchedulerRegistrationPlan:
             "ledger_dir": str(self.ledger_dir),
             "provider_root": str(self.provider_root),
             "provider_revision": self.provider_revision,
+            "authorization_files": [str(path) for path in self.authorization_files],
             "configuration_files": [
                 {"path": path, "sha256": digest} for path, digest in self.configuration_files
             ],
@@ -67,6 +69,7 @@ def build_scheduler_registration_plan(
     ledger_dir: Path,
     provider_root: Path,
     provider_revision: str,
+    authorization_files: tuple[Path, ...] = (),
 ) -> SchedulerRegistrationPlan:
     """Bind configuration membership and bytes, not changing watched documents.
 
@@ -79,16 +82,24 @@ def build_scheduler_registration_plan(
         ledger_dir = _safe_state_root(ledger_dir)
         provider_root = _safe_state_root(provider_root)
         verify_checkout_revision(provider_root, provider_revision)
-        files = _configuration_files(handoff)
+        authorization_files = tuple(
+            sorted({_safe_state_root(path) for path in authorization_files})
+        )
+        files = _configuration_files(handoff, authorization_files)
         resolved_directories = _resolved_directories(handoff)
         _validate_output_separation(
-            handoff, store_path, ledger_dir, provider_root, resolved_directories
+            handoff,
+            store_path,
+            ledger_dir,
+            provider_root,
+            resolved_directories,
+            authorization_files,
         )
         load_profile_configuration(handoff.profiles_dir)
         load_manifests(handoff.manifest_root)
-        if files != _configuration_files(handoff) or resolved_directories != _resolved_directories(
-            handoff
-        ):
+        if files != _configuration_files(
+            handoff, authorization_files
+        ) or resolved_directories != _resolved_directories(handoff):
             raise SchedulerRegistrationError("Konfiguration wurde während der Planung verändert.")
         provisional = SchedulerRegistrationPlan(
             plan_id="",
@@ -99,6 +110,7 @@ def build_scheduler_registration_plan(
             provider_revision=provider_revision,
             configuration_files=files,
             resolved_directories=resolved_directories,
+            authorization_files=authorization_files,
         )
         encoded = json.dumps(
             provisional.to_dict(),
@@ -115,6 +127,7 @@ def build_scheduler_registration_plan(
             provider_revision=provider_revision,
             configuration_files=files,
             resolved_directories=resolved_directories,
+            authorization_files=authorization_files,
         )
     except (OSError, ValueError, RuntimeError) as exc:
         raise SchedulerRegistrationError(
@@ -132,6 +145,7 @@ def validate_scheduler_registration_plan(
         ledger_dir=plan.ledger_dir,
         provider_root=plan.provider_root,
         provider_revision=plan.provider_revision,
+        authorization_files=plan.authorization_files,
     )
     if current != plan:
         raise SchedulerRegistrationError(
@@ -140,12 +154,15 @@ def validate_scheduler_registration_plan(
     return current
 
 
-def _configuration_files(handoff: SchedulerHandoffPlan) -> tuple[tuple[str, str], ...]:
+def _configuration_files(
+    handoff: SchedulerHandoffPlan, authorization_files=()
+) -> tuple[tuple[str, str], ...]:
     profiles = _safe_state_root(handoff.profiles_dir)
     manifests = _safe_state_root(handoff.manifest_root)
     if not profiles.is_dir() or not manifests.is_dir():
         raise SchedulerRegistrationError("Profil- oder Manifestverzeichnis fehlt.")
     paths = {handoff.config_file, handoff.bindings_file}
+    paths.update(authorization_files)
     paths.update(profiles.glob("*.json"))
     paths.update(manifests.glob("*.toml"))
     return tuple(
@@ -165,12 +182,15 @@ def _resolved_directories(handoff: SchedulerHandoffPlan) -> tuple[tuple[str, str
     )
 
 
-def _validate_output_separation(handoff, store, ledger, provider, directories):
+def _validate_output_separation(
+    handoff, store, ledger, provider, directories, authorization_files=()
+):
     protected = [Path(path) for _, path in directories]
     protected.extend(
         [handoff.profiles_dir, handoff.manifest_root, provider, handoff.doc_services_root]
     )
     protected_files = {handoff.config_file, handoff.bindings_file, handoff.python_executable}
+    protected_files.update(authorization_files)
     outputs = [store, ledger, _safe_state_root(handoff.state_dir)]
     for output in outputs:
         if output in protected_files or any(output.is_relative_to(root) for root in protected):

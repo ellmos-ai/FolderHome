@@ -217,6 +217,7 @@ from folderhome.application.scheduler_handoff import (
     build_scheduler_handoff,
     run_scheduler_queue,
 )
+from folderhome.application.scheduler_workflow import SchedulerRegistrationWorkflowAdapter
 from folderhome.application.strands_agent import (
     FolderHomeAgentError,
     StrandsAgentSettings,
@@ -350,6 +351,7 @@ REPOSITORY_ROOT = Path(__file__).parents[2]
 DEFAULT_MANIFEST_ROOT = default_manifest_root()
 DEFAULT_FCSA_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "file-collect-sort-action")
 DEFAULT_DOC_SERVICES_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "doc-services")
+DEFAULT_SCHEDULER_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "ellmos-scheduler")
 DEFAULT_KNOWLEDGE_DIGEST_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "KnowledgeDigest"
 DEFAULT_HUNGRYCALL_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "hungrycall"
 DEFAULT_RINGEDINGEDING_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "ringedingeding"
@@ -1571,6 +1573,8 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_FCSA_PROVIDER_ROOT,
     )
     parser.add_argument("--approve-mail-draft", action="store_true")
+    parser.add_argument("--scheduler-root", type=Path, default=DEFAULT_SCHEDULER_PROVIDER_ROOT)
+    parser.add_argument("--approve-scheduler-write", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=argparse.SUPPRESS)
     parser.add_argument("--max-body-bytes", type=int, default=65_536)
@@ -5502,6 +5506,16 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                     allow_mail_draft=args.approve_mail_draft,
                 )
             )
+        if any("scheduler.store" in resource.purposes for resource in resource_registry.resources):
+            scheduler_plugin = _plugin_by_id(args.manifest_root, "ellmos-scheduler")
+            workflow_adapters.append(SchedulerRegistrationWorkflowAdapter(
+                registry=resource_registry, resource_registry_file=configured_resources_file,
+                profiles_dir=settings.profiles_dir, manifest_root=args.manifest_root,
+                doc_services_root=args.doc_services_root, scheduler_root=args.scheduler_root,
+                scheduler_revision=scheduler_plugin.source_revision,
+                python_executable=Path(sys.executable), working_directory=REPOSITORY_ROOT,
+                allow_scheduler_write=args.approve_scheduler_write,
+            ))
     workflow_executor = WorkflowExecutionGateway(tuple(workflow_adapters))
     return LocalApplication(
         settings=settings,

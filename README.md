@@ -21,7 +21,7 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 - 36-phase local competition baseline implemented; expanded final acceptance is ongoing
 - one real `strands.Agent` master with seven bounded tools and on-demand planning specialists
-- latest local full suite: **877 passed**, zero failed in 577.90 seconds on
+- latest local full suite: **954 passed**, zero failed in 672.88 seconds on
   2026-09-09, with warnings treated as errors; this is not browser or AWS acceptance
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated
@@ -142,10 +142,13 @@ finance, social-law, inventory, tax, briefing, design, FCSA and routine stack.
 A registry that also declares a drafts mailbox (`mail.draft_account`) connects
 the draft-only mail endpoint as well. This yields 27 connected endpoints, one
 direct read-only path, three intentionally planning-only system endpoints and
-only two visible, fail-closed external connector gaps: external calendars and
-scheduler registration. Without a configured mailbox, the mail endpoint stays
-honestly unconnected and the catalog reports 26 connected endpoints and three
-gaps. Each connected adapter publishes a closed request schema. A chat
+two unconfigured external endpoints: external calendars and scheduler registration.
+Configuring the optional scheduler resources connects one more endpoint, giving
+28 connected endpoints when both mail and scheduler are configured. Registration
+still needs its startup gate and exact confirmation; it starts no consumer.
+Without either optional configuration, mail and scheduler stay unconnected;
+the catalog reports 26 connected endpoints and three gaps. Each connected
+adapter publishes a closed request schema. A chat
 message never writes; exact confirmation returns a separate domain execution
 report for a connected plan. External effects retain their own configuration
 and live-effect approvals.
@@ -258,10 +261,12 @@ FolderHome calendar, health dossiers, finance import, official-notice reports,
 review-only administrative drafts and benefit pre-screening. Every write still
 requires the separate exact plan confirmation. Draft-only IMAP mail is
 available only with a `mail.draft_account` resource and the separate
-`--approve-mail-draft` gate. External calendar connectors and scheduler
-registration remain unconnected and separately gated.
-The full registry reports 27 connected, one direct read-only, three
-planning-only and two unconnected endpoints.
+`--approve-mail-draft` gate. Scheduler registration connects with its private
+resources and separate `--approve-scheduler-write` gate; see the
+[registration guide](docs/phase15-scheduler-handoff-plan.md). External calendar
+connectors remain unconnected. With mail but without scheduler resources the
+catalog reports 27 connected, one direct read-only, three planning-only and two
+unconnected endpoints; adding scheduler resources changes those counts to 28/1/3/1.
 
 ## Local model via Ollama
 
