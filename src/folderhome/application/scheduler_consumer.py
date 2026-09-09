@@ -13,6 +13,7 @@ from dataclasses import fields
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
+from threading import Event
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
@@ -42,6 +43,10 @@ from folderhome.bridges.doc_services import DocServicesBridge
 from folderhome.contracts.routine_queue import FolderRoutineQueue
 from folderhome.contracts.scheduler import SchedulerHandoffPlan, SchedulerRunReport
 from folderhome.plugin_host import load_manifests
+
+
+class _ConsumerStopped(Exception):
+    """Internal exit from the provider's polling loop before its next claim."""
 
 
 def create_scheduler_consumer(
@@ -111,12 +116,29 @@ def create_scheduler_consumer(
 
     class BoundSchedulerService(provider.SchedulerService):
         _last_observation = None
+        _stop_event = None
+
+        def serve(self, poll_seconds: float = 5.0, *, stop_event: Event | None = None):
+            """Keep the provider loop; an explicit stop drains the current tick."""
+            if stop_event is not None and not isinstance(stop_event, Event):
+                raise TypeError("Consumer-Stoppsignal muss ein threading.Event sein.")
+            self._stop_event = stop_event
+            try:
+                if stop_event is not None and stop_event.is_set():
+                    return
+                super().serve(poll_seconds=poll_seconds)
+            except _ConsumerStopped:
+                return
+            finally:
+                self._stop_event = None
 
         @property
         def last_observation(self):
             return deepcopy(self._last_observation)
 
         def tick(self, *, now=None, limit=1, job_ids=None):
+            if self._stop_event is not None and self._stop_event.is_set():
+                raise _ConsumerStopped
             if type(limit) is not int or limit != 1 or job_ids not in (None, (job_id,), [job_id]):
                 raise SchedulerRegistrationError(
                     "Dieser Consumer darf nur seinen eigenen Job prüfen."

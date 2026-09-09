@@ -5,6 +5,7 @@ import sqlite3
 import subprocess
 from dataclasses import fields
 from datetime import UTC, datetime
+from threading import Event
 from types import SimpleNamespace
 
 import pytest
@@ -73,6 +74,39 @@ def test_constructing_consumer_does_not_run_or_claim_a_job(approved_plan):
     assert consumer.last_observation is None
     assert _runs(approved_plan) == []
     assert not approved_plan.handoff.state_dir.exists()
+
+
+@pytest.mark.parametrize("already_stopped", [True, False])
+def test_provider_loop_obeys_stop_signal_before_next_tick(approved_plan, already_stopped):
+    """A stop must exit the existing provider loop without claiming another job."""
+    consumer = _consumer(approved_plan)
+    stop = Event()
+    observed = []
+    errors = []
+    tick = consumer.tick
+    if already_stopped:
+        stop.set()
+
+    def observe_tick(**kwargs):
+        # Fix only the clock boundary, retaining the real provider/store behavior.
+        result = tick(now=datetime(2026, 9, 9, tzinfo=UTC), **kwargs)
+        if observed:
+            raise AssertionError("Provider loop ignored the stop signal before the next tick")
+        observed.append(result)
+        stop.set()
+        return result
+
+    consumer.tick = observe_tick
+    try:
+        consumer.serve(poll_seconds=0.01, stop_event=stop)
+    except TypeError as exc:
+        errors.append(str(exc))
+    assert errors == []
+    assert observed == ([] if already_stopped else [[]])
+    assert _runs(approved_plan) == []  # The real job is not due yet.
+    assert len(list(approved_plan.ledger_dir.glob("consumer-*.json"))) == (
+        0 if already_stopped else 1
+    )
 
 
 @pytest.mark.parametrize("with_document, expected_exit", [(False, 0), (True, 10)])
