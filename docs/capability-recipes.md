@@ -162,8 +162,34 @@ where to resume.
 Handoffs bind resources, not values. A recipe cannot yet take a value out of one
 step's report and put it into the next step's request — that would require
 resolving requests after execution starts and would break the single hash over
-the chain. The handoff edges are declared explicitly so a later version can add
-value substitution into declared slots without changing the recipe format.
+the chain. Existing resource handoffs remain unchanged; result-value slots use
+a separate versioned format.
+
+## Result bindings: v2 groundwork, not yet executable
+
+The parser also recognizes `folderhome.capability-recipe.v2` with an explicit
+`result_bindings` list. Each binding names an earlier `from_step`, a later
+`to_step`, a literal `source_path` (JSON member names and nonnegative array
+indices), a top-level `target_field`, and a `value_type`:
+`string`, `integer`, `number`, `boolean`, `object`, `array`, or `null`.
+
+Bindings cannot overwrite static request values or another binding. Reserved
+authority fields, including profiles, accounts, resources and approvals, cannot
+be result targets. The eventual destination adapter must additionally validate
+the complete resolved request; passing this format check does not authorize a
+field or an operation.
+
+Value selection performs no coercion: `false` is not an integer, missing data is
+not `null`, and non-finite numbers are rejected. Selected values are detached
+copies bounded to 64 KiB of UTF-8 JSON, 16 levels of nesting and 4,096 visited
+nodes (including object keys). Paths have at most eight segments; v2 recipes
+have at most 32 steps and 32 bindings.
+
+**Execution is still pending:** the existing single-confirmation planner rejects
+v2 before preparing an adapter. The next integration must retain verified
+same-run reports, resolve the next executable section, and present a new
+fully bound plan for fresh approval. A selected JSON value alone proves neither
+execution nor provenance. No v2 recipe is currently shipped in the catalog.
 
 ## Where recipes live
 

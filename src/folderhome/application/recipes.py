@@ -35,6 +35,11 @@ from folderhome.contracts.master_agent import (
     MasterPlanStep,
     SemanticRouteReceipt,
 )
+from folderhome.contracts.recipe_results import (
+    RESULT_RECIPE_SCHEMA,
+    RecipeResultBinding,
+    ResultBoundRecipe,
+)
 from folderhome.contracts.recipes import (
     RECIPE_SCHEMA,
     CapabilityHandoff,
@@ -77,8 +82,9 @@ def parse_recipe(payload: object) -> CapabilityRecipe:
 
     if not isinstance(payload, dict):
         raise CapabilityRecipeError("Rezept muss ein JSON-Objekt sein.")
-    _strict(payload, _RECIPE_FIELDS, "Rezept")
-    if payload.get("schema") != RECIPE_SCHEMA:
+    is_v2 = payload.get("schema") == RESULT_RECIPE_SCHEMA
+    _strict(payload, _RECIPE_FIELDS | ({"result_bindings"} if is_v2 else set()), "Rezept")
+    if payload.get("schema") not in (RECIPE_SCHEMA, RESULT_RECIPE_SCHEMA):
         raise CapabilityRecipeError("Rezept verwendet ein unbekanntes Schema.")
     raw_steps = payload.get("steps")
     if not isinstance(raw_steps, list) or not raw_steps:
@@ -87,10 +93,35 @@ def parse_recipe(payload: object) -> CapabilityRecipe:
     if not isinstance(raw_handoffs, list):
         raise CapabilityRecipeError("Rezept benötigt eine handoffs-Liste.")
     steps = tuple(_parse_step(item, index) for index, item in enumerate(raw_steps))
-    handoffs = tuple(
-        _parse_handoff(item, index) for index, item in enumerate(raw_handoffs)
-    )
-    return CapabilityRecipe(
+    handoffs = tuple(_parse_handoff(item, index) for index, item in enumerate(raw_handoffs))
+    recipe_class = ResultBoundRecipe if is_v2 else CapabilityRecipe
+    extra = {}
+    if is_v2:
+        raw_bindings = payload["result_bindings"]
+        if not isinstance(raw_bindings, list) or not 1 <= len(raw_bindings) <= 32:
+            raise CapabilityRecipeError("v2 benötigt 1 bis 32 Ergebnisübergaben.")
+        bindings = []
+        for item in raw_bindings:
+            if not isinstance(item, dict):
+                raise CapabilityRecipeError("Ergebnisübergabe muss ein Objekt sein.")
+            _strict(
+                item,
+                {"from_step", "to_step", "source_path", "target_field", "value_type"},
+                "Ergebnisübergabe",
+            )
+            if not isinstance(item["source_path"], list):
+                raise CapabilityRecipeError("Ergebnispfad muss eine Liste sein.")
+            bindings.append(
+                RecipeResultBinding(
+                    from_step=item["from_step"],
+                    to_step=item["to_step"],
+                    source_path=tuple(item["source_path"]),
+                    target_field=item["target_field"],
+                    value_type=item["value_type"],
+                )
+            )
+        extra["result_bindings"] = tuple(bindings)
+    return recipe_class(
         recipe_id=_text(payload, "recipe_id", "Rezept"),
         title_en=_text(payload, "title_en", "Rezept"),
         title_de=_text(payload, "title_de", "Rezept"),
@@ -99,6 +130,7 @@ def parse_recipe(payload: object) -> CapabilityRecipe:
         lead_expert_id=_text(payload, "lead_expert_id", "Rezept"),
         steps=steps,
         handoffs=handoffs,
+        **extra,
     )
 
 
@@ -121,9 +153,7 @@ def load_bundled_recipe(recipe_id: str) -> CapabilityRecipe:
     if recipe_id not in bundled_recipe_ids():
         raise CapabilityRecipeError(f"Unbekanntes Rezept: {recipe_id}")
     text = (
-        resources.files(_RECIPE_PACKAGE)
-        .joinpath(f"{recipe_id}.json")
-        .read_text(encoding="utf-8")
+        resources.files(_RECIPE_PACKAGE).joinpath(f"{recipe_id}.json").read_text(encoding="utf-8")
     )
     try:
         payload = json.loads(text)
@@ -174,9 +204,7 @@ def review_recipe(
                 f"nicht zu {step.expert_id}."
             )
         if capability.side_effects and not capability.approval_gates:
-            findings.append(
-                f"Endpunkt {step.workflow_id} wirkt nach außen, nennt aber kein Gate."
-            )
+            findings.append(f"Endpunkt {step.workflow_id} wirkt nach außen, nennt aber kein Gate.")
         status = endpoint_statuses.get(step.workflow_id)
         if status != "connected":
             findings.append(
@@ -226,6 +254,10 @@ def build_recipe_plan(
 ) -> CapabilityRecipePlan:
     """Resolve one recipe into a single plan with one confirmation for the chain."""
 
+    if isinstance(recipe, ResultBoundRecipe):
+        raise CapabilityRecipeError(
+            "Rezept-v2 benötigt Abschnittspläne mit neuer Freigabe nach Ergebnisübergaben."
+        )
     endorsement = review_recipe(
         recipe,
         endpoint_statuses=endpoint_statuses,
@@ -238,9 +270,7 @@ def build_recipe_plan(
         capability = capabilities[step.workflow_id]
         envelope = prepare(step.workflow_id, deepcopy(step.request))
         if envelope.workflow_id != step.workflow_id:
-            raise CapabilityRecipeError(
-                "Vorbereitete Hülle gehört nicht zum geplanten Endpunkt."
-            )
+            raise CapabilityRecipeError("Vorbereitete Hülle gehört nicht zum geplanten Endpunkt.")
         steps.append(
             MasterPlanStep(
                 step_id=f"step_{sequence}_{digest[:12]}_{step.step_ref}",
@@ -249,9 +279,7 @@ def build_recipe_plan(
                 expert_id=capability.expert_id,
                 goal=step.goal(language=language),
                 execution_mode=capability.execution_mode,
-                confirmation_required=bool(
-                    capability.approval_gates or capability.side_effects
-                ),
+                confirmation_required=bool(capability.approval_gates or capability.side_effects),
                 approval_gates=capability.approval_gates,
                 side_effects=capability.side_effects,
                 boundaries=capability.boundaries,
@@ -271,9 +299,7 @@ def build_recipe_plan(
             "the endpoint owner in the capability catalog."
         ),
     )
-    request_sha256 = sha256(
-        f"recipe:{recipe.recipe_id}".encode()
-    ).hexdigest()
+    request_sha256 = sha256(f"recipe:{recipe.recipe_id}".encode()).hexdigest()
     approval_context = {
         "recipe_id": recipe.recipe_id,
         "recipe_sha256": digest,
@@ -282,11 +308,9 @@ def build_recipe_plan(
         "step_refs": [item.step_ref for item in recipe.steps],
     }
     summary = (
-        f"{recipe.title(language=language)}: {len(steps)} verkettete Schritte, "
-        "eine Bestätigung."
+        f"{recipe.title(language=language)}: {len(steps)} verkettete Schritte, eine Bestätigung."
         if language == "de"
-        else f"{recipe.title(language=language)}: {len(steps)} chained steps, "
-        "one confirmation."
+        else f"{recipe.title(language=language)}: {len(steps)} chained steps, one confirmation."
     )
     plan = MasterAgentPlan.create(
         request_sha256=request_sha256,
@@ -322,9 +346,7 @@ def execute_recipe_plan(
     recipe_plan.verify_integrity()
     outcomes: list[RecipeStepOutcome] = []
     aborted = False
-    for step_ref, step in zip(
-        recipe_plan.step_refs, recipe_plan.plan.steps, strict=True
-    ):
+    for step_ref, step in zip(recipe_plan.step_refs, recipe_plan.plan.steps, strict=True):
         if aborted:
             outcomes.append(
                 RecipeStepOutcome(
@@ -460,9 +482,7 @@ def _strict(payload: dict[str, object], allowed: set[str], label: str) -> None:
     unknown = sorted(set(payload).difference(allowed))
     missing = sorted(allowed.difference(payload))
     if unknown:
-        raise CapabilityRecipeError(
-            f"{label} enthält unbekannte Felder: {', '.join(unknown)}"
-        )
+        raise CapabilityRecipeError(f"{label} enthält unbekannte Felder: {', '.join(unknown)}")
     if missing:
         raise CapabilityRecipeError(f"{label} benötigt Felder: {', '.join(missing)}")
 

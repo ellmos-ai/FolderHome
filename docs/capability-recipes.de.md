@@ -173,9 +173,36 @@ abgeschlossen. Der Bericht sagt genau, wo fortzusetzen ist.
 Übergabekanten binden Ressourcen, keine Werte. Ein Rezept kann noch keinen Wert
 aus dem Bericht eines Schrittes in die Anfrage des nächsten setzen — das würde
 verlangen, Anfragen erst während der Ausführung aufzulösen, und würde den einen
-Hash über die Kette brechen. Die Kanten sind ausdrücklich deklariert, damit eine
-spätere Fassung Wertersetzung in deklarierte Slots ergänzen kann, ohne das
-Rezeptformat zu ändern.
+Hash über die Kette brechen. Bestehende Ressourcenübergaben bleiben unverändert;
+Ergebnisfelder verwenden ein eigenes versioniertes Format.
+
+## Ergebnisübergaben: v2-Grundlage, noch nicht ausführbar
+
+Der Parser erkennt zusätzlich `folderhome.capability-recipe.v2` mit einer
+expliziten Liste `result_bindings`. Jede Übergabe nennt einen früheren
+`from_step`, einen späteren `to_step`, einen wörtlichen `source_path`
+(JSON-Schlüssel und nichtnegative Listenindizes), ein oberstes Anfragefeld
+`target_field` und einen `value_type`:
+`string`, `integer`, `number`, `boolean`, `object`, `array` oder `null`.
+
+Übergaben dürfen weder statische Anfragewerte noch andere Übergaben
+überschreiben. Reservierte Berechtigungsfelder, darunter Profile, Konten,
+Ressourcen und Freigaben, sind als Ergebnisziele ausgeschlossen. Der spätere
+Zieladapter muss zusätzlich die vollständig aufgelöste Anfrage prüfen;
+die Formatprüfung erlaubt für sich weder ein Feld noch eine Operation.
+
+Die Wertauswahl wandelt nichts um: `false` ist keine Ganzzahl, fehlende Daten
+sind nicht `null`, und nichtendliche Zahlen werden abgelehnt. Ausgewählte Werte
+sind unabhängige Kopien, begrenzt auf 64 KiB UTF-8-JSON, 16 Verschachtelungsebenen
+und 4.096 besuchte Knoten einschließlich Objektschlüsseln. Pfade haben höchstens
+acht Segmente; v2-Rezepte höchstens 32 Schritte und 32 Übergaben.
+
+**Die Ausführung steht noch aus:** Der bisherige Planer mit einer Bestätigung
+lehnt v2 vor jeder Adaptervorbereitung ab. Die nächste Integration muss geprüfte
+Berichte desselben Laufs behalten, den nächsten ausführbaren Abschnitt auflösen
+und einen neuen vollständig gebundenen Plan zur erneuten Freigabe vorlegen.
+Ein ausgewählter JSON-Wert allein belegt weder Ausführung noch Herkunft.
+Im Katalog wird derzeit kein v2-Rezept ausgeliefert.
 
 ## Wo Rezepte liegen
 
