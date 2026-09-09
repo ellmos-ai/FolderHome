@@ -2,9 +2,9 @@
 
 [English](./THIRD_PARTY_LICENSES.md) | **Deutsch**
 
-**Version:** 0.17
-**Aktualisiert:** 2026-09-05
-**Grund:** Optionaler lokaler Modell-Provider (Ollama) erfasst
+**Version:** 0.18
+**Aktualisiert:** 2026-09-09
+**Grund:** Lokaler Diagrammrenderer erfasst
 **Zweck:** Dokumentiert externe oder vorbestehende Komponenten mit genauer Revision.
 
 | Komponente | Repository | Revision | Lizenz | Einbindung |
@@ -25,6 +25,7 @@
 | pypdf | PyPI-Paket `pypdf` | `>=4.0`, geprüft mit `6.16.1` | BSD-3-Clause | Optionale PDF-Montage in `document_transform` |
 | Pillow | PyPI-Paket `Pillow` | `>=10.0`, geprüft mit `12.3.0` | MIT-CMU | Optionale lokale Bild-zu-PDF-Rasterung |
 | ReportLab | PyPI-Paket `reportlab` | `>=4.0`, geprüft mit `5.0.1` | BSD | Optionale deterministische Text-zu-PDF-Neusetzung |
+| resvg-py | `https://github.com/baseplate-admin/resvg-py` | `resvg-py==0.5.0` | MIT | Lokaler SVG-zu-PNG-Export nur zur Entwicklung; Paketquellen, Binärdatei und Systemschriften werden nicht mitgeliefert |
 | llm-note | `https://github.com/doc-bricks/llm-note.git` | `b5fe59fc155ded9603566aa0fb920a53181a2426` | MIT | Gepinnter lokaler Notizstore über öffentliche Write-API und schemafesten read-only Adapter |
 | steuer-assistent | `https://github.com/ellmos-ai/steuer-assistent.git` | `5d39aeec98bf0a5734bf07dc35a58aa9e1331309` | MIT | Gepinnter lokaler Belegstore und private ZIP-Arbeitsunterlage über öffentliche Provider-API |
 | BACH Wetter/Newspaper/Daily Agent | `https://github.com/ellmos-ai/bach.git` | `9ff3df23d6e8e27b9c9eaad71f2430923224d4d9` | MIT | Ausschließlich Designreferenz; fremd veränderter Monolith wird nicht als FolderHome-Runtime geladen und kein Code kopiert |

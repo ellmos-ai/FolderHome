@@ -22,7 +22,7 @@ Cloudberechtigungen zu geben.
 
 - lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
 - ein echter `strands.Agent`-Master mit sieben begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- letzter lokaler Gesamtlauf: **831 bestanden**, 0 fehlgeschlagen in 251,39 Sekunden
+- letzter lokaler Gesamtlauf: **832 bestanden**, 0 fehlgeschlagen in 285,58 Sekunden
   am 09.09.2026, Warnungen als Fehler behandelt; keine Browser- oder AWS-Abnahme
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,

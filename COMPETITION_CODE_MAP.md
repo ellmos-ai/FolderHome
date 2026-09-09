@@ -2,9 +2,9 @@
 
 **English** | [Deutsch](./COMPETITION_CODE_MAP.de.md)
 
-**Version:** 0.38  
-**Updated:** 2026-09-05  
-**Reason:** Local Ollama provider and MCP server classified  
+**Version:** 0.39  
+**Updated:** 2026-09-09  
+**Reason:** Local architecture renderer classified; absent Pages workflow reference removed  
 **Purpose:** Assigns each relevant repository area to an origin class.
 
 > If you discover outdated passages or references, correct this file and the associated manifests. The Git history remains the technical evidence.
@@ -18,8 +18,9 @@
 | `manifests/` | `NEW_CORE` | New machine‑readable component and stack contracts |
 | `reused/` | `REUSED_UNCHANGED` / `REUSED_DESIGN_REFERENCE` | Pinned runtime references or clearly marked local design sources, no copied source code |
 | `tests/` | `NEW_CORE` | New contract, security, and integration tests |
-| `site/`, `.github/workflows/pages.yml` | `NEW_CORE` | New transparent static showcase and its bounded publication workflow |
+| `site/` | `NEW_CORE` | New transparent static showcase; publication is a separate operator action |
 | `deploy/agentcore/` | `NEW_CORE` | New optional synthetic-only AgentCore HTTP container contract |
+| `deploy/render_architecture.py` | `NEW_CORE` | New local SVG/PNG export and drift check; calls the unmodified, disclosed resvg-py development dependency |
 | `docs/submission/ARCHITECTURE_DIAGRAM.*` | `NEW_CORE` | New architecture evidence for the delivered competition state |
 | `examples/synthetic/`, `examples/fcsa/`, `examples/documents/`, `examples/profiles/`, `examples/inventory/`, `examples/medication/`, `examples/health/`, `examples/contracts/`, `examples/correspondence/`, `examples/artifacts/`, `examples/mail/`, `examples/calendar/`, `examples/notes/`, `examples/tax/`, `examples/briefing/`, `examples/notices/`, `examples/benefits/`, `examples/legal/`, `examples/competition/` | `GENERATED_OR_TEST_DATA` | Synthetic demo/test data, reproducible agent evidence, and marked official handoff metadata without copied portal code |
 | `_tools/`, Root-Projektdokumente | `REUSED_UNCHANGED` | Instantiated from the local `project-docs` template and adapted per project |

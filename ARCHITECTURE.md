@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./ARCHITECTURE.de.md)
 
-**Version:** 0.39  
-**Date:** 2026-08-23  
+**Version:** 0.3.0 + acceptance fixes  
+**Date:** 2026-09-09  
 **Direct predecessor:**  
 [`docs/archive/ARCHITECTURE-v0.34.md`](./docs/archive/ARCHITECTURE-v0.34.md)
 
@@ -14,20 +14,15 @@
 FolderHome is a local document and assistance service agent. It combines document understanding, reversible file operations, and encapsulated household domains, without automatically deriving an external effect from an analysis.
 
 ```text
-Mensch / OS-Konto
-  ├─ CLI
-  ├─ responsive lokale GUI
-  └─ Strands-Agent
-       ↓
-LocalApplication — einzige gemeinsame Anwendungsgrenze
-       ↓
-Application Workflows — Orchestrierung, Gates, Evidence, Reports
-       ↓
-Contracts + Capabilities — stabile Datenmodelle und kleine lokale Stores
-       ↓
-Bridges / Provider — revisionsgebunden, kleinste nötige Berechtigung
-       ↓
-lokale Dateien / SQLite / neue Ausgabeartefakte
+Person / OS account
+  ├─ Local GUI / MCP proxy → token-gated HTTP → LocalApplication
+  ├─ Interactive agent CLI → LocalApplication
+  ├─ Domain CLI → application workflows and explicit approval gates
+  └─ Setup GUI → separate token-gated SetupApplication → configuration
+
+LocalApplication → Strands planning / typed workflow execution
+Application workflows → contracts / capabilities → pinned provider bridges
+Local state → source files (read-only) / SQLite / new output artifacts
 ```
 
 
@@ -35,7 +30,8 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 
 | Layer | Location | Responsibility |
 |---|---|---|
-| Operation | `cli.py`, `local_server.py`, `web_ui/`, `demo_site/`, `agentcore_server.py` | Validate input, offer narrow handlers, no second business logic |
+| Operation | `cli.py`, `local_server.py`, `web_ui/`, `mcp_server.py`, `demo_site/`, `agentcore_server.py` | Validate input, offer narrow handlers, reuse application workflows |
+| Setup | `setup_app.py`, `setup_ui/` | Separate loopback server; preview/hash/confirmation before configuration writes |
 | Agent | `application/strands_agent.py`, `application/master_agent.py` | Finite master loop, semantic expert selection, explicit endpoints and scoped planning specialists |
 | Execution gateway | `application/workflow_execution.py` | Typed, one-time handoff from an exact approved master step to an existing domain executor |
 | Application | `application/` | Compose workflows, check states, enforce approvals, generate reports |
@@ -44,7 +40,29 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 | Bridges | `src/folderhome/bridges/`, `bridges/` | Exact public API or documented read‑only seam to pinned components |
 | Declaration | `manifests/`, `reused/` | Origin, revision, capability, side‑effects and runtime limits |
 
-Direct accesses from UI or Agent to Provider are prohibited. Both go through `LocalApplication` so that CLI, API, GUI, and Agent use the same rules.
+The local GUI, MCP proxy and interactive agent use `LocalApplication`.
+Domain CLI commands also call shared application workflows directly; they do
+not all pass through the HTTP application. Approval rules remain in the typed
+workflows and provider bridges, not in browser controls.
+
+The **MCP proxy owns no document or plan state**: it forwards bounded calls to
+one existing app process on `127.0.0.1`. The **setup server is separate** and
+cannot approve workflow execution. It validates and stages configuration,
+preserves custom resources and stricter permissions, and restores prior files
+after reported write failures. Backups remain recoverable; power-loss atomicity
+is not claimed. Provider isolation is described in
+[provider checkouts](./docs/provider-checkouts.md).
+
+Calendar setup connects to the app through `launch.json` (`calendar_config`,
+`connector_accounts`). The startup binder validates bounded files and adds only
+missing **private, profile-scoped resource defaults in memory**. Explicit
+registry bindings and stricter operations take precedence; the app does not
+rewrite the registry. Model presets cannot supply these paths or grant effects.
+Setup reload reads the active paths and writes only explicitly edited calendar
+fields. Profile cascades may derive a setup-owned account file; custom source
+files remain unchanged. Loading accounts does **not** connect an external
+calendar gateway. The local calendar and optional ICS export still require the
+existing exact workflow confirmation.
 
 The interactive `agent session` calls the same `LocalApplication.run_agent_chat`
 service as the GUI and retains proposed plans only in its current process.
@@ -78,32 +96,45 @@ arbitrary resource identifiers or external effects.
 
 ## Strands Agent
 
+The [submission diagram](./docs/submission/ARCHITECTURE_DIAGRAM.md) separates
+the four-adapter synthetic accident-demo view from the complete application
+map. Its SVG is the editable source; PNG has a pinned local renderer and a
+non-writing drift check. Neither diagram establishes current AWS availability.
+
 ```mermaid
 flowchart LR
-  U[Prompt + Profil] --> V[Schema- und Budgetprüfung]
+  U[Prompt + profile] --> V[Schema and finite budgets]
   V --> A[strands.Agent 1.53.0]
-  A --> M[Fixture Model]
-  A -. Netzwerk- und Datenweitergabegate .-> B[Amazon Bedrock]
+  A --> Fixture[Deterministic fixture]
+  A --> Ollama[Ollama: loopback or approved remote host]
+  A -. Network and data-disclosure gates .-> Hosted[Bedrock / Anthropic / OpenAI-compatible API]
   A --> T1[search_home_documents]
   A --> T2[build_home_theme_dossier]
   A --> T3[list_home_capabilities]
+  A --> T5[list_home_resources]
+  A --> T6[list_home_recipes]
+  A --> T7[propose_home_recipe]
+  T7 --> RP[Deterministic recipe review + whole-chain plan]
+  RP --> P
   A --> T4[consult_home_specialist]
   T4 --> S[Scoped specialist: one planning tool]
   S --> P[Hash-bound master plan]
   P --> C[Separate exact confirmation]
   C --> E[Typed executor registry]
   E --> N[Existing llm-note workflow]
-  E --> M[Existing medication-intake workflow]
+  E --> Medication[Existing medication-intake workflow]
   T1 --> L[LocalApplication]
   T2 --> L
   L --> K[KnowledgeDigest read-only]
-  A --> R[Report: Toolereignisse, Hashes, keine Side-Effects]
+  A --> R[Planning report: tool events and hashes; no execution]
 ```
 
 
-The master agent intentionally has four bounded tools. Two are profile-specific
-and read-only, one lists the verified role and endpoint catalog, and one creates
-a short-lived specialist with exactly one planning tool. The specialist cannot
+The master agent has seven bounded tools: document search, topic dossiers,
+capability and resource catalogs, recipe listing and preparation, and specialist
+consultation. Recipe preparation retains the full chain and deterministic review;
+it cannot confirm or execute. Specialist consultation creates a short-lived
+specialist with exactly one planning tool. The specialist cannot
 approve or execute. After a separate exact confirmation, the typed executor
 registry can invoke only a prepared envelope and returns the existing domain
 report. With a fully configured registry, coverage is 27 connected workflows,
@@ -160,10 +191,13 @@ agent and tool executor without credentials or network access. Bedrock requires
 a model ID, AWS region, an explicit network gate, and a separate approval for
 forwarding local search results; a live run is not part of the local acceptance.
 The status API and GUI distinguish fixture-only, configured-not-verified, and
-verified-in-process model states. Only a successful Bedrock agent turn advances
-the runtime to the verified state. They also expose the runtime topology:
-FolderHome, its document state, approvals, and workflow execution stay local;
-only model inference uses the AWS cloud when Bedrock is enabled.
+verified-in-process model states. Only a successful turn with the configured
+real model advances it to the verified state. Fixture mode remains
+`local_only_fixture`; loopback Ollama reports `local_model` / `local_only_model`.
+Remote Ollama and hosted providers report `network_model` / `local_first_hybrid`,
+with separate provider and inference-location fields. FolderHome, document
+state, approvals and workflow execution stay local. A configured endpoint is
+not proof of a successful model call.
 
 ## Document Flow
 
@@ -250,6 +284,19 @@ The detailed policy is in [`SECURITY.md`](./SECURITY.md).
 - Loopback binds exclusively `127.0.0.1`, uses a short‑lived token as well as exact host and origin verification, and limits parallel connections.
 - Official performance links use HTTPS and a publisher‑bound host whitelist; redirects or similarly‑named hosts are rejected.
 - Approval is tightly bound in time and content; the state is re‑checked before execution.
+
+Master and calendar connector execution recompute complete plan content,
+instead of trusting stored hash strings. Calendar input snapshots and gateway
+effects are bound as well. A failure after an attempted effect is not evidence
+of rollback or permission to retry. Live calendar idempotency and readback are
+still unimplemented; see [calendar limits](./docs/phase27-calendar-connector-plan.md).
+
+The optional AWS demo proxy now has a local, reviewed micro-USD reservation
+contract: cumulative UTC entitlement, atomic daily-count/money admission,
+persistent ledger, and a pinned runtime version/cost profile. This controls
+admitted forwards, not the entire AWS bill. Existing-demo migration and actual
+funding, prices and cloud operation remain pending joint acceptance; see
+[AWS deployment limits](./deploy/aws_demo/README.md).
 
 ## Provider and Reuse Limits
 

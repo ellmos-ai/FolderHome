@@ -15,7 +15,7 @@ def test_public_site_is_bilingual_static_and_transparent() -> None:
     assert '<html lang="en">' in html
     assert "Scripted synthetic walkthrough" in html
     assert 'src="architecture.svg"' in html
-    assert "AgentCore cloud deployment is not claimed" in html
+    assert "fresh AWS acceptance is pending" in html
     assert "Run the real local demo" in html
     assert 'data-language="de"' in html
     assert 'data-theme="light"' in html

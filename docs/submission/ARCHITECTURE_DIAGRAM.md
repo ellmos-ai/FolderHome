@@ -5,29 +5,46 @@
 
 ![FolderHome competition architecture](./ARCHITECTURE_DIAGRAM.svg)
 
-The diagram above is the canonical submission visual. The Mermaid source below
-remains the detailed text-friendly map.
+The diagram above is the **synthetic accident-demo view**, not an inventory of
+every product endpoint. Its four adapters remain the four steps in that demo.
+The Mermaid map below explains the broader application. See also the complete
+[architecture and limits](../../ARCHITECTURE.md).
+
+**Source:** the adjacent SVG is editable; PNG and `site/architecture.svg` are
+derived exports. **Reviewed:** 9 September 2026. This is a UML-like runtime
+component/approval map, not formal UML or evidence of current AWS availability.
 
 ```mermaid
 flowchart TB
-  Human[Person at home] --> UI[Local GUI / CLI]
+  Human[Person at home] --> UI[Local GUI / interactive CLI]
+  UI --> LocalApp[FolderHome LocalApplication]
+  MCP[MCP proxy] -->|Token-gated loopback HTTP| LocalApp
+  Setup[Separate setup server] -->|Validated configuration only| Config[Profiles and resource registry]
+  Config --> LocalApp
+  DomainCLI[Domain CLI] -->|Explicit domain gates| Domain
   Public[Public scripted showcase\nNo backend] -. orientation only .-> Human
   AgentCore[Optional AgentCore HTTP Runtime\nSynthetic sessions only] --> Agent
-  UI --> Agent[FolderHome Master / Strands Agent 1.53.0]
+  LocalApp --> Agent[FolderHome Master / Strands Agent 1.53.0]
   UI --> Memory[Bounded per-profile conversation\nProcess memory only]
   Memory --> Agent
   UI -->|New conversation or /reset| Reset[Clear retained context\nand unconfirmed profile plans]
   Reset --> Memory
   Agent --> Loop[Finite sequential agent loop]
   Loop --> Fixture[Deterministic fixture model\nNo credentials / no network]
-  Loop -. network + data disclosure gates .-> Bedrock[Amazon Bedrock model]
+  Loop --> Ollama[Ollama loopback / approved remote host]
+  Loop -. network + data disclosure gates .-> Bedrock[Bedrock / Anthropic / OpenAI-compatible API]
   Loop --> SearchTool[search_home_documents]
   Loop --> DossierTool[build_home_theme_dossier]
   Loop --> CatalogTool[list_home_capabilities]
+  Loop --> ResourcesTool[list_home_resources]
+  Loop --> RecipesTool[list_home_recipes]
+  Loop --> RecipeTool[propose_home_recipe]
+  RecipeTool --> RecipeReview[Deterministic expert review + whole-chain plan]
+  RecipeReview --> Confirm
   Loop --> SpecialistTool[consult_home_specialist]
   SpecialistTool --> Specialist[Short-lived domain agent]
   Specialist --> PlanTool[One allowlisted planning tool]
-  SearchTool --> LocalApp[FolderHome LocalApplication]
+  SearchTool --> LocalApp
   DossierTool --> LocalApp
   LocalApp --> Search[Read-only document search]
   LocalApp --> Dossier[Evidence-linked topic dossier]
@@ -58,8 +75,11 @@ flowchart TB
   contract and isolates state by runtime session. The quota-bounded direct-code
   Runtime is deployed and was read back as `READY`, version 4, on 2026-08-26;
   the ARM64 non-root container remains an alternative packaging candidate.
-- GUI and CLI call the same master service. Its direct document tools reuse the
-  same `LocalApplication` services.
+- Local GUI and interactive CLI call the same master service; MCP forwards to
+  the token-gated loopback HTTP app. Domain CLI commands may call application
+  workflows directly. Setup runs separately and cannot confirm domain actions.
+  The seven master tools only read or prepare; recipe preparation retains the
+  complete reviewed chain and cannot grant execution permission.
 - Interactive GUI and CLI sessions keep bounded model-visible history per
   organizational profile in process memory only. Resetting a conversation also
   discards that profile's unconfirmed plans, but no documents or completed
@@ -68,8 +88,9 @@ flowchart TB
   resolves selected endpoints deterministically and contains no keyword router.
 - Specialist agents are created on demand with one planning endpoint. Personas
   are style-only and grant no capability or permission.
-- The offline fixture and optional Bedrock model share the same agent and tool
-  contracts.
+- The offline fixture, local/remote Ollama and optional hosted providers share
+  the same bounded agent/tool contracts. Loopback Ollama is local inference;
+  remote Ollama, Bedrock, Anthropic and OpenAI-compatible endpoints are not.
 - Bedrock additionally requires separate approvals for network access and
   disclosure of local search results.
 - Direct tools and specialist consultation perform no domain side effects. A
@@ -89,3 +110,21 @@ flowchart TB
   side-effect gates.
 - OS accounts and filesystem permissions form the security boundary.
   FolderHome profiles only organize household preferences.
+
+## Reproduce the PNG
+
+Install the project dev extra (`pip install -e ".[dev]"`). On Windows, use the
+same explicitly selected Segoe UI/Consolas fonts for generation and checking:
+
+```powershell
+python deploy/render_architecture.py --source docs/submission/ARCHITECTURE_DIAGRAM.svg --output docs/submission/ARCHITECTURE_DIAGRAM.png --no-system-fonts --font-file C:/Windows/Fonts/segoeui.ttf --font-file C:/Windows/Fonts/segoeuib.ttf --font-file C:/Windows/Fonts/consola.ttf
+```
+
+Add `--check` to compare without writing. The renderer is `resvg-py==0.5.0`;
+font substitutions on another platform can change pixels and require visual
+review. No font files are redistributed. Synchronize the unchanged SVG bytes
+to `site/architecture.svg` after editing; the repository parity test checks it.
+The SVG remains the crisp, text-labelled fallback for PNG consumers. The site
+offers a full-size link and a plain-text outline alongside the scaled preview;
+use those for readable detail on narrow screens. No interaction or current cloud success
+is inferred from a static export.

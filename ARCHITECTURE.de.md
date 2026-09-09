@@ -2,8 +2,8 @@
 
 [English](./ARCHITECTURE.md) | **Deutsch**
 
-**Version:** 0.39  
-**Stand:** 2026-08-23  
+**Version:** 0.3.0 + Abnahme-Korrekturen  
+**Stand:** 2026-09-09  
 **Direkter Vorläufer:**
 [`docs/archive/ARCHITECTURE-v0.34.md`](docs/archive/ARCHITECTURE-v0.34.de.md)
 
@@ -18,27 +18,23 @@ Dokumentverständnis, reversible Dateiarbeit und gekapselte Haushaltsdomänen,
 ohne aus einer Analyse automatisch eine Außenwirkung abzuleiten.
 
 ```text
-Mensch / OS-Konto
-  ├─ CLI
-  ├─ responsive lokale GUI
-  └─ Strands-Agent
-       ↓
-LocalApplication — einzige gemeinsame Anwendungsgrenze
-       ↓
-Application Workflows — Orchestrierung, Gates, Evidence, Reports
-       ↓
-Contracts + Capabilities — stabile Datenmodelle und kleine lokale Stores
-       ↓
-Bridges / Provider — revisionsgebunden, kleinste nötige Berechtigung
-       ↓
-lokale Dateien / SQLite / neue Ausgabeartefakte
+Person / OS account
+  ├─ Local GUI / MCP proxy → token-gated HTTP → LocalApplication
+  ├─ Interactive agent CLI → LocalApplication
+  ├─ Domain CLI → application workflows and explicit approval gates
+  └─ Setup GUI → separate token-gated SetupApplication → configuration
+
+LocalApplication → Strands planning / typed workflow execution
+Application workflows → contracts / capabilities → pinned provider bridges
+Local state → source files (read-only) / SQLite / new output artifacts
 ```
 
 ## Schichten
 
 | Schicht | Ort | Verantwortung |
 |---|---|---|
-| Bedienung | `cli.py`, `local_server.py`, `web_ui/`, `demo_site/`, `agentcore_server.py` | Eingabe validieren, schmale Handler anbieten, keine zweite Fachlogik |
+| Bedienung | `cli.py`, `local_server.py`, `web_ui/`, `mcp_server.py`, `demo_site/`, `agentcore_server.py` | Eingaben validieren, schmale Handler, gemeinsame Anwendungsworkflows |
+| Einrichtung | `setup_app.py`, `setup_ui/` | Getrennter Loopback-Server; Vorschau, Hash und Bestätigung vor Konfigurationsänderungen |
 | Agent | `application/strands_agent.py`, `application/master_agent.py` | Endliche Master-Schleife, semantische Fachwahl, explizite Endpunkte und begrenzte Planungs-Fachagenten |
 | Executor-Gateway | `application/workflow_execution.py` | Typisierte einmalige Übergabe eines exakt bestätigten Masterschritts an einen vorhandenen Fach-Executor |
 | Anwendung | `application/` | Workflows komponieren, Zustände prüfen, Freigaben erzwingen, Reports erzeugen |
@@ -47,9 +43,31 @@ lokale Dateien / SQLite / neue Ausgabeartefakte
 | Bridges | `src/folderhome/bridges/`, `bridges/` | Exakte öffentliche API oder dokumentierter read-only Seam zu gepinnten Komponenten |
 | Deklaration | `manifests/`, `reused/` | Herkunft, Revision, Capability, Side-Effects und Runtimegrenzen |
 
-Direkte Zugriffe von UI oder Agent auf Provider sind unzulässig. Beide gehen
-durch `LocalApplication`, damit CLI, API, GUI und Agent dieselben Regeln
-verwenden.
+Lokale GUI, MCP-Proxy und interaktiver Agent verwenden `LocalApplication`.
+Fachliche CLI-Befehle rufen auch gemeinsame Anwendungsworkflows direkt auf;
+nicht jeder CLI-Weg führt durch die HTTP-Anwendung. Die Freigaberegeln liegen
+in den typisierten Workflows und Provider-Bridges, nicht in Browser-Steuerelementen.
+
+Der **MCP-Proxy besitzt keinen eigenen Dokument- oder Planzustand**. Er leitet
+begrenzte Aufrufe an einen vorhandenen App-Prozess auf `127.0.0.1` weiter. Der
+**Setup-Server ist getrennt** und kann keine Workflow-Ausführung freigeben.
+Er validiert die Konfiguration, bereitet Dateien vor, erhält eigene Ressourcen
+und strengere Berechtigungen und stellt nach erkannten Schreibfehlern den
+vorherigen Stand wieder her. Sicherungen bleiben verfügbar; Atomarität bei
+Stromausfall wird nicht behauptet. Die Provider-Isolierung erläutert
+[Provider-Checkouts](./docs/provider-checkouts.de.md).
+
+Die Kalendereinrichtung erreicht die App über `launch.json` (`calendar_config`,
+`connector_accounts`). Beim Start werden größenbegrenzte Dateien validiert und
+nur fehlende **private, profilgebundene Ressourcen-Defaults im Speicher**
+ergänzt. Explizite Registerbindungen und strengere Operationen haben Vorrang;
+die App schreibt das Register nicht um. Modellpresets dürfen diese Pfade weder
+liefern noch Wirkungen freigeben. Das Setup lädt die aktiven Pfade und schreibt
+nur ausdrücklich geänderte Kalenderfelder. Profilkaskaden dürfen eine
+Setup-eigene Kontodatei ableiten; benutzerdefinierte Quelldateien bleiben
+unverändert. Das Laden von Konten verbindet **kein externes Kalender-Gateway**.
+Der lokale Kalender und der optionale ICS-Export benötigen weiterhin die
+bestehende exakte Workflow-Bestätigung.
 
 Die interaktive `agent session` ruft denselben Dienst
 `LocalApplication.run_agent_chat` wie die GUI auf und bewahrt vorgeschlagene
@@ -87,31 +105,45 @@ Ressourcen-IDs oder externe Effekte.
 
 ## Strands-Agent
 
+Das [Einreichungsdiagramm](./docs/submission/ARCHITECTURE_DIAGRAM.md) trennt
+die synthetische Unfall-Demo mit vier Adaptern von der vollständigen
+Anwendungskarte. SVG ist die editierbare Quelle; für PNG gibt es einen lokal
+versionierten Renderer und eine schreibfreie Driftprüfung. Keines der Diagramme
+belegt aktuelle AWS-Verfügbarkeit.
+
 ```mermaid
 flowchart LR
-  U[Prompt + Profil] --> V[Schema- und Budgetprüfung]
+  U[Prompt + profile] --> V[Schema and finite budgets]
   V --> A[strands.Agent 1.53.0]
-  A --> M[Fixture Model]
-  A -. Netzwerk- und Datenweitergabegate .-> B[Amazon Bedrock]
+  A --> Fixture[Deterministic fixture]
+  A --> Ollama[Ollama: loopback or approved remote host]
+  A -. Network and data-disclosure gates .-> Hosted[Bedrock / Anthropic / OpenAI-compatible API]
   A --> T1[search_home_documents]
   A --> T2[build_home_theme_dossier]
   A --> T3[list_home_capabilities]
+  A --> T5[list_home_resources]
+  A --> T6[list_home_recipes]
+  A --> T7[propose_home_recipe]
+  T7 --> RP[Deterministic recipe review + whole-chain plan]
+  RP --> P
   A --> T4[consult_home_specialist]
-  T4 --> S[Begrenzter Fachagent: ein Planungswerkzeug]
-  S --> P[Hashgebundener Masterplan]
-  P --> C[Getrennte exakte Bestätigung]
-  C --> E[Typisierter Executor-Katalog]
-  E --> N[Vorhandener llm-note-Workflow]
-  E --> M[Vorhandener Medikamenteneinnahme-Workflow]
+  T4 --> S[Scoped specialist: one planning tool]
+  S --> P[Hash-bound master plan]
+  P --> C[Separate exact confirmation]
+  C --> E[Typed executor registry]
+  E --> N[Existing llm-note workflow]
+  E --> Medication[Existing medication-intake workflow]
   T1 --> L[LocalApplication]
   T2 --> L
   L --> K[KnowledgeDigest read-only]
-  A --> R[Report: Toolereignisse, Hashes, keine Side-Effects]
+  A --> R[Planning report: tool events and hashes; no execution]
 ```
 
-Der Master-Agent besitzt absichtlich vier begrenzte Werkzeuge. Zwei sind
-profilspezifisch und nur lesend, eines zeigt den geprüften Rollen- und
-Endpoint-Katalog und eines erzeugt einen kurzlebigen Fachagenten mit genau
+Der Master-Agent besitzt sieben begrenzte Werkzeuge: Dokumentensuche,
+Themendossiers, Fähigkeits- und Ressourcenkatalog, Rezeptliste und
+Rezeptvorbereitung sowie Fachagenten-Konsultation. Die Rezeptvorbereitung erhält
+die ganze Kette mit deterministischer Prüfung, kann aber weder freigeben noch
+ausführen. Die Konsultation erzeugt einen kurzlebigen Fachagenten mit genau
 einem Planungswerkzeug. Der Fachagent kann weder freigeben noch ausführen. Nach
 einer getrennten exakten Bestätigung darf der typisierte Executor-Katalog nur
 eine vorbereitete Ausführungshülle aufrufen und liefert den vorhandenen
@@ -176,10 +208,13 @@ Weitergabe lokaler Suchergebnisse; ein Live-Lauf ist nicht Teil der lokalen
 Abnahme.
 Status-API und GUI unterscheiden die Modellzustände `fixture_only`,
 `configured_not_verified` und `verified_in_process`. Erst ein erfolgreicher
-Bedrock-Agententurn setzt die Laufzeit auf den verifizierten Zustand. Sie weisen
-außerdem die Laufzeittopologie aus: FolderHome, Dokumentzustand, Freigaben und
-Workflow-Ausführung bleiben lokal; nur die Modellinferenz nutzt bei aktiviertem
-Bedrock die AWS-Cloud.
+Turn mit dem konfigurierten echten Modell setzt den Zustand auf verifiziert.
+Der Fixture-Modus bleibt `local_only_fixture`; Loopback-Ollama meldet
+`local_model` / `local_only_model`. Entferntes Ollama und fremdgehostete Provider
+melden `network_model` / `local_first_hybrid`, ergänzt um unterscheidbare
+Provider- und Inferenzort-Felder. FolderHome, Dokumentzustand, Freigaben und
+Workflow-Ausführung bleiben lokal. Eine konfigurierte Adresse belegt noch
+keinen erfolgreichen Modellaufruf.
 
 ## Dokumentenfluss
 
@@ -285,6 +320,20 @@ Die ausführliche Richtlinie steht in [`SECURITY.md`](SECURITY.de.md).
   Host-Whitelist; Umleitungen oder ähnlich aussehende Hosts werden abgewiesen.
 - Approval ist eng, zeitlich und inhaltlich gebunden; vor der Ausführung wird
   der Zustand erneut geprüft.
+
+Master- und Kalenderconnector-Ausführung berechnen den vollständigen Planinhalt
+neu, statt gespeicherten Hashstrings zu vertrauen. Kalender-Eingabesnapshots und
+Gateway-Effekte sind ebenfalls gebunden. Ein Fehler nach einem Wirkungsversuch
+belegt weder eine Rücknahme noch die Erlaubnis zur Wiederholung. Dauerhafte
+Live-Kalender-Idempotenz und Readback sind noch nicht implementiert; siehe
+[Kalendergrenzen](./docs/phase27-calendar-connector-plan.de.md).
+
+Der optionale AWS-Demo-Proxy besitzt jetzt einen lokalen Vertrag zur geprüften
+Mikro-USD-Reservierung: kumulierende UTC-Tagesmittel, atomare Geld-/Tageszähl-
+Zulassung, dauerhaftes Ledger sowie gebundene Runtime-Version und Kostenprofil.
+Dies steuert zugelassene Forwards, nicht die gesamte AWS-Rechnung. Migration der
+bestehenden Demo sowie tatsächliche Mittel, Preise und Cloudbetrieb warten auf
+die gemeinsame Abnahme; siehe [AWS-Deploymentgrenzen](./deploy/aws_demo/README.de.md).
 
 ## Provider- und Wiederverwendungsgrenze
 

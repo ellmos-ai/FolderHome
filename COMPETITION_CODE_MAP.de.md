@@ -2,9 +2,9 @@
 
 [English](./COMPETITION_CODE_MAP.md) | **Deutsch**
 
-**Version:** 0.38
-**Aktualisiert:** 2026-09-05
-**Grund:** Lokaler Ollama-Provider und MCP-Server eingeordnet
+**Version:** 0.39
+**Aktualisiert:** 2026-09-09
+**Grund:** Lokaler Architekturrenderer eingeordnet; Verweis auf fehlenden Pages-Workflow entfernt
 **Zweck:** Ordnet jeden relevanten Repository-Bereich einer Herkunftsklasse zu.
 
 > Wenn du veraltete Passagen oder Verweise entdeckst, korrigiere diese Datei
@@ -19,8 +19,9 @@
 | `manifests/` | `NEW_CORE` | Neue maschinenlesbare Komponenten- und Stackverträge |
 | `reused/` | `REUSED_UNCHANGED` / `REUSED_DESIGN_REFERENCE` | Gepinnte Runtime-Referenzen oder klar markierte lokale Designquellen, kein kopierter Quellcode |
 | `tests/` | `NEW_CORE` | Neue Vertrags-, Sicherheits- und Integrationstests |
-| `site/`, `.github/workflows/pages.yml` | `NEW_CORE` | Neuer transparenter statischer Showcase und sein begrenzter Veröffentlichungsworkflow |
+| `site/` | `NEW_CORE` | Neuer transparenter statischer Showcase; Veröffentlichung als getrennte Operatoraktion |
 | `deploy/agentcore/` | `NEW_CORE` | Neuer optionaler, ausschließlich synthetischer AgentCore-HTTP-Containervertrag |
+| `deploy/render_architecture.py` | `NEW_CORE` | Neuer lokaler SVG/PNG-Export mit Driftprüfung; nutzt die unveränderte, offengelegte Entwicklungsabhängigkeit resvg-py |
 | `docs/submission/ARCHITECTURE_DIAGRAM.*` | `NEW_CORE` | Neue Architekturevidenz für den ausgelieferten Wettbewerbsstand |
 | `examples/synthetic/`, `examples/fcsa/`, `examples/documents/`, `examples/profiles/`, `examples/inventory/`, `examples/medication/`, `examples/health/`, `examples/contracts/`, `examples/correspondence/`, `examples/artifacts/`, `examples/mail/`, `examples/calendar/`, `examples/notes/`, `examples/tax/`, `examples/briefing/`, `examples/notices/`, `examples/benefits/`, `examples/legal/`, `examples/competition/` | `GENERATED_OR_TEST_DATA` | Synthetische Demo-/Testdaten, reproduzierbare Agentenevidenz sowie gekennzeichnete amtliche Handoff-Metadaten ohne kopierten Portalcode |
 | `_tools/`, Root-Projektdokumente | `REUSED_UNCHANGED` | Aus dem lokalen `project-docs`-Template instanziiert und projektspezifisch angepasst |

@@ -10,6 +10,16 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ## [Unreleased]
 
+### Changed
+
+- Architecture documentation now separates the four-adapter synthetic demo
+  from the full runtime, seven master tools, setup/MCP boundaries and model
+  providers. The bilingual guide includes calendar integrity and the local
+  budget reservation boundary. Refreshed SVG/PNG exports remove crossed labels;
+  the site links to the full-size diagram and text outline. A pinned,
+  development-only renderer reproduces the PNG and checks drift without writes.
+  Static inspection does not establish mobile-browser or live AWS acceptance.
+
 ### Fixed
 
 - Calendar connector approvals bind the complete plan and input snapshot.

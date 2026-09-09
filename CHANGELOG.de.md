@@ -11,6 +11,17 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
 
+### Geändert
+
+- Die Architekturdokumentation trennt die synthetische Vier-Adapter-Demo von
+  der vollständigen Laufzeit, sieben Master-Werkzeugen, Setup-/MCP-Grenzen und
+  Modellprovidern. Die zweisprachige Anleitung erläutert Kalenderintegrität und
+  die Grenze der lokalen Budgetreservierung. Erneuerte SVG-/PNG-Exporte vermeiden
+  überkreuzte Beschriftungen; die Website verlinkt Vollansicht und Textübersicht.
+  Ein versionsgebundener Entwicklungsrenderer reproduziert das PNG und prüft
+  Abweichungen ohne Schreibzugriff. Statische Sichtprüfung belegt weder mobile
+  Browserbedienung noch AWS-Live-Abnahme.
+
 ### Behoben
 
 - Kalenderconnector-Freigaben binden den vollständigen Plan und Eingabesnapshot.
