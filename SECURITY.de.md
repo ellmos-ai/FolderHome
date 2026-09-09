@@ -114,6 +114,12 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
 - Eigene Mailentwürfe brauchen `--approve-mail-draft` und exakte Bestätigung.
   Es gibt keinen Versandvorgang; auch ein ungesendeter Entwurf wird extern
   offengelegt, sobald er im Postfach gespeichert wird.
+  Der Plan bindet auch die private Postfachkonfiguration und den Fundort der
+  Zugangsdaten per Hash. Beide werden vor der Transporterzeugung erneut geprüft:
+  Ein anderer Host, ein anderes Konto oder ein anderer Zugangsdaten-Fundort
+  erfordert einen neuen Plan und eine neue Bestätigung. Passwortrotation am
+  gleichen Fundort ändert den Plan nicht; Passwortinhalte werden weder in den
+  Plan gehasht noch bei der Vorbereitung gelesen.
 - Scheduler-Registrierung und App-eigener Consumer-Start besitzen getrennte
   Gates und Bestätigungen. Der Consumer liest freigegebene Dokumentqueues und
   schreibt Betriebszustand; er erlaubt keine Dokumentbereinigung und

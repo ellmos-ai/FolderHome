@@ -53,7 +53,11 @@ from folderhome.capabilities.calendar_store import CalendarStore
 from folderhome.capabilities.contact_registry import ContactRegisterStore
 from folderhome.capabilities.finance_store import FinanceStore
 from folderhome.capabilities.inventory_store import InventoryStore
-from folderhome.capabilities.mail_draft import MailDraftLedger, SyntheticDraftTransport
+from folderhome.capabilities.mail_draft import (
+    MailDraftLedger,
+    SyntheticDraftTransport,
+    read_mailbox_password,
+)
 from folderhome.capabilities.medication_store import MedicationStore
 from folderhome.contracts import (
     ContentFormat,
@@ -903,6 +907,111 @@ def test_mail_draft_adapter_appends_one_draft_without_sending_or_leaking(
         str(envelope.domain_plan["idempotency_key"])
     ) == "drafted"
     assert "synthetisches-postfach-geheimnis" not in str(report.to_dict())
+
+
+@pytest.mark.parametrize("field", ["host", "username", "password_file", "keyring"])
+def test_mail_draft_account_change_cannot_reuse_an_existing_approval(
+    tmp_path: Path, field: str,
+) -> None:
+    # A hidden account change must not replace the gateway entry for an old approval.
+    registry, password_file = _mail_draft_registry(tmp_path)
+    account_file = password_file.parent / "mail-draft-account.json"
+    if field == "keyring":
+        initial = json.loads(account_file.read_text(encoding="utf-8"))
+        initial.update(keyring_service="original-service", keyring_user="original-user")
+        account_file.write_text(json.dumps(initial), encoding="utf-8")
+    transport = SyntheticDraftTransport()
+    transport_accounts = []
+
+    def transport_factory(account):
+        transport_accounts.append(account)
+        return transport
+
+    adapter = MailDraftWorkflowAdapter(
+        registry=registry,
+        state_dir=tmp_path / "state",
+        report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+        report_forge_distribution_version="1.1.4",
+        report_forge_runtime_version="1.1.0",
+        allow_mail_draft=True,
+        transport_factory=transport_factory,
+    )
+    gateway = WorkflowExecutionGateway((adapter,))
+    original = gateway.prepare(
+        workflow_id="mail-connector", profile_id="lukas", request=_mail_draft_request(),
+    )
+    payload = json.loads(account_file.read_text(encoding="utf-8"))
+    if field == "keyring":
+        payload.update(keyring_service="another-service", keyring_user="another-user")
+    elif field == "password_file":
+        other_password = password_file.with_name("another-password.txt")
+        other_password.write_text("another-synthetic-password", encoding="utf-8")
+        payload[field] = str(other_password)
+    else:
+        payload[field] = "another.example.invalid"
+    account_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    replacement = gateway.prepare(
+        workflow_id="mail-connector", profile_id="lukas", request=_mail_draft_request(),
+    )
+    assert replacement.envelope_id != original.envelope_id
+    with pytest.raises(WorkflowExecutionError):
+        gateway.execute(
+            envelope_id=original.envelope_id, approved_at="2026-08-25T09:05:00+02:00",
+        )
+    assert transport.appended == []
+    assert transport_accounts == []
+    assert not (tmp_path / "state").exists()
+    assert "another.example.invalid" not in str(replacement.to_dict())
+    assert "another-synthetic-password" not in str(replacement.to_dict())
+    assert str(password_file.parent) not in str(replacement.to_dict())
+
+    # A newly reviewed plan still works and does not inherit the old denial.
+    report = gateway.execute(
+        envelope_id=replacement.envelope_id, approved_at="2026-08-25T09:06:00+02:00",
+    )
+    assert report.domain_report["status"] == "drafted"
+    assert len(transport.appended) == 1
+    assert len(transport_accounts) == 1
+
+
+def test_mail_draft_password_rotation_preserves_approval_and_reads_fresh_secret(
+    tmp_path: Path,
+) -> None:
+    registry, password_file = _mail_draft_registry(tmp_path)
+    transport = SyntheticDraftTransport()
+    passwords = []
+
+    def transport_factory(account):
+        passwords.append(read_mailbox_password(account))
+        return transport
+
+    gateway = WorkflowExecutionGateway((MailDraftWorkflowAdapter(
+        registry=registry,
+        state_dir=tmp_path / "state",
+        report_forge_revision="0123456789abcdef0123456789abcdef01234567",
+        report_forge_distribution_version="1.1.4",
+        report_forge_runtime_version="1.1.0",
+        allow_mail_draft=True,
+        transport_factory=transport_factory,
+    ),))
+    original = gateway.prepare(
+        workflow_id="mail-connector", profile_id="lukas", request=_mail_draft_request(),
+    )
+    password_file.write_text("rotated-synthetic-password", encoding="utf-8")
+    refreshed = gateway.prepare(
+        workflow_id="mail-connector", profile_id="lukas", request=_mail_draft_request(),
+    )
+    assert original.envelope_id == refreshed.envelope_id
+    assert passwords == []
+    report = gateway.execute(
+        envelope_id=original.envelope_id, approved_at="2026-08-25T09:05:00+02:00",
+    )
+    assert report.domain_report["status"] == "drafted"
+    assert passwords == ["rotated-synthetic-password"]
+    assert len(transport.appended) == 1
+    assert "rotated-synthetic-password" not in str(refreshed.to_dict())
+    assert "rotated-synthetic-password" not in str(report.to_dict())
 
 
 def test_mail_draft_adapter_plans_but_refuses_execution_without_live_gate(

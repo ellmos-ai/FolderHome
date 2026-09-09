@@ -90,6 +90,11 @@ Security fixes are maintained on the current competition state on branch
   existing credentials but does not obtain consent or grant workflow effects.
 - Own-mail drafts need `--approve-mail-draft` and exact confirmation. There is
   no send operation; storing an unsent draft is still an external disclosure.
+  The plan also binds the private mailbox configuration and credential locator
+  by hash. Both are rechecked before creating the transport: changed host,
+  account or credential location requires a new plan and confirmation. Password
+  rotation at the same locator does not change the plan; password contents are
+  neither hashed into the plan nor read during preparation.
 - Scheduler registration and app-owned consumer start have distinct gates and
   confirmations. The consumer reads authorized document queues and writes
   operational state; it does not authorize document cleanup or install a service.

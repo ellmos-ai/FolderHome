@@ -8,7 +8,7 @@ import re
 import secrets
 import threading
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import date, time
 from hashlib import sha256
 from pathlib import Path
@@ -6562,6 +6562,9 @@ class MailDraftWorkflowAdapter:
             **resource_ids,
             **message.to_public_dict(),
             **account.to_public_dict(),
+            "account_binding_sha256": _mail_draft_account_binding(
+                account, account_resource.local_path,
+            ),
             "live_effect_approved": self._allow_mail_draft,
             "paths_disclosed": False,
         }
@@ -6618,16 +6621,31 @@ class MailDraftWorkflowAdapter:
                 "Freigabe --approve-mail-draft."
             )
         try:
-            transport = self._transport_factory(domain_plan.account)
+            account_resource = self._registry.resolve(
+                resource_id=domain_plan.account_resource_id,
+                profile_id=domain_plan.message.profile_id,
+                purpose="mail.draft_account",
+                required_kind="file",
+                required_operations=frozenset({"read"}),
+            )
+            account = load_mail_draft_account(account_resource.local_path)
+            if _mail_draft_account_binding(account, account_resource.local_path) != (
+                domain_plan.public_plan.get("account_binding_sha256")
+            ):
+                raise WorkflowExecutionError(
+                    "Entwurfskonto hat sich seit der Vorbereitung geändert; "
+                    "erneut vorbereiten und bestätigen."
+                )
+            transport = self._transport_factory(account)
             report = append_mail_draft(
                 domain_plan.message,
-                account=domain_plan.account,
+                account=account,
                 transport=transport,
                 ledger=MailDraftLedger(self._state_dir),
                 allow_mailbox_write=True,
                 appended_at=approved_at,
             )
-        except (MailDraftError, OSError, TypeError, ValueError) as exc:
+        except (MailDraftError, ResourceRegistryError, OSError, TypeError, ValueError) as exc:
             raise WorkflowExecutionError(str(exc)) from exc
         public_report = dict(report.to_dict())
         public_report.update(
@@ -6656,6 +6674,16 @@ class MailDraftWorkflowAdapter:
             domain_report=public_report,
             side_effects=self.descriptor.side_effects,
         )
+
+
+def _mail_draft_account_binding(account: MailDraftAccount, resource_path: Path) -> str:
+    """Bind the private destination and credential locator, never the password."""
+    material = asdict(account)
+    material["password_file"] = (
+        str(account.password_file.resolve()) if account.password_file is not None else None
+    )
+    material["account_resource_path"] = str(resource_path.resolve())
+    return sha256(_canonical_json(material)).hexdigest()
 
 
 def _imap_draft_transport(account: MailDraftAccount) -> MailDraftTransport:
