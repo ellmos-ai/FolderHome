@@ -541,6 +541,20 @@ Kontenfeld lässt sie unverändert. Eine Profillöschung entfernt nur dessen Kon
 bei einer externen Quelle werden verbleibende Konten in eine Setup-eigene Kopie
 übernommen, ohne die Quelle zu verändern.
 
+**Regelmäßige Ordnerprüfung:** Abschnitt 8 richtet für jeweils ein Profil Quelle,
+Vorschlagsziel, Dokumentbereich, Intervall (5–1440 Minuten) und ersten Termin mit
+explizitem UTC-Versatz und Zeitzone ein. Lokales Dokumentlesen benötigt eine
+ausdrückliche Erlaubnis. Die Prüfung zeigt Watch-, Binding- und Antragsdateien
+sowie private Betriebsordner; Speichern verwendet dieselbe genaue Planbestätigung
+wie das übrige Setup. Ohne gesetzten Bearbeitungsschalter bleibt alles erhalten.
+**Speichern registriert keinen Job und startet keinen Dienst.** Die normale App
+lädt die erzeugten logischen Ressourcen. Registrierung benötigt weiterhin eine
+separate Planbestätigung und `--approve-scheduler-write`; Start-/Statussteuerung
+des Ausführungsdienstes fehlt noch in der Oberfläche. Sobald ein Store existiert,
+verweigert das Setup das Ersetzen dieser Scheduler-Konfiguration. Quelle, Ziel
+und Betriebsdaten müssen getrennt bleiben; andere Ressourcen und eingeschränkte
+Berechtigungen bleiben erhalten.
+
 **Die State-Ordner-Einstellung führt keinen Datenumzug aus.** Ohne gespeicherte
 Launch-Datei schlägt das Setup `<config-dir>/state` vor, getrennt von
 `<config-dir>/profiles`. Ein gespeicherter Launch-Pfad hat Vorrang. Wählst du

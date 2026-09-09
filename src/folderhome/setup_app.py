@@ -48,6 +48,11 @@ from folderhome.application.resource_registry import (
     load_resource_registry,
     parse_resource_registry,
 )
+from folderhome.application.scheduler_setup import (
+    plan_scheduler_setup,
+    read_scheduler_forms,
+    scheduler_planned_targets,
+)
 from folderhome.contracts.calendar import CalendarBackend
 from folderhome.contracts.local_app import LocalApiResponse, LocalAppSettings
 from folderhome.contracts.profiles import INTEGER_RULE_KEYS, RuleKey, RuleScope
@@ -206,6 +211,11 @@ class SetupApplication:
         launch = self._current_launch()
         registry = self._load_registry()
         current_calendar, calendar_load_error, external_calendar = self._current_calendar(launch)
+        try:
+            current_schedulers = read_scheduler_forms(registry)
+            scheduler_load_error = None
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            current_schedulers, scheduler_load_error = {}, str(exc)
         return {
             "schema": "folderhome.setup-state.v1",
             "os_account": self.profiles.os_account,
@@ -229,6 +239,8 @@ class SetupApplication:
             "calendar_backends": list(CALENDAR_BACKENDS),
             "calendar_read_by_app": True,
             "current_calendar": current_calendar,
+            "current_schedulers": current_schedulers,
+            "scheduler_load_error": scheduler_load_error,
             "calendar_load_error": calendar_load_error,
             "calendar_external_configuration": external_calendar,
             "repeatable_purposes": [
@@ -329,6 +341,15 @@ class SetupApplication:
         )
         if resources_json is not None:
             resources_json = self._merge_resources(resources_json, planned, errors)
+        scheduler = None
+        if resources_json is not None:
+            try:
+                scheduler = plan_scheduler_setup(
+                    request.get("scheduler"), config_dir=self.config_dir,
+                    profiles=planned, resources=resources_json,
+                )
+            except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+                errors.append({"field": "scheduler", "message": str(exc)})
         launch_json = (
             None
             if errors
@@ -379,6 +400,7 @@ class SetupApplication:
             "launch_json": launch_json,
             "calendar_json": calendar_json,
             "calendar_accounts_json": calendar_accounts_json,
+            "scheduler": scheduler,
             "household_json": household_json,
             "profiles_json": profiles_json,
             "removed_profile_ids": removed,
@@ -551,6 +573,7 @@ class SetupApplication:
                 known_profile_ids=frozenset(
                     item.profile_id for item in planned.profiles
                 ),
+                planned_targets=scheduler_planned_targets(payload.get("scheduler")),
             )
         except ResourceRegistryError as exc:
             errors.append({"field": "folders", "message": str(exc)})
@@ -607,10 +630,20 @@ class SetupApplication:
             self.config_dir.mkdir(parents=True, exist_ok=True)
             if profiles_dir is not None:
                 profiles_dir.mkdir(parents=True, exist_ok=True)
+            created_scheduler_dirs = []
             # Stage every file, load the staged documents, and only then replace the
             # live ones. A refused plan leaves the previous state exactly as it was.
             staged: list[tuple[Path, Path]] = []
             try:
+                if plan["scheduler"] is not None:
+                    for raw_path in plan["scheduler"]["directories"]:
+                        directory = Path(raw_path)
+                        if not directory.exists():
+                            directory.mkdir()
+                            created_scheduler_dirs.append(directory)
+                    for item in plan["scheduler"]["documents"]:
+                        target = Path(item["path"])
+                        staged.append((_stage_json(target, item["document"]), target))
                 if profiles_dir is not None:
                     profile_files: list[tuple[Path, Path]] = []
                     for profile_id, document in sorted(plan["profiles_json"].items()):
@@ -633,7 +666,12 @@ class SetupApplication:
                 staged.append(
                     (_stage_json(self.launch_file, plan["launch_json"]), self.launch_file)
                 )
-                self._verify_registry(staged[-2][0], planned)
+                parse_resource_registry(
+                    json.loads(staged[-2][0].read_text(encoding="utf-8")),
+                    expected_os_account=planned.os_account,
+                    known_profile_ids=frozenset(item.profile_id for item in planned.profiles),
+                    planned_targets=scheduler_planned_targets(plan["scheduler"]),
+                )
                 for document, target, check in (
                     (
                         plan["calendar_json"],
@@ -654,6 +692,8 @@ class SetupApplication:
             except BaseException:
                 for temporary, _target in staged:
                     temporary.unlink(missing_ok=True)
+                for directory in reversed(created_scheduler_dirs):
+                    directory.rmdir()
                 raise
             retired_targets = [Path(item) for item in plan["cascade"]["retired_files"]]
             if profiles_dir is not None:
@@ -683,8 +723,11 @@ class SetupApplication:
                 retired = [item for item in retired if item is not None]
                 if api_keys:
                     write_env_file(self.env_file, api_keys)
+                self._verify_registry(self.resources_file, planned)
             except BaseException:
                 _restore_setup_files(snapshots)
+                for directory in reversed(created_scheduler_dirs):
+                    directory.rmdir()
                 raise
             finally:
                 for temporary, _target in staged:
@@ -1868,6 +1911,7 @@ def _plan_digest(payload: dict[str, Any]) -> str:
         # Every file the save may write belongs in the confirmed hash.
         "calendar_json": payload["calendar_json"],
         "calendar_accounts_json": payload["calendar_accounts_json"],
+        "scheduler": payload.get("scheduler"),
         "household_json": payload["household_json"],
         "profiles_json": payload["profiles_json"],
         "removed_profile_ids": payload["removed_profile_ids"],

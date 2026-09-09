@@ -507,6 +507,19 @@ omitting the accounts field leaves it unchanged. Profile deletion removes only
 its accounts; when the active source is external, remaining accounts move into
 a setup-owned copy without editing the source.
 
+**Regular folder checks:** setup section 8 prepares one profile's source, proposal
+destination, document area, interval (5–1440 minutes) and first check with an
+explicit UTC offset/time zone. Local document reading needs explicit permission.
+Check previews the watch, binding and registration-request files plus their
+private runtime directories; save uses the same exact-plan confirmation as the
+rest of setup. Leaving the edit checkbox off preserves the configuration.
+**Saving neither registers a job nor starts a service.** The normal app loads
+the generated logical resources. Registration still requires a separate plan
+confirmation and `--approve-scheduler-write`; consumer start/status controls are
+not yet available in the UI. Once a store exists, setup refuses to replace that
+profile's scheduler configuration. Source, destination and runtime paths must
+remain separate; other resources and restricted permissions are preserved.
+
 **The state-folder setting does not migrate data.** Without a saved launch file,
 setup suggests `<config-dir>/state`, separate from `<config-dir>/profiles`.
 A stored launch path takes precedence. If you select a different state folder,

@@ -57,7 +57,7 @@ const translations = {
     gateHintRemote: "Start the app with --allow-network and --approve-sensitive-cloud-data for this provider.",
     subscriptionsTitle: "4. Subscriptions",
     subscriptionsHint: "Claude Code with a Claude subscription and the Codex CLI with a ChatGPT subscription can drive FolderHome as a tool: the agent is the brain, FolderHome is the tool. FolderHome needs no key of its own for this, and the provider above may stay fixture. Nothing here reads, stores or checks a subscription.",
-    subscriptionsStep1: "Start the app with the command shown in section 8 after saving.",
+    subscriptionsStep1: "Start the app with the command shown in section 9 after saving.",
     subscriptionsStep2: "Take the access URL from its start output and put it in place of the placeholder below.",
     subscriptionsStep3: "Run the command in Claude Code, or paste the block into ~/.codex/config.toml for Codex.",
     subscriptionsToken: "The token changes on every app start, so a stored editor entry goes stale with it. After a restart, put the new access URL in again.",
@@ -75,7 +75,21 @@ const translations = {
     stateDirHelp: "Without a saved launch.json, setup suggests a separate state subfolder of the configuration folder. A saved launch path is kept. Changing this path does not move or copy existing data: the app uses the selected folder on its next start. To keep existing state, select its current folder; profile and state folders must not overlap. Back up existing data before a manual move.",
     portLabel: "Port",
     outsideHome: "I confirm folders outside my user folder",
-    summaryTitle: "8. Summary and save",
+    summaryTitle: "9. Summary and save",
+    schedulerTitle: "8. Regular folder checks",
+    schedulerHint: "Prepare one profile at a time. Saving writes local configuration only: no job is registered and no service starts. Registration and execution require separate approval in the app. Existing registrations cannot be changed here.",
+    schedulerEnable: "Edit scheduler settings for this profile",
+    schedulerProfile: "Profile",
+    schedulerSource: "Which folder should be checked?",
+    schedulerTarget: "Destination for later filing proposals",
+    schedulerArea: "Document area",
+    schedulerInterval: "Check every (minutes, 5–1440)",
+    schedulerStart: "First check (ISO date and time with UTC offset)",
+    schedulerTimezone: "Time zone (must match the UTC offset)",
+    schedulerRecursive: "Include subfolders",
+    schedulerRead: "Allow local reading of these documents",
+    schedulerLoadError: "Saved scheduler settings could not be loaded. Check the existing files before replacing them; this section is disabled.",
+    schedulerSaved: "Scheduler configuration saved. No job registered and no service started. The saved request is available below for a separate registration preview.",
     checkButton: "Check",
     saveButton: "Save",
     saveNote: "Nothing is saved automatically. Check first, then save; saving writes the profile files, resources.json and launch.json.",
@@ -159,7 +173,7 @@ const translations = {
     gateHintRemote: "Starte die App für diesen Provider mit --allow-network und --approve-sensitive-cloud-data.",
     subscriptionsTitle: "4. Abonnements",
     subscriptionsHint: "Claude Code mit Claude-Abo und die Codex-CLI mit ChatGPT-Abo können FolderHome als Werkzeug steuern: Der Agent ist das Gehirn, FolderHome ist das Werkzeug. FolderHome braucht dafür keinen eigenen Schlüssel, und der Provider oben darf fixture bleiben. Hier wird kein Abo gelesen, gespeichert oder geprüft.",
-    subscriptionsStep1: "Starte die App mit dem Befehl, den Abschnitt 8 nach dem Speichern anzeigt.",
+    subscriptionsStep1: "Starte die App mit dem Befehl, den Abschnitt 9 nach dem Speichern anzeigt.",
     subscriptionsStep2: "Nimm die Zugriffs-URL aus der Startausgabe und setze sie anstelle des Platzhalters unten ein.",
     subscriptionsStep3: "Führe den Befehl in Claude Code aus oder trage den Block für Codex in ~/.codex/config.toml ein.",
     subscriptionsToken: "Das Token wechselt bei jedem App-Start, ein hinterlegter Editor-Eintrag veraltet also mit ihm. Nach einem Neustart die neue Zugriffs-URL erneut eintragen.",
@@ -177,7 +191,21 @@ const translations = {
     stateDirHelp: "Ohne gespeicherte launch.json schlägt das Setup einen separaten Unterordner state im Konfigurationsordner vor. Ein gespeicherter Launch-Pfad bleibt erhalten. Eine Pfadänderung verschiebt oder kopiert keine vorhandenen Daten: Die App verwendet den gewählten Ordner beim nächsten Start. Wähle für den bisherigen Datenbestand dessen aktuellen Ordner; Profil- und State-Ordner dürfen sich nicht überlappen. Sichere vorhandene Daten vor einem manuellen Umzug.",
     portLabel: "Port",
     outsideHome: "Ich bestätige Ordner außerhalb meines Benutzerordners",
-    summaryTitle: "8. Zusammenfassung und Speichern",
+    summaryTitle: "9. Zusammenfassung und Speichern",
+    schedulerTitle: "8. Regelmäßige Ordnerprüfung",
+    schedulerHint: "Richte jeweils ein Profil ein. Speichern schreibt nur lokale Einstellungen: kein Job wird registriert, kein Dienst gestartet. Registrierung und Ausführung benötigen eine getrennte Freigabe in der App. Bestehende Registrierungen lassen sich hier nicht ändern.",
+    schedulerEnable: "Scheduler-Einstellungen für dieses Profil bearbeiten",
+    schedulerProfile: "Profil",
+    schedulerSource: "Welchen Ordner prüfen?",
+    schedulerTarget: "Ziel für spätere Ablagevorschläge",
+    schedulerArea: "Dokumentbereich",
+    schedulerInterval: "Prüfen alle (Minuten, 5–1440)",
+    schedulerStart: "Erster Termin (ISO-Datum und Uhrzeit mit UTC-Versatz)",
+    schedulerTimezone: "Zeitzone (muss zum UTC-Versatz passen)",
+    schedulerRecursive: "Unterordner einbeziehen",
+    schedulerRead: "Lokales Lesen dieser Dokumente erlauben",
+    schedulerLoadError: "Die gespeicherten Scheduler-Einstellungen konnten nicht geladen werden. Prüfe die bestehenden Dateien vor dem Ersetzen; dieser Bereich ist gesperrt.",
+    schedulerSaved: "Scheduler-Konfiguration gespeichert. Kein Job registriert, kein Dienst gestartet. Der gespeicherte Antrag steht unten für eine separate Registrierungsvorschau bereit.",
     checkButton: "Prüfen",
     saveButton: "Speichern",
     saveNote: "Es wird nichts automatisch gespeichert. Erst Prüfen, dann Speichern; das Speichern schreibt die Profildateien, resources.json und launch.json.",
@@ -560,6 +588,83 @@ function renderCalendar() {
   calendarDirty = false;
 }
 
+function buildScheduler() {
+  if (!document.querySelector("#scheduler-enabled").checked) return null;
+  if (state.scheduler_load_error) throw new Error(t("schedulerLoadError"));
+  const value = id => document.querySelector(`#scheduler-${id}`).value.trim();
+  return {
+    profile_id: value("profile"), source_dir: value("source"), target_dir: value("target"),
+    area: value("area"), interval_minutes: Number(document.querySelector("#scheduler-interval").value),
+    start_at: value("start"), timezone: value("timezone"),
+    recursive: document.querySelector("#scheduler-recursive").checked,
+    allow_sensitive_local_read: document.querySelector("#scheduler-read").checked,
+    confirm_outside_home: document.querySelector("#outside-home").checked,
+  };
+}
+
+function refreshSchedulerProfiles() {
+  const select = document.querySelector("#scheduler-profile");
+  const previous = select.value;
+  const profiles = plannedProfiles();
+  select.replaceChildren();
+  for (const profile of profiles) {
+    const option = document.createElement("option");
+    option.value = profile.profile_id;
+    option.textContent = profile.display_name || profile.profile_id;
+    select.append(option);
+  }
+  if (profiles.some(profile => profile.profile_id === previous)) select.value = previous;
+  if (select.value !== previous) loadSchedulerProfile();
+}
+
+function loadSchedulerProfile() {
+  const profile = document.querySelector("#scheduler-profile").value;
+  const saved = (state.current_schedulers || {})[profile] || {};
+  for (const [id, value] of Object.entries({
+    source: saved.source_dir || "", target: saved.target_dir || "", area: saved.area || "documents",
+    interval: saved.interval_minutes ?? 30,
+    start: saved.start_at || new Date(Date.now() + 5 * 60000).toISOString(),
+    timezone: saved.timezone || "UTC",
+  })) document.querySelector(`#scheduler-${id}`).value = value;
+  document.querySelector("#scheduler-recursive").checked = saved.recursive ?? true;
+  document.querySelector("#scheduler-read").checked = saved.allow_sensitive_local_read === true;
+}
+
+function renderScheduler() {
+  const enabled = document.querySelector("#scheduler-enabled");
+  enabled.checked = false;
+  enabled.disabled = Boolean(state.scheduler_load_error);
+  document.querySelector("#scheduler-fields").hidden = true;
+  document.querySelector("#scheduler-load-error").hidden = !state.scheduler_load_error;
+  refreshSchedulerProfiles();
+  loadSchedulerProfile();
+}
+
+function bindSchedulerEvents() {
+  document.querySelector("#scheduler-enabled").addEventListener("change", () => {
+    refreshSchedulerProfiles();
+    document.querySelector("#scheduler-fields").hidden = !document.querySelector("#scheduler-enabled").checked;
+    invalidate();
+  });
+  document.querySelector("#scheduler-profile").addEventListener("change", () => {
+    loadSchedulerProfile();
+    invalidate();
+  });
+  for (const event of ["input", "change"]) {
+    document.querySelector("#scheduler-fields").addEventListener(event, invalidate);
+  }
+  for (const name of ["source", "target"]) {
+    document.querySelector(`#scheduler-${name}-choose`).addEventListener("click", async () => {
+      const input = document.querySelector(`#scheduler-${name}`);
+      const previous = input.value;
+      try {
+        await pickFolder(input);
+        if (previous !== input.value) invalidate();
+      } catch (error) { showError(error); }
+    });
+  }
+}
+
 // ------------------------------------------------------------------ profiles
 function integerRuleKeys() {
   return new Set(state.integer_rule_keys || []);
@@ -893,6 +998,7 @@ function buildRequest() {
     model_presets: presets,
     model_preset: activePreset,
     calendar: buildCalendar(),
+    scheduler: buildScheduler(),
     profiles: buildProfiles(),
     household_rules: readRules(householdRules.querySelector("[data-rules]")),
     port: Number(document.querySelector("#port").value) || 8765,
@@ -916,6 +1022,10 @@ function renderPlan(plan) {
   const list = document.createElement("ul");
   list.append(textElement("li", plan.targets.resources_file));
   list.append(textElement("li", plan.targets.launch_file));
+  if (plan.scheduler) {
+    for (const item of plan.scheduler.documents) list.append(textElement("li", item.path));
+    for (const path of plan.scheduler.directories) list.append(textElement("li", `${path}/`));
+  }
   if (plan.profiles_json) {
     list.append(textElement("li", plan.targets.household_file));
     for (const id of Object.keys(plan.profiles_json).sort()) {
@@ -937,6 +1047,12 @@ function renderPlan(plan) {
   }
   summary.append(textElement("pre", JSON.stringify(plan.resources_json, null, 2)));
   summary.append(textElement("pre", JSON.stringify(plan.launch_json, null, 2)));
+  if (plan.scheduler) {
+    summary.append(textElement("p", t("schedulerHint"), "hint"));
+    for (const item of plan.scheduler.documents) {
+      summary.append(textElement("pre", JSON.stringify(item.document, null, 2)));
+    }
+  }
 }
 
 async function check() {
@@ -965,6 +1081,10 @@ async function save() {
   summary.replaceChildren();
   summary.append(textElement("p", t("savedTitle")));
   summary.append(textElement("pre", saved.launch_command));
+  if (checkedPlan.scheduler) {
+    summary.append(textElement("p", t("schedulerSaved")));
+    summary.append(textElement("pre", JSON.stringify(checkedPlan.scheduler.request, null, 2)));
+  }
   if ((saved.backups || []).length) {
     summary.append(textElement("p", t("backupNote"), "hint"));
   }
@@ -976,6 +1096,7 @@ async function save() {
   state = await api("/api/v1/setup/state");
   renderKeys();
   renderCalendar();
+  renderScheduler();
 }
 
 function showError(error) {
@@ -1035,6 +1156,7 @@ document.querySelector("#calendar-directory-choose").addEventListener("click", a
   }
 });
 document.querySelector("#ollama-host").addEventListener("input", renderGateHint);
+bindSchedulerEvents();
 document.querySelector("#check").addEventListener("click", () => check().catch(showError));
 document.querySelector("#save").addEventListener("click", () => save().catch(showError));
 document.querySelectorAll("[data-language]").forEach((button) => {
@@ -1066,6 +1188,7 @@ api("/api/v1/setup/state")
     renderPresets();
     renderIntegrations();
     renderCalendar();
+    renderScheduler();
     applyTranslations();
   })
   .catch(showError);

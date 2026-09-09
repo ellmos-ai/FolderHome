@@ -50,6 +50,7 @@ def parse_resource_registry(
     *,
     expected_os_account: str,
     known_profile_ids: frozenset[str],
+    planned_targets: Mapping[Path, str] | None = None,
 ) -> ResourceRegistry:
     """Apply the same checks to a document that is not on disk yet."""
 
@@ -69,7 +70,9 @@ def parse_resource_registry(
     if not isinstance(resources_payload, list) or not resources_payload:
         raise ResourceRegistryError("Ressourcenregister benötigt eine Ressourcenliste.")
     resources = tuple(
-        _parse_resource(item, known_profile_ids=known_profile_ids)
+        _parse_resource(
+            item, known_profile_ids=known_profile_ids, planned_targets=planned_targets or {}
+        )
         for item in resources_payload
     )
     resource_ids = [item.resource_id for item in resources]
@@ -95,6 +98,7 @@ def _parse_resource(
     payload: object,
     *,
     known_profile_ids: frozenset[str],
+    planned_targets: Mapping[Path, str],
 ) -> LogicalResource:
     expected = {
         "resource_id",
@@ -132,7 +136,7 @@ def _parse_resource(
         )
     except ValueError as exc:
         raise ResourceRegistryError(str(exc)) from exc
-    _validate_local_target(resource)
+    _validate_local_target(resource, planned_targets=planned_targets)
     return resource
 
 
@@ -177,15 +181,23 @@ def _string_set(value: object, label: str) -> frozenset[str]:
     return frozenset(value)
 
 
-def _validate_local_target(resource: LogicalResource) -> None:
+def _validate_local_target(
+    resource: LogicalResource, *, planned_targets: Mapping[Path, str]
+) -> None:
     path = resource.local_path
     if resource.kind in {"directory", "local_calendar"}:
-        if not path.is_dir():
+        if not path.is_dir() and not (
+            not path.exists() and planned_targets.get(path) == "directory"
+        ):
             raise ResourceRegistryError(f"Konfiguriertes Verzeichnis fehlt: {resource.resource_id}")
         return
-    if resource.kind == "file" and "read" in resource.operations and not path.is_file():
+    if resource.kind == "file" and "read" in resource.operations and not path.is_file() and not (
+        not path.exists() and planned_targets.get(path) == "file"
+    ):
         raise ResourceRegistryError(f"Konfigurierte Datei fehlt: {resource.resource_id}")
-    if resource.kind in {"file", "sqlite_store"} and not path.parent.is_dir():
+    if resource.kind in {"file", "sqlite_store"} and not path.parent.is_dir() and not (
+        not path.parent.exists() and planned_targets.get(path.parent) == "directory"
+    ):
         raise ResourceRegistryError(
             f"Elternverzeichnis der Ressource fehlt: {resource.resource_id}"
         )

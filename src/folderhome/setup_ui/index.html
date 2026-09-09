@@ -162,7 +162,7 @@
           </p>
           <ol>
             <li data-i18n="subscriptionsStep1">
-              Start the app with the command shown in section 8 after saving.
+              Start the app with the command shown in section 9 after saving.
             </li>
             <li data-i18n="subscriptionsStep2">
               Take the access URL from its start output and put it in place of the
@@ -251,7 +251,70 @@
         </section>
 
         <section class="card">
-          <h2 data-i18n="summaryTitle">8. Summary and save</h2>
+          <h2 data-i18n="schedulerTitle">8. Regular folder checks</h2>
+          <p class="hint" data-i18n="schedulerHint">
+            Prepare one profile at a time. Saving writes local configuration only: no job is registered
+            and no service starts. Registration and execution require separate approval in the app.
+            Existing registrations cannot be changed here.
+          </p>
+          <p id="scheduler-load-error" class="error" role="alert" data-i18n="schedulerLoadError" hidden>
+            Saved scheduler settings could not be loaded. Check the existing files before replacing them;
+            this section is disabled.
+          </p>
+          <label class="checkbox">
+            <input id="scheduler-enabled" type="checkbox">
+            <span data-i18n="schedulerEnable">Edit scheduler settings for this profile</span>
+          </label>
+          <div id="scheduler-fields" hidden>
+            <label class="field">
+              <span data-i18n="schedulerProfile">Profile</span>
+              <select id="scheduler-profile"></select>
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerSource">Which folder should be checked?</span>
+              <span class="field-input">
+                <input id="scheduler-source" spellcheck="false">
+                <button id="scheduler-source-choose" class="button compact" type="button"
+                        data-i18n="chooseButton">Choose folder</button>
+              </span>
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerTarget">Destination for later filing proposals</span>
+              <span class="field-input">
+                <input id="scheduler-target" spellcheck="false">
+                <button id="scheduler-target-choose" class="button compact" type="button"
+                        data-i18n="chooseButton">Choose folder</button>
+              </span>
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerArea">Document area</span>
+              <input id="scheduler-area" value="documents">
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerInterval">Check every (minutes, 5–1440)</span>
+              <input id="scheduler-interval" type="number" min="5" max="1440" step="1" value="30">
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerStart">First check (ISO date and time with UTC offset)</span>
+              <input id="scheduler-start" placeholder="2026-09-10T08:00:00+02:00" spellcheck="false">
+            </label>
+            <label class="field">
+              <span data-i18n="schedulerTimezone">Time zone (must match the UTC offset)</span>
+              <input id="scheduler-timezone" value="UTC" placeholder="Europe/Berlin" spellcheck="false">
+            </label>
+            <label class="checkbox">
+              <input id="scheduler-recursive" type="checkbox" checked>
+              <span data-i18n="schedulerRecursive">Include subfolders</span>
+            </label>
+            <label class="checkbox">
+              <input id="scheduler-read" type="checkbox">
+              <span data-i18n="schedulerRead">Allow local reading of these documents</span>
+            </label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2 data-i18n="summaryTitle">9. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving merges the setup bindings with existing resources. Custom entries
             and stricter permissions are preserved. Existing JSON configuration files
