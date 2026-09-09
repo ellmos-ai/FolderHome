@@ -43,6 +43,7 @@ URL. Do not include the folder in releases or competition uploads.
 ```
 
 Two passing bridge tests prove real local extraction and the privacy gate for
-that checkout. Missing providers cause explicitly marked integration skips;
-present but wrong/dirty providers cause failures. A skipped integration test is
-not proof that the corresponding real-data feature works.
+that checkout. Provider-dependent tests need their matching source checkouts;
+some are explicitly skipped when a provider is absent. Present but wrong/dirty
+providers fail. A skipped integration test is not proof that the corresponding
+real-data feature works.

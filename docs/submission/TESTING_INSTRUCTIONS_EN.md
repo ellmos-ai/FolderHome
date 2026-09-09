@@ -1,7 +1,8 @@
 # FolderHome Testing Instructions
 
-These instructions exercise the submitted project without AWS credentials,
-network access or real personal data.
+These instructions exercise the local fixture without AWS credentials or real
+personal data. Downloading the source and dependencies requires network access;
+the fixture itself makes no external requests.
 
 ## Platform
 
@@ -94,23 +95,49 @@ test is not a claim that an ECR image or AgentCore endpoint exists.
 .venv\Scripts\python.exe _tools\workflows-sync --check
 ```
 
-The complete fail-closed run is `415 passed, 3 failed`; all three failures are
-the documented local HungryCall/Ringedingeding checkout revision mismatches.
-The bounded acceptance run with exactly those three external pin probes
-deselected is `415 passed, 3 deselected`.
+The full regression suite also checks optional provider integrations against
+their exact disclosed revisions. A fresh clone does not supply those external
+checkouts. Follow [the provider checkout guide](../provider-checkouts.md) for
+authorized local sources; do not reset an existing checkout or remove a failing
+pin check to obtain a green result. The credential-free fixture above is a
+separate, smaller acceptance path, not a substitute for the full suite.
 
-The final wheel was then installed into a new virtual environment outside the
-repository. Its smoke test verified the packaged bilingual GUI assets, the
-confirmed four-result accident journey, AgentCore `/ping` with HTTP 200, zero
-network use and zero external actions. The tested wheel SHA-256 is
-`8b5929c855226a4c2c78223b65e85adc12dcd4b5aa61445d010e7fdf8d0eb24a`.
+## Installed-package check
 
-This fail-closed result is intentional: the local HungryCall checkout was
-`82c28e2de95b1b0d0343a40adfd8585938c305f8` instead of the disclosed manifest
-revision `82c28e2de95b1b0d0343a40adfd8585938c305f8`; Ringedingeding was
-`16b8c25a44f03d58c3f3a9625ac2f2993c6f6d6f` instead of
-`16b8c25a44f03d58c3f3a9625ac2f2993c6f6d6f`. FolderHome does not silently load
-either changed provider.
+Build both the source archive and a wheel from it (`python -m build` after
+installing the `build` development tool). Install that wheel into a **new virtual
+environment**, clear any checkout-specific `PYTHONPATH`, and run the following
+from outside the repository:
+
+```powershell
+python -I -m folderhome plugins validate --json
+python -I -m folderhome demo run --output-dir <new-demo-directory> --approve-output-write --json
+```
+
+Manifest validation must report all **nine** component IDs, not an empty list.
+A missing or empty manifest directory must fail. Keep the generated evidence
+and the hash of the exact wheel tested; a hash from an earlier release does not
+certify the current source tree.
+
+Inspect both archives before sharing them: local coordination locks, provider
+checkouts, credentials and private reports must not be included. The build
+regression in `tests/test_distribution_build.py` exercises real source and wheel
+archives, including locks nested beside the component manifests. Package checks
+are separate from tests that deliberately import `src/`; those source tests
+alone do not certify an installed wheel.
+
+## Recipe integration
+
+The local app offers **Multi-step journey** below its chat. Preparation and
+confirmation are separate. Missing configured resources disable preparation;
+individual live-effect gates still apply at execution. See
+[Capability recipes](../capability-recipes.md) for the API and CLI contracts.
+
+`tests/test_local_recipes.py` exercises the local API with real contact, letter
+and calendar adapters, synthetic input data and a synthetic mail transport.
+With mail approval absent, it verifies that the chain stops after the local
+letter and does not create a mail draft or calendar event. These tests do not
+certify browser clicks, live-model routing quality or a real mailbox connection.
 
 ## What the fixture proves
 

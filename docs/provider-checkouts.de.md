@@ -44,7 +44,8 @@ Wettbewerbsuploads aufnehmen.
 ```
 
 Zwei erfolgreiche Bridge-Tests belegen echte lokale Extraktion und die
-Datenschutzprüfung dieses Checkouts. Fehlende Provider führen zu ausdrücklich
-markierten übersprungenen Integrationstests; vorhandene falsche oder geänderte
-Provider führen zu Fehlern. Ein übersprungener Integrationstest belegt nicht,
-dass die entsprechende Funktion mit echten Daten arbeitet.
+Datenschutzprüfung dieses Checkouts. Provider-abhängige Tests benötigen die
+passenden Quellcode-Checkouts; einige werden bei fehlendem Provider ausdrücklich
+übersprungen. Vorhandene falsche oder geänderte Provider führen zu Fehlern.
+Ein übersprungener Integrationstest belegt nicht, dass die entsprechende
+Funktion mit echten Daten arbeitet.
