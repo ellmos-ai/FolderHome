@@ -143,6 +143,7 @@ from folderhome.application.folder_routine import (
     build_folder_routine_plan,
     execute_folder_routine,
 )
+from folderhome.application.google_calendar_workflow import GoogleCalendarWorkflowAdapter
 from folderhome.application.health_dossier import (
     HealthDossierGateError,
     build_health_dossier,
@@ -1574,6 +1575,7 @@ def _add_local_app_arguments(parser: argparse.ArgumentParser) -> None:
         default=DEFAULT_FCSA_PROVIDER_ROOT,
     )
     parser.add_argument("--approve-mail-draft", action="store_true")
+    parser.add_argument("--approve-calendar-write", action="store_true")
     parser.add_argument("--scheduler-root", type=Path, default=DEFAULT_SCHEDULER_PROVIDER_ROOT)
     parser.add_argument("--approve-scheduler-write", action="store_true")
     parser.add_argument("--approve-scheduler-consumer", action="store_true")
@@ -5507,6 +5509,21 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
                     ),
                     report_forge_runtime_version=REPORT_FORGE_RUNTIME_VERSION,
                     allow_mail_draft=args.approve_mail_draft,
+                )
+            )
+        if all(
+            any(purpose in resource.purposes for resource in resource_registry.resources)
+            for purpose in (
+                "calendar.connector_accounts",
+                "calendar.google_credentials",
+                "calendar.connector_ledger",
+            )
+        ):
+            workflow_adapters.append(
+                GoogleCalendarWorkflowAdapter(
+                    registry=resource_registry, profiles_dir=settings.profiles_dir,
+                    extractor=resource_extractor, allow_calendar_write=args.approve_calendar_write,
+                    resource_registry_file=configured_resources_file,
                 )
             )
         if any("scheduler.store" in resource.purposes for resource in resource_registry.resources):

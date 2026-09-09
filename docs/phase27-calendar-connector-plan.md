@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./phase27-calendar-connector-plan.de.md)
 
-**Status:** Google-v3 gateway and plan execution implemented; app/credential integration open  
+**Status:** Google-v3 gateway, private credentials and app/CLI adapter implemented; live acceptance open  
 **Updated:** 2026-09-09 (original phase acceptance: 233 tests on 2026-08-22)  
 **Product name in competition:** FolderHome
 
@@ -70,7 +70,8 @@ afterward, including when unapproved reminders were removed.
 after a gateway call does not undo a possible effect. Do not automatically retry
 or treat missing success evidence as proof that nothing happened. The gateway
 implementation below adds persistent idempotency, uncertain-outcome handling
-and provider readback. App/credential wiring and live acceptance remain open.
+and provider readback. The app/credential implementation is described below;
+live acceptance remains open.
 
 Local verification: 19 new red-to-green integrity regressions, 38 focused
 calendar tests, and a full suite of **831 passed in 251.39 seconds** with
@@ -104,14 +105,56 @@ when a later event fails; missing success is not a rollback.
 Local verification: **107 calendar tests** and **102 workflow, recipe and resource
 tests passed**, with warnings treated as errors. Tests use the real gateway,
 executor and temporary ledger behind an in-memory HTTP boundary. They do not
-establish OAuth or live-account acceptance. App/CLI resource binding, private
-credential resolution, live testing, and reference/ETag-based updates remain open.
+establish OAuth or live-account acceptance. The following adapter extends this
+baseline; initial login, live testing and reference/ETag-based updates remain open.
+
+### Private credentials and normal app/CLI execution
+
+Install the optional dependency from this checkout with
+`python -m pip install ".[calendar]"`. Google `authorized_user` JSON remains in a
+private OS-account file, outside repository and document folders. FolderHome uses
+`google-auth` to load the existing grant and refresh an expired token. It does not
+start a login or write refreshed credentials back to disk. Refresh is limited to
+one request to `https://oauth2.googleapis.com/token`; redirected, failed or oversized
+responses are rejected. Both requested and explicitly granted scopes must include
+`https://www.googleapis.com/auth/calendar.events`.
+
+Declare these five resources explicitly in the private registry:
+
+| Purpose | Kind | Operations |
+|---|---|---|
+| `calendar.source` | `directory` | `list`, `read`; `sensitive_read` only when approved |
+| `calendar.configuration` | `file` | `read` |
+| `calendar.connector_accounts` | `file` | `read` |
+| `calendar.google_credentials` | `file` | `read` |
+| `calendar.connector_ledger` | `directory` | `read`, `state_write` |
+
+The account reference must be `connector://google-calendar/<credential_resource_id>`.
+The configured account needs `google-calendar@v3` and a concrete calendar ID, not
+`primary`; the profile policy must select Google. The normal app/CLI factory then
+exposes the closed `calendar-connectors` request schema. Start with
+`--approve-calendar-write` and separately confirm the exact prepared plan. A chat
+request, configured account or launch JSON cannot grant this write permission.
+
+Preparation reads no credentials and creates no ledger. Execution reconstructs
+the plan from current profile, source, configuration and resource permissions
+before credential resolution and before/after each calendar request. Changed
+inputs or revoked rights stop further effects, including local confirmation writes.
+Uncertain/partial outcomes stay typed across the workflow boundary; confirmed
+references are retained on the exception. Dedicated partial-result UI and account
+setup assistance remain open. This adapter currently expects explicit registry
+bindings, not calendar defaults synthesized only in app memory.
+
+The OAuth tests use real `google-auth 2.57.1` behind a synthetic HTTPS boundary.
+Normal app-factory tests cover the separate gate and a persisted registry-rights
+revocation. No real Google grant or account was used. Protocol reference:
+[Google OAuth credentials](https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.credentials.html).
 
 ### Remaining boundaries
 
 - `ready` or `review_required` does not mean that a calendar was modified.  
 - A synthetic event reference is not a live calendar entry.  
-- No Google credentials were read nor were Google tools invoked.  
+- No real Google credentials or accounts were accessed during acceptance.  
 - UpToday receives an ICS file only via the separately approved Phase‑17 handoff.  
 - Routinika live sync, update, delete and series events remain open.  
 - Automatic appointment detection is best effort and carries no completeness guarantee.  

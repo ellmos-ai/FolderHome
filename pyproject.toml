@@ -17,6 +17,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+calendar = [
+  "google-auth>=2.38,<3",
+]
 transform = [
   "pypdf>=4.0",
   "Pillow>=10.0",
@@ -32,6 +35,7 @@ openai = [
   "openai>=1.60",
 ]
 dev = [
+  "google-auth>=2.38,<3",
   "pytest>=9.0.3",
   "ruff>=0.15",
   "moto[dynamodb]==5.2.3",

@@ -2,7 +2,7 @@
 
 [English](./phase27-calendar-connector-plan.md) | **Deutsch**
 
-**Status:** Google-v3-Gateway und Planausführung implementiert; App-/Zugangsdatenanbindung offen  
+**Status:** Google-v3-Gateway, private Zugangsdaten und App-/CLI-Adapter implementiert; Live-Abnahme offen  
 **Aktualisiert:** 2026-09-09 (ursprüngliche Phasenabnahme: 233 Tests am 2026-08-22)  
 **Produktname im Wettbewerb:** FolderHome
 
@@ -99,7 +99,8 @@ Ein nach dem Gateway-Aufruf erkannter Fehler macht eine mögliche Wirkung nicht
 rückgängig. Nicht automatisch wiederholen oder fehlende Erfolgsnachweise als
 Beweis ausbleibender Wirkung behandeln. Die nachfolgende Gateway-Implementierung
 ergänzt dauerhafte Idempotenz, Behandlung unklarer Ergebnisse und Provider-
-Readback. App-/Zugangsdatenanbindung und Live-Abnahme bleiben offen.
+Readback. Die App-/Zugangsdatenimplementierung ist unten beschrieben;
+die Live-Abnahme bleibt offen.
 
 Lokale Verifikation: 19 neue Rot-Grün-Integritätsregressionen, 38 fokussierte
 Kalendertests und eine Gesamtsuite mit **831 bestanden in 251,39 Sekunden**,
@@ -136,15 +137,60 @@ Erfolg bedeutet kein Zurückrollen.
 Lokale Verifikation: **107 Kalendertests** und **102 Workflow-, Rezept- und
 Ressourcentests bestanden**, Warnungen als Fehler behandelt. Die Tests verwenden
 echten Gateway, Executor und temporäres Ledger hinter einer HTTP-In-Memory-Grenze.
-Das belegt keine OAuth- oder Live-Kontenabnahme. App-/CLI-Ressourcenbindung, private
-Zugangsdatenauflösung, Live-Tests und Referenz-/ETag-basierte Änderungen bleiben offen.
+Das belegt keine OAuth- oder Live-Kontenabnahme. Der folgende Adapter ergänzt diese
+Basis; erstmalige Anmeldung, Live-Tests und Referenz-/ETag-basierte Änderungen bleiben offen.
+
+### Private Zugangsdaten und normale App-/CLI-Ausführung
+
+Installiere die optionale Abhängigkeit aus diesem Checkout mit
+`python -m pip install ".[calendar]"`. Google-`authorized_user`-JSON bleibt in einer
+privaten Datei des Betriebssystemkontos außerhalb von Repository und Dokumentordnern.
+FolderHome verwendet `google-auth`, um die bestehende Zustimmung zu laden und ein
+abgelaufenes Token zu erneuern. Es startet keine Anmeldung und schreibt erneuerte
+Zugangsdaten nicht zurück. Die Erneuerung ist auf eine Anfrage an
+`https://oauth2.googleapis.com/token` begrenzt; umgeleitete, fehlgeschlagene oder
+übergroße Antworten werden abgewiesen. Angefragte und ausdrücklich gewährte Scopes
+müssen `https://www.googleapis.com/auth/calendar.events` enthalten.
+
+Deklariere diese fünf Ressourcen ausdrücklich im privaten Register:
+
+| Zweck | Art | Operationen |
+|---|---|---|
+| `calendar.source` | `directory` | `list`, `read`; `sensitive_read` nur nach Freigabe |
+| `calendar.configuration` | `file` | `read` |
+| `calendar.connector_accounts` | `file` | `read` |
+| `calendar.google_credentials` | `file` | `read` |
+| `calendar.connector_ledger` | `directory` | `read`, `state_write` |
+
+Die Kontoreferenz muss `connector://google-calendar/<credential_resource_id>` lauten.
+Das konfigurierte Konto benötigt `google-calendar@v3` und eine konkrete Kalender-ID
+statt `primary`; die Profilrichtlinie muss Google auswählen. Der normale App-/CLI-
+Einstieg bietet dann das geschlossene Anfrageschema `calendar-connectors` an.
+Starte mit `--approve-calendar-write` und bestätige den genauen vorbereiteten Plan
+separat. Chatwunsch, konfiguriertes Konto oder Start-JSON erteilen diese Schreibfreigabe nicht.
+
+Die Vorbereitung liest keine Zugangsdaten und erzeugt kein Ledger. Die Ausführung
+rekonstruiert den Plan aus aktuellen Profilen, Quellen, Konfigurationen und
+Ressourcenrechten vor der Zugangsdatenauflösung sowie vor/nach jeder Kalenderanfrage.
+Geänderte Eingaben oder entzogene Rechte stoppen weitere Wirkungen, auch lokale
+Bestätigungsschreibvorgänge. Unklare/teilweise Ergebnisse bleiben an der Workflow-
+Grenze typisiert; bestätigte Referenzen bleiben an der Ausnahme erhalten.
+Eigene Teilergebnisanzeige und Unterstützung bei der Konteneinrichtung bleiben offen.
+Der Adapter benötigt derzeit explizite Registerbindungen, keine nur im App-Speicher
+ergänzten Kalender-Defaults.
+
+Die OAuth-Tests verwenden echtes `google-auth 2.57.1` hinter einer synthetischen
+HTTPS-Grenze. Tests des normalen App-Einstiegs decken das separate Gate und den
+Entzug gespeicherter Registerrechte ab. Keine echte Google-Zustimmung oder echtes
+Konto wurde verwendet. Protokollreferenz:
+[Google-OAuth-Zugangsdaten](https://google-auth.readthedocs.io/en/latest/reference/google.oauth2.credentials.html).
 
 ### Verbleibende Grenzen
 
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
   wurde.
 - Eine synthetische Ereignisreferenz ist kein Live-Kalendereintrag.
-- Es wurden weder Google-Zugangsdaten gelesen noch Google-Tools aufgerufen.
+- Während der Abnahme wurden keine echten Google-Zugangsdaten oder Konten verwendet.
 - UpToday erhält eine ICS-Datei erst über den getrennt freigegebenen
   Phase-17-Handoff.
 - Routinika-Live-Sync, Update, Löschen und Serienereignisse bleiben offen.

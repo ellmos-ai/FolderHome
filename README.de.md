@@ -527,9 +527,12 @@ Beim Start werden fehlende Kalenderkonfigurations-, State- und Konten-Defaults
 als private logische Ressourcen im Speicher ergänzt. Bestehende Bindungen und
 ihre Rechte haben Vorrang; die App schreibt das Ressourcenregister nicht um.
 
-Der aktuelle App-Executor schreibt nach Planbestätigung in den **lokalen Kalender**,
+Der lokale Kalender-Executor schreibt nach Planbestätigung in den **lokalen Kalender**,
 optional mit ICS-Export. Das Laden eines externen Kontos aktiviert **keinen
-Live-Connector**. Ungültige explizite Kalenderdateien oder unbekannte Kontoprofile
+Live-Connector**. Google-Erstellung benötigt zusätzlich explizite Zugangsdatei-/
+Ledgerressourcen, das Kalenderextra, `--approve-calendar-write` und genaue Bestätigung;
+siehe [Google-Connector-Anleitung](docs/phase27-calendar-connector-plan.de.md).
+Erstmalige Anmeldung und Live-Abnahme bleiben getrennt. Ungültige Kalenderdateien oder unbekannte Kontoprofile
 blockieren den Start. Ein Outlook-Backend gibt es nicht. Beim Wiederöffnen zeigt
 das Setup die Kalenderfelder und Konten aus den aktiven Launch-Pfaden.
 **Unveränderte Kalenderfelder lösen keinen Schreibvorgang aus**, auch beim

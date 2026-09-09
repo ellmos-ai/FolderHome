@@ -290,7 +290,10 @@ instead of trusting stored hash strings. Calendar input snapshots and gateway
 effects are bound as well. A failure after an attempted effect is not evidence
 of rollback or permission to retry. The Google-v3 gateway now provides persistent
 idempotency, field-level readback and typed uncertain/partial outcomes through
-the calendar plan executor. App/CLI resource and credential wiring remains open;
+the calendar plan executor. A resource-bound app/CLI adapter now loads an existing
+private OAuth grant only after `--approve-calendar-write` and exact confirmation.
+It rechecks source and resource permissions before/after provider calls;
+initial login, setup assistance and live acceptance remain open;
 see [calendar limits](./docs/phase27-calendar-connector-plan.md).
 
 The optional AWS demo proxy now has a local, reviewed micro-USD reservation

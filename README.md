@@ -495,9 +495,12 @@ At startup, missing calendar configuration/state/account defaults become private
 logical resources in memory. Existing resource bindings and their permissions
 take precedence; the registry file is not rewritten by the app.
 
-The current app executor writes the **local calendar**, with optional ICS export,
+The local-calendar executor writes the **local calendar**, with optional ICS export,
 only after plan confirmation. Loading an external account does **not** enable a
-live connector. Invalid explicit calendar files or unknown account profiles block
+live connector. Google creation additionally requires explicit credential/ledger
+resources, the calendar extra, `--approve-calendar-write` and exact confirmation;
+see the [Google connector guide](docs/phase27-calendar-connector-plan.md).
+Initial login and live acceptance remain separate. Invalid calendar files or unknown profiles block
 startup. There is no Outlook backend. Reopening setup restores saved calendar
 fields and accounts from the active launch paths. **Unchanged calendar fields do
 not trigger a write**, even when saving other settings. Editing them writes

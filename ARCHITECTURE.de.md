@@ -326,8 +326,11 @@ neu, statt gespeicherten Hashstrings zu vertrauen. Kalender-Eingabesnapshots und
 Gateway-Effekte sind ebenfalls gebunden. Ein Fehler nach einem Wirkungsversuch
 belegt weder eine Rücknahme noch die Erlaubnis zur Wiederholung. Der Google-v3-
 Gateway bietet jetzt dauerhafte Idempotenz, feldweises Rücklesen und typisierte
-unklare/teilweise Ergebnisse über den Kalenderplan-Executor. App-/CLI-Ressourcen-
-und Zugangsdatenanbindung bleiben offen; siehe
+unklare/teilweise Ergebnisse über den Kalenderplan-Executor. Ein ressourcengebundener
+App-/CLI-Adapter lädt eine bestehende private OAuth-Zustimmung erst nach
+`--approve-calendar-write` und exakter Bestätigung. Er prüft Quellen und
+Ressourcenrechte vor/nach Provideraufrufen erneut. Erstmalige Anmeldung,
+Einrichtungshilfe und Live-Abnahme bleiben offen; siehe
 [Kalendergrenzen](./docs/phase27-calendar-connector-plan.de.md).
 
 Der optionale AWS-Demo-Proxy besitzt jetzt einen lokalen Vertrag zur geprüften
