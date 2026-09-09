@@ -35,6 +35,7 @@ openai = [
   "openai>=1.60",
 ]
 dev = [
+  "hatchling>=1.27",
   "google-auth>=2.38,<3",
   "pytest>=9.0.3",
   "ruff>=0.15",
@@ -45,10 +46,15 @@ dev = [
 [project.scripts]
 folderhome = "folderhome.cli:main"
 
+[tool.hatch.build]
+# Coordination state must stay private, including builds outside a Git checkout.
+exclude = ["LOCK.txt", "LOCK.*.txt", "LOCK.permissions.json"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/folderhome"]
+only-include = ["src/folderhome", "manifests/components"]
 
-[tool.hatch.build.targets.wheel.force-include]
+[tool.hatch.build.targets.wheel.sources]
 "manifests/components" = "folderhome/component_manifests"
 
 [tool.pytest.ini_options]

@@ -39,6 +39,9 @@ _archive/
 /frame_view.md
 
 # Local project coordination and agent state
+LOCK.txt
+LOCK.*.txt
+LOCK.permissions.json
 .devpost-hackathon-state.json
 AGENTS.md
 CLAUDE.md
