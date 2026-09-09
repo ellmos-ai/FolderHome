@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./phase15-scheduler-handoff-plan.de.md)
 
-**As of:** 2026-08-21  
-**Status:** implemented and accepted with 133 FolderHome tests
+**As of:** 2026-09-09  
+**Status:** handoff and runner implemented; registration integration remains open
 
 ## User Goal
 
@@ -32,6 +32,17 @@ FolderHome shall be able to regularly check the read‑only routine queue headle
 
 ## Safety Boundaries
 
+- Before operational writes, the runner reconstructs the complete handoff,
+  compares it and retains an independent snapshot. The state gate must be the
+  boolean `true`, and intervals must be whole minutes.
+- Existing redirects in the lock/report directories are rejected; report paths
+  are rechecked after extraction and timestamp filenames are normalized. Cleanup
+  preserves replaced owners and removes only the runner's own lock. A failed
+  audit write never yields a claimed `completed_file`.
+- These checks do not create an isolation boundary against malicious code or
+  concurrent filesystem tampering within the same operating-system account.
+  The handoff binds configuration paths, not later changes to their contents;
+  persistent registration needs a separate content-bound approval.
 - No installation or registration of an operating‑system scheduler.  
 - No automatic batch release and no document action.  
 - No checkpoint writing by the scheduler run.  

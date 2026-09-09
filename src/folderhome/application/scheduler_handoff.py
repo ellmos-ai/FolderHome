@@ -8,6 +8,7 @@ import re
 import subprocess
 import tempfile
 from contextlib import suppress
+from dataclasses import replace
 from datetime import datetime
 from hashlib import sha256
 from html import escape
@@ -57,7 +58,7 @@ def build_scheduler_handoff(
             "task_name muss eine stabile ID aus Buchstaben, Zahlen, Punkt, "
             "Bindestrich oder Unterstrich sein."
         )
-    if isinstance(interval_minutes, bool) or not 5 <= interval_minutes <= 1440:
+    if type(interval_minutes) is not int or not 5 <= interval_minutes <= 1440:
         raise SchedulerHandoffError("interval_minutes muss zwischen 5 und 1440 liegen.")
     start = _timestamp(start_at, "start_at")
     zone = _timezone(timezone)
@@ -117,6 +118,32 @@ def build_scheduler_handoff(
     )
 
 
+def validate_scheduler_handoff(plan: SchedulerHandoffPlan) -> SchedulerHandoffPlan:
+    """Reconstruct and retain an independent, canonical handoff before effects.
+
+    This binds the handoff fields, not the current contents of configuration
+    files. Persistent registration needs a separate configuration snapshot.
+    """
+
+    expected = build_scheduler_handoff(
+        task_name=plan.task_name,
+        interval_minutes=plan.interval_minutes,
+        start_at=plan.start_at,
+        timezone=plan.timezone,
+        config_file=plan.config_file,
+        bindings_file=plan.bindings_file,
+        profiles_dir=plan.profiles_dir,
+        state_dir=plan.state_dir,
+        manifest_root=plan.manifest_root,
+        doc_services_root=plan.doc_services_root,
+        python_executable=plan.python_executable,
+        working_directory=plan.working_directory,
+    )
+    if expected != plan:
+        raise SchedulerHandoffError("Scheduler-Handoff wurde verändert; neu planen und prüfen.")
+    return expected
+
+
 def run_scheduler_queue(
     plan: SchedulerHandoffPlan,
     *,
@@ -129,13 +156,16 @@ def run_scheduler_queue(
 ) -> SchedulerRunReport:
     """Run one queue behind an operational lock; never act on documents."""
 
-    if not allow_scheduler_state_write:
+    if allow_scheduler_state_write is not True:
         raise SchedulerHandoffError(
             "Explizite State-Freigabe für Scheduler-Lock und Laufbericht fehlt."
         )
+    plan = validate_scheduler_handoff(plan)
     captured = _timestamp(captured_at, "captured_at")
     state_root = _safe_state_root(plan.state_dir)
-    lock_dir = state_root / "scheduler-locks" / plan.schedule_id
+    locks_root = _safe_state_root(state_root / "scheduler-locks")
+    runs_root = _safe_state_root(state_root / "scheduler-runs")
+    lock_dir = locks_root / plan.schedule_id
     run_id = _run_id(plan.schedule_id, captured_at)
     try:
         lock_dir.parent.mkdir(parents=True, exist_ok=True)
@@ -156,18 +186,19 @@ def run_scheduler_queue(
             f"Scheduler-Lock konnte nicht angelegt werden: {lock_dir}: {exc}"
         ) from exc
 
+    created_lock = lock_dir.stat()
+    owner_published = False
     owner_file = lock_dir / "owner.json"
+    owner_payload = {
+        "schema": "folderhome.scheduler-lock.v1",
+        "schedule_id": plan.schedule_id,
+        "run_id": run_id,
+        "captured_at": captured_at,
+        "process_id": os.getpid(),
+    }
     try:
-        _write_new_json(
-            owner_file,
-            {
-                "schema": "folderhome.scheduler-lock.v1",
-                "schedule_id": plan.schedule_id,
-                "run_id": run_id,
-                "captured_at": captured_at,
-                "process_id": os.getpid(),
-            },
-        )
+        _write_new_json(owner_file, owner_payload)
+        owner_published = True
         as_of = captured.astimezone(_timezone(plan.timezone)).date()
         queue = build_folder_routine_queue(
             watches,
@@ -178,13 +209,12 @@ def run_scheduler_queue(
             state_dir=state_root,
             extractor=extractor,
         )
+        _safe_state_root(owner_file)
+        if json.loads(owner_file.read_text(encoding="utf-8")) != owner_payload:
+            raise SchedulerHandoffError("Scheduler-Lock gehört nicht mehr zu diesem Lauf.")
         status, exit_code = _run_status(queue.summary)
-        completed_file = (
-            state_root
-            / "scheduler-runs"
-            / f"{_safe_timestamp(captured_at)}_{run_id}.json"
-        )
-        completed_file.parent.mkdir(parents=True, exist_ok=True)
+        completed_file = runs_root / f"{_safe_timestamp(captured_at)}_{run_id}.json"
+        _safe_state_root(runs_root).mkdir(parents=True, exist_ok=True)
         report = SchedulerRunReport(
             run_id=run_id,
             schedule_id=plan.schedule_id,
@@ -197,12 +227,6 @@ def run_scheduler_queue(
         _write_new_json(completed_file, report.to_dict())
         return report
     except Exception as exc:
-        failed_file = (
-            state_root
-            / "scheduler-runs"
-            / f"{_safe_timestamp(captured_at)}_{run_id}_failed.json"
-        )
-        failed_file.parent.mkdir(parents=True, exist_ok=True)
         report = SchedulerRunReport(
             run_id=run_id,
             schedule_id=plan.schedule_id,
@@ -210,17 +234,31 @@ def run_scheduler_queue(
             status="blocked",
             exit_code=EXIT_BLOCKED,
             queue=None,
-            completed_file=failed_file,
+            completed_file=None,
             error=str(exc),
         )
         with suppress(Exception):
-            _write_new_json(failed_file, report.to_dict())
+            _safe_state_root(runs_root).mkdir(parents=True, exist_ok=True)
+            failed_file = runs_root / f"{_safe_timestamp(captured_at)}_{run_id}_failed.json"
+            persisted = replace(report, completed_file=failed_file)
+            _write_new_json(failed_file, persisted.to_dict())
+            report = persisted
         return report
     finally:
-        with suppress(OSError):
-            owner_file.unlink()
-        with suppress(OSError):
-            lock_dir.rmdir()
+        with suppress(OSError, ValueError, SchedulerHandoffError):
+            _safe_state_root(owner_file)
+            current_lock = lock_dir.stat()
+            same_lock = (current_lock.st_dev, current_lock.st_ino) == (
+                created_lock.st_dev,
+                created_lock.st_ino,
+            )
+            if same_lock and not owner_published and not owner_file.exists():
+                # Only our still-empty, never-published lock; rmdir refuses
+                # a directory that acquired someone else's files meanwhile.
+                lock_dir.rmdir()
+            elif same_lock and json.loads(owner_file.read_text(encoding="utf-8")) == owner_payload:
+                owner_file.unlink()
+                lock_dir.rmdir()
 
 
 def _schedule_id(
@@ -315,7 +353,7 @@ def _windows_task_xml(
         "(nicht registrierter FolderHome-Plan)</Description>\n"
         "  </RegistrationInfo>\n"
         "  <Principals>\n"
-        "    <Principal id=\"Author\">\n"
+        '    <Principal id="Author">\n'
         "      <LogonType>InteractiveToken</LogonType>\n"
         "      <RunLevel>LeastPrivilege</RunLevel>\n"
         "    </Principal>\n"
@@ -338,7 +376,7 @@ def _windows_task_xml(
         "    <ExecutionTimeLimit>PT10M</ExecutionTimeLimit>\n"
         "    <Enabled>true</Enabled>\n"
         "  </Settings>\n"
-        "  <Actions Context=\"Author\">\n"
+        '  <Actions Context="Author">\n'
         "    <Exec>\n"
         f"      <Command>{escape(str(executable))}</Command>\n"
         f"      <Arguments>{escape(arguments)}</Arguments>\n"
@@ -389,13 +427,14 @@ def _safe_state_root(state_dir: Path) -> Path:
 
 
 def _safe_timestamp(value: str) -> str:
-    return value.replace(":", "-").replace("+", "_")
+    return _timestamp(value, "captured_at").isoformat().replace(":", "-").replace("+", "_")
 
 
 def _write_new_json(path: Path, payload: dict[str, object]) -> None:
-    encoded = (
-        json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
-    ).encode("utf-8")
+    _safe_state_root(path.parent)
+    encoded = (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode(
+        "utf-8"
+    )
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
         dir=path.parent,

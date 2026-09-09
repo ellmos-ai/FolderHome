@@ -2,8 +2,8 @@
 
 [English](./phase15-scheduler-handoff-plan.md) | **Deutsch**
 
-**Stand:** 2026-08-21  
-**Status:** implementiert und mit 133 FolderHome-Tests abgenommen
+**Stand:** 2026-09-09  
+**Status:** Handoff und Runner implementiert; Registrierungsanbindung bleibt offen
 
 ## Nutzerziel
 
@@ -41,6 +41,18 @@ Dateiaktionen freizugeben.
 
 ## Sicherheitsgrenzen
 
+- Vor operativen Schreibzugriffen rekonstruiert der Runner den vollständigen
+  Handoff, vergleicht ihn und behält einen unabhängigen Snapshot. Das State-Gate
+  muss der boolesche Wert `true` sein; Intervalle benötigen ganze Minuten.
+- Vorhandene Umleitungen in Lock-/Berichtsordnern werden abgewiesen. Berichtspfade
+  werden nach der Extraktion erneut geprüft und Zeitstempel-Dateinamen
+  normalisiert. Die Bereinigung erhält ersetzte Besitzer und entfernt nur den
+  eigenen Lock. Ein gescheiterter Auditschreibvorgang behauptet keine
+  gespeicherte `completed_file`.
+- Diese Prüfungen bilden keine Isolationsgrenze gegen bösartigen Code oder
+  gleichzeitige Dateisystemmanipulationen im selben Betriebssystemkonto.
+  Der Handoff bindet Konfigurationspfade, nicht spätere Inhaltsänderungen;
+  dauerhafte Registrierung benötigt eine gesonderte inhaltsgebundene Freigabe.
 - Keine Installation oder Registrierung eines Betriebssystem-Schedulers.
 - Keine automatische Batchfreigabe und keine Dokumentaktion.
 - Kein Checkpoint-Schreiben durch den Schedulerlauf.

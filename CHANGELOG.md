@@ -22,6 +22,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- The scheduler runner validates the complete handoff before state writes and
+  retains an independent snapshot. Non-boolean approvals and non-integer
+  intervals are rejected. Redirected state directories, replaced lock owners
+  and failed report writes no longer yield misleading completion evidence;
+  failed owner publication releases its own empty lock. Registration remains
+  a separate feature under development.
 - Calendar connector approvals bind the complete plan and input snapshot.
   Execution rechecks content, gateway effects and the exact event payload around
   every call. Synthetic routes cannot become live routes. Older approvals need

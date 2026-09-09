@@ -24,6 +24,12 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Der Scheduler-Runner prüft vor State-Schreibzugriffen den vollständigen
+  Handoff und behält einen unabhängigen Snapshot. Nichtboolesche Freigaben und
+  nichtganzzahlige Intervalle werden abgewiesen. Umgeleitete State-Ordner,
+  ersetzte Lock-Besitzer und gescheiterte Berichte ergeben keine irreführenden
+  Abschlussnachweise mehr; fehlgeschlagene Besitzerablage gibt den eigenen
+  leeren Lock frei. Registrierung bleibt ein gesonderter laufender Ausbau.
 - Kalenderconnector-Freigaben binden den vollständigen Plan und Eingabesnapshot.
   Die Ausführung prüft Inhalt, Gateway-Effekte und den genauen Ereignispayload
   rund um jeden Aufruf erneut. Synthetische Routen können nicht zu Live-Routen
