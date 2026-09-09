@@ -243,11 +243,32 @@ follows normally. Neither output mode repeats execution to retrieve evidence.
 
 ### Remaining boundaries
 
+The native gateway now has a **conditional update/delete core**, but these
+operations are **not yet connected to the normal app, CLI or UI approval flow**.
+That flow still creates reviewed events only. A gateway method is not permission
+to call Google; no real event has been modified or deleted during acceptance.
+
+The core requires the previously confirmed own solo event, its payload hash and
+a strong ETag from the private ledger. Update keeps the profile, calendar and
+event UID fixed. One conditional PATCH or DELETE is reserved durably per target
+version; subsequent calls only read back. HTTP 412 stops as a version conflict.
+Timeouts and lost local receipts remain uncertain unless readback verifies the
+requested state. Deletion reports **absence**, not proof that this particular
+request caused it. Old creation confirmations cannot overwrite a newer ledger
+version or a deletion tombstone. Unrelated event fields survive the PATCH.
+[Google conditional modifications](https://developers.google.com/workspace/calendar/api/guides/version-resources),
+[PATCH field semantics](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch).
+
+Still required: versioned event references in a reviewable mutation plan, fresh
+resource checks, separate exact confirmation, user-facing results and normal
+API/CLI/UI integration. Existing v1 creation references alone cannot authorize
+an update or deletion.
+
 - `ready` or `review_required` does not mean that a calendar was modified.  
 - A synthetic event reference is not a live calendar entry.  
 - No real Google credentials or accounts were accessed during acceptance.  
 - UpToday receives an ICS file only via the separately approved Phase‑17 handoff.  
-- Routinika live sync, update, delete and series events remain open.  
+- Routinika live sync, user-facing update/delete and series events remain open.  
 - Automatic appointment detection is best effort and carries no completeness guarantee.  
 - Profiles within an operating system account are organizational rules, not cryptographic tenant separation.
 

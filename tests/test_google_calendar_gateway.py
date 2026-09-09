@@ -274,7 +274,7 @@ def test_failed_receipt_commit_is_unknown_and_later_reconciles_without_reinsert(
     service = CalendarService()
     first = gateway(tmp_path, account, service)
 
-    def cannot_confirm(event_id, etag):
+    def cannot_confirm(event_id, etag, *, payload_hash):
         raise OSError("private ledger path")
 
     monkeypatch.setattr(first, "_confirm", cannot_confirm)

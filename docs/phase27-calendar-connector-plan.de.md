@@ -288,13 +288,36 @@ um Nachweise abzurufen.
 
 ### Verbleibende Grenzen
 
+Das native Gateway besitzt jetzt einen **bedingten Änderungs-/Löschkern**, aber
+diese Operationen sind **noch nicht mit dem normalen Freigabeweg in App, CLI oder
+Oberfläche verbunden**. Dieser erstellt weiterhin nur geprüfte Ereignisse.
+Eine Gateway-Methode ist keine Erlaubnis für Google-Aufrufe; während der Abnahme
+wurde kein echter Termin geändert oder gelöscht.
+
+Der Kern benötigt den zuvor bestätigten eigenen Solo-Termin, seinen Nutzdatenhash
+und ein starkes ETag aus dem privaten Ledger. Bei Änderungen bleiben Profil,
+Kalender und Ereignis-UID fest. Pro Zielversion wird ein bedingter PATCH oder
+DELETE dauerhaft reserviert; spätere Aufrufe lesen nur zurück. HTTP 412 stoppt
+als Versionskonflikt. Timeouts und verlorene lokale Nachweise bleiben unklar,
+solange das Rücklesen den gewünschten Zustand nicht bestätigt. Löschen berichtet
+**Abwesenheit**, keinen Beweis, dass genau dieser Aufruf sie verursacht hat.
+Alte Erstellungsbestätigungen können weder neuere Ledger-Versionen noch einen
+Löschvermerk überschreiben. Unbeteiligte Ereignisfelder bleiben beim PATCH erhalten.
+[Bedingte Google-Änderungen](https://developers.google.com/workspace/calendar/api/guides/version-resources),
+[PATCH-Feldsemantik](https://developers.google.com/workspace/calendar/api/v3/reference/events/patch).
+
+Noch nötig: versionierte Ereignisreferenzen in einem prüfbaren Änderungsplan,
+frische Ressourcenprüfung, getrennte exakte Bestätigung, sichtbare Ergebnisse
+und normale API-/CLI-/UI-Anbindung. Bestehende v1-Erstellungsreferenzen allein
+autorisieren keine Änderung oder Löschung.
+
 - `ready` oder `review_required` bedeutet nicht, dass ein Kalender verändert
   wurde.
 - Eine synthetische Ereignisreferenz ist kein Live-Kalendereintrag.
 - Während der Abnahme wurden keine echten Google-Zugangsdaten oder Konten verwendet.
 - UpToday erhält eine ICS-Datei erst über den getrennt freigegebenen
   Phase-17-Handoff.
-- Routinika-Live-Sync, Update, Löschen und Serienereignisse bleiben offen.
+- Routinika-Live-Sync, bedienbares Ändern/Löschen und Serienereignisse bleiben offen.
 - Automatische Terminerkennung ist best effort und besitzt keine
   Vollständigkeitsgarantie.
 - Profile innerhalb eines Betriebssystemkontos sind organisatorische Regeln,

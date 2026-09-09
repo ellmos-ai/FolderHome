@@ -38,10 +38,20 @@ def _hash(value):
     ).hexdigest()
 
 
+def _valid_etag(value):
+    return isinstance(value, str) and re.fullmatch(r'"[\x21\x23-\x7e]{1,510}"', value) is not None
+
+
 class GoogleCalendarTransport:
     """One HTTPS request, bounded response, no redirects and no automatic retries."""
 
-    def request(self, method, path, *, access_token, payload=None):
+    def request(self, method, path, *, access_token, payload=None, if_match=None):
+        if method in {"PATCH", "PUT", "DELETE"} and not _valid_etag(if_match):
+            raise GoogleCalendarError("Kalenderänderung benötigt ein starkes Versionsmerkmal.")
+        if if_match is not None and (
+            method not in {"PATCH", "PUT", "DELETE"} or not _valid_etag(if_match)
+        ):
+            raise GoogleCalendarError("Bedingter Kalenderzugriff ist ungültig.")
         connection = http.client.HTTPSConnection("www.googleapis.com", timeout=15)
         try:
             connection.request(
@@ -52,6 +62,7 @@ class GoogleCalendarTransport:
                     "Authorization": f"Bearer {access_token}",
                     "Content-Type": "application/json",
                     "Accept": "application/json",
+                    **({"If-Match": if_match} if if_match is not None else {}),
                 },
             )
             response = connection.getresponse()
@@ -61,6 +72,8 @@ class GoogleCalendarTransport:
             # HTTP error bodies can contain private details; callers need only status.
             if not 200 <= response.status < 300:
                 return response.status, {}
+            if method == "DELETE" and response.status == 204 and not raw:
+                return 204, {}
             try:
                 value = json.loads(raw)
             except (ValueError, UnicodeError):
@@ -79,6 +92,28 @@ class GoogleCalendarGateway:
     provider_revision = "v3"
     network_required = True
     simulated = False
+
+    def update_event(self, event, *, previous_event, expected_etag, idempotency_key):
+        from folderhome.bridges.google_calendar_mutations import mutate_event
+
+        return mutate_event(
+            self,
+            previous_event,
+            replacement=event,
+            expected_etag=expected_etag,
+            idempotency_key=idempotency_key,
+        )
+
+    def delete_event(self, event, *, expected_etag, idempotency_key):
+        from folderhome.bridges.google_calendar_mutations import mutate_event
+
+        return mutate_event(
+            self,
+            event,
+            replacement=None,
+            expected_etag=expected_etag,
+            idempotency_key=idempotency_key,
+        )
 
     def __init__(
         self,
@@ -193,12 +228,13 @@ class GoogleCalendarGateway:
             )
             return existing is None
 
-    def _confirm(self, event_id, etag):
+    def _confirm(self, event_id, etag, *, payload_hash):
         with closing(self._connect()) as connection, connection:
             cursor = connection.execute(
                 "UPDATE calendar_creations SET status='confirmed',etag=? "
-                "WHERE namespace=? AND event_id=?",
-                (etag, self._namespace, event_id),
+                "WHERE namespace=? AND event_id=? AND payload_hash=? "
+                "AND ((status='pending' AND etag IS NULL) OR (status='confirmed' AND etag=?))",
+                (etag, self._namespace, event_id, payload_hash, etag),
             )
             if cursor.rowcount != 1:
                 raise GoogleCalendarOutcomeUnknown("Kalendernachweis ist nicht mehr vorhanden.")
@@ -297,7 +333,7 @@ class GoogleCalendarGateway:
                 raise GoogleCalendarOutcomeUnknown(
                     "Kalenderergebnis unklar; nur Rücklesen ist sicher."
                 )
-            self._confirm(event_id, remote["etag"])
+            self._confirm(event_id, remote["etag"], payload_hash=payload_hash)
             return event_id
         except (
             OSError,
