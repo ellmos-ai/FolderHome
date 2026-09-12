@@ -19,6 +19,14 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   ledger conditionally. A ledger that already holds reserved money is refused; the
   static site is republished only with `--publish-site`.
 
+### Changed
+
+- The public demo's daily admission is the cumulative budget ledger alone (policy
+  P-010): the fixed ceiling of 20 AgentCore forwards per UTC day and the
+  `FOLDERHOME_DAILY_QUOTA_LIMIT` variable are gone, the per-day counter is telemetry,
+  and the API Gateway usage plan becomes a structural 1000-requests-per-day
+  anti-abuse ceiling that never undercuts carried-over entitlement.
+
 ## [0.4.0] - 2026-09-12
 
 ### Changed

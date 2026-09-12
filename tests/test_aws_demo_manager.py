@@ -433,7 +433,6 @@ def test_budget_preverification_checks_live_guards_without_spending(tmp_path, mo
         "FOLDERHOME_AGENT_RUNTIME_ENDPOINT": "budget_v4",
         "FOLDERHOME_AGENT_RUNTIME_VERSION": "4",
         "FOLDERHOME_DAILY_QUOTA_TABLE": "synthetic-budget-table",
-        "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
         "FOLDERHOME_PUBLIC_ORIGIN": "https://synthetic.invalid",
     }
     settings = CloudDemoProxySettings.from_environment(values)

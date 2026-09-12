@@ -15,15 +15,14 @@ bleiben.
 - Sie kann keine E-Mail versenden, keinen externen Kalender verändern, keine
   Telefonnummer anrufen und keine Dateien der Besucher verändern.
 - Der Browser-API-Key ist eine öffentliche Quotenkennung und keine Authentifizierung.
-- Eine atomare DynamoDB-Bedingung erlaubt höchstens 20 gültige Weiterleitungen an
-  AgentCore pro UTC-Tag. Das entspricht zehn vollständigen Demonstrationen mit jeweils
-  zwei Anfragen.
-- Dieselbe Transaktion reserviert einen geprüften Höchstbetrag in ganzzahligen
-  **Mikro-USD**. Das endliche Guthaben wird über UTC-Kalendertage freigegeben;
+- Eine atomare DynamoDB-Transaktion lässt eine Weiterleitung nur zu, solange das
+  kumulierte Tagesguthaben ihren geprüften Höchstbetrag in ganzzahligen **Mikro-USD**
+  deckt (Policy P-010). Eine feste Tagesanzahl an Weiterleitungen gibt es nicht mehr;
+  der Tageszähler ist Telemetrie. Das endliche Guthaben wird über UTC-Kalendertage freigegeben;
   ungenutzte Mittel werden auch über Tage ohne Aufrufe übertragen. Das Enddatum
   ist exklusiv. Abgelaufene Zeitfenster, fehlende Ledger und geänderte Policy-Hashes sperren.
-- Quote und Drosselung des API-Gateway-Nutzungsplans sind zusätzliche
-  Best-effort-Schutzschichten und nicht die harte Kostengrenze.
+- Der API-Gateway-Nutzungsplan (1000 Anfragen pro UTC-Tag) und die Drosselung sind
+  strukturelle Missbrauchsschutzschichten und nicht die Kostengrenze.
 - API Gateway begrenzt Lastspitzen auf zwei Anfragen und 0,2 Anfragen pro Sekunde.
   Der AgentCore-SDK-Aufruf bricht nach 25 Sekunden ohne Wiederholungsversuch ab.
   Eine reservierte Lambda-Parallelität wird absichtlich nicht gesetzt, weil neue

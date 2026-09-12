@@ -39,7 +39,7 @@ def test_application_template_bounds_public_traffic_and_keeps_site_private() -> 
 
     assert "AWS::ApiGateway::UsagePlan" in template
     assert "AWS::DynamoDB::Table" in template
-    assert "Limit: 20" in template
+    assert "Limit: 1000" in template
     assert "Period: DAY" in template
     assert "ApiKeyRequired: true" in template
     assert "ReservedConcurrentExecutions" not in template
@@ -50,7 +50,7 @@ def test_application_template_bounds_public_traffic_and_keeps_site_private() -> 
     assert "BlockPublicAcls: true" in template
     assert "RestrictPublicBuckets: true" in template
     assert "FOLDERHOME_PUBLIC_ORIGIN" in template
-    assert "FOLDERHOME_DAILY_QUOTA_LIMIT" in template
+    assert "FOLDERHOME_DAILY_QUOTA_LIMIT" not in template
     assert "dynamodb:UpdateItem" in template
     assert "PAY_PER_REQUEST" in template
     assert "bedrock-agentcore:InvokeAgentRuntime" in template
@@ -86,7 +86,7 @@ def test_aws_demo_documentation_is_english_first_and_bilingual() -> None:
     ):
         assert invariant in english
         assert invariant in german
-    assert "höchstens" in german
+    assert "Tagesguthaben" in german
     assert "ausdrücklich" in german
 
 

@@ -20,6 +20,14 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   reserviertem Geld wird abgewiesen; die statische Seite wird nur mit `--publish-site`
   neu veröffentlicht.
 
+### Geändert
+
+- Die tägliche Zulassung der öffentlichen Demo ist allein das kumulierende Budget-
+  Ledger (Policy P-010): Die feste Obergrenze von 20 AgentCore-Weiterleitungen pro
+  UTC-Tag und die Variable `FOLDERHOME_DAILY_QUOTA_LIMIT` entfallen, der Tageszähler
+  ist Telemetrie, und der API-Gateway-Nutzungsplan wird eine strukturelle Grenze von
+  1000 Anfragen pro Tag, die übertragenes Guthaben nie unterschreitet.
+
 ## [0.4.0] - 2026-09-12
 
 ### Geändert

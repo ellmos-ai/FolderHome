@@ -38,6 +38,8 @@ _MODEL_ID = "eu.amazon.nova-micro-v1:0"
 _BOOTSTRAP_STACK = "folderhome-demo-bootstrap"
 _APPLICATION_STACK = "folderhome-demo-application"
 _APPROVAL_TOKEN = "DEPLOY_FOLDERHOME_WITH_5_USD_ALERT"
+# Structural anti-abuse ceiling of the API Gateway usage plan; never the cost boundary.
+_API_DAILY_REQUEST_QUOTA = 1000
 _E2E_PROMPT = (
     "I had an accident with my Hyundai i10. Find my current car insurance, "
     "compare it with older policies, identify the right contact, prepare a claim "
@@ -444,7 +446,6 @@ def deploy_demo(
             "FOLDERHOME_AGENT_RUNTIME_ARN": runtime_arn,
             "FOLDERHOME_AGENT_RUNTIME_ENDPOINT": budget_endpoint,
             "FOLDERHOME_AGENT_RUNTIME_VERSION": updated_version,
-            "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
             "FOLDERHOME_DAILY_QUOTA_TABLE": application["DailyQuotaTableName"],
             "FOLDERHOME_PUBLIC_ORIGIN": application["SiteUrl"].removesuffix("/"),
         }
@@ -514,8 +515,8 @@ def deploy_demo(
         "site_url": application["SiteUrl"],
         "runtime_status": runtime.get("status"),
         "endpoint_status": endpoint.get("status"),
-        "daily_request_quota": 20,
-        "hard_agentcore_forward_limit": 20,
+        "daily_admission": "cumulative-budget-ledger",
+        "api_gateway_request_quota_per_day": _API_DAILY_REQUEST_QUOTA,
         "budget_limit_usd": budget_usd,
         "budget_ledger_initialized": True,
         "budget_total_microusd": settings.budget.total_microusd,
@@ -648,7 +649,6 @@ def migrate_demo(
             "FOLDERHOME_AGENT_RUNTIME_ARN": runtime_arn,
             "FOLDERHOME_AGENT_RUNTIME_ENDPOINT": budget_endpoint,
             "FOLDERHOME_AGENT_RUNTIME_VERSION": updated_version,
-            "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
             "FOLDERHOME_DAILY_QUOTA_TABLE": application["DailyQuotaTableName"],
             "FOLDERHOME_PUBLIC_ORIGIN": application["SiteUrl"].removesuffix("/"),
         }
@@ -716,8 +716,8 @@ def migrate_demo(
         "runtime_version": updated_version,
         "runtime_endpoint": budget_endpoint,
         "runtime_status": runtime.get("status"),
-        "daily_request_quota": 20,
-        "hard_agentcore_forward_limit": 20,
+        "daily_admission": "cumulative-budget-ledger",
+        "api_gateway_request_quota_per_day": _API_DAILY_REQUEST_QUOTA,
         "budget_limit_usd": budget_usd,
         "budget_ledger_initialized": True,
         "budget_total_microusd": settings.budget.total_microusd,
@@ -789,7 +789,6 @@ def verify_budget_before_invocation(
             or settings.runtime_endpoint != state["runtime_endpoint"]
             or settings.runtime_version != state["runtime_version"]
             or settings.budget_review_sha256 != state["budget_review_sha256"]
-            or settings.daily_quota_limit != 20
         ):
             raise ValueError("Deployment identity differs from approved budget state.")
         remaining = settings.budget.accrued_microusd(datetime.now(UTC)) - _read_budget_reserved(
@@ -970,7 +969,7 @@ def verify_demo(
         ["apigateway", "get-usage-plan", "--usage-plan-id", application["UsagePlanId"]]
     )
     quota = usage_plan.get("quota", {})
-    if quota.get("limit") != 20 or quota.get("period") != "DAY":
+    if quota.get("limit") != _API_DAILY_REQUEST_QUOTA or quota.get("period") != "DAY":
         raise DeploymentError("Public API daily quota does not match the reviewed limit.")
     quota_item = _aws_json(
         [
@@ -1080,8 +1079,8 @@ def verify_demo(
         "generated_result_count": len(generated_results),
         "runtime_and_endpoint_ready": True,
         "imds_v2_required": True,
-        "daily_request_quota": 20,
-        "hard_agentcore_forward_limit": 20,
+        "daily_admission": "cumulative-budget-ledger",
+        "api_gateway_request_quota_per_day": _API_DAILY_REQUEST_QUOTA,
         "agentcore_forwards_today": forwarded_today,
         "lambda_reserved_concurrency": None,
         "budget_reserved_microusd": reserved_after,

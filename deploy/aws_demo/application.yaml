@@ -272,7 +272,6 @@ Resources:
           FOLDERHOME_BUDGET_FORWARD_MICROUSD: !Ref BudgetForwardMicrousd
           FOLDERHOME_BUDGET_START_UTC: !Ref BudgetStartUtc
           FOLDERHOME_BUDGET_END_UTC: !Ref BudgetEndUtc
-          FOLDERHOME_DAILY_QUOTA_LIMIT: "20"
           FOLDERHOME_DAILY_QUOTA_TABLE: !Ref DailyQuotaTable
           FOLDERHOME_PUBLIC_ORIGIN: !Sub "https://${SiteDistribution.DomainName}"
       FunctionName: !Sub "${AWS::StackName}-proxy"
@@ -381,9 +380,9 @@ Resources:
       ApiStages:
         - ApiId: !Ref PublicApi
           Stage: !Ref PublicApiStage
-      Description: Maximum ten complete two-request demos per UTC day
+      Description: Structural anti-abuse ceiling; the cost boundary is the cumulative budget ledger
       Quota:
-        Limit: 20
+        Limit: 1000
         Period: DAY
       Throttle:
         BurstLimit: 2

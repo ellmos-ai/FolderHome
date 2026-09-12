@@ -44,7 +44,6 @@ def _environment(monkeypatch) -> None:
     monkeypatch.setenv("FOLDERHOME_AGENT_RUNTIME_ARN", RUNTIME_ARN)
     monkeypatch.setenv("FOLDERHOME_PUBLIC_ORIGIN", ORIGIN)
     monkeypatch.setenv("FOLDERHOME_DAILY_QUOTA_TABLE", "folderhome-daily-quota")
-    monkeypatch.setenv("FOLDERHOME_DAILY_QUOTA_LIMIT", "20")
     monkeypatch.setenv("AWS_REGION", "eu-central-1")
     monkeypatch.setenv("FOLDERHOME_BUDGET_TOTAL_MICROUSD", "1000000")
     monkeypatch.setenv("FOLDERHOME_BUDGET_FORWARD_MICROUSD", "100000")
@@ -194,7 +193,8 @@ def test_cloud_demo_proxy_consumes_one_atomic_utc_daily_slot(monkeypatch) -> Non
     daily = captured["TransactItems"][0]["Update"]
     assert daily["TableName"] == "folderhome-daily-quota"
     assert daily["Key"] == {"quota_day": {"S": "2026-08-24"}}
-    assert daily["ExpressionAttributeValues"][":limit"] == {"N": "20"}
+    assert ":limit" not in daily["ExpressionAttributeValues"]
+    assert "request_count <" not in daily["ConditionExpression"]
 
 
 def test_cloud_demo_proxy_returns_429_without_agentcore_after_hard_quota(

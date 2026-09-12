@@ -14,14 +14,14 @@ bounded in cost and duration.
 - It cannot send mail, change an external calendar, call a phone number, or modify
   a visitor's files.
 - The browser API key is a public quota identifier, not authentication.
-- An atomic DynamoDB condition admits at most 20 valid AgentCore forwards per UTC
-  day, equivalent to ten complete two-request demonstrations.
-- The same transaction reserves a reviewed worst-case amount in integer
-  **micro-USD**. A finite allocation is released over UTC calendar days; unspent
+- One atomic DynamoDB transaction admits a forward only while the cumulative daily
+  entitlement covers its reviewed worst-case reservation in integer **micro-USD**
+  (policy P-010). There is no fixed daily forward count any more; the per-day
+  counter is telemetry. A finite allocation is released over UTC calendar days; unspent
   entitlement carries forward, including across idle days. The end date is
   exclusive. Expired windows, missing ledgers and changed policy hashes deny access.
-- The API Gateway usage-plan quota and throttle are additional best-effort shields,
-  not the hard cost boundary.
+- The API Gateway usage plan (1000 requests per UTC day) and throttle are structural
+  anti-abuse shields, not the cost boundary.
 - API Gateway limits bursts to two requests and 0.2 requests per second. The
   AgentCore SDK call times out after 25 seconds without retries. Function-level
   reserved concurrency is intentionally omitted because new AWS accounts can

@@ -18,7 +18,6 @@ def environment() -> dict[str, str]:
         ),
         "FOLDERHOME_PUBLIC_ORIGIN": "https://synthetic.example.org",
         "FOLDERHOME_DAILY_QUOTA_TABLE": "synthetic-budget-table",
-        "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
         "AWS_REGION": "eu-central-1",
         "FOLDERHOME_BUDGET_TOTAL_MICROUSD": "1000000",
         "FOLDERHOME_BUDGET_FORWARD_MICROUSD": "100000",
@@ -167,19 +166,22 @@ def test_unspent_money_carries_across_idle_days_without_minting_extra_credit(led
     assert "expires_at" not in record(ledger, "_budget_v1")
 
 
-def test_daily_ceiling_remains_atomic_with_money_and_cannot_charge_on_rejection(ledger) -> None:
+def test_money_is_the_only_daily_ceiling_and_rejection_cannot_charge(ledger) -> None:
     values = environment()
-    values["FOLDERHOME_BUDGET_FORWARD_MICROUSD"] = "1"
+    values["FOLDERHOME_BUDGET_FORWARD_MICROUSD"] = "10000"
     settings = proxy.CloudDemoProxySettings.from_environment(values)
     seed(ledger, settings)
-    for _ in range(20):
+    # Day one releases one third of 1,000,000 micro-USD: 33 forwards of 10,000,
+    # far beyond the former fixed count of 20. The 34th is refused by money alone,
+    # and the refusal neither reserves money nor counts a request.
+    for _ in range(33):
         proxy._consume_daily_quota(settings, now=datetime(2026, 9, 1, tzinfo=UTC))
     with pytest.raises(proxy.CloudDemoQuotaExceeded):
         proxy._consume_daily_quota(settings, now=datetime(2026, 9, 1, tzinfo=UTC))
-    assert record(ledger, "_budget_v1")["reserved_microusd"] == {"N": "20"}
-    assert record(ledger, "2026-09-01")["request_count"] == {"N": "20"}
+    assert record(ledger, "_budget_v1")["reserved_microusd"] == {"N": "330000"}
+    assert record(ledger, "2026-09-01")["request_count"] == {"N": "33"}
     proxy._consume_daily_quota(settings, now=datetime(2026, 9, 2, tzinfo=UTC))
-    assert record(ledger, "_budget_v1")["reserved_microusd"] == {"N": "21"}
+    assert record(ledger, "_budget_v1")["reserved_microusd"] == {"N": "340000"}
 
 
 @pytest.mark.parametrize(

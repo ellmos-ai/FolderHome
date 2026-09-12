@@ -29,7 +29,6 @@ class CloudDemoProxySettings:
     public_origin: str
     aws_region: str
     daily_quota_table: str
-    daily_quota_limit: int
     budget: CloudDemoBudget | None = None
     runtime_endpoint: str = ""
     runtime_version: str = ""
@@ -44,7 +43,6 @@ class CloudDemoProxySettings:
         public_origin = environment.get("FOLDERHOME_PUBLIC_ORIGIN", "")
         aws_region = environment.get("AWS_REGION", "")
         quota_table = environment.get("FOLDERHOME_DAILY_QUOTA_TABLE", "")
-        raw_quota_limit = environment.get("FOLDERHOME_DAILY_QUOTA_LIMIT", "")
         if not runtime_arn.startswith("arn:aws:bedrock-agentcore:"):
             raise ValueError("Public proxy requires an explicit AgentCore runtime ARN.")
         if not public_origin.startswith("https://") or public_origin.endswith("/"):
@@ -53,11 +51,6 @@ class CloudDemoProxySettings:
             raise ValueError("Public proxy requires an explicit AWS region.")
         if _TABLE_NAME.fullmatch(quota_table) is None:
             raise ValueError("Public proxy requires an explicit DynamoDB quota table.")
-        if not raw_quota_limit.isascii() or not raw_quota_limit.isdecimal():
-            raise ValueError("Public proxy requires an integer daily quota.")
-        quota_limit = int(raw_quota_limit)
-        if not 1 <= quota_limit <= 20:
-            raise ValueError("Public proxy daily quota must be between one and twenty.")
         endpoint = environment.get("FOLDERHOME_AGENT_RUNTIME_ENDPOINT", "")
         version = environment.get("FOLDERHOME_AGENT_RUNTIME_VERSION", "")
         review = environment.get("FOLDERHOME_BUDGET_REVIEW_SHA256", "")
@@ -72,7 +65,6 @@ class CloudDemoProxySettings:
             public_origin,
             aws_region,
             quota_table,
-            quota_limit,
             CloudDemoBudget.from_environment(environment),
             endpoint,
             version,
@@ -260,6 +252,8 @@ def _consume_daily_quota(
     if accrued < reservation:
         raise CloudDemoQuotaExceeded("Not enough monetary entitlement for one forward.")
     try:
+        # The per-day counter is telemetry only; the money ledger below is the
+        # single daily ceiling (policy P-010: cumulative entitlement with carry-over).
         # One transaction, no check-then-write race. Never refund: a timeout
         # does not establish that AgentCore or the model did no billable work.
         _dynamodb_client(settings.aws_region).transact_write_items(
@@ -274,13 +268,11 @@ def _consume_daily_quota(
                             "expires_at = :expires"
                         ),
                         "ConditionExpression": (
-                            "attribute_not_exists(request_count) OR "
-                            "(request_count >= :zero AND request_count < :limit)"
+                            "attribute_not_exists(request_count) OR request_count >= :zero"
                         ),
                         "ExpressionAttributeValues": {
                             ":zero": {"N": "0"},
                             ":one": {"N": "1"},
-                            ":limit": {"N": str(settings.daily_quota_limit)},
                             ":expires": {
                                 "N": str(int((utc_instant + timedelta(days=2)).timestamp()))
                             },
@@ -329,7 +321,6 @@ def budget_policy_sha256(settings: CloudDemoProxySettings) -> str:
         "origin": settings.public_origin,
         "region": settings.aws_region,
         "quota_table": settings.daily_quota_table,
-        "daily_quota": settings.daily_quota_limit,
         "total_microusd": settings.budget.total_microusd,
         "forward_microusd": settings.budget.forward_microusd,
         "start_utc": settings.budget.start_utc.isoformat(),
@@ -354,7 +345,7 @@ def initial_budget_item(settings: CloudDemoProxySettings) -> dict[str, Any]:
 
 
 class CloudDemoQuotaExceeded(RuntimeError):
-    """The daily quota, finite budget, or approved ledger cannot admit a forward."""
+    """The finite budget or approved ledger cannot admit a forward."""
 
 
 def _cors_headers(origin: str) -> dict[str, str]:
