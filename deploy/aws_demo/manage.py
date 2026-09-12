@@ -72,6 +72,14 @@ def main(argv: list[str] | None = None) -> int:
     verify.add_argument("--budget-usd", default="5")
     verify.add_argument("--approval-token", required=True)
     verify.add_argument("--budget-review", type=Path, required=True)
+    migrate = subparsers.add_parser(
+        "migrate",
+        help="Bring the existing demo under the reviewed budget without a second runtime.",
+    )
+    migrate.add_argument("--budget-usd", default="5")
+    migrate.add_argument("--approval-token", required=True)
+    migrate.add_argument("--budget-review", type=Path, required=True)
+    migrate.add_argument("--publish-site", action="store_true")
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[2]
     if args.command == "cost-profile":
@@ -92,6 +100,14 @@ def main(argv: list[str] | None = None) -> int:
             budget_alert_email=args.budget_alert_email,
             budget_usd=args.budget_usd,
             budget_review=args.budget_review,
+        )
+    elif args.command == "migrate":
+        require_cost_approval(args.approval_token, args.budget_usd)
+        result = migrate_demo(
+            repository,
+            budget_usd=args.budget_usd,
+            budget_review=args.budget_review,
+            publish_site=args.publish_site,
         )
     else:
         require_cost_approval(args.approval_token, args.budget_usd)
@@ -505,6 +521,209 @@ def deploy_demo(
         "budget_total_microusd": settings.budget.total_microusd,
         "budget_forward_microusd": settings.budget.forward_microusd,
         "budget_end_utc_exclusive": settings.budget.end_utc.isoformat(),
+        "api_key_value_logged": False,
+    }
+
+
+def migrate_demo(
+    repository: Path,
+    *,
+    budget_usd: str,
+    budget_review: Path | None = None,
+    publish_site: bool = False,
+) -> dict[str, object]:
+    """Bring the existing demo under the reviewed budget without a second runtime.
+
+    Fail-closed preconditions: both stacks complete, exactly one runtime named
+    ``FolderHomeDemo`` and no ``_budget_v1`` ledger item yet. A ledger that already
+    holds reserved money needs a migration that carries it; this one refuses.
+    The static site is republished (browser agent enabled) only with
+    ``publish_site``; otherwise the current ``runtime-config.js`` stays untouched.
+    """
+
+    budget_environment = load_budget_review(repository, budget_review, budget_usd=budget_usd)
+    try:
+        CloudDemoBudget.from_environment(budget_environment).accrued_microusd(datetime.now(UTC))
+    except ValueError as exc:
+        raise DeploymentError("Budget review window is not currently active.") from exc
+    bootstrap = _stack_outputs(_BOOTSTRAP_STACK)
+    application = _stack_outputs(_APPLICATION_STACK)
+    runtimes = _aws_json(
+        ["bedrock-agentcore-control", "list-agent-runtimes", "--max-results", "100"]
+    )
+    named = [
+        item
+        for item in runtimes.get("agentRuntimes", [])
+        if item.get("agentRuntimeName") == _RUNTIME_NAME
+    ]
+    if len(named) != 1:
+        raise DeploymentError("Migration needs exactly one existing FolderHome runtime.")
+    runtime_id = _required_text(named[0], "agentRuntimeId")
+    runtime_arn = _required_text(named[0], "agentRuntimeArn")
+    existing = _aws_json(
+        [
+            "dynamodb",
+            "get-item",
+            "--table-name",
+            application["DailyQuotaTableName"],
+            "--key",
+            json.dumps({"quota_day": {"S": "_budget_v1"}}, separators=(",", ":")),
+            "--consistent-read",
+        ]
+    )
+    if existing.get("Item"):
+        raise DeploymentError(
+            "Existing budget ledger holds reserved money; carry it with a reviewed migration."
+        )
+    artifact_bucket = bootstrap["ArtifactBucketName"]
+    direct_key, direct_version = _upload_versioned(
+        artifact_bucket, "agentcore", repository / "build" / "agentcore-direct.zip"
+    )
+    proxy_key, proxy_version = _upload_versioned(
+        artifact_bucket, "proxy", repository / "build" / "aws-demo-proxy.zip"
+    )
+    artifact = _runtime_artifact(bucket=artifact_bucket, key=direct_key, version_id=direct_version)
+    updated = _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "update-agent-runtime",
+            "--cli-input-json",
+            json.dumps(
+                {
+                    "agentRuntimeId": runtime_id,
+                    **runtime_cost_profile(),
+                    "agentRuntimeArtifact": artifact,
+                    "roleArn": bootstrap["AgentRuntimeRoleArn"],
+                    "description": "FolderHome synthetic accident demo with a Strands master agent",
+                    "metadataConfiguration": {"requireMMDSV2": True},
+                    "clientToken": str(uuid.uuid4()),
+                },
+                separators=(",", ":"),
+            ),
+        ]
+    )
+    updated_version = _required_text(updated, "agentRuntimeVersion")
+    runtime = _wait_runtime(runtime_id)
+    if runtime.get("agentRuntimeVersion") != updated_version:
+        raise DeploymentError("Runtime readback does not match the migrated version.")
+    if runtime.get("metadataConfiguration", {}).get("requireMMDSV2") is not True:
+        raise DeploymentError("Runtime became ready without the required IMDSv2 setting.")
+    budget_endpoint = f"budget_v{updated_version}"
+    _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "create-agent-runtime-endpoint",
+            "--agent-runtime-id",
+            runtime_id,
+            "--agent-runtime-version",
+            updated_version,
+            "--name",
+            budget_endpoint,
+        ]
+    )
+    _wait_endpoint(runtime_id, budget_endpoint, expected_version=updated_version)
+    _cloudformation_deploy(
+        stack_name=_APPLICATION_STACK,
+        template=repository / "deploy" / "aws_demo" / "application.yaml",
+        parameters={
+            "AgentRuntimeArn": runtime_arn,
+            "AgentRuntimeEndpoint": budget_endpoint,
+            "AgentRuntimeVersion": updated_version,
+            "BudgetReviewSha256": budget_environment["FOLDERHOME_BUDGET_REVIEW_SHA256"],
+            "BudgetTotalMicrousd": budget_environment["FOLDERHOME_BUDGET_TOTAL_MICROUSD"],
+            "BudgetForwardMicrousd": budget_environment["FOLDERHOME_BUDGET_FORWARD_MICROUSD"],
+            "BudgetStartUtc": budget_environment["FOLDERHOME_BUDGET_START_UTC"],
+            "BudgetEndUtc": budget_environment["FOLDERHOME_BUDGET_END_UTC"],
+            "ProxyCodeBucket": artifact_bucket,
+            "ProxyCodeKey": proxy_key,
+            "ProxyCodeVersion": proxy_version,
+        },
+        capabilities=("CAPABILITY_IAM",),
+    )
+    application = _stack_outputs(_APPLICATION_STACK)
+    settings = CloudDemoProxySettings.from_environment(
+        {
+            **budget_environment,
+            "AWS_REGION": _REGION,
+            "FOLDERHOME_AGENT_RUNTIME_ARN": runtime_arn,
+            "FOLDERHOME_AGENT_RUNTIME_ENDPOINT": budget_endpoint,
+            "FOLDERHOME_AGENT_RUNTIME_VERSION": updated_version,
+            "FOLDERHOME_DAILY_QUOTA_LIMIT": "20",
+            "FOLDERHOME_DAILY_QUOTA_TABLE": application["DailyQuotaTableName"],
+            "FOLDERHOME_PUBLIC_ORIGIN": application["SiteUrl"].removesuffix("/"),
+        }
+    )
+    _initialize_budget_ledger(settings)
+    invalidation_id = None
+    if publish_site:
+        api_key = _aws_json(
+            ["apigateway", "get-api-key", "--api-key", application["ApiKeyId"], "--include-value"]
+        )
+        site_build = repository / "build" / "aws-demo-site"
+        prepare_site(
+            [
+                "--api-base-url",
+                application["ApiBaseUrl"],
+                "--api-key",
+                _required_text(api_key, "value"),
+                "--output",
+                str(site_build),
+            ]
+        )
+        _aws_raw(
+            [
+                "s3",
+                "sync",
+                str(site_build),
+                f"s3://{application['SiteBucketName']}",
+                "--delete",
+                "--cache-control",
+                "no-cache,no-store,must-revalidate",
+            ]
+        )
+        invalidation = _aws_json(
+            [
+                "cloudfront",
+                "create-invalidation",
+                "--distribution-id",
+                application["CloudFrontDistributionId"],
+                "--paths",
+                "/*",
+            ]
+        )
+        invalidation_id = invalidation.get("Invalidation", {}).get("Id")
+    _write_state(
+        repository,
+        {
+            "phase": "deployed",
+            "runtime_id": runtime_id,
+            "runtime_endpoint": budget_endpoint,
+            "runtime_version": updated_version,
+            "runtime_artifact": artifact,
+            "budget_review_sha256": budget_environment["FOLDERHOME_BUDGET_REVIEW_SHA256"],
+            "site_url": application["SiteUrl"],
+            "api_base_url": application["ApiBaseUrl"],
+            "distribution_id": application["CloudFrontDistributionId"],
+            "invalidation_id": invalidation_id,
+            "site_published": publish_site,
+        },
+    )
+    return {
+        "schema": "folderhome.aws-demo-migration.v1",
+        "status": "migrated_pending_e2e",
+        "region": _REGION,
+        "runtime_id": runtime_id,
+        "runtime_version": updated_version,
+        "runtime_endpoint": budget_endpoint,
+        "runtime_status": runtime.get("status"),
+        "daily_request_quota": 20,
+        "hard_agentcore_forward_limit": 20,
+        "budget_limit_usd": budget_usd,
+        "budget_ledger_initialized": True,
+        "budget_total_microusd": settings.budget.total_microusd,
+        "budget_forward_microusd": settings.budget.forward_microusd,
+        "budget_end_utc_exclusive": settings.budget.end_utc.isoformat(),
+        "site_published": publish_site,
         "api_key_value_logged": False,
     }
 

@@ -150,3 +150,23 @@ It then reads back the two reservations. This does not activate or migrate an
 existing static demo, and does not certify account-wide spending or cleanup.
 At the reviewed end, admission stops; resource shutdown, retained-table handling
 and remaining-credit readback still require the separately approved AWS closeout.
+
+## Migrating the existing demo to the reviewed budget
+
+`deploy` refuses an application that already exists. An existing demo that has
+never reserved money (no `_budget_v1` ledger item) is brought under the budget
+with `migrate`: it uploads the current artifacts, updates the existing runtime
+(IMDSv2 required, new version), creates the version-bound `budget_v<N>` endpoint,
+updates the application stack with the reviewed money/window parameters and
+creates the ledger conditionally. The static site is left untouched unless
+`--publish-site` is given; without it the browser agent stays disabled.
+
+```powershell
+python deploy/aws_demo/manage.py migrate `
+  --budget-usd 5 `
+  --budget-review build/budget-review.json `
+  --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
+```
+
+A ledger that already holds reserved money is refused; carrying spent money needs
+its own reviewed migration.

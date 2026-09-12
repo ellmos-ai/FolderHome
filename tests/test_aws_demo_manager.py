@@ -507,3 +507,142 @@ def test_budget_preverification_checks_live_guards_without_spending(tmp_path, mo
             manage.verify_budget_before_invocation(
                 application, state, budget_env, proxy_zip_sha256=review["proxy_zip_sha256"]
             )
+
+
+def _migration_stack_outputs(_name):
+    return {
+        "ArtifactBucketName": "synthetic-artifacts",
+        "AgentRuntimeRoleArn": "synthetic-role",
+        "DailyQuotaTableName": "synthetic-budget-table",
+        "ApiKeyId": "synthetic-key",
+        "ApiBaseUrl": "https://synthetic.invalid/demo",
+        "SiteUrl": "https://synthetic.invalid/",
+        "SiteBucketName": "synthetic-site",
+        "CloudFrontDistributionId": "synthetic-cf",
+    }
+
+
+_EXISTING_RUNTIME = {
+    "agentRuntimes": [
+        {
+            "agentRuntimeName": "FolderHomeDemo",
+            "agentRuntimeId": "demo",
+            "agentRuntimeArn": "arn:aws:bedrock-agentcore:eu-central-1:123456789012:runtime/demo",
+        }
+    ]
+}
+
+
+def test_migration_refuses_when_ledger_already_holds_money(tmp_path, monkeypatch):
+    path, _ = _review_file(tmp_path)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 1, tzinfo=UTC)
+
+    monkeypatch.setattr(manage, "datetime", Clock)
+    monkeypatch.setattr(manage, "_stack_outputs", _migration_stack_outputs)
+
+    def aws_json(args):
+        if args[:2] == ["bedrock-agentcore-control", "list-agent-runtimes"]:
+            return _EXISTING_RUNTIME
+        if args[:2] == ["dynamodb", "get-item"]:
+            return {"Item": {"quota_day": {"S": "_budget_v1"}, "reserved_microusd": {"N": "12"}}}
+        pytest.fail(f"Unexpected AWS command before refusal: {args[:2]}")
+
+    monkeypatch.setattr(manage, "_aws_json", aws_json)
+    monkeypatch.setattr(manage, "_upload_versioned", lambda *a: pytest.fail("Must not mutate"))
+    monkeypatch.setattr(manage, "_aws_raw", lambda *a, **k: pytest.fail("Must not mutate"))
+
+    with pytest.raises(manage.DeploymentError, match="reserved money"):
+        manage.migrate_demo(tmp_path, budget_usd="5", budget_review=path)
+
+
+def test_migration_updates_existing_runtime_and_wires_budget_without_publishing(
+    tmp_path, monkeypatch
+):
+    path, _ = _review_file(tmp_path)
+    saved_item = {}
+    parameters = {}
+    endpoint_names = []
+    raw_calls = []
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 1, tzinfo=UTC)
+
+    monkeypatch.setattr(manage, "datetime", Clock)
+    monkeypatch.setattr(manage, "_stack_outputs", _migration_stack_outputs)
+    monkeypatch.setattr(
+        manage,
+        "_cloudformation_deploy",
+        lambda **kw: parameters.update({kw["stack_name"]: kw["parameters"]}),
+    )
+    monkeypatch.setattr(manage, "_upload_versioned", lambda *args: ("artifact.zip", "v2"))
+    monkeypatch.setattr(
+        manage,
+        "_wait_runtime",
+        lambda _id: {
+            "status": "READY",
+            "agentRuntimeVersion": "5",
+            "metadataConfiguration": {"requireMMDSV2": True},
+        },
+    )
+
+    def endpoint(_id, name, **kwargs):
+        endpoint_names.append(name)
+        return {"status": "READY", "liveVersion": "5"}
+
+    monkeypatch.setattr(manage, "_wait_endpoint", endpoint)
+
+    def aws_json(args):
+        if args[:2] == ["bedrock-agentcore-control", "list-agent-runtimes"]:
+            return _EXISTING_RUNTIME
+        if args[:2] == ["bedrock-agentcore-control", "create-agent-runtime"]:
+            pytest.fail("Migration must never create a second runtime")
+        if args[:2] == ["bedrock-agentcore-control", "update-agent-runtime"]:
+            payload = json.loads(args[args.index("--cli-input-json") + 1])
+            assert payload["agentRuntimeId"] == "demo"
+            assert payload["metadataConfiguration"] == {"requireMMDSV2": True}
+            return {"agentRuntimeVersion": "5"}
+        if args[:2] == ["bedrock-agentcore-control", "create-agent-runtime-endpoint"]:
+            assert args[args.index("--agent-runtime-version") + 1] == "5"
+            assert args[args.index("--name") + 1] == "budget_v5"
+            return {"status": "CREATING"}
+        if args[:2] == ["dynamodb", "put-item"]:
+            assert (
+                args[args.index("--condition-expression") + 1] == "attribute_not_exists(quota_day)"
+            )
+            saved_item.update(json.loads(args[args.index("--item") + 1]))
+            return {}
+        if args[:2] == ["dynamodb", "get-item"]:
+            assert "--consistent-read" in args
+            return {"Item": saved_item} if saved_item else {}
+        if args[:2] == ["apigateway", "get-api-key"]:
+            pytest.fail("Site must not be published without --publish-site")
+        pytest.fail(f"Unexpected AWS command: {args[:2]}")
+
+    monkeypatch.setattr(manage, "_aws_json", aws_json)
+    monkeypatch.setattr(manage, "_aws_raw", lambda *args, **kwargs: raw_calls.append(args) or "")
+    monkeypatch.setattr(manage, "prepare_site", lambda _args: pytest.fail("No site publish"))
+
+    result = manage.migrate_demo(tmp_path, budget_usd="5", budget_review=path)
+
+    application = parameters["folderhome-demo-application"]
+    assert application["BudgetTotalMicrousd"] == "1000000"
+    assert application["BudgetForwardMicrousd"] == "100000"
+    assert application["AgentRuntimeEndpoint"] == "budget_v5"
+    assert application["AgentRuntimeVersion"] == "5"
+    assert application["ProxyCodeVersion"] == "v2"
+    assert endpoint_names == ["budget_v5"]
+    assert saved_item["reserved_microusd"] == {"N": "0"}
+    assert raw_calls == []
+    assert result["budget_ledger_initialized"] is True
+    assert result["site_published"] is False
+    assert result["runtime_version"] == "5"
+    state = json.loads((tmp_path / "build" / "aws-demo-deployment-state.json").read_text())
+    assert state["phase"] == "deployed"
+    assert state["runtime_endpoint"] == "budget_v5"
+    assert state["site_published"] is False

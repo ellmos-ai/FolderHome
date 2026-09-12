@@ -160,3 +160,24 @@ Danach liest es die beiden Reservierungen zurück. Dies aktiviert oder migriert 
 bestehende statische Demo und bestätigt weder die gesamte Kontorechnung noch das Aufräumen.
 Am geprüften Ende stoppt die Zulassung; Ressourcenabschaltung, Umgang mit der erhaltenen
 Tabelle und Restguthabenprüfung bleiben Teil des gesondert freizugebenden AWS-Abschlusses.
+
+## Bestehende Demo auf das geprüfte Budget migrieren
+
+`deploy` verweigert eine bereits vorhandene Anwendung. Eine bestehende Demo, die
+noch nie Geld reserviert hat (kein `_budget_v1`-Ledger-Eintrag), wird mit `migrate`
+unter das Budget gestellt: aktuelle Artefakte hochladen, die vorhandene Runtime
+aktualisieren (IMDSv2 erforderlich, neue Version), den versionsgebundenen
+Endpunkt `budget_v<N>` anlegen, den Anwendungs-Stack mit den geprüften Geld-/
+Fensterparametern aktualisieren und das Ledger konditional anlegen. Die statische
+Seite bleibt unangetastet, sofern nicht `--publish-site` gesetzt ist; ohne den
+Schalter bleibt der Browser-Agent deaktiviert.
+
+```powershell
+python deploy/aws_demo/manage.py migrate `
+  --budget-usd 5 `
+  --budget-review build/budget-review.json `
+  --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
+```
+
+Ein Ledger, das bereits reserviertes Geld trägt, wird abgewiesen; das Mitführen
+verbrauchter Mittel braucht eine eigene geprüfte Migration.

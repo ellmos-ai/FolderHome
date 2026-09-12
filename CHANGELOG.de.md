@@ -11,6 +11,15 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
 
+### Hinzugefügt
+
+- `deploy/aws_demo/manage.py migrate` stellt die bestehende AWS-Demo ohne zweite
+  Runtime unter das geprüfte kumulierende Tagesbudget (Policy P-010): Runtime-Update
+  (IMDSv2 erforderlich), versionsgebundener Endpunkt `budget_v<N>`, Stack-Update mit
+  den Geld-/Fensterparametern und konditionale Ledger-Anlage. Ein Ledger mit bereits
+  reserviertem Geld wird abgewiesen; die statische Seite wird nur mit `--publish-site`
+  neu veröffentlicht.
+
 ## [0.4.0] - 2026-09-12
 
 ### Geändert

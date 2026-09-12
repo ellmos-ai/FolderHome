@@ -10,6 +10,15 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ## [Unreleased]
 
+### Added
+
+- `deploy/aws_demo/manage.py migrate` brings the existing AWS demo under the reviewed
+  cumulative daily budget (policy P-010) without creating a second runtime: it updates
+  the runtime (IMDSv2 required), creates the version-bound `budget_v<N>` endpoint,
+  updates the application stack with the money/window parameters and creates the
+  ledger conditionally. A ledger that already holds reserved money is refused; the
+  static site is republished only with `--publish-site`.
+
 ## [0.4.0] - 2026-09-12
 
 ### Changed
