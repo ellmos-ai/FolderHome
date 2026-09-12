@@ -11,6 +11,8 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-12
+
 ### Geändert
 
 - Die Dokumentation hält den ersten verifizierten Bedrock-Live-Zug fest

@@ -10,6 +10,8 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-12
+
 ### Changed
 
 - Documentation records the first verified Bedrock live turn (2026-09-12, EU
