@@ -399,14 +399,14 @@ class SyntheticAccidentDemo:
                 profile_id="lukas",
                 message=normalized,
             )
-            # A live model may inspect capabilities first; the gate is that the
-            # local search happened, not that it was the only tool call.
+            # A live model may inspect capabilities first or answer without a
+            # tool; the journey then rests on the same local search, run
+            # deterministically and labelled as such in the response.
+            fallback_search = None
             if "search_home_documents" not in {
                 item.tool_name for item in search.tool_events
             }:
-                raise SyntheticAccidentDemoError(
-                    "The master agent did not perform the expected local document search."
-                )
+                fallback_search = self._deterministic_search(normalized)
             steps = [
                 {
                     "sequence": index,
@@ -450,9 +450,44 @@ class SyntheticAccidentDemo:
                 "prompt": normalized,
                 "confirmation_command": f"/confirm {plan_id}",
                 "agent_search": search.to_dict(),
+                "search_performed_by": (
+                    "master_agent" if fallback_search is None else "deterministic_fallback"
+                ),
+                "deterministic_search": fallback_search,
             }
             self._prepared = prepared
             return _copy_json(prepared)
+
+    def _deterministic_search(self, query: str) -> dict[str, object]:
+        """Run the local search the master agent was expected to call."""
+        application = self._application
+        if application is None:
+            raise SyntheticAccidentDemoError("The prepared demo runtime is unavailable.")
+        origin = f"http://{application.settings.host}:{application.settings.port}"
+        response = application.handle(
+            method="POST",
+            target="/api/v1/documents/search",
+            headers={
+                "Host": f"{application.settings.host}:{application.settings.port}",
+                "Origin": origin,
+                "Content-Type": "application/json",
+                "X-FolderHome-Token": application.session_token,
+            },
+            body=_canonical_json(
+                {
+                    "schema": "folderhome.local-search-request.v1",
+                    "profile_id": "lukas",
+                    "query": query,
+                    "limit": 5,
+                }
+            ),
+            server_port=application.settings.port,
+        )
+        if response.status_code != 200 or response.payload is None:
+            raise SyntheticAccidentDemoError(
+                "The master agent did not perform the expected local document search."
+            )
+        return dict(response.payload)
 
     def confirm(self, command: str) -> dict[str, object]:
         with self._lock:

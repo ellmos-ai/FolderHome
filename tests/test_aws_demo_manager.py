@@ -596,10 +596,25 @@ def test_migration_updates_existing_runtime_and_wires_budget_without_publishing(
         return {"status": "READY", "liveVersion": "5"}
 
     monkeypatch.setattr(manage, "_wait_endpoint", endpoint)
+    monkeypatch.setattr(
+        manage, "_stack_parameters", lambda name: {"AgentRuntimeEndpoint": "budget_v4"}
+    )
+    deleted = []
 
     def aws_json(args):
         if args[:2] == ["bedrock-agentcore-control", "list-agent-runtimes"]:
             return _EXISTING_RUNTIME
+        if args[:2] == ["bedrock-agentcore-control", "list-agent-runtime-endpoints"]:
+            return {
+                "runtimeEndpoints": [
+                    {"name": "DEFAULT"},
+                    {"name": "budget_v3"},
+                    {"name": "budget_v4"},
+                ]
+            }
+        if args[:2] == ["bedrock-agentcore-control", "delete-agent-runtime-endpoint"]:
+            deleted.append(args[args.index("--endpoint-name") + 1])
+            return {}
         if args[:2] == ["bedrock-agentcore-control", "create-agent-runtime"]:
             pytest.fail("Migration must never create a second runtime")
         if args[:2] == ["bedrock-agentcore-control", "update-agent-runtime"]:
@@ -637,6 +652,8 @@ def test_migration_updates_existing_runtime_and_wires_budget_without_publishing(
     assert application["AgentRuntimeVersion"] == "5"
     assert application["ProxyCodeVersion"] == "v2"
     assert endpoint_names == ["budget_v5"]
+    assert deleted == ["budget_v3"]
+    assert result["pruned_endpoints"] == ["budget_v3"]
     assert saved_item["reserved_microusd"] == {"N": "0"}
     assert raw_calls == []
     assert result["budget_ledger_initialized"] is True
@@ -688,10 +705,17 @@ def test_migration_carries_existing_reservation_only_with_flag(tmp_path, monkeyp
     monkeypatch.setattr(
         manage, "_wait_endpoint", lambda _id, name, **kw: {"status": "READY", "liveVersion": "6"}
     )
+    monkeypatch.setattr(
+        manage, "_stack_parameters", lambda name: {"AgentRuntimeEndpoint": "budget_v5"}
+    )
 
     def aws_json(args):
         if args[:2] == ["bedrock-agentcore-control", "list-agent-runtimes"]:
             return _EXISTING_RUNTIME
+        if args[:2] == ["bedrock-agentcore-control", "list-agent-runtime-endpoints"]:
+            return {"runtimeEndpoints": [{"name": "DEFAULT"}, {"name": "budget_v5"}]}
+        if args[:2] == ["bedrock-agentcore-control", "delete-agent-runtime-endpoint"]:
+            pytest.fail("The wired endpoint must never be deleted")
         if args[:2] == ["bedrock-agentcore-control", "update-agent-runtime"]:
             return {"agentRuntimeVersion": "6"}
         if args[:2] == ["bedrock-agentcore-control", "create-agent-runtime-endpoint"]:

@@ -162,8 +162,10 @@ def test_accident_demo_refuses_an_unowned_existing_runtime_directory(
     assert existing.read_text(encoding="utf-8") == "belongs to somebody else"
 
 
-def _master_stub(tool_names: list[str]):
+def _master_stub(tool_names: list[str], *, search_status: int = 200):
     from types import SimpleNamespace
+
+    from folderhome.contracts.local_app import LocalApiResponse
 
     events = tuple(SimpleNamespace(tool_name=name) for name in tool_names)
     report = SimpleNamespace(
@@ -171,7 +173,18 @@ def _master_stub(tool_names: list[str]):
         network_used=False,
         to_dict=lambda: {"tool_events": [{"tool_name": n} for n in tool_names]},
     )
-    return SimpleNamespace(run_agent_chat=lambda **kwargs: report)
+    search_payload = {
+        "schema": "folderhome.local-search-response.v1",
+        "results": [{"filename": "KFZ_Hyundai_i10_2026.txt"}],
+    }
+    return SimpleNamespace(
+        run_agent_chat=lambda **kwargs: report,
+        settings=SimpleNamespace(host="127.0.0.1", port=8765),
+        session_token="stub-token",
+        handle=lambda **kwargs: LocalApiResponse(
+            search_status, "application/json", b"{}", {}, search_payload
+        ),
+    )
 
 
 def test_accident_demo_accepts_live_master_that_lists_capabilities_before_searching(
@@ -192,14 +205,38 @@ def test_accident_demo_accepts_live_master_that_lists_capabilities_before_search
         "list_home_capabilities",
         "search_home_documents",
     ]
+    assert prepared["search_performed_by"] == "master_agent"
+    assert prepared["deterministic_search"] is None
 
 
-def test_accident_demo_blocks_master_that_never_searches(
+def test_accident_demo_falls_back_to_a_deterministic_search_when_the_master_skips_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # One of four live Nova Micro runs on 2026-09-13 answered within two turns
+    # without calling the search; the public journey must not fail on that.
+    demo = SyntheticAccidentDemo(tmp_path / "workspace")
+    monkeypatch.setattr(
+        demo, "_build_application", lambda settings: _master_stub(["list_home_capabilities"])
+    )
+
+    prepared = demo.prepare()
+
+    assert prepared["status"] == "confirmation_required"
+    assert prepared["search_performed_by"] == "deterministic_fallback"
+    assert prepared["deterministic_search"]["results"][0]["filename"] == (
+        "KFZ_Hyundai_i10_2026.txt"
+    )
+    assert str(tmp_path) not in json.dumps(prepared, ensure_ascii=False)
+
+
+def test_accident_demo_blocks_when_even_the_deterministic_search_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     demo = SyntheticAccidentDemo(tmp_path / "workspace")
     monkeypatch.setattr(
-        demo, "_build_application", lambda settings: _master_stub(["list_home_capabilities"])
+        demo,
+        "_build_application",
+        lambda settings: _master_stub(["list_home_capabilities"], search_status=503),
     )
 
     with pytest.raises(SyntheticAccidentDemoError, match="local document search"):

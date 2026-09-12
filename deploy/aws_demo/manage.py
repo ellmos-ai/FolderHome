@@ -618,6 +618,10 @@ def migrate_demo(
     if runtime.get("metadataConfiguration", {}).get("requireMMDSV2") is not True:
         raise DeploymentError("Runtime became ready without the required IMDSv2 setting.")
     budget_endpoint = f"budget_v{updated_version}"
+    wired_endpoint = _stack_parameters(_APPLICATION_STACK).get("AgentRuntimeEndpoint", "")
+    pruned_endpoints = _prune_stale_budget_endpoints(
+        runtime_id, keep={wired_endpoint, budget_endpoint}
+    )
     _aws_json(
         [
             "bedrock-agentcore-control",
@@ -737,6 +741,7 @@ def migrate_demo(
         "site_published": publish_site,
         "api_key_value_logged": False,
         "budget_ledger_carried_microusd": None if carried is None else carried[1],
+        "pruned_endpoints": pruned_endpoints,
     }
 
 
@@ -1432,6 +1437,47 @@ def _cloudformation_deploy(
     if capabilities:
         command.extend(("--capabilities", *capabilities))
     _aws_raw(command)
+
+
+def _stack_parameters(stack_name: str) -> dict[str, str]:
+    payload = _aws_json(["cloudformation", "describe-stacks", "--stack-name", stack_name])
+    stacks = payload.get("Stacks", [])
+    if len(stacks) != 1:
+        raise DeploymentError(f"CloudFormation stack {stack_name} is not unique.")
+    return {
+        item["ParameterKey"]: item["ParameterValue"]
+        for item in stacks[0].get("Parameters", [])
+        if "ParameterKey" in item and "ParameterValue" in item
+    }
+
+
+def _prune_stale_budget_endpoints(runtime_id: str, *, keep: set[str]) -> list[str]:
+    """Free the per-agent endpoint quota: drop budget_v* endpoints no proxy targets."""
+    listing = _aws_json(
+        [
+            "bedrock-agentcore-control",
+            "list-agent-runtime-endpoints",
+            "--agent-runtime-id",
+            runtime_id,
+        ]
+    )
+    removed: list[str] = []
+    for endpoint in listing.get("runtimeEndpoints", []):
+        name = str(endpoint.get("name", ""))
+        if re.fullmatch(r"budget_v[0-9]+", name) is None or name in keep:
+            continue
+        _aws_json(
+            [
+                "bedrock-agentcore-control",
+                "delete-agent-runtime-endpoint",
+                "--agent-runtime-id",
+                runtime_id,
+                "--endpoint-name",
+                name,
+            ]
+        )
+        removed.append(name)
+    return removed
 
 
 def _stack_outputs(stack_name: str) -> dict[str, str]:

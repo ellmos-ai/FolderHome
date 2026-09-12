@@ -140,6 +140,18 @@ def lambda_handler(event: dict[str, Any], _context: object) -> dict[str, object]
         return _response(400, {"error": "Public demo request is invalid."}, headers=cors)
     except Exception as exc:  # AWS SDK exceptions vary by runtime version.
         if exc.__class__.__module__.startswith(("botocore", "boto3")):
+            # Operator log only (CloudWatch): class and message, never the request.
+            print(
+                json.dumps(
+                    {
+                        "event": "agentcore_forward_failed",
+                        "error": exc.__class__.__name__,
+                        "detail": str(exc)[:500],
+                    },
+                    sort_keys=True,
+                ),
+                flush=True,
+            )
             return _response(
                 503,
                 {"error": "AgentCore is temporarily unavailable."},

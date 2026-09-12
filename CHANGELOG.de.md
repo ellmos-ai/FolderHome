@@ -27,8 +27,16 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 - Das Prepare-Gate der synthetischen Unfall-Demo akzeptierte nur einen Master-Agenten,
   dessen einziger Werkzeugaufruf `search_home_documents` war; ein echtes Modell, das
-  zuerst die Fähigkeiten auflistet, wurde mit HTTP 400 abgewiesen. Das Gate verlangt
-  jetzt nur noch, dass die lokale Suche stattfand.
+  zuerst die Fähigkeiten auflistet, wurde mit HTTP 400 abgewiesen. Überspringt das
+  echte Modell die Suche ganz, führt die Runtime dieselbe lokale Suche jetzt
+  deterministisch aus und kennzeichnet den Plan mit
+  `search_performed_by: deterministic_fallback`, statt die Reise scheitern zu lassen.
+- AgentCore-Runtime und Proxy protokollierten nichts, wenn sie eine Weiterleitung
+  abwiesen oder scheiterten; beide loggen jetzt Status und konstanten Fehlertext nach
+  CloudWatch.
+- `manage.py migrate` lief bei der zweiten Re-Migration in das Endpoint-Kontingent je
+  Agent; vor dem Anlegen des neuen Endpunkts löscht es jetzt veraltete
+  `budget_v*`-Endpunkte, die kein Proxy nutzt (`pruned_endpoints` im Ergebnis).
 - `manage.py` wertete die leere `get-item`-Ausgabe der AWS-CLI für eine fehlende
   Ledger-Zeile als ungültiges JSON und brach die Migration ab.
 

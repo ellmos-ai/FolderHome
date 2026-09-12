@@ -172,5 +172,9 @@ A ledger that already holds reserved money is refused unless `--carry-ledger` is
 given: the reservation is then copied unchanged into the new policy hash (conditional
 on the old hash and amount), so a runtime update never forgets spent money. The
 runtime's master agent is bounded to two model turns (`FOLDERHOME_AGENTCORE_MAX_TURNS`
-in the reviewed cost profile); the prepare gate only requires that the local document
-search happened, because a live model may list capabilities first.
+in the reviewed cost profile). If the live model answers without calling the local
+search, the runtime runs that same search deterministically and labels the plan
+`search_performed_by: deterministic_fallback`; the model's own tool calls stay visible
+in `agent_search`. Before creating `budget_v<N>`, `migrate` deletes older `budget_v*`
+endpoints that neither the proxy targets nor the migration creates, because the
+per-agent endpoint quota is small.

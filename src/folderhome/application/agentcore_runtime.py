@@ -227,6 +227,14 @@ class AgentCoreRuntimeApplication:
 
     @classmethod
     def _error(cls, status: int, message: str) -> LocalApiResponse:
+        # Operator log (stdout -> CloudWatch): status and constant message only.
+        print(
+            json.dumps(
+                {"event": "invocation_rejected", "status": status, "error": message},
+                sort_keys=True,
+            ),
+            flush=True,
+        )
         return cls._json(
             status,
             {

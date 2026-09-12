@@ -26,7 +26,14 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 - The synthetic accident demo's prepare gate accepted only a master agent whose sole
   tool call was `search_home_documents`; a live model that lists capabilities first was
-  rejected with HTTP 400. The gate now requires that the local search happened.
+  rejected with HTTP 400. If the live model skips the search entirely, the runtime now
+  runs the same local search deterministically and labels the plan
+  `search_performed_by: deterministic_fallback` instead of failing the journey.
+- The AgentCore runtime and the proxy logged nothing when they rejected or failed a
+  forward; both now log the status and constant error text to CloudWatch.
+- `manage.py migrate` hit the per-agent endpoint quota on the second re-migration; it
+  now deletes stale `budget_v*` endpoints that no proxy targets before creating the new
+  one (`pruned_endpoints` in the result).
 - `manage.py` treated the AWS CLI's empty `get-item` output for a missing ledger row as
   invalid JSON and aborted the migration.
 
