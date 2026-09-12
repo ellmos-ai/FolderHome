@@ -43,10 +43,11 @@ from folderhome.contracts import (
 from folderhome.contracts.strands_agent import StrandsAgentSettings
 from folderhome.local_server import LocalServerError, create_local_server
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 PROFILE_DIR = Path(__file__).parents[1] / "examples" / "profiles"
 REPOSITORY_ROOT = Path(__file__).parents[1]
-LLM_NOTE_ROOT = REPOSITORY_ROOT.parent / "llm-note"
+LLM_NOTE_ROOT = default_provider_root(REPOSITORY_ROOT, "llm-note")
 
 
 class StubSearcher:

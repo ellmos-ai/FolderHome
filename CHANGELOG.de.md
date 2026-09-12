@@ -39,6 +39,14 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Alle optionalen Provider-Standardpfade (KnowledgeDigest, HungryCall,
+  Ringedingeding, ai-media-editor, UniversalDocsGrabber, UpToday, llm-note,
+  steuer-assistent) laufen jetzt über `default_provider_root`; ein bereitgestellter
+  Checkout unter `.providers/<name>` hat Vorrang vor einem Nachbarklon, der von
+  seiner gepinnten Revision abgewichen ist oder lokale Änderungen trägt. Die
+  betroffenen Tests nutzen dieselbe Auflösung. Ohne `.providers/` bleibt das
+  Nachbar-Layout unverändert.
+
 - Der Scheduler-Runner prüft vor State-Schreibzugriffen den vollständigen
   Handoff und behält einen unabhängigen Snapshot. Nichtboolesche Freigaben und
   nichtganzzahlige Intervalle werden abgewiesen. Umgeleitete State-Ordner,

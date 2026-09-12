@@ -60,3 +60,7 @@ docs/superpowers/
 /docs/submission/BUILDER_ARTICLE_DRAFT_EN.md
 /devpost-submission.md
 /_reports/
+
+# Local demo and runtime state (never tracked)
+.local-demo/
+.local-state/

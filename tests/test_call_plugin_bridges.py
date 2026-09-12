@@ -7,6 +7,7 @@ import pytest
 
 from folderhome.bridges.call_plugins import CallPluginBridge, CallPluginBridgeError
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
 MANIFEST_ROOT = REPO_ROOT / "manifests" / "components"
@@ -23,8 +24,8 @@ def _plugin(plugin_id: str):
 @pytest.mark.parametrize(
     ("plugin_id", "provider_root", "expected_pattern"),
     (
-        ("hungrycall", REPO_ROOT.parent / "hungrycall", "sequential_early_stop"),
-        ("ringedingeding", REPO_ROOT.parent / "ringedingeding", "group_poll"),
+        ("hungrycall", default_provider_root(REPO_ROOT, "hungrycall"), "sequential_early_stop"),
+        ("ringedingeding", default_provider_root(REPO_ROOT, "ringedingeding"), "group_poll"),
     ),
 )
 def test_pinned_call_plugin_probe_is_local_and_dry_run_only(
@@ -49,12 +50,12 @@ def test_pinned_call_plugin_probe_is_local_and_dry_run_only(
 
 
 def test_call_plugin_probe_rejects_revision_mismatch() -> None:
-    if not (REPO_ROOT.parent / "hungrycall").is_dir():
+    if not (default_provider_root(REPO_ROOT, "hungrycall")).is_dir():
         pytest.skip("pinned hungrycall checkout unavailable")
     plugin = replace(_plugin("hungrycall"), source_revision="0" * 40)
 
     with pytest.raises(CallPluginBridgeError, match="Git-Revision"):
         CallPluginBridge(
             plugin=plugin,
-            provider_root=REPO_ROOT.parent / "hungrycall",
+            provider_root=default_provider_root(REPO_ROOT, "hungrycall"),
         ).probe()

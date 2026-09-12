@@ -32,9 +32,9 @@ from folderhome.provider_locations import default_provider_root
 REPO_ROOT = Path(__file__).parents[1]
 FCSA_ROOT = default_provider_root(REPO_ROOT, "file-collect-sort-action")
 DOC_SERVICES_ROOT = default_provider_root(REPO_ROOT, "doc-services")
-KNOWLEDGE_DIGEST_ROOT = REPO_ROOT.parent / "KnowledgeDigest"
-LLM_NOTE_ROOT = REPO_ROOT.parent / "llm-note"
-TAX_ASSISTANT_ROOT = REPO_ROOT.parent / "steuer-assistent"
+KNOWLEDGE_DIGEST_ROOT = default_provider_root(REPO_ROOT, "KnowledgeDigest")
+LLM_NOTE_ROOT = default_provider_root(REPO_ROOT, "llm-note")
+TAX_ASSISTANT_ROOT = default_provider_root(REPO_ROOT, "steuer-assistent")
 LAW_CHECKER_ROOT = default_provider_root(REPO_ROOT, "law-checker")
 
 
@@ -3468,9 +3468,9 @@ def test_findcall_cli_probes_both_pinned_plugins_without_calls() -> None:
         "findcall",
         "plugins",
         "--hungrycall-root",
-        str(REPO_ROOT.parent / "hungrycall"),
+        str(default_provider_root(REPO_ROOT, "hungrycall")),
         "--ringedingeding-root",
-        str(REPO_ROOT.parent / "ringedingeding"),
+        str(default_provider_root(REPO_ROOT, "ringedingeding")),
         "--json",
     )
 

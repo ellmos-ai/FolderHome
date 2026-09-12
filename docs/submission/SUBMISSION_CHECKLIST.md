@@ -103,10 +103,12 @@
 - [x] Add the canonical logo, icon and favicon below `site/assets/`
 - [x] Replace the obsolete Actions-workflow test with a branch-publishing asset contract
 - [x] Run the complete suite on the consolidated working tree and repeat it
-  after the provider provenance repin: 503 passed, zero failed in both runs
+  after the provider provenance repin: 503 passed, zero failed in both runs (runs of
+  2026-08-26; later full-suite runs are dated in the private acceptance reports)
 - [x] Push the source commits and updated `gh-pages` branch
 - [x] Verify the public page and brand asset URLs with HTTP 200
-- [ ] Create and read back a fixed submission tag or release
+- [x] Create and read back a fixed submission tag or release: `v0.3.0` on
+  `9900ad0` (pushed 2026-09-05; `git ls-remote --tags` readback 2026-09-12)
 
 ## Never infer these states
 

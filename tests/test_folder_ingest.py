@@ -20,7 +20,7 @@ from folderhome.provider_locations import default_provider_root
 
 REPO_ROOT = Path(__file__).parents[1]
 DOC_SERVICES_ROOT = default_provider_root(REPO_ROOT, "doc-services")
-KNOWLEDGE_DIGEST_ROOT = REPO_ROOT.parent / "KnowledgeDigest"
+KNOWLEDGE_DIGEST_ROOT = default_provider_root(REPO_ROOT, "KnowledgeDigest")
 MANIFEST_ROOT = REPO_ROOT / "manifests" / "components"
 
 

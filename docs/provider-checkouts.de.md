@@ -24,8 +24,12 @@ Bei einem Fehler abbrechen. Der letzte Befehl darf nichts ausgeben. Kein
 bestehendes Ziel wiederverwenden und keine fremde Arbeitskopie zurücksetzen.
 
 FolderHome bevorzugt automatisch `.providers/doc-services`, sofern vorhanden.
-Sonst gilt weiterhin der benachbarte Provider-Ordner. Dasselbe gilt für
-`.providers/file-collect-sort-action` und `.providers/law-checker`. Öffentliche
+Sonst gilt weiterhin der benachbarte Provider-Ordner. Dasselbe gilt für jeden
+optionalen Provider-Standardpfad: `.providers/file-collect-sort-action`,
+`.providers/law-checker`, `.providers/ellmos-scheduler`, `.providers/KnowledgeDigest`,
+`.providers/hungrycall`, `.providers/ringedingeding`, `.providers/llm-note`,
+`.providers/steuer-assistent`, `.providers/ai-media-editor`,
+`.providers/UniversalDocsGrabber` und `.providers/UpToday`. Öffentliche
 Quellen und exakte Revisionen stehen in
 [`manifests/components/`](../manifests/components/); dafür dieselben Clone-/Detach-
 Schritte mit passendem Namen und passender Revision verwenden. Ein ungültiger isolierter

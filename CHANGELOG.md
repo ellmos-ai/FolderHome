@@ -35,6 +35,13 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- Every optional provider default (KnowledgeDigest, HungryCall, Ringedingeding,
+  ai-media-editor, UniversalDocsGrabber, UpToday, llm-note, steuer-assistent) now
+  resolves through `default_provider_root`, so a provisioned `.providers/<name>`
+  checkout takes precedence over a sibling clone that moved off its pinned
+  revision or carries local changes. The affected tests use the same resolution.
+  Without `.providers/` the sibling layout is unchanged.
+
 - The scheduler runner validates the complete handoff before state writes and
   retains an independent snapshot. Non-boolean approvals and non-integer
   intervals are rejected. Redirected state directories, replaced lock owners

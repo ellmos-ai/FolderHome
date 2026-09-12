@@ -74,10 +74,11 @@ from folderhome.contracts import (
     build_document_id,
 )
 from folderhome.plugin_host import load_manifests
+from folderhome.provider_locations import default_provider_root
 
 REPOSITORY_ROOT = Path(__file__).parents[1]
-PROVIDER_ROOT = REPOSITORY_ROOT.parent / "llm-note"
-TAX_PROVIDER_ROOT = REPOSITORY_ROOT.parent / "steuer-assistent"
+PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "llm-note")
+TAX_PROVIDER_ROOT = default_provider_root(REPOSITORY_ROOT, "steuer-assistent")
 
 
 class StubBundleExtractor:

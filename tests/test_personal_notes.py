@@ -18,8 +18,9 @@ from folderhome.contracts import (
     PersonalNoteRequest,
     PluginDescriptor,
 )
+from folderhome.provider_locations import default_provider_root
 
-PROVIDER_ROOT = Path(__file__).parents[2] / "llm-note"
+PROVIDER_ROOT = default_provider_root(Path(__file__).parents[1], "llm-note")
 REVISION = "b5fe59fc155ded9603566aa0fb920a53181a2426"
 
 

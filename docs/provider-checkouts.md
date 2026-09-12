@@ -25,7 +25,11 @@ reuse an existing destination or reset somebody else's working copy.
 
 FolderHome automatically prefers `.providers/doc-services` when present;
 otherwise it keeps the legacy sibling-directory default. The same selection
-applies to `.providers/file-collect-sort-action` and `.providers/law-checker`.
+applies to every optional provider default: `.providers/file-collect-sort-action`,
+`.providers/law-checker`, `.providers/ellmos-scheduler`, `.providers/KnowledgeDigest`,
+`.providers/hungrycall`, `.providers/ringedingeding`, `.providers/llm-note`,
+`.providers/steuer-assistent`, `.providers/ai-media-editor`,
+`.providers/UniversalDocsGrabber` and `.providers/UpToday`.
 Their public sources and exact pins are recorded in
 [`manifests/components/`](../manifests/components/); use the same clone/detach
 steps with the corresponding name and revision. An invalid isolated

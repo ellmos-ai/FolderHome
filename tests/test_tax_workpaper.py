@@ -18,8 +18,9 @@ from folderhome.contracts import (
     TaxReceiptApproval,
     TaxReceiptRequest,
 )
+from folderhome.provider_locations import default_provider_root
 
-PROVIDER_ROOT = Path(__file__).parents[2] / "steuer-assistent"
+PROVIDER_ROOT = default_provider_root(Path(__file__).parents[1], "steuer-assistent")
 REVISION = "5d39aeec98bf0a5734bf07dc35a58aa9e1331309"
 
 
