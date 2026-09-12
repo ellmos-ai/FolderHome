@@ -1446,6 +1446,9 @@ def _file_uri(path: Path) -> str:
 
 def _aws_json(arguments: list[str]) -> dict[str, Any]:
     output = _aws_raw(arguments, output="json")
+    if not output.strip():
+        # `dynamodb get-item` prints nothing at all for a missing item.
+        return {}
     try:
         payload = json.loads(output)
     except json.JSONDecodeError as exc:

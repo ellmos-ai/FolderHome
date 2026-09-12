@@ -645,3 +645,12 @@ def test_migration_updates_existing_runtime_and_wires_budget_without_publishing(
     assert state["phase"] == "deployed"
     assert state["runtime_endpoint"] == "budget_v5"
     assert state["site_published"] is False
+
+
+def test_aws_json_treats_empty_cli_output_as_missing_item(monkeypatch):
+    # Live behaviour 2026-09-13: `aws dynamodb get-item` for an absent key exits 0 with 0 bytes.
+    monkeypatch.setattr(manage, "_aws_raw", lambda *args, **kwargs: "")
+    assert manage._aws_json(["dynamodb", "get-item"]) == {}
+    monkeypatch.setattr(manage, "_aws_raw", lambda *args, **kwargs: "not json")
+    with pytest.raises(manage.DeploymentError):
+        manage._aws_json(["dynamodb", "get-item"])
