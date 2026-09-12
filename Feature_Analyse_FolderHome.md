@@ -62,7 +62,7 @@ FolderHome is a local document and assistance service agent. The new competition
 | HungryCall/Ringedingeding | Handoff | Revision‑bound local dry‑run probes, no telephony |
 | FindCall | Locally implemented | Generic serial offer/appointment scheduling with time, price and stop limits; fixture provider only |
 | Strands agent | Locally implemented | Real `strands.Agent` loop with two read‑only tools for search and topic dossier |
-| Amazon Bedrock | Handoff | The same agent supports `BedrockModel`, but only with model ID, region and separate network/data transfer gates; not live tested |
+| Amazon Bedrock | Handoff | The same agent supports `BedrockModel`, but only with model ID, region and separate network/data transfer gates; verified live once on 2026-09-12 through the local app with the EU Nova Micro inference profile (tool loop executed, no side effects); not part of the synthetic demo |
 | Local model (Ollama) | Locally implemented | `OllamaModel` provider on the same agent loop; a loopback host needs no gate, a remote one needs the same two gates as Bedrock. Smoke-tested against a remote Ollama host; the loopback smoke is still open. The client shares the finite `model_timeout_seconds` budget of every HTTP provider |
 | MCP adapter | Locally implemented | `mcp serve` hands eleven read-only and confirm tools over stdio to a running `app serve`; any non-loopback address is refused and stdout carries protocol only |
 | Results view | Locally implemented | Executed reports stay in one bounded ring buffer and are listed per profile; artifacts are fetched by index, never by a path parameter, capped at 25 MB |

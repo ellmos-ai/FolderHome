@@ -12,6 +12,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Changed
 
+- Documentation records the first verified Bedrock live turn (2026-09-12, EU
+  Nova Micro inference profile, tool loop executed without side effects) in the
+  README, the feature analysis and the submission draft; the AgentCore journey
+  remains unclaimed.
+
 - Scheduler registration groundwork: a read-only plan binds configuration
   file membership/content and provider/store identity. Pinned Python providers
   may use a `src` layout; foreign preloaded package members are rejected.

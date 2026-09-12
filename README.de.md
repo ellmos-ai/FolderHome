@@ -137,7 +137,9 @@ Der Fixture-Adapter durchläuft den echten Strands-Agenten und dessen
 sequentiellen Tool-Executor ohne Zugangsdaten. Bedrock verwendet denselben
 Agenten, verlangt aber Modell-ID, AWS-Region, `--allow-network` und die
 getrennte Freigabe `--approve-sensitive-cloud-data`; ein Bedrock-Live-Lauf
-wurde nicht behauptet. Ein lokales Ollama-Modell ist der dritte Provider und
+wurde am 2026-09-12 einmal verifiziert (EU-Nova-Micro-Inferenzprofil, zwei
+Modellzüge, `search_home_documents` und `build_home_theme_dossier` ausgeführt,
+keine Nebenwirkungen); die synthetische Demo braucht davon weiterhin nichts. Ein lokales Ollama-Modell ist der dritte Provider und
 wurde live verifiziert: Das Modell wählte und führte `list_home_capabilities`
 über dieselbe Agentenschleife aus.
 Die semantische Fachwahl gehört zum Modell. Endpoint-Auflösung, Plan-Hashes und

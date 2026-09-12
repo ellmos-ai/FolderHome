@@ -167,10 +167,14 @@ An isolated HTTP adapter maps the same application contract to AgentCore. The
 quota-bounded direct-code Runtime is deployed and `READY`; a synthetic fixture
 roundtrip reached `confirmation_required`. The public CloudFront configuration
 keeps the browser agent disabled, and the submission does not claim a
-Bedrock-backed AgentCore journey while the applied Nova Micro quotas remain
-zero. A fresh 2026-08-27 readback again found the Runtime `READY`, version 4,
-the model profile `ACTIVE`, and all three real-time quotas at zero; CloudWatch
-showed one throttled request and no successful invocation over 24 hours. Because
+Bedrock-backed AgentCore journey: the cloud runtime was not re-run. AWS Support
+reported the Bedrock access issue resolved on 2026-09-08, and on 2026-09-12 the
+local FolderHome app completed a real Bedrock turn with the EU Nova Micro
+inference profile (two model turns, `search_home_documents` and
+`build_home_theme_dossier` executed, no side effects). The 2026-08-27 readback
+had found the Runtime `READY`, version 4, the model profile `ACTIVE` and the
+real-time quotas at zero; CloudWatch showed one throttled request and no
+successful invocation over 24 hours. Because
 the cloud runtime exposes only `/ping` and `/invocations`, result files are
 returned inline in the AgentCore response, so a browser can save them without a
 storage service. That path is implemented and tested locally and is not yet

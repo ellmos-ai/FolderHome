@@ -13,6 +13,11 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Geändert
 
+- Die Dokumentation hält den ersten verifizierten Bedrock-Live-Zug fest
+  (2026-09-12, EU-Nova-Micro-Inferenzprofil, Werkzeugschleife ohne
+  Nebenwirkungen) – in README, Feature-Analyse und Einreichungsentwurf; die
+  AgentCore-Reise bleibt unbeansprucht.
+
 - Grundlage der Scheduler-Registrierung: Ein schreibfreier Plan bindet
   Konfigurationsdateiauswahl/-inhalte und Provider-/Store-Identität. Gepinnte
   Python-Provider können ein `src`-Layout verwenden; fremde vorab geladene

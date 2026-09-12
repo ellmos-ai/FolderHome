@@ -135,7 +135,10 @@ flowchart LR
 The fixture adapter runs through the real Strands agent and its sequential
 tool executor without credentials. Bedrock uses the same agent, but
 requires model ID, AWS region, `--allow-network` and the separate approval
-`--approve-sensitive-cloud-data`; a Bedrock live run has not been claimed. A
+`--approve-sensitive-cloud-data`; one Bedrock live run was verified on
+2026-09-12 with the EU Nova Micro inference profile (two model turns,
+`search_home_documents` and `build_home_theme_dossier` executed, no side
+effects); the synthetic demo still needs none of it. A
 local Ollama model is the third provider and was verified live: the model
 selected and executed `list_home_capabilities` through the same agent loop.
 Semantic domain selection belongs to the model. Endpoint lookup, plan hashes,
