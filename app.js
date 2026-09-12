@@ -230,7 +230,7 @@ if (liveConfiguration.enabled) {
   disclosureText.dataset.en = "This AWS-hosted page invokes the bounded AgentCore runtime with synthetic data only. External actions remain disabled.";
   disclosureText.dataset.de = "Diese AWS-gehostete Seite ruft die begrenzte AgentCore-Runtime ausschließlich mit synthetischen Daten auf. Externe Aktionen bleiben deaktiviert.";
   const figcaption = document.querySelector(".architecture-diagram figcaption");
-  figcaption.dataset.en = "Live architecture: this AWS page invokes the synthetic AgentCore runtime; real household execution remains local behind exact confirmation.";
-  figcaption.dataset.de = "Live-Architektur: Diese AWS-Seite ruft die synthetische AgentCore-Runtime auf; echte Haushaltsausführung bleibt lokal hinter der exakten Bestätigung.";
+  figcaption.dataset.en = "Synthetic accident-demo view: four demo adapters, not the full endpoint catalog. This AWS page is configured to invoke AgentCore; configuration alone does not prove a successful model call. Household execution remains local behind exact confirmation.";
+  figcaption.dataset.de = "Synthetische Unfall-Demo: vier Demo-Adapter, nicht der gesamte Endpunktkatalog. Diese AWS-Seite ist für AgentCore-Aufrufe konfiguriert; die Konfiguration allein belegt keinen erfolgreichen Modellaufruf. Haushaltsausführung bleibt lokal hinter exakter Bestätigung.";
   setLanguage(language);
 }

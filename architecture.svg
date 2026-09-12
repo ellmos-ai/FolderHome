@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050" role="img" aria-labelledby="title desc">
-  <title id="title">FolderHome competition architecture</title>
-  <desc id="desc">One local Strands agent loop with an exact confirmation boundary, four typed local adapters, optional Bedrock inference, a scripted public showcase, and a synthetic-only AgentCore adapter.</desc>
+  <title id="title">FolderHome synthetic accident-demo architecture</title>
+  <desc id="desc">Demo-scoped view: one Strands master with seven bounded planning tools, an exact confirmation boundary and four demo adapters, not the full endpoint catalog. Local or approved hosted model options; a scripted public showcase and synthetic-only AgentCore adapter. Current AWS acceptance is pending. Reviewed 2026-09-09; source: docs/submission/ARCHITECTURE_DIAGRAM.svg.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#050811"/>
@@ -30,8 +30,8 @@
   <rect width="1600" height="1050" fill="url(#bg)"/>
   <rect width="1600" height="1050" fill="url(#grid)"/>
 
-  <text x="64" y="64" class="title">FolderHome — one local agent loop, explicit approval boundary</text>
-  <text x="66" y="102" class="subtitle">Synthetic accident journey · Strands Agents 1.53.0 · local-first · reversible file actions</text>
+  <text x="64" y="64" class="title">FolderHome — synthetic demo and exact approval boundary</text>
+  <text x="66" y="102" class="subtitle">Accident-demo view, not the full product catalog · Strands Agents 1.53.0 · reviewed 2026-09-09</text>
 
   <rect x="40" y="145" width="1520" height="650" rx="26" fill="#07101f" stroke="#38bdf8" stroke-opacity="0.5" stroke-width="2" stroke-dasharray="10 9"/>
   <text x="68" y="178" class="section">LOCAL HOUSEHOLD SECURITY BOUNDARY</text>
@@ -48,7 +48,7 @@
   <text x="635" y="299" text-anchor="middle" class="node-title">FolderHome Master</text>
   <text x="635" y="329" text-anchor="middle" class="node-copy">Strands Agents 1.53.0</text>
   <text x="635" y="354" text-anchor="middle" class="node-copy">finite sequential tool loop</text>
-  <text x="635" y="382" text-anchor="middle" class="muted">search · compare · plan</text>
+  <text x="635" y="382" text-anchor="middle" class="muted">7 bounded tools · read and plan</text>
 
   <polygon points="895,267 980,333 895,399 810,333" fill="#392606" stroke="#f59e0b" stroke-width="3" filter="url(#glow)"/>
   <text x="895" y="313" text-anchor="middle" class="small-title">EXACT</text>
@@ -69,18 +69,22 @@
   <path d="M990 333H1030" class="gate-flow"/>
   <path d="M1265 333H1336" class="flow"/>
 
-  <text x="635" y="458" text-anchor="middle" class="section">MODEL ADAPTER — SAME BOUNDED TOOL CONTRACT</text>
+  <text x="96" y="462" class="section">MODEL ADAPTERS</text>
+  <text x="96" y="489" class="node-copy">Same bounded tool contract</text>
+  <text x="96" y="513" class="muted">Clients run locally;</text>
+  <text x="96" y="535" class="muted">hosted inference does not.</text>
   <rect x="500" y="482" width="220" height="88" rx="16" fill="#07382d" stroke="#10b981" stroke-width="2"/>
   <text x="610" y="517" text-anchor="middle" class="small-title">Deterministic fixture</text>
   <text x="610" y="543" text-anchor="middle" class="small-copy">no credentials · no network</text>
-  <rect x="742" y="482" width="220" height="88" rx="16" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 6"/>
-  <text x="852" y="517" text-anchor="middle" class="small-title">Amazon Bedrock</text>
-  <text x="852" y="543" text-anchor="middle" class="small-copy">network + disclosure gates</text>
+  <rect x="738" y="482" width="188" height="88" rx="16" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="832" y="506" text-anchor="middle" class="small-title">Real-model adapters</text>
+  <text x="832" y="531" text-anchor="middle" class="small-copy">Ollama / Bedrock / APIs</text>
+  <text x="832" y="553" text-anchor="middle" class="small-copy">Remote: disclosure gates</text>
   <path d="M600 416V466L610 482" class="flow"/>
-  <path d="M676 416V450L852 482" class="optional"/>
+  <path d="M676 416V436H832V482" class="optional"/>
 
-  <text x="1190" y="458" text-anchor="middle" class="section">FOUR REAL TYPED ADAPTERS</text>
-  <path d="M1152 392V492M1014 492H1420" fill="none" stroke="#38bdf8" stroke-width="2"/>
+  <text x="1190" y="458" text-anchor="middle" class="section">FOUR TYPED DEMO ADAPTERS</text>
+  <path d="M1152 392V420H1504V492H1014" fill="none" stroke="#38bdf8" stroke-width="2"/>
   <path d="M1014 492V510M1150 492V510M1284 492V510M1420 492V510" fill="none" stroke="#38bdf8" stroke-width="2"/>
   <g>
     <rect x="946" y="510" width="136" height="74" rx="14" fill="#0c2940" stroke="#38bdf8"/>
@@ -114,14 +118,14 @@
 
   <rect x="586" y="875" width="650" height="130" rx="20" fill="#111c35" stroke="#38bdf8" stroke-width="2" stroke-dasharray="8 7"/>
   <text x="610" y="910" class="node-title">Optional Amazon Bedrock AgentCore Runtime adapter</text>
-  <text x="610" y="940" class="node-copy">GET /ping · POST /invocations · ARM64 · non-root</text>
-  <text x="610" y="968" class="node-copy">Synthetic sessions only; uploads, paths and external actions rejected</text>
-  <text x="610" y="992" class="muted">Local contract tested; cloud deployment requires separate approval</text>
+  <text x="610" y="940" class="node-copy">GET /ping · POST /invocations · synthetic sessions only</text>
+  <text x="610" y="968" class="node-copy">Direct-code ZIP / alternative ARM64 non-root container</text>
+  <text x="610" y="992" class="muted">Uploads, arbitrary paths and external actions rejected</text>
 
   <rect x="1272" y="875" width="216" height="130" rx="20" fill="#0b1322" stroke="#10b981" stroke-width="2"/>
   <text x="1296" y="914" class="small-title">Current claim</text>
   <text x="1296" y="944" class="small-copy">Local runtime: verified</text>
-  <text x="1296" y="969" class="small-copy">AgentCore cloud: not claimed</text>
+  <text x="1296" y="969" class="small-copy">AWS acceptance: pending</text>
   <text x="1296" y="993" class="small-copy">All demo data: synthetic</text>
 
   <path d="M72 940H28V333H58" class="optional"/>
