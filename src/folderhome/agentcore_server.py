@@ -44,6 +44,7 @@ def agent_settings_from_environment(
             default=1_024,
         ),
         max_conversation_messages=64,
+        max_turns=_bounded_integer(environment, "FOLDERHOME_AGENTCORE_MAX_TURNS", default=4),
         bedrock_connect_timeout_seconds=_bounded_integer(
             environment,
             "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS",

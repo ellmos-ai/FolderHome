@@ -16,8 +16,19 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   cumulative daily budget (policy P-010) without creating a second runtime: it updates
   the runtime (IMDSv2 required), creates the version-bound `budget_v<N>` endpoint,
   updates the application stack with the money/window parameters and creates the
-  ledger conditionally. A ledger that already holds reserved money is refused; the
+  ledger conditionally. A ledger that already holds reserved money is refused unless
+  `--carry-ledger` copies the reservation unchanged into the new policy hash; the
   static site is republished only with `--publish-site`.
+- `FOLDERHOME_AGENTCORE_MAX_TURNS` bounds the AgentCore master agent's model turns; the
+  reviewed cost profile sets it to 2 (live Nova Micro: capabilities, then the search).
+
+### Fixed
+
+- The synthetic accident demo's prepare gate accepted only a master agent whose sole
+  tool call was `search_home_documents`; a live model that lists capabilities first was
+  rejected with HTTP 400. The gate now requires that the local search happened.
+- `manage.py` treated the AWS CLI's empty `get-item` output for a missing ledger row as
+  invalid JSON and aborted the migration.
 
 ### Changed
 

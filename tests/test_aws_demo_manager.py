@@ -29,6 +29,7 @@ TEST_RUNTIME_PROFILE = {
         "FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA": "1",
         "FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID": "eu.amazon.nova-micro-v1:0",
         "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
+        "FOLDERHOME_AGENTCORE_MAX_TURNS": "2",
         "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
         "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
     },
@@ -654,3 +655,67 @@ def test_aws_json_treats_empty_cli_output_as_missing_item(monkeypatch):
     monkeypatch.setattr(manage, "_aws_raw", lambda *args, **kwargs: "not json")
     with pytest.raises(manage.DeploymentError):
         manage._aws_json(["dynamodb", "get-item"])
+
+
+def test_migration_carries_existing_reservation_only_with_flag(tmp_path, monkeypatch):
+    path, _ = _review_file(tmp_path)
+    previous = "a" * 64
+    ledger = {
+        "quota_day": {"S": "_budget_v1"},
+        "policy_sha256": {"S": previous},
+        "reserved_microusd": {"N": "10000"},
+    }
+    saved = {}
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 9, 1, tzinfo=UTC)
+
+    monkeypatch.setattr(manage, "datetime", Clock)
+    monkeypatch.setattr(manage, "_stack_outputs", _migration_stack_outputs)
+    monkeypatch.setattr(manage, "_cloudformation_deploy", lambda **kw: None)
+    monkeypatch.setattr(manage, "_upload_versioned", lambda *args: ("artifact.zip", "v3"))
+    monkeypatch.setattr(
+        manage,
+        "_wait_runtime",
+        lambda _id: {
+            "status": "READY",
+            "agentRuntimeVersion": "6",
+            "metadataConfiguration": {"requireMMDSV2": True},
+        },
+    )
+    monkeypatch.setattr(
+        manage, "_wait_endpoint", lambda _id, name, **kw: {"status": "READY", "liveVersion": "6"}
+    )
+
+    def aws_json(args):
+        if args[:2] == ["bedrock-agentcore-control", "list-agent-runtimes"]:
+            return _EXISTING_RUNTIME
+        if args[:2] == ["bedrock-agentcore-control", "update-agent-runtime"]:
+            return {"agentRuntimeVersion": "6"}
+        if args[:2] == ["bedrock-agentcore-control", "create-agent-runtime-endpoint"]:
+            return {"status": "CREATING"}
+        if args[:2] == ["dynamodb", "put-item"]:
+            condition = args[args.index("--condition-expression") + 1]
+            assert condition == "policy_sha256 = :previous AND reserved_microusd = :reserved"
+            values = json.loads(args[args.index("--expression-attribute-values") + 1])
+            assert values == {":previous": {"S": previous}, ":reserved": {"N": "10000"}}
+            saved.update(json.loads(args[args.index("--item") + 1]))
+            return {}
+        if args[:2] == ["dynamodb", "get-item"]:
+            return {"Item": saved or ledger}
+        pytest.fail(f"Unexpected AWS command: {args[:2]}")
+
+    monkeypatch.setattr(manage, "_aws_json", aws_json)
+    monkeypatch.setattr(manage, "_aws_raw", lambda *a, **k: pytest.fail("No raw calls"))
+
+    with pytest.raises(manage.DeploymentError, match="carry-ledger"):
+        manage.migrate_demo(tmp_path, budget_usd="5", budget_review=path)
+
+    result = manage.migrate_demo(tmp_path, budget_usd="5", budget_review=path, carry_ledger=True)
+
+    assert saved["reserved_microusd"] == {"N": "10000"}
+    assert saved["policy_sha256"] != {"S": previous}
+    assert result["budget_ledger_carried_microusd"] == 10000
+    assert result["runtime_endpoint"] == "budget_v6"

@@ -15,6 +15,7 @@ import urllib.error
 import urllib.request
 import uuid
 import zipfile
+from collections.abc import Mapping
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -82,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     migrate.add_argument("--approval-token", required=True)
     migrate.add_argument("--budget-review", type=Path, required=True)
     migrate.add_argument("--publish-site", action="store_true")
+    migrate.add_argument("--carry-ledger", action="store_true")
     args = parser.parse_args(argv)
     repository = Path(__file__).resolve().parents[2]
     if args.command == "cost-profile":
@@ -110,6 +112,7 @@ def main(argv: list[str] | None = None) -> int:
             budget_usd=args.budget_usd,
             budget_review=args.budget_review,
             publish_site=args.publish_site,
+            carry_ledger=args.carry_ledger,
         )
     else:
         require_cost_approval(args.approval_token, args.budget_usd)
@@ -248,6 +251,7 @@ def runtime_cost_profile() -> dict[str, Any]:
             "FOLDERHOME_AGENTCORE_ALLOW_SYNTHETIC_CLOUD_DATA": "1",
             "FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID": _MODEL_ID,
             "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
+            "FOLDERHOME_AGENTCORE_MAX_TURNS": "2",
             "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
             "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
         },
@@ -532,6 +536,7 @@ def migrate_demo(
     budget_usd: str,
     budget_review: Path | None = None,
     publish_site: bool = False,
+    carry_ledger: bool = False,
 ) -> dict[str, object]:
     """Bring the existing demo under the reviewed budget without a second runtime.
 
@@ -572,10 +577,13 @@ def migrate_demo(
             "--consistent-read",
         ]
     )
+    carried = None
     if existing.get("Item"):
-        raise DeploymentError(
-            "Existing budget ledger holds reserved money; carry it with a reviewed migration."
-        )
+        if not carry_ledger:
+            raise DeploymentError(
+                "Existing budget ledger holds reserved money; carry it with --carry-ledger."
+            )
+        carried = _carried_reservation(existing["Item"])
     artifact_bucket = bootstrap["ArtifactBucketName"]
     direct_key, direct_version = _upload_versioned(
         artifact_bucket, "agentcore", repository / "build" / "agentcore-direct.zip"
@@ -653,7 +661,10 @@ def migrate_demo(
             "FOLDERHOME_PUBLIC_ORIGIN": application["SiteUrl"].removesuffix("/"),
         }
     )
-    _initialize_budget_ledger(settings)
+    if carried is None:
+        _initialize_budget_ledger(settings)
+    else:
+        _carry_budget_ledger(settings, *carried)
     invalidation_id = None
     if publish_site:
         api_key = _aws_json(
@@ -725,6 +736,7 @@ def migrate_demo(
         "budget_end_utc_exclusive": settings.budget.end_utc.isoformat(),
         "site_published": publish_site,
         "api_key_value_logged": False,
+        "budget_ledger_carried_microusd": None if carried is None else carried[1],
     }
 
 
@@ -755,6 +767,62 @@ def _initialize_budget_ledger(settings: CloudDemoProxySettings) -> None:
     )
     if readback.get("Item") != item:
         raise DeploymentError("Initial budget ledger readback does not match approval.")
+
+
+def _carried_reservation(item: Mapping[str, Any]) -> tuple[str, int]:
+    """Validate the ledger row a re-migration carries into the new policy."""
+    policy = item.get("policy_sha256", {}).get("S")
+    raw = item.get("reserved_microusd", {}).get("N")
+    if (
+        not isinstance(policy, str)
+        or re.fullmatch(r"[0-9a-f]{64}", policy) is None
+        or not isinstance(raw, str)
+        or re.fullmatch(r"[0-9]{1,13}", raw) is None
+        or "expires_at" in item
+    ):
+        raise DeploymentError("Existing budget ledger row is not a carriable reservation.")
+    return policy, int(raw)
+
+
+def _carry_budget_ledger(
+    settings: CloudDemoProxySettings, previous_policy: str, reserved_microusd: int
+) -> None:
+    """Rebind the ledger to the new policy hash without forgetting spent money."""
+    item = initial_budget_item(settings)
+    item["reserved_microusd"] = {"N": str(reserved_microusd)}
+    _aws_json(
+        [
+            "dynamodb",
+            "put-item",
+            "--table-name",
+            settings.daily_quota_table,
+            "--item",
+            json.dumps(item, separators=(",", ":")),
+            "--condition-expression",
+            "policy_sha256 = :previous AND reserved_microusd = :reserved",
+            "--expression-attribute-values",
+            json.dumps(
+                {
+                    ":previous": {"S": previous_policy},
+                    ":reserved": {"N": str(reserved_microusd)},
+                },
+                separators=(",", ":"),
+            ),
+        ]
+    )
+    readback = _aws_json(
+        [
+            "dynamodb",
+            "get-item",
+            "--table-name",
+            settings.daily_quota_table,
+            "--key",
+            json.dumps({"quota_day": {"S": "_budget_v1"}}, separators=(",", ":")),
+            "--consistent-read",
+        ]
+    )
+    if readback.get("Item") != item:
+        raise DeploymentError("Carried budget ledger readback does not match approval.")
 
 
 def verify_budget_before_invocation(

@@ -178,5 +178,10 @@ python deploy/aws_demo/manage.py migrate `
   --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
 ```
 
-Ein Ledger, das bereits reserviertes Geld trägt, wird abgewiesen; das Mitführen
-verbrauchter Mittel braucht eine eigene geprüfte Migration.
+Ein Ledger, das bereits reserviertes Geld trägt, wird abgewiesen, sofern nicht
+`--carry-ledger` gesetzt ist: Dann wird die Reservierung unverändert in den neuen
+Policy-Hash übernommen (bedingt auf alten Hash und Betrag), sodass ein Runtime-Update
+verbrauchtes Geld nie vergisst. Der Master-Agent der Runtime ist auf zwei Modellzüge
+begrenzt (`FOLDERHOME_AGENTCORE_MAX_TURNS` im geprüften Kostenprofil); das Prepare-Gate
+verlangt nur noch, dass die lokale Dokumentsuche stattfand, weil ein echtes Modell
+zuerst die Fähigkeiten auflisten darf.

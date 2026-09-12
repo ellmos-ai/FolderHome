@@ -160,3 +160,47 @@ def test_accident_demo_refuses_an_unowned_existing_runtime_directory(
         SyntheticAccidentDemo(workspace)
 
     assert existing.read_text(encoding="utf-8") == "belongs to somebody else"
+
+
+def _master_stub(tool_names: list[str]):
+    from types import SimpleNamespace
+
+    events = tuple(SimpleNamespace(tool_name=name) for name in tool_names)
+    report = SimpleNamespace(
+        tool_events=events,
+        network_used=False,
+        to_dict=lambda: {"tool_events": [{"tool_name": n} for n in tool_names]},
+    )
+    return SimpleNamespace(run_agent_chat=lambda **kwargs: report)
+
+
+def test_accident_demo_accepts_live_master_that_lists_capabilities_before_searching(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Observed with Nova Micro on 2026-09-13: list_home_capabilities, then the search.
+    demo = SyntheticAccidentDemo(tmp_path / "workspace")
+    monkeypatch.setattr(
+        demo,
+        "_build_application",
+        lambda settings: _master_stub(["list_home_capabilities", "search_home_documents"]),
+    )
+
+    prepared = demo.prepare()
+
+    assert prepared["status"] == "confirmation_required"
+    assert [e["tool_name"] for e in prepared["agent_search"]["tool_events"]] == [
+        "list_home_capabilities",
+        "search_home_documents",
+    ]
+
+
+def test_accident_demo_blocks_master_that_never_searches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    demo = SyntheticAccidentDemo(tmp_path / "workspace")
+    monkeypatch.setattr(
+        demo, "_build_application", lambda settings: _master_stub(["list_home_capabilities"])
+    )
+
+    with pytest.raises(SyntheticAccidentDemoError, match="local document search"):
+        demo.prepare()

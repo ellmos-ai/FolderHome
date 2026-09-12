@@ -17,8 +17,20 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   Runtime unter das geprüfte kumulierende Tagesbudget (Policy P-010): Runtime-Update
   (IMDSv2 erforderlich), versionsgebundener Endpunkt `budget_v<N>`, Stack-Update mit
   den Geld-/Fensterparametern und konditionale Ledger-Anlage. Ein Ledger mit bereits
-  reserviertem Geld wird abgewiesen; die statische Seite wird nur mit `--publish-site`
-  neu veröffentlicht.
+  reserviertem Geld wird abgewiesen, sofern nicht `--carry-ledger` die Reservierung
+  unverändert in den neuen Policy-Hash übernimmt; die statische Seite wird nur mit
+  `--publish-site` neu veröffentlicht.
+- `FOLDERHOME_AGENTCORE_MAX_TURNS` begrenzt die Modellzüge des AgentCore-Master-Agenten;
+  das geprüfte Kostenprofil setzt 2 (Nova Micro live: Fähigkeiten, dann die Suche).
+
+### Behoben
+
+- Das Prepare-Gate der synthetischen Unfall-Demo akzeptierte nur einen Master-Agenten,
+  dessen einziger Werkzeugaufruf `search_home_documents` war; ein echtes Modell, das
+  zuerst die Fähigkeiten auflistet, wurde mit HTTP 400 abgewiesen. Das Gate verlangt
+  jetzt nur noch, dass die lokale Suche stattfand.
+- `manage.py` wertete die leere `get-item`-Ausgabe der AWS-CLI für eine fehlende
+  Ledger-Zeile als ungültiges JSON und brach die Migration ab.
 
 ### Geändert
 

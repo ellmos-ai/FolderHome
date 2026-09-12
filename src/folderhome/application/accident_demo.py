@@ -399,9 +399,11 @@ class SyntheticAccidentDemo:
                 profile_id="lukas",
                 message=normalized,
             )
-            if [item.tool_name for item in search.tool_events] != [
-                "search_home_documents"
-            ]:
+            # A live model may inspect capabilities first; the gate is that the
+            # local search happened, not that it was the only tool call.
+            if "search_home_documents" not in {
+                item.tool_name for item in search.tool_events
+            }:
                 raise SyntheticAccidentDemoError(
                     "The master agent did not perform the expected local document search."
                 )
