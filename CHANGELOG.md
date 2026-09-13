@@ -24,6 +24,10 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Fixed
 
+- The Ollama provider now sends `num_ctx` (default 16384, bounded 2048-131072 via
+  `ollama_num_ctx`). Without it Ollama sized the KV cache for the model's declared
+  context window (`qwen3:4b`: 262144 tokens, a 38 GB buffer) and llama-server died
+  out of memory on the laptop and on the Mac Studio.
 - The synthetic accident demo's prepare gate accepted only a master agent whose sole
   tool call was `search_home_documents`; a live model that lists capabilities first was
   rejected with HTTP 400. If the live model skips the search entirely, the runtime now

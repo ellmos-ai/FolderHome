@@ -753,6 +753,7 @@ def _build_model(
             ollama_client_args={"timeout": settings.model_timeout_seconds},
             model_id=settings.ollama_model_id,
             max_tokens=settings.max_output_tokens,
+            options={"num_ctx": settings.ollama_num_ctx},
         )
     if settings.model_provider == "anthropic":
         try:

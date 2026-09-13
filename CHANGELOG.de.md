@@ -25,6 +25,10 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Behoben
 
+- Der Ollama-Provider sendet jetzt `num_ctx` (Standard 16384, begrenzt 2048–131072 über
+  `ollama_num_ctx`). Ohne den Wert dimensionierte Ollama den KV-Cache für das deklarierte
+  Kontextfenster des Modells (`qwen3:4b`: 262144 Token, ein 38-GB-Puffer), und llama-server
+  starb auf Laptop und Mac Studio an Speichermangel.
 - Das Prepare-Gate der synthetischen Unfall-Demo akzeptierte nur einen Master-Agenten,
   dessen einziger Werkzeugaufruf `search_home_documents` war; ein echtes Modell, das
   zuerst die Fähigkeiten auflistet, wurde mit HTTP 400 abgewiesen. Überspringt das

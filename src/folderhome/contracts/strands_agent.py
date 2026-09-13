@@ -54,6 +54,9 @@ class StrandsAgentSettings:
     aws_region: str | None = None
     ollama_host: str | None = None
     ollama_model_id: str | None = None
+    # Ollama loads the model's full context window unless told otherwise; qwen3:4b
+    # declares 262144 tokens, which is a 38 GB KV cache and an out-of-memory crash.
+    ollama_num_ctx: int = 16_384
     anthropic_model_id: str | None = None
     openai_model_id: str | None = None
     openai_base_url: str | None = None
@@ -88,6 +91,7 @@ class StrandsAgentSettings:
             "max_response_chars": (self.max_response_chars, 1, 100_000),
             "max_tool_result_bytes": (self.max_tool_result_bytes, 1, 2_097_152),
             "max_output_tokens": (self.max_output_tokens, 1, 8_192),
+            "ollama_num_ctx": (self.ollama_num_ctx, 2_048, 131_072),
             "max_conversation_messages": (
                 self.max_conversation_messages,
                 4,

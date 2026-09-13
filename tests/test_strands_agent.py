@@ -398,6 +398,27 @@ def test_ollama_model_receives_host_model_id_and_output_budget() -> None:
     assert model.host == "http://127.0.0.1:11434"
     assert model.get_config()["model_id"] == "qwen3.8:27b-mlx"
     assert model.get_config()["max_tokens"] == 2_048
+    # Live finding 2026-09-13: without num_ctx Ollama sized the KV cache for the
+    # model's declared 262144-token window and llama-server died out of memory.
+    assert model.get_config()["options"] == {"num_ctx": 16_384}
+
+
+def test_ollama_context_window_is_bounded() -> None:
+    settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen3:4b",
+        ollama_num_ctx=8_192,
+    )
+    assert settings.ollama_num_ctx == 8_192
+    for value in (1_024, 262_144):
+        with pytest.raises(ValueError, match="ollama_num_ctx"):
+            StrandsAgentSettings(
+                model_provider="ollama",
+                ollama_host="http://127.0.0.1:11434",
+                ollama_model_id="qwen3:4b",
+                ollama_num_ctx=value,
+            )
 
 
 def test_hosted_api_providers_need_both_gates_and_never_hold_the_key() -> None:
