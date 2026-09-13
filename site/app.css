@@ -778,7 +778,6 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   text-align: left;
 }
 
-.button-install .button-main {
 .hero-cta .button.primary {
   background: #2563eb;
   border-color: #1d4ed8;
