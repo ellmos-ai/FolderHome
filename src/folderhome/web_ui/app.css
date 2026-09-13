@@ -119,6 +119,45 @@ button:disabled { cursor: wait; opacity: .62; }
 .brand strong, .brand small { display: block; }
 .brand strong { font-family: Bahnschrift, "Aptos Display", sans-serif; font-size: 1.08rem; letter-spacing: -.015em; }
 .brand small { margin-top: .08rem; color: var(--muted); font-size: .72rem; }
+.topology-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .3rem;
+  padding: .2rem .5rem;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  border-radius: .25rem;
+  border: 1px solid var(--line);
+  background: var(--surface-glass);
+  color: var(--muted);
+  vertical-align: middle;
+  line-height: 1.2;
+}
+.topology-badge[data-topology="loopback_local"],
+.topology-badge[data-topology="local"] {
+  color: var(--teal);
+  border-color: var(--teal-border);
+  background: var(--teal-pale);
+}
+.topology-badge[data-topology="remote_host"],
+.topology-badge[data-topology="remote"] {
+  color: var(--folder-ink);
+  border-color: rgba(242, 184, 75, .5);
+  background: var(--folder-pale);
+}
+.topology-badge[data-topology="cloud"] {
+  color: #125b94;
+  border-color: rgba(18, 91, 148, .45);
+  background: #e3f2fd;
+}
+:root[data-theme="dark"] .topology-badge[data-topology="cloud"] {
+  color: #90caf9;
+  border-color: rgba(144, 202, 249, .4);
+  background: #0d283f;
+}
 .local-badge, .connection-state {
   display: inline-flex;
   align-items: center;
@@ -186,6 +225,12 @@ h1 em { color: var(--accent-text); font-style: normal; font-weight: 350; }
   box-shadow: var(--shadow);
 }
 .workspace { border-top: .45rem solid var(--folder); }
+/* Primary conversation workspace is prominent */
+.workspace:first-of-type {
+  border-width: 2px;
+  border-top-width: .55rem;
+  box-shadow: 0 14px 44px rgba(21, 38, 56, .14);
+}
 .folder-tab {
   position: absolute;
   bottom: 100%;
@@ -202,6 +247,50 @@ h1 em { color: var(--accent-text); font-style: normal; font-weight: 350; }
   text-transform: uppercase;
 }
 .workspace-head, .section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: end; }
+.panel-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+}
+.panel-head {
+  cursor: pointer;
+  user-select: none;
+  border-radius: .25rem;
+  padding: .35rem .5rem;
+  margin: -.35rem -.5rem;
+  transition: background .15s ease;
+}
+.panel-head:hover {
+  background: var(--grid-line);
+}
+.panel-head:focus-visible {
+  outline: 2px solid var(--cabinet);
+  outline-offset: 2px;
+}
+.panel-chevron {
+  display: inline-block;
+  width: .55rem;
+  height: .55rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform .2s ease;
+  margin-left: .25rem;
+  flex: 0 0 auto;
+}
+.collapsible-panel.is-collapsed .panel-chevron {
+  transform: rotate(-45deg);
+}
+.collapsible-panel.is-collapsed .panel-body {
+  display: none !important;
+}
+.collapsible-panel.is-collapsed {
+  opacity: .82;
+  padding-bottom: clamp(1rem, 2.5vw, 1.5rem);
+}
+.collapsible-panel.is-collapsed:hover {
+  opacity: 1;
+}
 h2 { margin-bottom: 0; font-family: Bahnschrift, "Aptos Display", sans-serif; font-size: clamp(1.8rem, 4vw, 2.65rem); font-weight: 520; letter-spacing: -.035em; }
 .workspace-controls { display: flex; align-items: end; justify-content: flex-end; gap: .75rem; }
 .model-status {
@@ -209,12 +298,13 @@ h2 { margin-bottom: 0; font-family: Bahnschrift, "Aptos Display", sans-serif; fo
   grid-template-columns: auto minmax(0, 1fr);
   gap: .6rem;
   align-items: center;
-  max-width: 20rem;
-  padding: .55rem .7rem;
+  max-width: 22rem;
+  padding: .65rem .85rem;
   background: var(--surface-solid);
-  border: 1px solid var(--line);
-  border-left: .28rem solid var(--folder);
-  border-radius: .2rem;
+  border: 1.5px solid var(--line);
+  border-left: .35rem solid var(--folder);
+  border-radius: .25rem;
+  box-shadow: 0 2px 10px rgba(25, 77, 104, .08);
 }
 .model-status[data-state="verified_in_process"] { border-left-color: var(--teal); }
 .model-status[data-state="fixture_only"] { border-left-color: var(--folder); }

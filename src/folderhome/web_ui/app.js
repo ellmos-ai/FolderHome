@@ -398,12 +398,32 @@ let capabilityItems = [];
 let executorItems = {};
 let processAccountName = "";
 let modelConnection = null;
+let appStatus = null;
 let connectionStatus = "checking";
 let currentView = null;
 const planOutcomes = {};
 let resultsRequestVersion = 0;
 let conversationRevision = 0;
 let conversationResetPending = false;
+
+function renderTopologyBadge() {
+  const badge = document.querySelector("#topology-badge");
+  if (!badge) return;
+  const topology = appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local";
+  const topo = String(topology).toLowerCase();
+  if (topo === "cloud") {
+    badge.dataset.topology = "cloud";
+    badge.textContent = "☁ CLOUD";
+  } else if (topo === "remote_host" || topo === "remote") {
+    badge.dataset.topology = "remote_host";
+    badge.textContent = "REMOTE";
+  } else {
+    badge.dataset.topology = "loopback_local";
+    badge.textContent = "LOCAL";
+  }
+}
 
 class LocalRequestError extends Error {
   constructor(status, outcome = null) {
@@ -458,6 +478,7 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   }
   applyStaticTranslations();
   renderConnection();
+  renderTopologyBadge();
   renderModelStatus();
   renderRuntimeAccount();
   renderCapabilities();
@@ -548,31 +569,92 @@ function renderRuntimeAccount() {
     : "";
 }
 
+function setPanelExpanded(panel, expanded) {
+  if (!panel || typeof panel.querySelector !== "function") return;
+  const head = panel.querySelector(".panel-head");
+  const body = panel.querySelector(".panel-body");
+  if (panel.classList && typeof panel.classList.toggle === "function") {
+    panel.classList.toggle("is-collapsed", !expanded);
+  }
+  if (head && typeof head.setAttribute === "function") {
+    head.setAttribute("aria-expanded", String(expanded));
+  }
+  if (body) {
+    body.hidden = !expanded;
+  }
+}
+
+function initCollapsiblePanels() {
+  if (typeof document === "undefined" || typeof document.querySelectorAll !== "function") return;
+  const panels = document.querySelectorAll(".collapsible-panel");
+  if (!panels || !panels.forEach) return;
+  panels.forEach((panel) => {
+    if (!panel || typeof panel.querySelector !== "function") return;
+    const head = panel.querySelector(".panel-head");
+    if (!head || typeof head.addEventListener !== "function") return;
+    const toggle = (e) => {
+      if (e && e.target && typeof e.target.closest === "function" && e.target.closest("button")) return;
+      const isExpanded = typeof head.getAttribute === "function"
+        ? head.getAttribute("aria-expanded") === "true"
+        : true;
+      setPanelExpanded(panel, !isExpanded);
+    };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        if (e.target && typeof e.target.closest === "function" && e.target.closest("button")) return;
+        if (e.preventDefault) e.preventDefault();
+        toggle(e);
+      }
+    });
+  });
+}
+
 function renderModelStatus() {
-  if (!modelConnection) {
+  if (!modelConnection && !appStatus) {
     modelStatus.dataset.state = "checking";
     modelStatusTitle.textContent = t("modelChecking");
     modelStatusDetail.textContent = t("modelCheckingDetail");
     return;
   }
-  modelStatus.dataset.state = modelConnection.connection_status;
-  if (modelConnection.connection_status === "fixture_only") {
-    modelStatusTitle.textContent = t("modelFixture");
+  const state = appStatus?.model_state || modelConnection?.connection_status || "fixture_only";
+  modelStatus.dataset.state = state;
+
+  const directLabel = language === "de"
+    ? (appStatus?.model_state_label_de || modelConnection?.model_state_label_de)
+    : (appStatus?.model_state_label_en || modelConnection?.model_state_label_en);
+
+  if (directLabel) {
+    modelStatusTitle.textContent = directLabel;
+    if (appStatus?.model_state_detail_de || appStatus?.model_state_detail_en) {
+      modelStatusDetail.textContent = language === "de"
+        ? (appStatus.model_state_detail_de || appStatus.model_state_detail_en)
+        : (appStatus.model_state_detail_en || appStatus.model_state_detail_de);
+      return;
+    }
+  }
+
+  if (state === "fixture_only") {
+    if (!directLabel) modelStatusTitle.textContent = t("modelFixture");
     modelStatusDetail.textContent = t("modelFixtureDetail");
     return;
   }
-  const isOllama = modelConnection.provider === "ollama";
+  const provider = appStatus?.model_provider || modelConnection?.provider;
+  const isOllama = provider === "ollama";
+  const turns = appStatus?.successful_live_model_turns ?? modelConnection?.successful_live_model_turns ?? 0;
   const values = {
-    model: modelConnection.model_id || (isOllama ? "Ollama model" : "Bedrock model"),
-    region: modelConnection.aws_region || "AWS region",
-    host: modelConnection.ollama_host || "the configured Ollama host",
-    count: modelConnection.successful_live_model_turns || 0,
+    model: modelConnection?.model_id || (isOllama ? "Ollama model" : "Bedrock model"),
+    region: modelConnection?.aws_region || "AWS region",
+    host: modelConnection?.ollama_host || "the configured Ollama host",
+    count: turns,
   };
-  const verified = modelConnection.connection_status === "verified_in_process";
+  const verified = state === "verified_in_process";
   const titleKey = isOllama
     ? (verified ? "modelLocalVerified" : "modelLocalConfigured")
     : (verified ? "modelVerified" : "modelConfigured");
-  modelStatusTitle.textContent = t(titleKey);
+  if (!directLabel) {
+    modelStatusTitle.textContent = t(titleKey);
+  }
   modelStatusDetail.textContent = t(`${titleKey}Detail`, values);
 }
 
@@ -883,8 +965,10 @@ function renderResults(items) {
   resultsContent.replaceChildren();
   if (!items.length) {
     resultsContent.append(textElement("p", t("resultsEmpty")));
+    if (typeof setPanelExpanded === "function") setPanelExpanded(resultsSection, false);
     return;
   }
+  if (typeof setPanelExpanded === "function") setPanelExpanded(resultsSection, true);
   for (const item of items) {
     const card = document.createElement("article");
     card.className = "result-card";
@@ -1075,6 +1159,11 @@ function renderRecipeRuns() {
   if (!cards.length) cards.push(textElement("p", t(view.reading ? "recipeRunsLoading" : "recipeRunsEmpty"), "hint"));
   recipeRunsContent.setAttribute("aria-busy", String(Boolean(view.busy || view.reading)));
   recipeRunsContent.replaceChildren(...cards);
+  const runsForProfile = (view.runs || []).filter(r => r.profile_id === profileSelect.value);
+  const runsPanel = document.querySelector(".recipe-runs");
+  if (runsPanel && typeof setPanelExpanded === "function") {
+    setPanelExpanded(runsPanel, runsForProfile.length > 0);
+  }
 }
 
 function recipeRunConfirmationPending(runId) {
@@ -1406,23 +1495,26 @@ async function bootstrap() {
     api("/api/v1/capabilities"),
     api("/api/v1/agent/executors"),
   ]);
+  appStatus = status;
   for (const profile of profiles.profiles) {
     const option = document.createElement("option");
     option.value = profile.profile_id;
     option.textContent = profile.display_name;
     profileSelect.append(option);
   }
-  processAccountName = status.process_identity.account_name;
-  modelConnection = status.model_connection;
+  processAccountName = status.process_identity?.account_name || "";
+  modelConnection = status.model_connection || null;
   connectionStatus = "ready";
-  capabilityItems = capabilities.capabilities;
+  capabilityItems = capabilities.capabilities || [];
   executorItems = Object.fromEntries(
     (executors.workflows || []).map((item) => [item.workflow_id, item]),
   );
   renderRuntimeAccount();
+  renderTopologyBadge();
   renderModelStatus();
   renderConnection();
   renderCapabilities();
+  initCollapsiblePanels();
   await loadResults();
   await loadRecipes();
   await loadRecipeRuns();
@@ -1485,6 +1577,7 @@ for (const [id, action] of Object.entries({
 
 setLanguage(language, { persist: false });
 setTheme(theme, { persist: false });
+initCollapsiblePanels();
 bootstrap().catch((error) => {
   connectionStatus = "blocked";
   renderConnection();
