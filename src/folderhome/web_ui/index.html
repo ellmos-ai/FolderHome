@@ -15,11 +15,9 @@
       <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome home"
         data-i18n-aria-label="brandHome">
         <span class="brand-mark" aria-hidden="true">FH</span>
-        <span id="topology-badge" class="topology-badge" data-topology="loopback_local">LOCAL</span>
         <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
       </a>
       <div class="topbar-tools">
-        <button id="open-settings-btn" type="button" class="topbar-btn" data-i18n="openSettings">Open settings</button>
         <div id="theme-switch" class="theme-switch" role="group" aria-label="FolderHome theme">
           <button type="button" data-theme-mode="light" aria-label="Light theme" aria-pressed="true">
             <span aria-hidden="true">☀</span><span data-i18n="lightTheme">Light</span>
@@ -56,6 +54,40 @@
         </aside>
       </section>
 
+      <section id="model-status-banner" class="model-status-banner" role="region" aria-label="Model status" data-i18n-aria-label="modelStatusBanner">
+        <div class="model-banner-left">
+          <svg class="model-banner-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+            <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+          </svg>
+          <div id="model-status" class="model-status" data-state="checking" role="status"
+            aria-live="polite">
+            <span class="model-status-dot" aria-hidden="true"></span>
+            <span>
+              <strong id="model-status-title" data-i18n="modelChecking">Checking model …</strong>
+              <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
+            </span>
+          </div>
+        </div>
+        <div class="model-banner-right">
+          <div class="model-banner-controls">
+            <span id="topology-badge" class="topology-badge" data-topology="loopback_local">LOCAL</span>
+            <button id="open-settings-btn" type="button" class="open-settings-btn" data-i18n="openSettings">Open settings</button>
+          </div>
+          <div id="running-settings" class="running-settings" role="status" aria-live="polite">
+            <div class="running-settings-main">
+              <span class="running-label" data-i18n="runningLabel">Running:</span>
+              <span id="running-settings-summary">…</span>
+            </div>
+            <div id="settings-stale-banner" class="settings-stale-banner" hidden>
+              <span id="settings-stale-text"></span>
+              <button type="button" id="reload-settings-btn" class="button secondary small-btn" data-i18n="reloadButton">Reload</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="workspace" aria-labelledby="chat-title">
         <p class="folder-tab" data-i18n="activeFolder">Active workspace</p>
         <div class="workspace-head">
@@ -64,24 +96,6 @@
             <h2 id="chat-title" data-i18n="whatHelp">What can I help you with?</h2>
           </div>
           <div class="workspace-controls">
-            <div id="model-status" class="model-status" data-state="checking" role="status"
-              aria-live="polite">
-              <span class="model-status-dot" aria-hidden="true"></span>
-              <span>
-                <strong id="model-status-title" data-i18n="modelChecking">Checking model …</strong>
-                <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
-              </span>
-            </div>
-            <div id="running-settings" class="running-settings" role="status" aria-live="polite">
-              <div class="running-settings-main">
-                <span class="running-label" data-i18n="runningLabel">Running:</span>
-                <span id="running-settings-summary">…</span>
-              </div>
-              <div id="settings-stale-banner" class="settings-stale-banner" hidden>
-                <span id="settings-stale-text"></span>
-                <button type="button" id="reload-settings-btn" class="button secondary small-btn" data-i18n="reloadButton">Reload</button>
-              </div>
-            </div>
             <label class="profile-control"><span data-i18n="profile">Profile</span>
               <select id="profile-select" aria-label="Organizational profile"
                 data-i18n-aria-label="profileLabel"></select>
