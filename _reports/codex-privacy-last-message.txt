@@ -1,1 +1,11 @@
-Abbruch gemäß Briefing: Der vorgeschriebene Testkorridor war vor jeder Codeänderung bereits rot (146 bestanden, 1 fehlgeschlagen, 2 Setup-Fehler). Ursache sind die abweichenden Revisionen der gemeinsam genutzten Checkouts KnowledgeDigest und ellmos-scheduler. Deshalb wurden keine Pseudonymisierungs-, UI- oder Dokumentationsänderungen am Produkt vorgenommen. Der vollständige Befund steht in _reports/CLOUD-PSEUDONYMIZATION-REPORT-2026-09-13.md. Es gab keinen Push, Merge, Deploy und keine AWS-Mutation.
+Cloud-Pseudonymisierung vollständig umgesetzt und im vereinbarten Korridor grün.
+
+- Implementierung: `26d9a72` (`feat(privacy):pseudonymize-remote-model-traffic`)
+- Pflichtkorridor mit Projektinterpreter: `160 passed, 1650 deselected in 447.64s`
+- Neue Pseudonymisierungstests: `12 passed`
+- Web-/Setup-JavaScript: `103 passed, 0 failed`
+- Ruff sauber; `py_compile` Exit-Code 0
+- Baseline-Ausnahmen wie vom Nutzer freigegeben: ein Editable-Install-CLI-Fall sowie zwei Scheduler-Drift-Fälle (`T-20260913-610233740`)
+- Kein Push, Merge, Deploy, AWS-Eingriff oder Routine-Sync
+
+Der vollständige Bericht steht in `_reports/CLOUD-PSEUDONYMIZATION-REPORT-2026-09-13.md`; der lokale Dokumentationscommit wird in der äußeren Abschlussmeldung genannt.
