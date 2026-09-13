@@ -42,6 +42,14 @@ class FolderHomeAgentError(RuntimeError):
     """Raised when the agent boundary or a bounded tool call fails closed."""
 
 
+_REASONING_BLOCK = re.compile(r"<thinking>.*?</thinking>\s*", re.DOTALL | re.IGNORECASE)
+
+
+def _visible_response_text(result: object) -> str:
+    """Drop a model's private reasoning block (Nova emits <thinking>) from the shown answer."""
+    return _REASONING_BLOCK.sub("", str(result)).strip()
+
+
 def _fixture_model_class():
     try:
         from strands.models import Model
@@ -443,7 +451,7 @@ def run_folderhome_agent_turn(
     except BaseException:
         application.discard_agent_preparations(tuple(proposed_plans))
         raise
-    response_text = str(result).strip()
+    response_text = _visible_response_text(result)
     if len(response_text) > settings.max_response_chars:
         application.discard_agent_preparations(tuple(proposed_plans))
         raise FolderHomeAgentError("Agentenantwort überschreitet das Zeichenbudget.")
@@ -626,7 +634,7 @@ def consult_folderhome_specialist(
         "status": "planned",
         "subagent_id": subagent_id,
         "route": route.to_dict(),
-        "response_text": str(result).strip(),
+        "response_text": _visible_response_text(result),
         "plan": plan.to_dict(),
         "execution_performed": False,
         "side_effects": [],

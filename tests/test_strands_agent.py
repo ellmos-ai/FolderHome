@@ -596,3 +596,17 @@ def test_a_timed_out_model_becomes_a_stated_failure() -> None:
 
     with pytest.raises(strands_module.FolderHomeAgentError, match="45"):
         strands_module._call_agent(_hang, "anything", settings)
+
+
+def test_visible_response_text_drops_model_reasoning_block() -> None:
+    # Live finding 2026-09-13: Nova Micro returned "<thinking>...</thinking>" in front of
+    # the answer and the demo page showed it verbatim.
+    from folderhome.application.strands_agent import _visible_response_text
+
+    raw = (
+        "<thinking>I found two policies.\nThe 2026 one is current.</thinking>\n\n"
+        "Your current policy is KFZ 2026."
+    )
+    assert _visible_response_text(raw) == "Your current policy is KFZ 2026."
+    assert _visible_response_text("plain answer ") == "plain answer"
+    assert _visible_response_text("<THINKING>x</THINKING>kept") == "kept"
