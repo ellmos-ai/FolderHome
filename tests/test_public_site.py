@@ -16,7 +16,8 @@ def test_public_site_is_bilingual_static_and_transparent() -> None:
     assert "Scripted synthetic walkthrough" in html
     assert 'src="architecture.svg"' in html
     assert "fresh AWS acceptance is pending" in html
-    assert "Run the real local demo" in html
+    assert "Install and run locally" in html
+    assert "Lokal installieren und starten" in html
     assert 'data-language="de"' in html
     assert 'data-theme="light"' in html
     assert "github.com/ellmos-ai/FolderHome" in html
@@ -472,5 +473,96 @@ def test_data_mode_switching_and_contract_via_node() -> None:
     assert data["chatPromptEmpty"] is True
     assert data["liveChatDisabled"] is False
     assert data["liveNoteHidden"] is True
+
+
+def test_hero_ctas_and_demo_video_thumbnail() -> None:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+
+    # Local video thumbnail asset exists and is < 100 KB
+    assert "assets/demo-thumb.jpg" in html
+    thumb_path = ROOT / "site" / "assets" / "demo-thumb.jpg"
+    assert thumb_path.exists()
+    assert thumb_path.stat().st_size < 100 * 1024
+
+    # Privacy guarantee: no external images in site files at runtime
+    assert "img.youtube.com" not in html
+    assert 'src="http' not in html
+    site_dir = ROOT / "site"
+    for site_file in site_dir.glob("*"):
+        if site_file.is_file() and site_file.suffix in (".html", ".css", ".js"):
+            content = site_file.read_text(encoding="utf-8")
+            assert "img.youtube.com" not in content
+            assert not re.search(r'<img[^>]+src=["\']https?://', content)
+
+    # CTA 1: Guided case
+    assert 'data-en="Try the guided case"' in html
+    assert 'data-de="Geführten Fall ausprobieren"' in html
+    assert 'href="#demo"' in html
+
+    # CTA 2: Video thumbnail link
+    assert 'class="video-thumb"' in html
+    assert 'href="https://youtu.be/wPb1wBJcLjQ"' in html
+    assert 'target="_blank"' in html
+    assert 'rel="noopener noreferrer"' in html
+    assert 'aria-label="Watch the 3-minute demo video on YouTube"' in html
+    assert 'alt="FolderHome 3-minute demo video preview"' in html
+    assert "3:26" in html
+
+    # CTA 3: Install and run locally
+    assert 'data-en="Install and run locally"' in html
+    assert 'data-de="Lokal installieren und starten"' in html
+    assert 'data-en="pip install · your own folders · your own model"' in html
+    assert 'data-de="pip install · eigene Ordner · eigenes Modell"' in html
+    assert 'href="https://github.com/ellmos-ai/FolderHome#quick-test-for-jurors"' in html
+
+    # Thumbnail styling rules in CSS
+    assert ".video-thumb" in css
+    assert ".video-thumb-frame" in css
+    assert "border: 3px solid #e11d48;" in css
+    assert ".video-play-btn" in css
+    assert ".video-duration" in css
+    assert ".video-thumb:focus-visible" in css
+
+
+def test_demo_section_headings_per_mode() -> None:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+
+    # Three mode-specific headings in index.html
+    assert "demo-head-chooser" in html
+    assert "demo-head-case" in html
+    assert "demo-head-chat" in html
+
+    # Chooser heading
+    assert 'data-en="Cloud mode"' in html
+    assert 'data-de="Cloud-Modus"' in html
+    assert 'data-en="Try it here in cloud mode"' in html
+    assert 'data-de="Hier im Cloud-Modus ausprobieren"' in html
+    assert "104 example documents" in html
+
+    # Case heading (preserves existing text & disclosure)
+    assert 'data-en="Interactive case file"' in html
+    assert 'data-de="Interaktive Fallakte"' in html
+    assert 'data-en="One request. Four bounded workflows."' in html
+    assert 'data-de="Eine Anfrage. Vier begrenzte Workflows."' in html
+    assert "Scripted synthetic walkthrough" in html
+
+    # Chat heading
+    assert 'data-en="Free chat"' in html
+    assert 'data-de="Freier Chat"' in html
+    assert 'data-en="Your own words, a synthetic household"' in html
+    assert 'data-de="Deine Worte, ein synthetischer Haushalt"' in html
+    assert "insurance, health, contracts, taxes or the calendar" in html
+
+    # CSS display rules for the mode headings
+    assert ".demo-head-case" in css
+    assert ".demo-head-chat" in css
+    assert ".demo-head-chooser" in css
+    assert ':root[data-mode="case"] .demo-head-case' in css
+    assert ':root[data-mode="chat"] .demo-head-chat' in css
+    assert ':root[data-mode="case"] .demo-head-chooser' in css
+    assert ':root[data-mode="chat"] .demo-head-chooser' in css
+
 
 
