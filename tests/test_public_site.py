@@ -284,3 +284,176 @@ def test_live_chat_helpers_via_node() -> None:
     assert out["toolLabelDe"] == "Suche in Dokumenten"
     assert out["toolFallback"] == "Custom specialist action"
 
+
+def test_two_entry_tiles_present_with_bilingual_texts() -> None:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+
+    # Tile A (Hyundai i10 Case)
+    assert 'id="tile-case"' in html
+    assert 'data-en="Try the test case: Hyundai i10 insurance claim"' in html
+    assert 'data-de="Testfall ausprobieren: Hyundai-i10-Versicherungsfall"' in html
+    assert 'data-en="Start test case"' in html
+    assert 'data-de="Testfall starten"' in html
+
+    # Tile B (Free Chat in your own words)
+    assert 'id="tile-chat"' in html
+    assert 'data-en="Try it in your own words"' in html
+    assert 'data-de="In eigenen Worten ausprobieren"' in html
+    assert 'data-en="Open free chat"' in html
+    assert 'data-de="Freien Chat öffnen"' in html
+
+    # Static mode notice and back navigation
+    assert 'id="chat-static-note"' in html
+    assert "Free chat needs the hosted runtime." in html
+    assert "Freier Chat braucht die gehostete Runtime." in html
+    assert 'id="back-to-chooser"' in html
+    assert 'data-en="← Options"' in html
+    assert 'data-de="← Auswahl"' in html
+
+    # Post-result banner to switch to chat mode
+    assert 'id="next-mode-banner"' in html
+    assert 'data-en="Now try your own question →"' in html
+    assert 'data-de="Jetzt eigene Anfrage ausprobieren →"' in html
+
+
+def test_mode_display_rules_in_css() -> None:
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+
+    # Mode chooser
+    assert ':root[data-mode="chooser"] .mode-chooser { display: grid; }' in css
+    assert ':root[data-mode="chooser"] .case-index { display: none; }' in css
+    assert ':root[data-mode="chooser"] .chat-panel { display: none; }' in css
+
+    # Mode case
+    assert ':root[data-mode="case"] .mode-chooser { display: none; }' in css
+    assert ':root[data-mode="case"] .case-index { display: block; }' in css
+    assert ':root[data-mode="case"] .chat-panel { display: block; }' in css
+    assert ':root[data-mode="case"] .prompt-suggestions { display: none; }' in css
+
+    # Mode chat: workflow steps / case index are hidden
+    assert ':root[data-mode="chat"] .mode-chooser { display: none; }' in css
+    assert ':root[data-mode="chat"] .case-index { display: none; }' in css
+    assert ':root[data-mode="chat"] .chat-panel { display: block; }' in css
+    assert ':root[data-mode="chat"] .prompt-suggestions { display: flex; }' in css
+
+    # Stacking at narrow viewport (400px / mobile)
+    assert ".mode-chooser { grid-template-columns: 1fr; }" in css
+
+
+def test_data_mode_switching_and_contract_via_node() -> None:
+    import json
+    import shutil
+    import subprocess
+    import pytest
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is needed to execute JS test")
+
+    script = """
+    function makeElement() {
+      const el = {
+        hidden: false,
+        disabled: false,
+        value: "",
+        textContent: "",
+        dataset: {},
+        childNodes: [],
+        elements: [],
+        replaceChildren: () => {},
+        append: () => {},
+        addEventListener: (evt, cb) => { el["_on_" + evt] = cb; },
+        setAttribute: (k, v) => { el.dataset[k.replace(/^data-/, "")] = v; },
+        classList: { add: () => {}, remove: () => {} },
+        scrollIntoView: () => {},
+        cloneNode: () => makeElement(),
+        focus: () => {},
+      };
+      return el;
+    }
+    const elements = {};
+    function getEl(sel) {
+      if (!elements[sel]) elements[sel] = makeElement();
+      return elements[sel];
+    }
+
+    global.window = {
+      FOLDERHOME_LIVE_DEMO: { enabled: false },
+      crypto: { randomUUID: () => "mock-uuid" },
+      sessionStorage: {
+        _data: {},
+        getItem: function(k) { return this._data[k] || null; },
+        setItem: function(k, v) { this._data[k] = String(v); },
+      },
+      localStorage: {
+        _data: {},
+        getItem: function(k) { return this._data[k] || null; },
+        setItem: function(k, v) { this._data[k] = String(v); },
+      },
+    };
+
+    global.document = {
+      querySelector: (sel) => getEl(sel),
+      querySelectorAll: () => [],
+      createElement: () => makeElement(),
+      documentElement: { lang: "en", dataset: {}, setAttribute: function(k, v) { this.dataset[k.replace(/^data-/, "")] = v; } },
+    };
+
+    eval(require("fs").readFileSync("site/app.js", "utf8")
+      + "; global.setMode = setMode; global.currentMode = currentMode; global.resetDemo = resetDemo; global.updateLiveConfigUI = updateLiveConfigUI;");
+
+    // 1. Initial mode should be "chooser"
+    const initMode = global.document.documentElement.dataset.mode;
+
+    // 2. In static mode (enabled: false), startChatBtn is disabled, chatStaticNote is visible
+    const staticChatDisabled = getEl("#start-chat-btn").disabled;
+    const staticNoteHidden = getEl("#chat-static-note").hidden;
+
+    // 3. Switch to "case" mode -> promptField is prefilled with accident prompt
+    global.setMode("case");
+    const caseMode = global.document.documentElement.dataset.mode;
+    const casePromptValue = getEl("#prompt").value;
+
+    // 4. Switch to "chat" mode -> promptField starts empty
+    global.setMode("chat");
+    const chatMode = global.document.documentElement.dataset.mode;
+    const chatPromptValue = getEl("#prompt").value;
+
+    // 5. In live mode (enabled: true), startChatBtn is enabled
+    global.window.FOLDERHOME_LIVE_DEMO.enabled = true;
+    global.updateLiveConfigUI();
+    const liveChatDisabled = getEl("#start-chat-btn").disabled;
+    const liveNoteHidden = getEl("#chat-static-note").hidden;
+
+    console.log(JSON.stringify({
+      initMode,
+      staticChatDisabled,
+      staticNoteHidden,
+      caseMode,
+      casePromptContainsHyundai: casePromptValue.includes("Hyundai i10"),
+      chatMode,
+      chatPromptEmpty: chatPromptValue === "",
+      liveChatDisabled,
+      liveNoteHidden,
+    }));
+    """
+
+    result = subprocess.run(
+        [node, "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    data = json.loads(result.stdout)
+    assert data["initMode"] == "chooser"
+    assert data["staticChatDisabled"] is True
+    assert data["staticNoteHidden"] is False
+    assert data["caseMode"] == "case"
+    assert data["casePromptContainsHyundai"] is True
+    assert data["chatMode"] == "chat"
+    assert data["chatPromptEmpty"] is True
+    assert data["liveChatDisabled"] is False
+    assert data["liveNoteHidden"] is True
+
+

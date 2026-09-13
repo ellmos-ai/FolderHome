@@ -25,11 +25,100 @@ const initialPlanSteps = planSteps ? planSteps.cloneNode(true) : null;
 const planDetectedDocs = document.querySelector("#plan-detected-docs");
 const auditLine = document.querySelector("#audit-line");
 const liveDataNote = document.querySelector("#live-data-note");
+const modeChooser = document.querySelector("#mode-chooser");
+const startCaseBtn = document.querySelector("#start-case-btn");
+const startChatBtn = document.querySelector("#start-chat-btn");
+const chatStaticNote = document.querySelector("#chat-static-note");
+const backToChooserBtn = document.querySelector("#back-to-chooser");
+const tryOwnQuestionBtn = document.querySelector("#try-own-question-btn");
+const nextModeBanner = document.querySelector("#next-mode-banner");
+const chatTopbarLabel = document.querySelector("#chat-topbar-label");
+const sendButton = document.querySelector("#prompt-form .send-button");
 const initialTranscript = transcript.cloneNode(true);
 
 let language = "en";
 let planId = SCRIPTED_PLAN_ID;
 let runtimeSessionId = createRuntimeSessionId();
+
+function getStoredMode() {
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      const stored = window.sessionStorage.getItem("folderhome-site-mode");
+      if (stored === "case" || stored === "chat" || stored === "chooser") {
+        return stored;
+      }
+    }
+  } catch (_) {}
+  return "chooser";
+}
+
+function storeMode(mode) {
+  try {
+    if (typeof window !== "undefined" && window.sessionStorage) {
+      window.sessionStorage.setItem("folderhome-site-mode", mode);
+    }
+  } catch (_) {}
+}
+
+let currentMode = getStoredMode();
+
+function setMode(mode) {
+  if (mode !== "case" && mode !== "chat" && mode !== "chooser") {
+    mode = "chooser";
+  }
+  currentMode = mode;
+  if (document.documentElement) {
+    if (document.documentElement.dataset) {
+      document.documentElement.dataset.mode = mode;
+    }
+    if (typeof document.documentElement.setAttribute === "function") {
+      document.documentElement.setAttribute("data-mode", mode);
+    }
+  }
+  storeMode(mode);
+
+  if (mode === "chooser") {
+    if (modeChooser) modeChooser.hidden = false;
+    if (nextModeBanner) nextModeBanner.hidden = true;
+  } else if (mode === "case") {
+    if (modeChooser) modeChooser.hidden = true;
+    if (promptField) {
+      promptField.value = DEFAULT_PROMPTS[language] || DEFAULT_PROMPTS.en;
+    }
+    if (sendButton) {
+      sendButton.textContent = text("Build safe plan", "Sicheren Plan erstellen");
+    }
+    if (chatTopbarLabel) {
+      const enLabel = liveConfiguration.enabled
+        ? "FolderHome master · live AWS Bedrock demo"
+        : "FolderHome master · fixture ready";
+      const deLabel = liveConfiguration.enabled
+        ? "FolderHome master · live AWS Bedrock demo"
+        : "FolderHome-Master · Fixture bereit";
+      chatTopbarLabel.dataset.en = enLabel;
+      chatTopbarLabel.dataset.de = deLabel;
+      chatTopbarLabel.textContent = text(enLabel, deLabel);
+    }
+  } else if (mode === "chat") {
+    if (modeChooser) modeChooser.hidden = true;
+    if (nextModeBanner) nextModeBanner.hidden = true;
+    if (promptField) {
+      if (promptField.value === DEFAULT_PROMPTS.en || promptField.value === DEFAULT_PROMPTS.de) {
+        promptField.value = "";
+      }
+    }
+    if (sendButton) {
+      sendButton.textContent = text("Send prompt", "Anfrage senden");
+    }
+    if (chatTopbarLabel) {
+      const enHeader = "Synthetic household · 104 documents · nothing here is real data";
+      const deHeader = "Synthetischer Haushalt · 104 Dokumente · keine echten Daten";
+      chatTopbarLabel.dataset.en = enHeader;
+      chatTopbarLabel.dataset.de = deHeader;
+      chatTopbarLabel.textContent = text(enHeader, deHeader);
+    }
+  }
+}
 
 const TOOL_LABELS = {
   search_home_documents: { en: "Search documents", de: "Suche in Dokumenten" },
@@ -359,10 +448,25 @@ function setLanguage(nextLanguage) {
   });
   if (!planCard.hidden && confirmation) {
     confirmation.value = `/confirm ${planId}`;
-  } else if (promptField && (promptField.value === DEFAULT_PROMPTS.en || promptField.value === DEFAULT_PROMPTS.de || !promptField.value)) {
+  } else if (currentMode === "case" && promptField && (promptField.value === DEFAULT_PROMPTS.en || promptField.value === DEFAULT_PROMPTS.de || !promptField.value)) {
     promptField.value = DEFAULT_PROMPTS[language];
   }
-  localStorage.setItem("folderhome-site-language", language);
+  if (currentMode === "chat") {
+    if (sendButton) sendButton.textContent = text("Send prompt", "Anfrage senden");
+    if (chatTopbarLabel) {
+      chatTopbarLabel.textContent = text(
+        "Synthetic household · 104 documents · nothing here is real data",
+        "Synthetischer Haushalt · 104 Dokumente · keine echten Daten"
+      );
+    }
+  } else if (currentMode === "case") {
+    if (sendButton) sendButton.textContent = text("Build safe plan", "Sicheren Plan erstellen");
+  }
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem("folderhome-site-language", language);
+    }
+  } catch (_) {}
 }
 
 function setTheme(theme) {
@@ -370,12 +474,16 @@ function setTheme(theme) {
   document.querySelectorAll("[data-theme]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.theme === theme));
   });
-  localStorage.setItem("folderhome-site-theme", theme);
+  try {
+    if (typeof window !== "undefined" && window.localStorage) {
+      window.localStorage.setItem("folderhome-site-theme", theme);
+    }
+  } catch (_) {}
 }
 
 function resetDemo() {
   transcript.replaceChildren(...Array.from(initialTranscript.childNodes).map((node) => node.cloneNode(true)));
-  promptField.value = DEFAULT_PROMPTS[language];
+  promptField.value = currentMode === "case" ? DEFAULT_PROMPTS[language] : "";
   renderPlan(null);
   if (initialPlanSteps && planSteps) {
     planSteps.replaceChildren(...Array.from(initialPlanSteps.childNodes).map((node) => node.cloneNode(true)));
@@ -384,9 +492,12 @@ function resetDemo() {
   if (generatedFiles) { generatedFiles.hidden = true; generatedFiles.replaceChildren(); }
   if (auditLine) { auditLine.hidden = true; auditLine.replaceChildren(); }
   if (planDetectedDocs) { planDetectedDocs.hidden = true; planDetectedDocs.replaceChildren(); }
+  if (nextModeBanner) { nextModeBanner.hidden = true; }
   confirmHelp.classList.remove("error");
   setStepState(-1);
-  promptField.focus();
+  if (currentMode !== "chooser") {
+    promptField.focus();
+  }
 }
 
 async function invokeLiveDemo(prompt) {
@@ -522,7 +633,10 @@ confirmForm.addEventListener("submit", async (event) => {
         renderGeneratedFiles(payload.result.generated_results);
         renderAudit(payload.result);
       }
-      (generatedFiles && !generatedFiles.hidden ? generatedFiles : planCard).scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (currentMode === "case" && nextModeBanner) {
+        nextModeBanner.hidden = false;
+      }
+      (nextModeBanner && !nextModeBanner.hidden ? nextModeBanner : (generatedFiles && !generatedFiles.hidden ? generatedFiles : planCard)).scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (error) {
       confirmHelp.textContent = formatApiError(error.status, error.payload || error.message);
       confirmHelp.classList.add("error");
@@ -540,14 +654,32 @@ confirmForm.addEventListener("submit", async (event) => {
   );
   setStepState(4);
   resultGrid.hidden = false;
-  resultGrid.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (currentMode === "case" && nextModeBanner) {
+    nextModeBanner.hidden = false;
+  }
+  (nextModeBanner && !nextModeBanner.hidden ? nextModeBanner : resultGrid).scrollIntoView({ behavior: "smooth", block: "nearest" });
 });
 
 resetButton.addEventListener("click", () => {
   runtimeSessionId = createRuntimeSessionId();
   planId = SCRIPTED_PLAN_ID;
   resetDemo();
+  setMode("chooser");
 });
+if (startCaseBtn) {
+  startCaseBtn.addEventListener("click", () => setMode("case"));
+}
+if (startChatBtn) {
+  startChatBtn.addEventListener("click", () => {
+    if (!startChatBtn.disabled) setMode("chat");
+  });
+}
+if (backToChooserBtn) {
+  backToChooserBtn.addEventListener("click", () => setMode("chooser"));
+}
+if (tryOwnQuestionBtn) {
+  tryOwnQuestionBtn.addEventListener("click", () => setMode("chat"));
+}
 document.querySelectorAll("[data-language]").forEach((button) => {
   button.addEventListener("click", () => setLanguage(button.dataset.language));
 });
@@ -556,6 +688,10 @@ document.querySelectorAll("[data-theme]").forEach((button) => {
 });
 document.querySelectorAll(".prompt-chip").forEach((chip) => {
   chip.addEventListener("click", () => {
+    if (chip.dataset.action === "switch-case") {
+      setMode("case");
+      return;
+    }
     const textKey = language === "de" ? "promptDe" : "promptEn";
     const promptText = chip.dataset[textKey]
       || chip.dataset[language]
@@ -565,17 +701,32 @@ document.querySelectorAll(".prompt-chip").forEach((chip) => {
   });
 });
 
-const savedLanguage = localStorage.getItem("folderhome-site-language");
-const savedTheme = localStorage.getItem("folderhome-site-theme");
+function updateLiveConfigUI() {
+  if (liveConfiguration.enabled) {
+    if (startChatBtn) startChatBtn.disabled = false;
+    if (chatStaticNote) chatStaticNote.hidden = true;
+  } else {
+    if (startChatBtn) startChatBtn.disabled = true;
+    if (chatStaticNote) chatStaticNote.hidden = false;
+  }
+}
+
+const savedLanguage = (function () {
+  try { return window.localStorage ? window.localStorage.getItem("folderhome-site-language") : null; } catch (_) { return null; }
+})();
+const savedTheme = (function () {
+  try { return window.localStorage ? window.localStorage.getItem("folderhome-site-theme") : null; } catch (_) { return null; }
+})();
 setLanguage(savedLanguage === "de" ? "de" : "en");
 setTheme(savedTheme === "light" ? "light" : "dark");
 setStepState(-1);
+updateLiveConfigUI();
+setMode(currentMode);
 
 if (liveConfiguration.enabled) {
-  const runtimeLabel = document.querySelector(".chat-topbar span");
-  if (runtimeLabel) {
-    runtimeLabel.dataset.en = "FolderHome master · live AWS Bedrock demo";
-    runtimeLabel.dataset.de = "FolderHome-Master · Live-AWS-Bedrock-Demo";
+  if (chatTopbarLabel && currentMode === "case") {
+    chatTopbarLabel.dataset.en = "FolderHome master · live AWS Bedrock demo";
+    chatTopbarLabel.dataset.de = "FolderHome-Master · Live-AWS-Bedrock-Demo";
   }
   const disclosureTitle = document.querySelector(".disclosure strong");
   const disclosureText = document.querySelector(".disclosure span");
