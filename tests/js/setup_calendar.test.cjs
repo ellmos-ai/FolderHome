@@ -53,7 +53,7 @@ function form({readEnabled = false, lookup} = {}) {
     calendarAccounts: element("#calendar-accounts"), calendarEnabled: element("#calendar-enabled"),
     calendarDirty: false, invalidate() {}, t: key => key,
     async pickFolder(input) { if (context.chosenPath) input.value = context.chosenPath; },
-    textElement: tag => new Element(tag), showError(error) { throw error; },
+    textElement: (tag, value) => { const el = new Element(tag); if (value !== undefined) el.textContent = value; return el; }, showError(error) { throw error; },
     api: lookup || (async () => { throw new Error("Unexpected network request"); }),
   });
   const source = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.js"), "utf8");
@@ -219,3 +219,13 @@ for (const mutation of [
     assert.equal(button.disabled, false);
   });
 }
+
+test("checkbox line is a flex row with label to the right of the box", () => {
+  const {context} = form();
+  const input = {type: "checkbox", tag: "input"};
+  const row = context.labelled("Bind resources", input);
+  assert.equal(row.className, "checkbox");
+  assert.equal(row.children[0], input);
+  assert.equal(row.children[1].tag, "span");
+  assert.equal(row.children[1].textContent, "Bind resources");
+});

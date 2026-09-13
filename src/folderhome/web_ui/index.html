@@ -15,6 +15,7 @@
       <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome home"
         data-i18n-aria-label="brandHome">
         <span class="brand-mark" aria-hidden="true">FH</span>
+        <span id="topology-badge" class="topology-badge" data-topology="loopback_local">LOCAL</span>
         <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
       </a>
       <div class="topbar-tools">
@@ -109,58 +110,78 @@
           </div>
           <p class="hint" id="recipe-hint" aria-live="polite" data-i18n="recipeHint">Preparation runs no workflow. Review every step before the separate confirmation.</p>
         </form>
-        <section class="recipe-runs" aria-labelledby="recipe-runs-title">
-          <div class="section-heading">
-            <h3 id="recipe-runs-title" data-i18n="recipeRunsTitle">Started journeys</h3>
+        <section class="recipe-runs collapsible-panel is-collapsed" aria-labelledby="recipe-runs-title">
+          <div class="section-heading panel-head" role="button" tabindex="0" aria-expanded="false">
+            <div class="panel-title-wrap">
+              <h3 id="recipe-runs-title" data-i18n="recipeRunsTitle">Started journeys</h3>
+              <span class="panel-chevron" aria-hidden="true"></span>
+            </div>
             <button id="refresh-recipe-runs" class="button secondary" type="button"
               data-i18n="recipeRunsRefresh">Refresh journeys</button>
           </div>
-          <p class="hint" data-i18n="recipeRunsHint">Runs belong to this profile and app session. Closing discards open sections; completed effects are not undone.</p>
-          <div id="recipe-runs-content" role="status" aria-live="polite"></div>
+          <div class="panel-body">
+            <p class="hint" data-i18n="recipeRunsHint">Runs belong to this profile and app session. Closing discards open sections; completed effects are not undone.</p>
+            <div id="recipe-runs-content" role="status" aria-live="polite"></div>
+          </div>
         </section>
       </section>
 
-      <section id="result-section" class="results" aria-labelledby="result-title" hidden>
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow" data-i18n="planEyebrow">Agent details</p>
-            <h2 id="result-title" data-i18n="planTitle">Tools and proposed plans</h2>
+      <section id="result-section" class="results collapsible-panel" aria-labelledby="result-title" hidden>
+        <div class="section-heading panel-head" role="button" tabindex="0" aria-expanded="true">
+          <div class="panel-title-wrap">
+            <div>
+              <p class="eyebrow" data-i18n="planEyebrow">Agent details</p>
+              <h2 id="result-title" data-i18n="planTitle">Tools and proposed plans</h2>
+            </div>
+            <span class="panel-chevron" aria-hidden="true"></span>
           </div>
           <span id="result-count" class="count-pill"></span>
         </div>
-        <div id="result-content" aria-live="polite"></div>
+        <div class="panel-body">
+          <div id="result-content" aria-live="polite"></div>
+        </div>
       </section>
 
-      <section id="results-section" class="results" aria-labelledby="results-title" hidden>
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow" data-i18n="resultsEyebrow">Delivery</p>
-            <h2 id="results-title" data-i18n="resultsTitle">Results you can pick up</h2>
+      <section id="results-section" class="results collapsible-panel" aria-labelledby="results-title" hidden>
+        <div class="section-heading panel-head" role="button" tabindex="0" aria-expanded="true">
+          <div class="panel-title-wrap">
+            <div>
+              <p class="eyebrow" data-i18n="resultsEyebrow">Delivery</p>
+              <h2 id="results-title" data-i18n="resultsTitle">Results you can pick up</h2>
+            </div>
+            <span class="panel-chevron" aria-hidden="true"></span>
           </div>
           <button id="refresh-results" class="button secondary" type="button"
                   data-i18n="refreshResults">Refresh</button>
         </div>
-        <div id="results-content" aria-live="polite"></div>
+        <div class="panel-body">
+          <div id="results-content" aria-live="polite"></div>
+        </div>
       </section>
 
-      <section class="workspace" aria-labelledby="scheduler-title">
-        <div class="section-heading">
-          <h2 id="scheduler-title" data-i18n="schedulerTitle">Regular folder checks</h2>
+      <section id="scheduler-section" class="workspace collapsible-panel is-collapsed" aria-labelledby="scheduler-title">
+        <div class="section-heading panel-head" role="button" tabindex="0" aria-expanded="false">
+          <div class="panel-title-wrap">
+            <h2 id="scheduler-title" data-i18n="schedulerTitle">Regular folder checks</h2>
+            <span class="panel-chevron" aria-hidden="true"></span>
+          </div>
           <button id="scheduler-status-refresh" class="button secondary" type="button"
             data-i18n="schedulerRefresh">Refresh service status</button>
         </div>
-        <p class="hint" data-i18n="schedulerScope">Uses the selected profile. Status covers this app only; other instances are not observed. Checks prepare proposals, not document actions.</p>
-        <p id="scheduler-status" role="status" aria-live="polite"></p>
-        <p id="scheduler-last-observation" class="hint"></p>
-        <p id="scheduler-preview-details" hidden></p>
-        <p class="hint" data-i18n="schedulerGate">Configure in Setup and register the job separately. Starting also requires --approve-scheduler-consumer at app launch. Closing the app signals a stop after the current check.</p>
-        <div class="recipe-controls">
-          <button id="scheduler-preview" class="button secondary" type="button"
-            data-i18n="schedulerPreview">Preview service start</button>
-          <button id="scheduler-start" class="button primary" type="button" disabled
-            data-i18n="schedulerStart">Start this exact service</button>
-          <button id="scheduler-stop" class="button secondary" type="button" disabled
-            data-i18n="schedulerStop">Stop this app's service</button>
+        <div class="panel-body">
+          <p class="hint" data-i18n="schedulerScope">Uses the selected profile. Status covers this app only; other instances are not observed. Checks prepare proposals, not document actions.</p>
+          <p id="scheduler-status" role="status" aria-live="polite"></p>
+          <p id="scheduler-last-observation" class="hint"></p>
+          <p id="scheduler-preview-details" hidden></p>
+          <p class="hint" data-i18n="schedulerGate">Configure in Setup and register the job separately. Starting also requires --approve-scheduler-consumer at app launch. Closing the app signals a stop after the current check.</p>
+          <div class="recipe-controls">
+            <button id="scheduler-preview" class="button secondary" type="button"
+              data-i18n="schedulerPreview">Preview service start</button>
+            <button id="scheduler-start" class="button primary" type="button" disabled
+              data-i18n="schedulerStart">Start this exact service</button>
+            <button id="scheduler-stop" class="button secondary" type="button" disabled
+              data-i18n="schedulerStop">Stop this app's service</button>
+          </div>
         </div>
       </section>
 

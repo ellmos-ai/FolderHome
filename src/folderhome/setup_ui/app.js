@@ -335,6 +335,107 @@ function invalidate() {
   checkedPlan = null;
 }
 
+function getStoredCardState(cardId) {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      return sessionStorage.getItem(`fh_setup_card_${cardId}`);
+    }
+  } catch (_e) {}
+  return null;
+}
+
+function setStoredCardState(cardId, expanded) {
+  try {
+    if (typeof sessionStorage !== "undefined") {
+      sessionStorage.setItem(`fh_setup_card_${cardId}`, String(expanded));
+    }
+  } catch (_e) {}
+}
+
+function setCardExpanded(card, expanded) {
+  if (!card) return;
+  const cardId = card.dataset.cardId;
+  const h2 = card.querySelector("h2");
+  const head = card.querySelector(".card-head");
+  const body = card.querySelector(".card-body");
+  if (!h2 || !body) return;
+
+  if (card.classList) card.classList.toggle("is-collapsed", !expanded);
+  if (h2.setAttribute) h2.setAttribute("aria-expanded", String(expanded));
+  if (head && head.setAttribute) head.setAttribute("aria-expanded", String(expanded));
+  body.hidden = !expanded;
+  if (cardId) setStoredCardState(cardId, expanded);
+}
+
+function setActiveCard(card) {
+  if (!card) return;
+  document.querySelectorAll(".card").forEach(c => {
+    if (c.classList) c.classList.remove("is-active");
+  });
+  if (card.classList) card.classList.add("is-active");
+  setCardExpanded(card, true);
+}
+
+function expandCardForError(text) {
+  const str = String(text).toLowerCase();
+  let targetId = "profiles";
+  if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
+  else if (str.includes("model") || str.includes("preset") || str.includes("ollama") || str.includes("bedrock") || str.includes("anthropic") || str.includes("openai") || str.includes("provider")) targetId = "model";
+  else if (str.includes("key") || str.includes("api_key")) targetId = "keys";
+  else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir") || str.includes("outside_home")) targetId = "runtime";
+  else if (str.includes("calendar")) targetId = "calendar";
+  else if (str.includes("scheduler")) targetId = "scheduler";
+  else if (str.includes("profile") || str.includes("rule")) targetId = "profiles";
+
+  const card = document.querySelector(`.card[data-card-id="${targetId}"]`);
+  if (card) {
+    if (card.classList) card.classList.add("has-error");
+    setCardExpanded(card, true);
+    setActiveCard(card);
+  }
+}
+
+function initCollapsibleCards() {
+  const cards = document.querySelectorAll(".card[data-card-id]");
+  cards.forEach((card, index) => {
+    const cardId = card.dataset.cardId;
+    if (cardId === "summary") return;
+
+    const head = card.querySelector(".card-head");
+    const h2 = card.querySelector("h2");
+    if (!head || !h2) return;
+
+    const stored = getStoredCardState(cardId);
+    let expanded = stored !== null ? stored === "true" : index === 0;
+
+    setCardExpanded(card, expanded);
+    if (index === 0 && (stored === null || stored === "true") && card.classList) {
+      card.classList.add("is-active");
+    }
+
+    const toggle = () => {
+      const isCurrentlyExpanded = h2.getAttribute ? h2.getAttribute("aria-expanded") === "true" : true;
+      const nextState = !isCurrentlyExpanded;
+      setCardExpanded(card, nextState);
+      if (nextState) {
+        setActiveCard(card);
+      }
+    };
+
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+
+    card.addEventListener("focusin", () => {
+      setActiveCard(card);
+    });
+  });
+}
+
 async function pickFolder(input) {
   const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
   if (!chosen.path) return;
@@ -499,7 +600,25 @@ function savePreset() {
 
 function calendarAccountRow(account) {
   const block = document.createElement("fieldset");
-  block.append(textElement("legend", t("calendarAccount")));
+  block.className = "collapsible-entry";
+
+  const legend = document.createElement("legend");
+  legend.className = "entry-legend";
+  if (legend.setAttribute) {
+    legend.setAttribute("role", "button");
+    legend.setAttribute("tabindex", "0");
+    legend.setAttribute("aria-expanded", "true");
+  }
+  const titleSpan = textElement("span", (account && (account.display_name || account.account_id)) || t("calendarAccount"), "entry-title");
+  const statusSpan = textElement("span", (account && `${account.backend} · ${account.profile_id}`) || "new", "entry-status");
+  const chevronSpan = textElement("span", "", "entry-chevron");
+  if (chevronSpan.setAttribute) chevronSpan.setAttribute("aria-hidden", "true");
+  legend.append(titleSpan, statusSpan, chevronSpan);
+  block.append(legend);
+
+  const body = document.createElement("div");
+  body.className = "entry-body";
+
   const profile = document.createElement("select");
   profile.dataset.calendarField = "profile_id";
   for (const item of state.profiles) {
@@ -509,7 +628,8 @@ function calendarAccountRow(account) {
     profile.append(option);
   }
   if (account) profile.value = account.profile_id;
-  block.append(labelled(t("calendarProfile"), profile));
+  body.append(labelled(t("calendarProfile"), profile));
+
   const backend = document.createElement("select");
   backend.dataset.calendarField = "backend";
   for (const item of state.calendar_backends) {
@@ -519,7 +639,8 @@ function calendarAccountRow(account) {
     backend.append(option);
   }
   if (account) backend.value = account.backend;
-  block.append(labelled(t("calendarBackend"), backend));
+  body.append(labelled(t("calendarBackend"), backend));
+
   const fields = [
     ["account_id", "account_id"],
     ["display_name", "display_name"],
@@ -532,14 +653,21 @@ function calendarAccountRow(account) {
     input.spellcheck = false;
     input.dataset.calendarField = name;
     input.value = (account && account[name]) || "";
-    block.append(labelled(caption, input));
+    if (name === "display_name" || name === "account_id") {
+      input.addEventListener("input", () => {
+        titleSpan.textContent = input.value.trim() || t("calendarAccount");
+      });
+    }
+    body.append(labelled(caption, input));
   }
+
   const credential = document.createElement("input");
   credential.spellcheck = false;
   credential.dataset.calendarField = "credential_ref";
   credential.placeholder = "connector://google-calendar/default";
   credential.value = (account && account.credential_ref) || "";
-  block.append(labelled(t("calendarCredential"), credential));
+  body.append(labelled(t("calendarCredential"), credential));
+
   const googleFields = document.createElement("div");
   googleFields.append(textElement("p", t("googleBindingHint")));
   for (const [name, caption] of [["credential_file", "googleCredentialFile"], ["ledger_dir", "googleLedgerDir"]]) {
@@ -555,16 +683,19 @@ function calendarAccountRow(account) {
   googleFields.append(labelled(t("googleBind"), bind));
   googleFields.append(textElement("p", t("googleExecutionHint")));
   googleFields.append(textElement("p", t("googleLookupHint")));
+
   const lookup = document.createElement("button");
   lookup.type = "button";
   lookup.className = "button compact";
   lookup.dataset.action = "google-lookup";
   lookup.textContent = t("googleLookup");
   lookup.disabled = state.google_calendar_read_enabled !== true;
+
   const values = () => Object.fromEntries([
     ...block.querySelectorAll("[data-calendar-field]"),
     ...googleFields.querySelectorAll("[data-google-field]"),
   ].map(control => [control.dataset.calendarField || control.dataset.googleField, control.value.trim()]));
+
   lookup.addEventListener("click", async () => {
     if (lookup.disabled || backend.value !== "google" || state.google_calendar_read_enabled !== true) return;
     const before = values();
@@ -599,14 +730,22 @@ function calendarAccountRow(account) {
       lookup.disabled = state.google_calendar_read_enabled !== true;
     }
   });
+
   googleFields.append(lookup);
   const updateGoogleFields = () => {
     googleFields.hidden = backend.value !== "google";
     if (googleFields.hidden) bind.checked = false;
   };
-  backend.addEventListener("change", updateGoogleFields);
+  backend.addEventListener("change", () => {
+    updateGoogleFields();
+    statusSpan.textContent = `${backend.value} · ${profile.value}`;
+  });
+  profile.addEventListener("change", () => {
+    statusSpan.textContent = `${backend.value} · ${profile.value}`;
+  });
   updateGoogleFields();
-  block.append(googleFields);
+  body.append(googleFields);
+
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "button compact";
@@ -617,14 +756,35 @@ function calendarAccountRow(account) {
     calendarDirty = true;
     invalidate();
   });
-  block.append(remove);
+  body.append(remove);
+  block.append(body);
+
+  const toggle = () => {
+    const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
+    if (legend.setAttribute) legend.setAttribute("aria-expanded", String(!isExpanded));
+    if (block.classList) block.classList.toggle("collapsed", isExpanded);
+    body.hidden = isExpanded;
+  };
+  legend.addEventListener("click", toggle);
+  legend.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  });
+
   return block;
 }
 
 function labelled(caption, control) {
   const label = document.createElement("label");
-  label.className = "field";
-  label.append(textElement("span", caption), control);
+  if (control && control.type === "checkbox") {
+    label.className = "checkbox";
+    label.append(control, textElement("span", caption));
+  } else {
+    label.className = "field";
+    label.append(textElement("span", caption), control);
+  }
   return label;
 }
 
@@ -853,7 +1013,26 @@ function ruleTable(rules, scopes) {
 function profileCard(profile) {
   const block = document.createElement("fieldset");
   block.dataset.profile = "";
-  block.append(textElement("legend", profile.display_name || t("profileAdd")));
+  block.className = "collapsible-entry";
+
+  const legend = document.createElement("legend");
+  legend.className = "entry-legend";
+  if (legend.setAttribute) {
+    legend.setAttribute("role", "button");
+    legend.setAttribute("tabindex", "0");
+    legend.setAttribute("aria-expanded", "true");
+  }
+
+  const titleSpan = textElement("span", profile.display_name || t("profileAdd"), "entry-title");
+  const ruleCount = (profile.rules || []).length;
+  const statusSpan = textElement("span", profile.profile_id ? `${profile.profile_id} · ${ruleCount} rules` : t("profileAdd"), "entry-status");
+  const chevronSpan = textElement("span", "", "entry-chevron");
+  if (chevronSpan.setAttribute) chevronSpan.setAttribute("aria-hidden", "true");
+  legend.append(titleSpan, statusSpan, chevronSpan);
+  block.append(legend);
+
+  const body = document.createElement("div");
+  body.className = "entry-body";
 
   const id = document.createElement("input");
   id.dataset.profileField = "profile_id";
@@ -862,19 +1041,26 @@ function profileCard(profile) {
   // Renaming an id would move the file and drop every binding to it, so an
   // existing profile keeps its id and is replaced by delete plus add instead.
   id.readOnly = knownProfileIds.has(profile.profile_id);
-  id.addEventListener("input", invalidate);
-  block.append(labelled(t("profileId"), id));
-  if (id.readOnly) block.append(textElement("p", t("profileIdLocked"), "hint"));
+  id.addEventListener("input", () => {
+    const rulesNow = body.querySelector("[data-rules]") ? readRules(body.querySelector("[data-rules]")).length : 0;
+    statusSpan.textContent = id.value.trim() ? `${id.value.trim()} · ${rulesNow} rules` : t("profileAdd");
+    invalidate();
+  });
+  body.append(labelled(t("profileId"), id));
+  if (id.readOnly) body.append(textElement("p", t("profileIdLocked"), "hint"));
 
   const name = document.createElement("input");
   name.dataset.profileField = "display_name";
   name.spellcheck = false;
   name.value = profile.display_name || "";
-  name.addEventListener("input", invalidate);
-  block.append(labelled(t("profileName"), name));
+  name.addEventListener("input", () => {
+    titleSpan.textContent = name.value.trim() || t("profileAdd");
+    invalidate();
+  });
+  body.append(labelled(t("profileName"), name));
 
-  block.append(textElement("p", t("profileRules"), "hint"));
-  block.append(ruleTable(profile.rules, state.profile_rule_scopes || []));
+  body.append(textElement("p", t("profileRules"), "hint"));
+  body.append(ruleTable(profile.rules, state.profile_rule_scopes || []));
 
   const remove = document.createElement("button");
   remove.type = "button";
@@ -892,7 +1078,23 @@ function profileCard(profile) {
     renderFolders();
     invalidate();
   });
-  block.append(remove);
+  body.append(remove);
+  block.append(body);
+
+  const toggle = () => {
+    const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
+    if (legend.setAttribute) legend.setAttribute("aria-expanded", String(!isExpanded));
+    if (block.classList) block.classList.toggle("collapsed", isExpanded);
+    body.hidden = isExpanded;
+  };
+  legend.addEventListener("click", toggle);
+  legend.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggle();
+    }
+  });
+
   return block;
 }
 
@@ -1020,13 +1222,47 @@ function renderFolders() {
   const repeatable = new Set(state.repeatable_purposes || []);
   for (const profile of plannedProfiles()) {
     const block = document.createElement("fieldset");
-    block.append(textElement("legend", `${profile.display_name} (${profile.profile_id})`));
+    block.className = "collapsible-entry";
+
+    const legend = document.createElement("legend");
+    legend.className = "entry-legend";
+    if (legend.setAttribute) {
+      legend.setAttribute("role", "button");
+      legend.setAttribute("tabindex", "0");
+      legend.setAttribute("aria-expanded", "true");
+    }
+
+    const titleSpan = textElement("span", profile.display_name || profile.profile_id, "entry-title");
+    const statusSpan = textElement("span", profile.profile_id, "entry-status");
+    const chevronSpan = textElement("span", "", "entry-chevron");
+    if (chevronSpan.setAttribute) chevronSpan.setAttribute("aria-hidden", "true");
+    legend.append(titleSpan, statusSpan, chevronSpan);
+    block.append(legend);
+
+    const body = document.createElement("div");
+    body.className = "entry-body";
     for (const purpose of state.purposes) {
       const paths = current.get(`${profile.profile_id}|${purpose}`) || [""];
-      block.append(
+      body.append(
         purposeField(profile.profile_id, purpose, paths, repeatable.has(purpose)),
       );
     }
+    block.append(body);
+
+    const toggle = () => {
+      const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
+      if (legend.setAttribute) legend.setAttribute("aria-expanded", String(!isExpanded));
+      if (block.classList) block.classList.toggle("collapsed", isExpanded);
+      body.hidden = isExpanded;
+    };
+    legend.addEventListener("click", toggle);
+    legend.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggle();
+      }
+    });
+
     folderGrid.append(block);
   }
 }
@@ -1099,11 +1335,15 @@ function buildRequest() {
 
 function renderPlan(plan) {
   summary.replaceChildren();
+  document.querySelectorAll(".card").forEach(c => {
+    if (c.classList) c.classList.remove("has-error");
+  });
   if (!plan.valid) {
     summary.append(textElement("p", t("checkFailed"), "error"));
     const list = document.createElement("ul");
     for (const item of plan.errors) {
       list.append(textElement("li", `${item.field}: ${item.message}`));
+      expandCardForError(`${item.field} ${item.message}`);
     }
     summary.append(list);
     return;
@@ -1191,6 +1431,7 @@ async function save() {
 
 function showError(error) {
   summary.replaceChildren(textElement("p", error.message, "error"));
+  expandCardForError(error.message);
 }
 
 providerSelect.addEventListener("change", () => {
@@ -1280,5 +1521,8 @@ api("/api/v1/setup/state")
     renderCalendar();
     renderScheduler();
     applyTranslations();
+    initCollapsibleCards();
   })
   .catch(showError);
+
+initCollapsibleCards();
