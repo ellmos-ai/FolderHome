@@ -239,3 +239,18 @@ test("outside-home error navigates to section 6, focuses outside-home checkbox, 
   const label = outsideHome.parent;
   assert.equal(label.classList.contains("is-highlight-target"), true);
 });
+
+test("button:disabled does not use cursor: wait and aria-busy provides progress state", () => {
+  const css = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.css"), "utf8");
+
+  // Verify button:disabled no longer has cursor: wait
+  assert.equal(/button:disabled\s*\{[^}]*cursor:\s*wait/i.test(css), false);
+  // Verify button:disabled uses not-allowed
+  assert.equal(/button:disabled\s*\{[^}]*cursor:\s*not-allowed/i.test(css), true);
+  // Verify button[aria-busy="true"] uses cursor: progress and inline spinner animation
+  assert.equal(/button\[aria-busy="true"\]\s*\{[^}]*cursor:\s*progress/i.test(css), true);
+  assert.equal(css.includes("button-spin"), true);
+  // Verify .results[aria-busy] uses progress bar instead of border-color: var(--folder)
+  assert.equal(/\.results\[aria-busy="true"\]\s*\{[^}]*border-color:\s*var\(--folder\)/i.test(css), false);
+  assert.equal(css.includes("progress-bar-slide"), true);
+});

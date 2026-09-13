@@ -1438,47 +1438,79 @@ function renderPlan(plan) {
 }
 
 async function check() {
-  const plan = await api("/api/v1/setup/validate", {
-    method: "POST",
-    body: JSON.stringify(buildRequest()),
-  });
-  checkedPlan = plan.valid ? plan : null;
-  saveButton.disabled = !plan.valid;
-  saveNote.hidden = false;
-  renderPlan(plan);
+  const checkBtn = document.querySelector("#check");
+  const resultsArea = summary.closest ? summary.closest(".results") : null;
+  if (checkBtn) {
+    if (checkBtn.setAttribute) checkBtn.setAttribute("aria-busy", "true");
+    checkBtn.disabled = true;
+  }
+  if (resultsArea && resultsArea.setAttribute) {
+    resultsArea.setAttribute("aria-busy", "true");
+  }
+  try {
+    const plan = await api("/api/v1/setup/validate", {
+      method: "POST",
+      body: JSON.stringify(buildRequest()),
+    });
+    checkedPlan = plan.valid ? plan : null;
+    saveButton.disabled = !plan.valid;
+    saveNote.hidden = false;
+    renderPlan(plan);
+  } finally {
+    if (checkBtn) {
+      if (checkBtn.removeAttribute) checkBtn.removeAttribute("aria-busy");
+      checkBtn.disabled = false;
+    }
+    if (resultsArea && resultsArea.removeAttribute) {
+      resultsArea.removeAttribute("aria-busy");
+    }
+  }
 }
 
 async function save() {
   if (!checkedPlan) return;
-  const request = buildRequest();
-  request.confirm = true;
-  request.plan_sha256 = checkedPlan.plan_sha256;
-  // Keys ride along with the save alone: never with a check, never in the hash.
-  const keyChanges = buildKeyChanges();
-  if (Object.keys(keyChanges).length) request.api_keys = keyChanges;
-  const saved = await api("/api/v1/setup/save", {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
-  summary.replaceChildren();
-  summary.append(textElement("p", t("savedTitle")));
-  summary.append(textElement("pre", saved.launch_command));
-  if (checkedPlan.scheduler) {
-    summary.append(textElement("p", t("schedulerSaved")));
-    summary.append(textElement("pre", JSON.stringify(checkedPlan.scheduler.request, null, 2)));
-  }
-  if ((saved.backups || []).length) {
-    summary.append(textElement("p", t("backupNote"), "hint"));
-  }
+  if (saveButton.setAttribute) saveButton.setAttribute("aria-busy", "true");
   saveButton.disabled = true;
-  saveNote.hidden = true;
-  checkedPlan = null;
-  keyRemovals.clear();
-  // Ask the service what is stored now instead of guessing from the form.
-  state = await api("/api/v1/setup/state");
-  renderKeys();
-  renderCalendar();
-  renderScheduler();
+  const resultsArea = summary.closest ? summary.closest(".results") : null;
+  if (resultsArea && resultsArea.setAttribute) {
+    resultsArea.setAttribute("aria-busy", "true");
+  }
+  try {
+    const request = buildRequest();
+    request.confirm = true;
+    request.plan_sha256 = checkedPlan.plan_sha256;
+    // Keys ride along with the save alone: never with a check, never in the hash.
+    const keyChanges = buildKeyChanges();
+    if (Object.keys(keyChanges).length) request.api_keys = keyChanges;
+    const saved = await api("/api/v1/setup/save", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    summary.replaceChildren();
+    summary.append(textElement("p", t("savedTitle")));
+    summary.append(textElement("pre", saved.launch_command));
+    if (checkedPlan.scheduler) {
+      summary.append(textElement("p", t("schedulerSaved")));
+      summary.append(textElement("pre", JSON.stringify(checkedPlan.scheduler.request, null, 2)));
+    }
+    if ((saved.backups || []).length) {
+      summary.append(textElement("p", t("backupNote"), "hint"));
+    }
+    saveNote.hidden = true;
+    checkedPlan = null;
+    keyRemovals.clear();
+    // Ask the service what is stored now instead of guessing from the form.
+    state = await api("/api/v1/setup/state");
+    renderKeys();
+    renderCalendar();
+    renderScheduler();
+  } finally {
+    if (saveButton.removeAttribute) saveButton.removeAttribute("aria-busy");
+    saveButton.disabled = !checkedPlan;
+    if (resultsArea && resultsArea.removeAttribute) {
+      resultsArea.removeAttribute("aria-busy");
+    }
+  }
 }
 
 function showError(error) {

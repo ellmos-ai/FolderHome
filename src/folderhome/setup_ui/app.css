@@ -72,8 +72,33 @@ body {
 }
 
 button, input, select { font: inherit; }
-button { cursor: pointer; }
-button:disabled { cursor: wait; opacity: .62; }
+button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+button[aria-busy="true"] {
+  cursor: progress;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  opacity: .75;
+}
+button[aria-busy="true"]::before {
+  content: "";
+  display: inline-block;
+  width: .85rem;
+  height: .85rem;
+  flex: 0 0 .85rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: button-spin .75s linear infinite;
+}
+@keyframes button-spin {
+  to { transform: rotate(360deg); }
+}
 
 .skip-link {
   position: fixed;
@@ -257,7 +282,23 @@ input[type="checkbox"] {
 .hint { margin: .95rem 0 0; color: var(--muted); font-size: .82rem; }
 
 .results, .capability-section { margin-top: 2.3rem; }
-.results[aria-busy="true"] { border-color: var(--folder); }
+.results { position: relative; overflow: hidden; }
+.results[aria-busy="true"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--cabinet), var(--folder), transparent);
+  background-size: 200% 100%;
+  animation: progress-bar-slide 1.5s linear infinite;
+  z-index: 5;
+}
+@keyframes progress-bar-slide {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 .count-pill { padding: .4rem .7rem; color: var(--ink); background: var(--folder-pale); border-radius: .2rem; font-family: Consolas, "Courier New", monospace; font-size: .72rem; font-weight: 800; }
 .result-card { margin-top: 1rem; padding: 1rem 1.1rem; background: var(--surface-solid); border: 1px solid var(--line); border-left: .3rem solid var(--teal); border-radius: .2rem; }
 .result-card h3 { margin: 0 0 .5rem; font-family: Bahnschrift, "Aptos Display", sans-serif; font-size: 1rem; }
