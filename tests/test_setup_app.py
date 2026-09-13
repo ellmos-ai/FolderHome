@@ -1383,7 +1383,8 @@ def test_user_presets_with_model_provider_key_validate_and_switch(tmp_path: Path
     stored = json.loads(app.launch_file.read_text(encoding="utf-8"))
     assert stored["model_preset"] == "ollama-laptop"
     assert stored["model_presets"]["ollama-laptop"]["model_provider"] == "ollama"
-    assert stored["model_presets"]["bedrock-nova-micro"]["bedrock_model_id"] == "eu.amazon.nova-micro-v1:0"
+    bedrock = stored["model_presets"]["bedrock-nova-micro"]
+    assert bedrock["bedrock_model_id"] == "eu.amazon.nova-micro-v1:0"
 
 
 def test_a_broken_or_badly_named_preset_is_refused_before_anything_is_written(

@@ -441,7 +441,7 @@ function resolveElementForField(field, message = "") {
   if (f === "model.ollama_host") return document.querySelector("#ollama-host");
   if (f === "model.ollama_model_id") return document.querySelector("#ollama-model-id");
   if (f === "model.bedrock_model_id") return document.querySelector("#bedrock-model-id");
-  if (f === "model.aws_region") return document.querySelector("#bedrock-region");
+  if (f === "model.aws_region") return document.querySelector("#aws-region");
   if (f === "model.anthropic_model_id") return document.querySelector("#anthropic-model-id");
   if (f === "model.openai_model_id") return document.querySelector("#openai-model-id");
   if (f === "model.openai_base_url") return document.querySelector("#openai-base-url");
