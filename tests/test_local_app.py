@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import threading
 import time
@@ -2013,4 +2014,141 @@ def test_reload_settings_succeeds_and_updates_status_and_resets_turns(tmp_path: 
     assert status_res.payload["settings_stale"] is False
     assert status_res.payload["successful_live_model_turns"] == 0
     assert status_res.payload["model_state"] == "configured_unverified"
+
+
+def test_reload_settings_atomicity_fail_closed_leaves_environ_and_state_unmutated_on_409(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "anthropic-claude",
+                "model_presets": {
+                    "anthropic-claude": {
+                        "model_provider": "anthropic",
+                        "anthropic_model_id": "claude-3-5-sonnet",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=test-secret-key-must-not-leak\n", encoding="utf-8")
+
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._successful_live_model_turns = 7
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "Start the app with --allow-network --approve-sensitive-cloud-data" in res.payload["message"]
+    # os.environ must NOT have been mutated before or after gate rejection
+    assert "ANTHROPIC_API_KEY" not in os.environ
+    # Live agent state must remain untouched
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._successful_live_model_turns == 7
+
+
+@pytest.mark.parametrize(
+    "remote_host",
+    ["http://0.0.0.0:11434", "http://127.0.0.1.evil.invalid:11434"],
+)
+def test_reload_settings_remote_lookalikes_require_gates_and_leave_state_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    remote_host: str,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=remote-gate-token-never-loaded\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "ollama-lookalike",
+                "model_presets": {
+                    "ollama-lookalike": {
+                        "model_provider": "ollama",
+                        "ollama_host": remote_host,
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._successful_live_model_turns = 3
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "Start the app with --allow-network --approve-sensitive-cloud-data" in res.payload["message"]
+    assert "OPENAI_API_KEY" not in os.environ
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._successful_live_model_turns == 3
+
+
+def test_build_reloaded_agent_settings_isolated_mapping_atomicity(tmp_path: Path) -> None:
+    from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
+    from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "anthropic-claude",
+                "model_presets": {
+                    "anthropic-claude": {
+                        "model_provider": "anthropic",
+                        "anthropic_model_id": "claude-3-5-sonnet",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=test-isolated-key\n", encoding="utf-8")
+
+    # 1. Gate missing -> ReloadGateError, isolated target mapping is not mutated
+    isolated_target: dict[str, str] = {}
+    current = StrandsAgentSettings(model_provider="fixture")
+    with pytest.raises(ReloadGateError):
+        build_reloaded_agent_settings(launch_file, current, target_environ=isolated_target)
+    assert isolated_target == {}
+
+    # 2. Gate present -> succeeds, isolated target mapping receives the key
+    current_allowed = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-3-5-sonnet",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    new_settings, preset = build_reloaded_agent_settings(
+        launch_file, current_allowed, target_environ=isolated_target
+    )
+    assert preset == "anthropic-claude"
+    assert new_settings.model_provider == "anthropic"
+    assert isolated_target.get("ANTHROPIC_API_KEY") == "test-isolated-key"
+
 

@@ -5,7 +5,7 @@ import json
 import os
 import shutil
 import sys
-from collections.abc import Sequence
+from collections.abc import MutableMapping, Sequence
 from datetime import UTC, date, datetime
 from pathlib import Path
 from uuid import uuid4
@@ -5493,6 +5493,7 @@ class ReloadGateError(LocalAppError):
 def build_reloaded_agent_settings(
     launch_config_path: Path | str,
     current_settings: StrandsAgentSettings,
+    target_environ: MutableMapping[str, str] | None = None,
 ) -> tuple[StrandsAgentSettings, str | None]:
     """Build a fresh StrandsAgentSettings from launch config without bypassing startup gates."""
 
@@ -5506,8 +5507,7 @@ def build_reloaded_agent_settings(
     if not isinstance(payload, dict) or payload.get("schema") != LAUNCH_CONFIG_SCHEMA:
         raise ValueError("Startkonfiguration verwendet ein unbekanntes Schema.")
 
-    for name, value in read_env_file(path.parent / ENV_FILENAME).items():
-        os.environ.setdefault(name, value)
+    env_vars = read_env_file(path.parent / ENV_FILENAME)
 
     preset = _active_preset(payload)
     model_preset = payload.get("model_preset")
@@ -5547,7 +5547,6 @@ def build_reloaded_agent_settings(
         if name not in supplied and name in _LAUNCH_CONFIG_DEFAULTS:
             supplied[name] = _LAUNCH_CONFIG_DEFAULTS[name]
 
-    from ipaddress import ip_address
     from folderhome.contracts.strands_agent import (
         _HOSTED_PROVIDERS,
         _LOOPBACK_HOSTS,
@@ -5565,10 +5564,7 @@ def build_reloaded_agent_settings(
         else:
             hostname = parsed.hostname.lower() if parsed.hostname else ""
             if hostname not in _LOOPBACK_HOSTS:
-                try:
-                    needs_network = not ip_address(hostname).is_loopback
-                except ValueError:
-                    needs_network = True
+                needs_network = True
 
     preset_label = running_preset_name or effective
     if needs_network:
@@ -5621,7 +5617,11 @@ def build_reloaded_agent_settings(
         kwargs["openai_model_id"] = supplied.get("openai_model_id")
         kwargs["openai_base_url"] = supplied.get("openai_base_url")
 
-    return StrandsAgentSettings(**kwargs), running_preset_name
+    new_settings = StrandsAgentSettings(**kwargs)
+    env_target = os.environ if target_environ is None else target_environ
+    for name, value in env_vars.items():
+        env_target.setdefault(name, value)
+    return new_settings, running_preset_name
 
 
 def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
