@@ -155,22 +155,22 @@ test("setup card heading toggles aria-expanded and is-collapsed class on click",
   const h2 = profilesCard.querySelector("h2");
   const head = profilesCard.querySelector(".card-head");
 
-  // Initial state: first card is active and expanded
+  // Initial state: every card starts collapsed and none is active yet
   assert.equal(h2.getAttribute("aria-expanded"), "false");
   assert.equal(profilesCard.classList.contains("is-collapsed"), true);
-  assert.equal(profilesCard.classList.contains("is-active"), true);
+  assert.equal(profilesCard.classList.contains("is-active"), false);
 
-  // Click card head to collapse
+  // Click card head to expand
   head.listeners.click();
   assert.equal(h2.getAttribute("aria-expanded"), "true");
   assert.equal(profilesCard.classList.contains("is-collapsed"), false);
-  assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "false");
+  assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "true");
 
-  // Click card head again to expand
+  // Click card head again to collapse
   head.listeners.click();
   assert.equal(h2.getAttribute("aria-expanded"), "false");
   assert.equal(profilesCard.classList.contains("is-collapsed"), true);
-  assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "true");
+  assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "false");
 });
 
 test("setup card heading toggles on Enter or Space key", () => {
