@@ -742,8 +742,137 @@ if (liveConfiguration.enabled) {
   if (liveDataNoteElement) liveDataNoteElement.hidden = false;
   const figcaption = document.querySelector(".architecture-diagram figcaption");
   if (figcaption) {
-    figcaption.dataset.en = "Synthetic accident-demo view: four demo adapters, not the full endpoint catalog. This AWS page is configured to invoke AgentCore; configuration alone does not prove a successful model call. Household execution remains local behind exact confirmation.";
-    figcaption.dataset.de = "Synthetische Unfall-Demo: vier Demo-Adapter, nicht der gesamte Endpunktkatalog. Diese AWS-Seite ist für AgentCore-Aufrufe konfiguriert; die Konfiguration allein belegt keinen erfolgreichen Modellaufruf. Haushaltsausführung bleibt lokal hinter exakter Bestätigung.";
+    figcaption.dataset.en = "Synthetic accident-demo view: four demo adapters in the guided case; the free chat uses the full read-only tool set on a synthetic household. The hosted runtime was verified live with Amazon Bedrock on 2026-09-13. Household execution stays local behind exact confirmation.";
+    figcaption.dataset.de = "Synthetische Unfall-Demo: vier Demo-Adapter im geführten Fall; der freie Chat nutzt das volle Lesewerkzeug-Set auf einem synthetischen Haushalt. Die gehostete Runtime wurde am 13.09.2026 live mit Amazon Bedrock verifiziert. Haushaltsausführung bleibt lokal hinter exakter Bestätigung.";
+  }
+  const slide0 = document.querySelector('.architecture-diagram .slide[data-index="0"]');
+  if (slide0) {
+    slide0.dataset.captionEn = "Synthetic accident-demo view: four demo adapters in the guided case; the free chat uses the full read-only tool set on a synthetic household. The hosted runtime was verified live with Amazon Bedrock on 2026-09-13. Household execution stays local behind exact confirmation.";
+    slide0.dataset.captionDe = "Synthetische Unfall-Demo: vier Demo-Adapter im geführten Fall; der freie Chat nutzt das volle Lesewerkzeug-Set auf einem synthetischen Haushalt. Die gehostete Runtime wurde am 13.09.2026 live mit Amazon Bedrock verifiziert. Haushaltsausführung bleibt lokal hinter exakter Bestätigung.";
   }
   setLanguage(language);
 }
+
+/* --- Architecture Slideshow Block --- */
+(function initArchitectureSlideshow() {
+  const container = document.querySelector(".architecture-diagram");
+  if (!container) return;
+
+  const slides = Array.from(container.querySelectorAll(".slide"));
+  const dots = Array.from(container.querySelectorAll(".slideshow-dot"));
+  const prevBtn = container.querySelector("#arch-prev");
+  const nextBtn = container.querySelector("#arch-next");
+  const caption = container.querySelector("#architecture-caption");
+  const fullsizeLink = document.querySelector("#architecture-fullsize-link");
+
+  if (slides.length === 0) return;
+
+  let currentSlideIndex = 0;
+
+  function updateSlide(targetIndex) {
+    if (targetIndex < 0) {
+      targetIndex = slides.length - 1;
+    } else if (targetIndex >= slides.length) {
+      targetIndex = 0;
+    }
+    currentSlideIndex = targetIndex;
+
+    slides.forEach((slide, idx) => {
+      const isCurrent = idx === currentSlideIndex;
+      slide.hidden = !isCurrent;
+      if (isCurrent) {
+        slide.classList.add("active");
+      } else {
+        slide.classList.remove("active");
+      }
+    });
+
+    dots.forEach((dot, idx) => {
+      const isCurrent = idx === currentSlideIndex;
+      if (isCurrent) {
+        dot.classList.add("active");
+      } else {
+        dot.classList.remove("active");
+      }
+      dot.setAttribute("aria-selected", String(isCurrent));
+    });
+
+    const activeSlide = slides[currentSlideIndex];
+    if (activeSlide && caption) {
+      const capEn = activeSlide.dataset.captionEn || "";
+      const capDe = activeSlide.dataset.captionDe || "";
+      caption.dataset.en = capEn;
+      caption.dataset.de = capDe;
+      caption.textContent = language === "de" ? capDe : capEn;
+    }
+
+    if (activeSlide && fullsizeLink) {
+      const img = activeSlide.querySelector("img");
+      const src = (img && typeof img.getAttribute === "function" ? img.getAttribute("src") : (img && img.src)) || "";
+      if (src) {
+        fullsizeLink.href = src;
+      }
+    }
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      updateSlide(currentSlideIndex - 1);
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      updateSlide(currentSlideIndex + 1);
+    });
+  }
+
+  dots.forEach((dot, idx) => {
+    dot.addEventListener("click", () => {
+      updateSlide(idx);
+    });
+  });
+
+  container.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      updateSlide(currentSlideIndex - 1);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      updateSlide(currentSlideIndex + 1);
+    }
+  });
+
+  let touchStartX = null;
+  container.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.touches && event.touches.length > 0) {
+        touchStartX = event.touches[0].clientX;
+      }
+    },
+    { passive: true }
+  );
+
+  container.addEventListener(
+    "touchend",
+    (event) => {
+      if (touchStartX === null) return;
+      if (event.changedTouches && event.changedTouches.length > 0) {
+        const deltaX = event.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(deltaX) > 40) {
+          if (deltaX > 0) {
+            updateSlide(currentSlideIndex - 1);
+          } else {
+            updateSlide(currentSlideIndex + 1);
+          }
+        }
+      }
+      touchStartX = null;
+    },
+    { passive: true }
+  );
+
+  updateSlide(0);
+})();
+
