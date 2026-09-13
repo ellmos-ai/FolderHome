@@ -5,6 +5,71 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+
+def model_status_fields(
+    settings: StrandsAgentSettings,
+    successful_turns: int,
+) -> dict[str, object]:
+    """Declare the additive v1 status fields; configuration is not verification."""
+
+    provider = settings.model_provider
+    verified = settings.is_live_model and successful_turns > 0
+    topology = (
+        "remote_host"
+        if provider == "ollama" and settings.network_used
+        else "loopback_local"
+        if provider in {"fixture", "ollama"}
+        else "cloud"
+    )
+    state = (
+        "fixture_only"
+        if provider == "fixture"
+        else "verified_in_process"
+        if verified
+        else "configured_unverified"
+    )
+    if provider == "fixture":
+        label_en = "Deterministic fixture (demo)"
+        label_de = "Deterministisches Fixture (Demo)"
+    else:
+        name = {
+            "ollama": "Ollama",
+            "bedrock": "Bedrock",
+            "anthropic": "Anthropic",
+            "openai": "OpenAI",
+        }[provider]
+        place_en = place_de = ""
+        if provider == "ollama":
+            place_en = " on this machine" if topology == "loopback_local" else " on a remote host"
+            place_de = (
+                " auf diesem Rechner" if topology == "loopback_local" else " auf fremdem Host"
+            )
+        label_en = (
+            name
+            + place_en
+            + (", verified in this process" if verified else " configured, not yet verified")
+        )
+        label_de = (
+            name
+            + place_de
+            + (
+                ", in diesem Prozess verifiziert"
+                if verified
+                else " konfiguriert, noch nicht verifiziert"
+            )
+        )
+    return {
+        "model_provider": provider,
+        "model_state": state,
+        "runtime_topology": topology,
+        "model_state_label_en": label_en,
+        "model_state_label_de": label_de,
+        "successful_live_model_turns": successful_turns,
+        "live_model_verified_in_process": verified,
+    }
+
 
 @dataclass(frozen=True, slots=True)
 class LocalAppSettings:
@@ -41,9 +106,7 @@ class LocalAppSettings:
             or not isinstance(self.request_timeout_seconds, (int, float))
             or not 0.1 <= float(self.request_timeout_seconds) <= 60.0
         ):
-            raise ValueError(
-                "request_timeout_seconds muss zwischen 0.1 und 60.0 liegen."
-            )
+            raise ValueError("request_timeout_seconds muss zwischen 0.1 und 60.0 liegen.")
         profiles = self.profiles_dir
         state = self.state_dir
         if profiles == state or profiles.is_relative_to(state) or state.is_relative_to(profiles):

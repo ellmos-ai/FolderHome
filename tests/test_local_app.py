@@ -1609,3 +1609,191 @@ def test_result_artifact_download_refuses_a_file_changed_after_execution(
 
     assert tampered.status_code == 409
     assert "verändert" in tampered.payload["message"]
+
+
+@pytest.mark.parametrize(
+    "provider,fields,topology",
+    [
+        ("fixture", {}, "loopback_local"),
+        (
+            "ollama",
+            {"ollama_host": "http://127.0.0.1:11434", "ollama_model_id": "qwen3:4b"},
+            "loopback_local",
+        ),
+        (
+            "ollama",
+            {"ollama_host": "http://127.8.9.10:11434", "ollama_model_id": "qwen3:4b"},
+            "loopback_local",
+        ),
+        (
+            "ollama",
+            {"ollama_host": "http://[::1]:11434", "ollama_model_id": "qwen3:4b"},
+            "loopback_local",
+        ),
+        (
+            "ollama",
+            {"ollama_host": "http://localhost:11434", "ollama_model_id": "qwen3:4b"},
+            "loopback_local",
+        ),
+        (
+            "ollama",
+            {"ollama_host": "http://100.119.69.90:11434", "ollama_model_id": "qwen3.8:27b-mlx"},
+            "remote_host",
+        ),
+        (
+            "bedrock",
+            {"bedrock_model_id": "eu.amazon.nova-micro-v1:0", "aws_region": "eu-central-1"},
+            "cloud",
+        ),
+        ("anthropic", {"anthropic_model_id": "synthetic-model"}, "cloud"),
+        ("openai", {"openai_model_id": "synthetic-model"}, "cloud"),
+    ],
+)
+def test_status_contract_provider_transition(tmp_path, monkeypatch, provider, fields, topology):
+    remote = topology != "loopback_local"
+    settings = StrandsAgentSettings(
+        model_provider=provider, **fields, allow_network=remote, allow_sensitive_cloud_data=remote
+    )
+    app = LocalApplication(
+        settings=_settings(tmp_path),
+        profiles=load_profile_configuration(PROFILE_DIR),
+        searcher=StubSearcher(),
+        agent_settings=settings,
+    )
+
+    def status():
+        return app.handle(
+            method="GET",
+            target="/api/v1/status",
+            headers=_api_headers(8765, app.session_token),
+            body=b"",
+            server_port=8765,
+        ).payload
+
+    before = status()
+    assert before["schema"] == "folderhome.local-app-status.v1"
+    assert before["model_provider"] == provider
+    assert before["runtime_topology"] == topology
+    assert before["model_state"] == (
+        "fixture_only" if provider == "fixture" else "configured_unverified"
+    )
+    assert before["successful_live_model_turns"] == 0
+    assert before["live_model_verified_in_process"] is False
+    assert before["model_state_label_en"]
+    assert before["model_state_label_de"]
+
+    def failed_turn(**kwargs):
+        raise RuntimeError("synthetic model failure")
+
+    monkeypatch.setattr(
+        "folderhome.application.strands_agent.run_folderhome_agent_turn", failed_turn
+    )
+    with pytest.raises(RuntimeError):
+        app.run_agent_chat(profile_id="lukas", message="Hallo")
+    assert status() == before
+    monkeypatch.setattr(
+        "folderhome.application.strands_agent.run_folderhome_agent_turn",
+        lambda **kwargs: (SimpleNamespace(proposed_plans=(), proposed_recipes=()), ()),
+    )
+    app.run_agent_chat(profile_id="lukas", message="Hallo")
+    after = status()
+    live = provider != "fixture"
+    assert after["model_state"] == ("verified_in_process" if live else "fixture_only")
+    assert after["successful_live_model_turns"] == int(live)
+    assert after["live_model_verified_in_process"] is live
+    assert after["model_connection"]["live_model_verified_in_process"] is live
+    assert after["runtime_topology"] == topology
+    if live:
+        assert "verified in this process" in after["model_state_label_en"]
+        assert "in diesem Prozess verifiziert" in after["model_state_label_de"]
+
+
+@pytest.mark.parametrize(
+    "host",
+    ["http://100.119.69.90:11434", "http://128.0.0.1:11434", "http://localhost.example:11434"],
+)
+@pytest.mark.parametrize("network,sensitive", [(False, False), (True, False), (False, True)])
+def test_status_remote_ollama_requires_both_gates(host, network, sensitive):
+    with pytest.raises(ValueError):
+        StrandsAgentSettings(
+            model_provider="ollama",
+            ollama_host=host,
+            ollama_model_id="qwen3:4b",
+            allow_network=network,
+            allow_sensitive_cloud_data=sensitive,
+        )
+
+
+@pytest.mark.parametrize(
+    "preset,fields,topology",
+    [
+        ("fixture", {"model_provider": "fixture"}, "loopback_local"),
+        (
+            "ollama-laptop",
+            {
+                "model_provider": "ollama",
+                "ollama_host": "http://127.0.0.1:11434",
+                "ollama_model_id": "qwen3:4b",
+            },
+            "loopback_local",
+        ),
+        (
+            "ollama-mac-studio",
+            {
+                "model_provider": "ollama",
+                "ollama_host": "http://100.119.69.90:11434",
+                "ollama_model_id": "qwen3.8:27b-mlx",
+            },
+            "remote_host",
+        ),
+        (
+            "bedrock-nova-micro",
+            {
+                "model_provider": "bedrock",
+                "bedrock_model_id": "eu.amazon.nova-micro-v1:0",
+                "aws_region": "eu-central-1",
+            },
+            "cloud",
+        ),
+    ],
+)
+def test_launch_preset_status_and_network_gate(tmp_path, preset, fields, topology):
+    from folderhome.cli import _apply_launch_config, _build_parser
+    from folderhome.contracts.local_app import model_status_fields
+
+    config = tmp_path / "launch.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "profiles_dir": str(PROFILE_DIR),
+                "state_dir": str(tmp_path),
+                "model_preset": preset,
+                "model_presets": {preset: fields},
+            }
+        ),
+        encoding="utf-8",
+    )
+    parser = _build_parser()
+
+    def settings(flags):
+        args = parser.parse_args(["app", "serve", "--launch-config", str(config), *flags])
+        _apply_launch_config(args)
+        return StrandsAgentSettings(
+            **{name: getattr(args, name) for name in fields},
+            allow_network=args.allow_network,
+            allow_sensitive_cloud_data=args.approve_sensitive_cloud_data,
+        )
+
+    if topology != "loopback_local":
+        with pytest.raises(ValueError):
+            settings([])
+        active = settings(["--allow-network", "--approve-sensitive-cloud-data"])
+    else:
+        active = settings([])
+    result = model_status_fields(active, 0)
+    assert result["runtime_topology"] == topology
+    assert result["model_provider"] == fields["model_provider"]
+    assert result["model_state"] == (
+        "fixture_only" if preset == "fixture" else "configured_unverified"
+    )
