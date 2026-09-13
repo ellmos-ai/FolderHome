@@ -13,6 +13,16 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Hinzugefügt
 
+- Die gehostete Demo ist eine echte Konversation: Jeder gewöhnliche Prompt an die
+  AgentCore-Runtime ist ein begrenzter Zug des Strands-Master-Agenten über eine
+  sitzungseigene Kopie des synthetischen Haushalts aus `examples/` (104 Dateien,
+  Profile Lukas/Hanna/Simon). Die Antwort trägt den Modelltext, `tool_events` (nur
+  Namen und Status), `model_turns`, einen `plan`, wenn der Agent einen vorschlägt,
+  `result.generated_results` für jede neue oder geänderte Datei (inline, begrenzt)
+  und `session_state`. Der Standard-Unfall-Prompt behält seinen deterministischen
+  Vier-Schritt-Plan, damit `manage.py verify` der Beweispfad bleibt. Die öffentliche
+  Seite zeigt Plan, Werkzeug-Chips, Prompt-Vorschläge, Mehrfach-Eingabe und die
+  erzeugten Dateien mit Ansicht und Download.
 - `deploy/aws_demo/manage.py migrate` stellt die bestehende AWS-Demo ohne zweite
   Runtime unter das geprüfte kumulierende Tagesbudget (Policy P-010): Runtime-Update
   (IMDSv2 erforderlich), versionsgebundener Endpunkt `budget_v<N>`, Stack-Update mit
@@ -47,6 +57,13 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Geändert
 
+- Das geprüfte Kostenprofil erlaubt dem Cloud-Master-Agenten vier statt zwei
+  Modellzüge (`FOLDERHOME_AGENTCORE_MAX_TURNS=4`): Zwei Züge decken genau einen
+  Werkzeugaufruf plus Antwort, jede Anfrage mit zwei Werkzeugen hintereinander brach
+  unvollständig ab. Die Reservierung je Weiterleitung verdoppelt sich auf 20 000 µUSD,
+  damit das Ledger auch im Worst Case verschachtelter Spezialistenaufrufe (etwa
+  1,3 Cent) ehrlich bleibt; der geprüfte Weiterleitungsanteil von 185 USD deckt jetzt
+  9 250 Weiterleitungen.
 - Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
   (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
   `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem

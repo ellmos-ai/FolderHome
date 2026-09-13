@@ -54,7 +54,12 @@ def _service_sources() -> str:
     package = ROOT / "src" / "folderhome"
     return "\n".join(
         (package / name).read_text(encoding="utf-8")
-        for name in ("application/local_app.py", "local_server.py", "mcp_server.py")
+        for name in (
+            "application/local_app.py",
+            "application/agentcore_runtime.py",
+            "local_server.py",
+            "mcp_server.py",
+        )
     )
 
 

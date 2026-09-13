@@ -12,6 +12,15 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Added
 
+- The hosted demo is a real conversation: every plain prompt sent to the AgentCore
+  runtime is a bounded Strands master-agent turn over a per-session copy of the
+  synthetic household in `examples/` (104 files, profiles Lukas/Hanna/Simon). The
+  response carries the model's text, `tool_events` (names and status only),
+  `model_turns`, a `plan` when the agent proposes one, `result.generated_results`
+  for every new or changed file (inline, bounded) and `session_state`. The default
+  accident prompt keeps its deterministic four-step plan so `manage.py verify`
+  remains the evidence path. The public page renders the plan, tool chips, prompt
+  suggestions, multi-turn input and the generated files with view and download.
 - `deploy/aws_demo/manage.py migrate` brings the existing AWS demo under the reviewed
   cumulative daily budget (policy P-010) without creating a second runtime: it updates
   the runtime (IMDSv2 required), creates the version-bound `budget_v<N>` endpoint,
@@ -44,6 +53,12 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Changed
 
+- The reviewed cost profile allows the cloud master agent four model turns instead
+  of two (`FOLDERHOME_AGENTCORE_MAX_TURNS=4`): two turns cover exactly one tool call
+  plus the answer, so any request needing two tools in sequence stopped incomplete.
+  The per-forward reservation doubles to 20 000 µUSD so the ledger stays honest
+  against the worst case of nested specialist calls (about 1.3 cents); the reviewed
+  185 USD forwarding share now covers 9 250 forwards.
 - The cost approval token names the reviewed alert amount
   (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
   bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
