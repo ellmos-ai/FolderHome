@@ -756,7 +756,7 @@ if (liveConfiguration.enabled) {
 /* --- Architecture Slideshow Block --- */
 (function initArchitectureSlideshow() {
   const container = document.querySelector(".architecture-diagram");
-  if (!container) return;
+  if (!container || typeof container.querySelectorAll !== "function" || typeof container.querySelector !== "function") return;
 
   const slides = Array.from(container.querySelectorAll(".slide"));
   const dots = Array.from(container.querySelectorAll(".slideshow-dot"));
