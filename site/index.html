@@ -100,20 +100,52 @@
           <div class="transcript" id="transcript" aria-live="polite">
             <article class="message assistant"><span class="speaker">FH</span><div><small>FOLDERHOME</small><p data-en="Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet." data-de="Erzähl mir, was passiert ist. Ich suche zuerst und schlage einen begrenzten Plan vor; noch wird nichts ausgeführt.">Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet.</p></div></article>
           </div>
+          <div class="prompt-suggestions" id="prompt-suggestions" aria-label="Suggested prompts">
+            <button type="button" class="prompt-chip"
+              data-en="Accident claim (Hyundai i10)"
+              data-de="Unfallmeldung (Hyundai i10)"
+              data-prompt-en="I had an accident with my Hyundai i10. Find my current car insurance, compare it with older policies, identify the right contact, prepare a claim letter, and save the next follow-up locally."
+              data-prompt-de="Ich hatte einen Unfall mit meinem Hyundai i10. Finde meine aktuelle KFZ-Versicherung, vergleiche sie mit älteren Policen, ermittle den richtigen Kontakt, bereite eine Schadensmeldung vor und speichere die nächste Wiedervorlage lokal.">Accident claim (Hyundai i10)</button>
+            <button type="button" class="prompt-chip"
+              data-en="What health insurance documents do I have?"
+              data-de="Welche Unterlagen habe ich zur Krankenversicherung?"
+              data-prompt-en="What health insurance documents do I have?"
+              data-prompt-de="Welche Unterlagen habe ich zur Krankenversicherung?">What health insurance documents do I have?</button>
+            <button type="button" class="prompt-chip"
+              data-en="Create a dossier for my car insurance"
+              data-de="Erstelle ein Dossier zu meiner KFZ-Versicherung"
+              data-prompt-en="Create a dossier for my car insurance"
+              data-prompt-de="Erstelle ein Dossier zu meiner KFZ-Versicherung">Create a dossier for my car insurance</button>
+            <button type="button" class="prompt-chip"
+              data-en="What is on my calendar for next week?"
+              data-de="Was steht in meinem Kalender für nächste Woche?"
+              data-prompt-en="What is on my calendar for next week?"
+              data-prompt-de="Was steht in meinem Kalender für nächste Woche?">What is on my calendar for next week?</button>
+            <button type="button" class="prompt-chip"
+              data-en="What can you do for me?"
+              data-de="Was kannst du für mich tun?"
+              data-prompt-en="What can you do for me?"
+              data-prompt-de="Was kannst du für mich tun?">What can you do for me?</button>
+          </div>
           <form id="prompt-form" class="composer">
             <label for="prompt" class="sr-only">Prompt</label>
             <textarea id="prompt" rows="3">I had an accident with my Hyundai i10. Find my current car insurance, compare it with older policies, identify the right contact, prepare a claim letter, and save the next follow-up locally.</textarea>
             <button type="submit" class="send-button" data-en="Build safe plan" data-de="Sicheren Plan erstellen">Build safe plan</button>
           </form>
+          <div class="live-data-note" id="live-data-note" hidden>
+            <span class="shield" aria-hidden="true">◇</span>
+            <small data-en="Synthetic household · nothing here is real data" data-de="Synthetischer Haushalt · keine echten Daten">Synthetic household · nothing here is real data</small>
+          </div>
 
           <section class="plan-card" id="plan-card" hidden aria-labelledby="plan-title">
             <div class="plan-card-head"><div><small>PLAN · SHA256 BOUND</small><h3 id="plan-title" data-en="Review before execution" data-de="Vor Ausführung prüfen">Review before execution</h3></div><span class="pending-badge" data-en="Confirmation required" data-de="Bestätigung erforderlich">Confirmation required</span></div>
-            <ul>
+            <ul id="plan-steps">
               <li><span>1</span><p><b data-en="Search local documents" data-de="Lokale Dokumente durchsuchen">Search local documents</b><small data-en="Current SYN-I10-2026 and older SYN-I10-2025" data-de="Aktuell SYN-I10-2026 und älter SYN-I10-2025">Current SYN-I10-2026 and older SYN-I10-2025</small></p></li>
               <li><span>2</span><p><b data-en="Update purpose-bound contact" data-de="Zweckgebundenen Kontakt aktualisieren">Update purpose-bound contact</b><small>Jordan Current · claims-2026@example.invalid</small></p></li>
               <li><span>3</span><p><b data-en="Create claim draft" data-de="Schadensentwurf erstellen">Create claim draft</b><small data-en="Local Markdown and text; no sending" data-de="Lokales Markdown und Text; kein Versand">Local Markdown and text; no sending</small></p></li>
               <li><span>4</span><p><b data-en="Add local follow-up" data-de="Lokale Wiedervorlage hinzufügen">Add local follow-up</b><small>26 Aug 2026 · 10:00 Europe/Berlin</small></p></li>
             </ul>
+            <div id="plan-detected-docs" class="plan-detected-docs" hidden></div>
             <form id="confirm-form" class="confirm-row">
               <label for="confirmation" data-en="Exact confirmation command" data-de="Exakter Bestätigungsbefehl">Exact confirmation command</label>
               <div><input id="confirmation" autocomplete="off" spellcheck="false"><button type="submit" data-en="Confirm this plan" data-de="Diesen Plan bestätigen">Confirm this plan</button></div>
@@ -128,6 +160,7 @@
             <article><span class="result-icon">↺</span><div><small>AUDIT</small><b>4 bounded effects</b><p>network_used = false</p></div><em>verified</em></article>
           </section>
 
+          <div class="audit-line" id="audit-line" hidden aria-live="polite"></div>
           <section class="result-grid generated-files" id="generated-files" hidden aria-live="polite" aria-label="Generated files"></section>
         </div>
       </div>
