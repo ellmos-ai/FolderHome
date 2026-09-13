@@ -509,8 +509,10 @@ function purposeField(profileId, purpose, paths, repeatable) {
 const PRESET_NAME = /^[A-Za-z0-9_.-]{1,40}$/;
 
 function modelFromForm() {
+  const provider = providerSelect.value;
   return {
-    provider: providerSelect.value,
+    model_provider: provider,
+    provider,
     ollama_host: document.querySelector("#ollama-host").value.trim() || null,
     ollama_model_id: document.querySelector("#ollama-model-id").value.trim() || null,
     bedrock_model_id: document.querySelector("#bedrock-model-id").value.trim() || null,
@@ -523,7 +525,8 @@ function modelFromForm() {
 }
 
 function fillForm(model) {
-  providerSelect.value = model.provider || model.model_provider || "fixture";
+  if (!model) return;
+  providerSelect.value = model.model_provider || model.provider || "fixture";
   const values = {
     "#ollama-host": model.ollama_host,
     "#ollama-model-id": model.ollama_model_id,
@@ -534,7 +537,8 @@ function fillForm(model) {
     "#openai-base-url": model.openai_base_url,
   };
   for (const [selector, value] of Object.entries(values)) {
-    document.querySelector(selector).value = value || "";
+    const el = document.querySelector(selector);
+    if (el) el.value = value || "";
   }
   showProviderFields();
 }
@@ -554,7 +558,7 @@ function renderPresets() {
     return;
   }
   for (const name of names) {
-    const entry = presets[name];
+    const entry = presets[name] || {};
     const row = document.createElement("div");
     row.className = "field-input";
     const model =
@@ -563,7 +567,8 @@ function renderPresets() {
       || entry.anthropic_model_id
       || entry.openai_model_id
       || "-";
-    const label = `${name} · ${entry.provider} · ${model}`;
+    const provider = entry.model_provider || entry.provider || "fixture";
+    const label = `${name} · ${provider} · ${model}`;
     row.append(
       textElement("span", name === activePreset ? `${label} (${t("presetActive")})` : label),
     );
