@@ -382,8 +382,8 @@ function setActiveCard(card) {
   setCardExpanded(card, true);
 }
 
-function expandCardForError(text) {
-  const str = String(text).toLowerCase();
+function getCardForFieldOrText(text) {
+  const str = String(text || "").toLowerCase();
   let targetId = "profiles";
   if (str.includes("außerhalb") || str.includes("abschnitt 6") || str.includes("outside_home") || str.includes("outside home") || str.includes("outside user folder")) targetId = "runtime";
   else if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
@@ -392,34 +392,157 @@ function expandCardForError(text) {
   else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir")) targetId = "runtime";
   else if (str.includes("calendar")) targetId = "calendar";
   else if (str.includes("scheduler")) targetId = "scheduler";
-  else if (str.includes("profile") || str.includes("rule")) targetId = "profiles";
+  else if (str.includes("profile") || str.includes("rule") || str.includes("household")) targetId = "profiles";
 
-  const card = document.querySelector(`.card[data-card-id="${targetId}"]`);
+  return document.querySelector(`.card[data-card-id="${targetId}"]`);
+}
+
+function resolveElementForField(field, message = "") {
+  if (!field && !message) return null;
+  const f = String(field || "").trim();
+  const m = String(message || "").toLowerCase();
+
+  // Special case: outside home confirmation in section 6
+  if (m.includes("außerhalb") || m.includes("abschnitt 6") || m.includes("outside_home") || m.includes("outside home") || m.includes("outside user folder")) {
+    return document.querySelector("#outside-home");
+  }
+
+  // folders[index]
+  const folderMatch = f.match(/^folders\[(\d+)\]/);
+  const fg = typeof folderGrid !== "undefined" && folderGrid ? folderGrid : document.querySelector("#folder-grid");
+  if (folderMatch && fg) {
+    const idx = parseInt(folderMatch[1], 10);
+    const inputs = [...fg.querySelectorAll("input")].filter((inp) => inp.value && inp.value.trim());
+    if (inputs[idx]) return inputs[idx];
+    const allInputs = fg.querySelectorAll("input");
+    if (allInputs[idx]) return allInputs[idx];
+    return fg;
+  }
+  if (f === "folders") {
+    return (fg && fg.querySelector("input")) || fg || document.querySelector('.card[data-card-id="folders"]');
+  }
+
+  // model_presets[name]
+  const presetMatch = f.match(/^model_presets\[([^\]]+)\]/);
+  const pl = typeof presetList !== "undefined" && presetList ? presetList : document.querySelector("#preset-list");
+  if (presetMatch) {
+    const presetName = presetMatch[1];
+    if (pl) {
+      const row = pl.querySelector(`[data-preset-name="${presetName}"]`);
+      if (row) return row;
+      return pl;
+    }
+    return document.querySelector('.card[data-card-id="model"]');
+  }
+
+  // model fields
+  if (f === "model_preset") return document.querySelector("#preset-name") || pl || document.querySelector('.card[data-card-id="model"]');
+  if (f === "model.provider" || f === "model.model_provider" || f === "model") return document.querySelector("#provider");
+  if (f === "model.ollama_host") return document.querySelector("#ollama-host");
+  if (f === "model.ollama_model_id") return document.querySelector("#ollama-model-id");
+  if (f === "model.bedrock_model_id") return document.querySelector("#bedrock-model-id");
+  if (f === "model.aws_region") return document.querySelector("#bedrock-region");
+  if (f === "model.anthropic_model_id") return document.querySelector("#anthropic-model-id");
+  if (f === "model.openai_model_id") return document.querySelector("#openai-model-id");
+  if (f === "model.openai_base_url") return document.querySelector("#openai-base-url");
+
+  // runtime fields
+  if (f === "port" || f === "runtime.port") return document.querySelector("#port");
+  if (f === "state_dir" || f === "runtime.state_dir") return document.querySelector("#state-dir");
+  if (f === "profiles_dir") return document.querySelector("#profiles-dir");
+
+  // calendar fields
+  if (f === "calendar.directory") return document.querySelector("#calendar-directory");
+  if (f === "calendar.backend") return document.querySelector("#calendar-backend");
+  if (f === "calendar.timezone") return document.querySelector("#calendar-timezone");
+  if (f.startsWith("calendar")) return document.querySelector("#calendar-fields") || document.querySelector("#card-calendar");
+
+  // scheduler fields
+  if (f === "scheduler.source") return document.querySelector("#scheduler-source");
+  if (f === "scheduler.target") return document.querySelector("#scheduler-target");
+  if (f === "scheduler.interval_minutes") return document.querySelector("#scheduler-interval");
+  if (f === "scheduler.start") return document.querySelector("#scheduler-start");
+  if (f === "scheduler.timezone") return document.querySelector("#scheduler-timezone");
+  if (f.startsWith("scheduler")) return document.querySelector("#scheduler-fields") || document.querySelector("#card-scheduler");
+
+  // profiles / household
+  const prl = typeof profileList !== "undefined" && profileList ? profileList : document.querySelector("#profile-list");
+  const profileMatch = f.match(/^profiles\[(\d+)\]/);
+  if (profileMatch && prl) {
+    const idx = parseInt(profileMatch[1], 10);
+    const cards = prl.querySelectorAll(".card, [data-profile-id]");
+    if (cards[idx]) return cards[idx];
+    return prl;
+  }
+  if (f === "profiles") return prl || document.querySelector('.card[data-card-id="profiles"]');
+  const hr = typeof householdRules !== "undefined" && householdRules ? householdRules : document.querySelector("#household-rules");
+  if (f.startsWith("household_rules")) return hr || document.querySelector('.card[data-card-id="profiles"]');
+
+  // Direct ID match fallback
+  const direct = document.querySelector(`#${f}`);
+  if (direct) return direct;
+
+  return null;
+}
+
+function clearValidationErrors() {
+  document.querySelectorAll(".card").forEach((c) => {
+    if (c.classList) c.classList.remove("has-error");
+    const badge = c.querySelector(".card-error-badge");
+    if (badge) badge.remove();
+  });
+  document.querySelectorAll("[aria-invalid='true']").forEach((el) => {
+    if (el.removeAttribute) el.removeAttribute("aria-invalid");
+    if (el.classList) el.classList.remove("is-invalid");
+  });
+  document.querySelectorAll(".is-invalid").forEach((el) => {
+    if (el.classList) el.classList.remove("is-invalid");
+  });
+  document.querySelectorAll(".field-error-msg").forEach((el) => el.remove());
+}
+
+function expandCardForError(text) {
+  const card = getCardForFieldOrText(text);
   if (card) {
     if (card.classList) card.classList.add("has-error");
     setCardExpanded(card, true);
     setActiveCard(card);
+    let badge = card.querySelector(".card-error-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "card-error-badge";
+      badge.textContent = "1";
+      const chevron = card.querySelector(".card-chevron");
+      if (chevron && chevron.parentNode) {
+        chevron.parentNode.insertBefore(badge, chevron);
+      } else {
+        const head = card.querySelector(".card-head");
+        if (head) head.append(badge);
+      }
+    }
   }
   return card;
 }
 
 function jumpToError(field, message) {
-  const str = `${field} ${message}`.toLowerCase();
-  if (str.includes("außerhalb") || str.includes("abschnitt 6") || str.includes("outside_home") || str.includes("outside home") || str.includes("outside user folder")) {
-    const runtimeCard = document.querySelector('.card[data-card-id="runtime"]');
-    if (runtimeCard) {
-      setCardExpanded(runtimeCard, true);
-      setActiveCard(runtimeCard);
+  const element = resolveElementForField(field, message);
+  if (element) {
+    const card = (element.closest && element.closest(".card")) || getCardForFieldOrText(`${field} ${message}`);
+    if (card) {
+      setCardExpanded(card, true);
+      setActiveCard(card);
     }
-    const chk = document.querySelector("#outside-home");
-    if (chk) {
-      if (chk.focus) chk.focus();
-      const parentLabel = (chk.closest && chk.closest(".checkbox")) || chk;
-      if (parentLabel.classList) {
-        parentLabel.classList.add("is-highlight-target");
-        if (typeof setTimeout === "function") {
-          setTimeout(() => parentLabel.classList.remove("is-highlight-target"), 2500);
-        }
+    if (element.scrollIntoView) {
+      try { element.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+    }
+    if (element.focus) {
+      try { element.focus(); } catch (_) {}
+    }
+    const highlightTarget = (element.closest && (element.closest(".field") || element.closest(".field-input") || element.closest(".checkbox"))) || element;
+    if (highlightTarget && highlightTarget.classList) {
+      highlightTarget.classList.add("is-highlight-target");
+      if (typeof setTimeout === "function") {
+        setTimeout(() => highlightTarget.classList.remove("is-highlight-target"), 2500);
       }
     }
     return;
@@ -614,6 +737,7 @@ function renderPresets() {
     const entry = presets[name] || {};
     const row = document.createElement("div");
     row.className = "field-input";
+    row.dataset.presetName = name;
     const model =
       entry.ollama_model_id
       || entry.bedrock_model_id
@@ -1407,13 +1531,13 @@ function buildRequest() {
 
 function renderPlan(plan) {
   summary.replaceChildren();
-  document.querySelectorAll(".card").forEach(c => {
-    if (c.classList) c.classList.remove("has-error");
-  });
+  clearValidationErrors();
   if (!plan.valid) {
     summary.append(textElement("p", t("checkFailed"), "error"));
     const list = document.createElement("ul");
     list.className = "error-list";
+    const cardErrorCounts = new Map();
+
     for (const item of plan.errors) {
       const li = document.createElement("li");
       const btn = document.createElement("button");
@@ -1423,9 +1547,57 @@ function renderPlan(plan) {
       btn.addEventListener("click", () => jumpToError(item.field, item.message));
       li.append(btn);
       list.append(li);
-      expandCardForError(`${item.field} ${item.message}`);
+
+      // Resolve element and highlight field
+      const element = resolveElementForField(item.field, item.message);
+      let targetCard = null;
+      if (element) {
+        if (element.setAttribute) element.setAttribute("aria-invalid", "true");
+        if (element.classList) element.classList.add("is-invalid");
+        const container = (element.closest && (element.closest(".field") || element.closest(".field-input") || element.closest(".checkbox"))) || element.parentNode;
+        if (container && !container.querySelector(".field-error-msg")) {
+          const msgEl = document.createElement("div");
+          msgEl.className = "field-error-msg";
+          msgEl.setAttribute("role", "alert");
+          msgEl.textContent = item.message;
+          container.append(msgEl);
+        }
+        targetCard = (element.closest && element.closest(".card")) || getCardForFieldOrText(`${item.field} ${item.message}`);
+      } else {
+        targetCard = getCardForFieldOrText(`${item.field} ${item.message}`);
+      }
+      if (targetCard) {
+        const currentCount = cardErrorCounts.get(targetCard) || 0;
+        cardErrorCounts.set(targetCard, currentCount + 1);
+      }
     }
     summary.append(list);
+
+    // Expand cards with errors once and update error badges
+    let firstCard = null;
+    for (const [card, count] of cardErrorCounts.entries()) {
+      if (card.classList) card.classList.add("has-error");
+      setCardExpanded(card, true);
+      if (!firstCard) firstCard = card;
+
+      let badge = card.querySelector(".card-error-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "card-error-badge";
+        badge.setAttribute("aria-label", `${count} errors`);
+        const chevron = card.querySelector(".card-chevron");
+        if (chevron && chevron.parentNode) {
+          chevron.parentNode.insertBefore(badge, chevron);
+        } else {
+          const head = card.querySelector(".card-head");
+          if (head) head.append(badge);
+        }
+      }
+      badge.textContent = String(count);
+    }
+    if (firstCard) {
+      setActiveCard(firstCard);
+    }
     return;
   }
   summary.append(textElement("p", t("checkOk")));

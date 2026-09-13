@@ -449,8 +449,48 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
   color: var(--danger) !important;
   font-weight: 700;
 }
-.card.has-error .card-body {
-  display: block !important;
+.card-error-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 .35rem;
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  background: var(--danger);
+  border-radius: 999px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+input.is-invalid,
+select.is-invalid,
+[aria-invalid="true"] {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.field-input.is-invalid {
+  border: 1px solid var(--danger);
+  border-radius: .25rem;
+  padding: .2rem;
+}
+
+.field-error-msg {
+  color: var(--danger);
+  font-size: .8rem;
+  font-weight: 600;
+  margin-top: .25rem;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+.field-error-msg::before {
+  content: "⚠";
+  font-size: .85rem;
 }
 .lead { margin: 0 0 .6rem; color: var(--muted); line-height: 1.6; }
 .field { display: grid; gap: .3rem; margin: .8rem 0; }

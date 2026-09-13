@@ -24,6 +24,13 @@ class MockElement {
       },
       contains: c => this.classList._classes.has(c),
     };
+    Object.defineProperty(this, "className", {
+      get: () => [...this.classList._classes].join(" "),
+      set: (val) => {
+        this.classList._classes.clear();
+        (val || "").split(/\s+/).filter(Boolean).forEach(c => this.classList._classes.add(c));
+      },
+    });
     this.hidden = false;
     this.value = "";
     this.textContent = "";
@@ -31,12 +38,38 @@ class MockElement {
   append(...items) {
     for (const item of items) {
       item.parent = this;
+      item.parentNode = this;
       this.children.push(item);
     }
   }
   replaceChildren(...items) {
     this.children = [];
     this.append(...items);
+  }
+  insertBefore(newChild, refChild) {
+    newChild.parent = this;
+    newChild.parentNode = this;
+    const idx = this.children.indexOf(refChild);
+    if (idx >= 0) this.children.splice(idx, 0, newChild);
+    else this.children.push(newChild);
+    return newChild;
+  }
+  remove() {
+    const p = this.parentNode || this.parent;
+    if (p) {
+      const idx = p.children.indexOf(this);
+      if (idx >= 0) p.children.splice(idx, 1);
+    }
+  }
+  closest(sel) {
+    let curr = this;
+    while (curr) {
+      if (curr.classList && sel.startsWith(".") && curr.classList.contains(sel.slice(1))) return curr;
+      if (curr.attributes && sel.startsWith("#") && curr.attributes.id === sel.slice(1)) return curr;
+      if (curr.tag && curr.tag.toLowerCase() === sel.toLowerCase()) return curr;
+      curr = curr.parentNode || curr.parent;
+    }
+    return null;
   }
   setAttribute(name, val) { this.attributes[name] = String(val); }
   getAttribute(name) { return this.attributes[name] !== undefined ? this.attributes[name] : null; }
@@ -124,8 +157,29 @@ function setupDOM() {
   };
 
   makeCard("profiles", "1. Profiles");
-  makeCard("folders", "2. Folders");
+  const foldersCard = makeCard("folders", "2. Folders");
+  const folderGrid = new MockElement("div");
+  folderGrid.setAttribute("id", "folder-grid");
+  const folderInput0 = new MockElement("input");
+  folderInput0.value = "/path/to/my/docs";
+  folderGrid.append(folderInput0);
+  foldersCard.querySelector(".card-body").append(folderGrid);
+
+  const modelCard = makeCard("model", "3. Model");
+  const presetList = new MockElement("div");
+  presetList.setAttribute("id", "preset-list");
+  const presetRow = new MockElement("div");
+  presetRow.classList.add("field-input");
+  presetRow.dataset.presetName = "bedrock-nova-micro";
+  presetList.append(presetRow);
+  modelCard.querySelector(".card-body").append(presetList);
+
   const runtimeCard = makeCard("runtime", "6. Runtime");
+  const portInput = new MockElement("input");
+  portInput.setAttribute("id", "port");
+  portInput.value = "8765";
+  runtimeCard.querySelector(".card-body").append(portInput);
+
   const outsideHome = new MockElement("input");
   outsideHome.setAttribute("id", "outside-home");
   outsideHome.setAttribute("type", "checkbox");
@@ -133,10 +187,13 @@ function setupDOM() {
   const checkboxLabel = new MockElement("label");
   checkboxLabel.classList.add("checkbox");
   checkboxLabel.append(outsideHome);
-  outsideHome.closest = sel => sel === ".checkbox" ? checkboxLabel : null;
   runtimeCard.querySelector(".card-body").append(checkboxLabel);
+
   makeCard("calendar", "7. Calendar");
-  makeCard("summary", "9. Summary and save");
+  const summaryCard = makeCard("summary", "9. Summary and save");
+  const summary = new MockElement("div");
+  summary.setAttribute("id", "summary");
+  summaryCard.querySelector(".card-body").append(summary);
 
   const context = vm.createContext({
     document: {
@@ -144,6 +201,9 @@ function setupDOM() {
       querySelector: sel => root.querySelector(sel),
       createElement: tag => new MockElement(tag),
     },
+    folderGrid,
+    presetList,
+    summary,
     sessionStorage,
     saveButton: { disabled: false },
     checkedPlan: null,
@@ -314,4 +374,103 @@ test("pickFolder provides button aria-busy state and handles 409 already open gr
   assert.equal(button.getAttribute("aria-busy"), null);
   assert.equal(button.disabled, false);
   assert.equal(button.textContent, "Choose folder");
+});
+
+test("error card can be collapsed after validation error and app.css lacks display: block !important", () => {
+  const { context, root } = setupDOM();
+  context.initCollapsibleCards();
+
+  const calendarCard = root.querySelector('[data-card-id="calendar"]');
+  const h2 = calendarCard.querySelector("h2");
+  const head = calendarCard.querySelector(".card-head");
+
+  // Trigger error targeting calendar
+  context.expandCardForError("calendar_id must not be primary");
+  assert.equal(calendarCard.classList.contains("has-error"), true);
+  assert.equal(h2.getAttribute("aria-expanded"), "true");
+  assert.equal(calendarCard.classList.contains("is-collapsed"), false);
+
+  // User clicks card head to collapse the error card
+  head.listeners.click();
+  assert.equal(h2.getAttribute("aria-expanded"), "false");
+  assert.equal(calendarCard.classList.contains("is-collapsed"), true);
+  // Still has-error and retains badge
+  assert.equal(calendarCard.classList.contains("has-error"), true);
+  const badge = calendarCard.querySelector(".card-error-badge");
+  assert.equal(badge !== null, true);
+
+  // User clicks again to re-expand
+  head.listeners.click();
+  assert.equal(h2.getAttribute("aria-expanded"), "true");
+  assert.equal(calendarCard.classList.contains("is-collapsed"), false);
+
+  // Verify app.css does NOT force display: block !important on error cards
+  const css = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.css"), "utf8");
+  assert.equal(/\.card\.has-error\s+\.card-body\s*\{[^}]*display:\s*block\s*!important/i.test(css), false);
+});
+
+test("resolveElementForField maps field path to element and renderPlan adds error badges and aria-invalid", () => {
+  const { context, root } = setupDOM();
+  context.initCollapsibleCards();
+
+  const source = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.js"), "utf8");
+  const textElStart = source.indexOf("function textElement(");
+  const textElEnd = source.indexOf("async function api(");
+  vm.runInContext(source.slice(textElStart, textElEnd), context);
+
+  const planStart = source.indexOf("function renderPlan(");
+  const planEnd = source.indexOf("async function check(");
+  vm.runInContext(source.slice(planStart, planEnd), context);
+
+  // 1. Test resolveElementForField mapping
+  const presetEl = context.resolveElementForField("model_presets[bedrock-nova-micro]");
+  assert.equal(presetEl !== null, true);
+  assert.equal(presetEl.dataset.presetName, "bedrock-nova-micro");
+
+  const portEl = context.resolveElementForField("port");
+  assert.equal(portEl !== null, true);
+  assert.equal(portEl.attributes.id, "port");
+
+  const folderEl = context.resolveElementForField("folders[0]");
+  assert.equal(folderEl !== null, true);
+  assert.equal(folderEl.value, "/path/to/my/docs");
+
+  // 2. Test renderPlan error processing
+  const invalidPlan = {
+    valid: false,
+    errors: [
+      { field: "port", message: "Invalid port number" },
+      { field: "folders[0]", message: "Folder does not exist" },
+      { field: "model_presets[bedrock-nova-micro]", message: "Region missing" },
+    ],
+  };
+
+  context.renderPlan(invalidPlan);
+
+  // Check field-level invalid attributes
+  assert.equal(portEl.getAttribute("aria-invalid"), "true");
+  assert.equal(portEl.classList.contains("is-invalid"), true);
+  assert.equal(folderEl.getAttribute("aria-invalid"), "true");
+  assert.equal(folderEl.classList.contains("is-invalid"), true);
+
+  // Check card-level error badges
+  const runtimeCard = root.querySelector('[data-card-id="runtime"]');
+  const foldersCard = root.querySelector('[data-card-id="folders"]');
+  const modelCard = root.querySelector('[data-card-id="model"]');
+
+  assert.equal(runtimeCard.classList.contains("has-error"), true);
+  assert.equal(runtimeCard.querySelector(".card-error-badge").textContent, "1");
+
+  assert.equal(foldersCard.classList.contains("has-error"), true);
+  assert.equal(foldersCard.querySelector(".card-error-badge").textContent, "1");
+
+  assert.equal(modelCard.classList.contains("has-error"), true);
+  assert.equal(modelCard.querySelector(".card-error-badge").textContent, "1");
+
+  // 3. Test error clearing
+  context.clearValidationErrors();
+  assert.equal(runtimeCard.classList.contains("has-error"), false);
+  assert.equal(runtimeCard.querySelector(".card-error-badge"), null);
+  assert.equal(portEl.getAttribute("aria-invalid"), null);
+  assert.equal(portEl.classList.contains("is-invalid"), false);
 });
