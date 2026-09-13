@@ -610,3 +610,15 @@ def test_visible_response_text_drops_model_reasoning_block() -> None:
     assert _visible_response_text(raw) == "Your current policy is KFZ 2026."
     assert _visible_response_text("plain answer ") == "plain answer"
     assert _visible_response_text("<THINKING>x</THINKING>kept") == "kept"
+
+
+def test_turn_budget_exhaustion_yields_a_visible_answer() -> None:
+    """stop_reason limit_turns with an empty final message must not surface as ''."""
+    import inspect
+
+    from folderhome.application import strands_agent as module
+
+    source = inspect.getsource(module.run_folderhome_agent_turn)
+    assert 'if str(result.stop_reason) == "limit_turns"' in source
+    assert "reached my turn budget before finishing an answer" in source
+    assert "produced no visible answer" in source

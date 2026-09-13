@@ -185,7 +185,7 @@ python deploy/aws_demo/manage.py migrate `
 Ein Ledger, das bereits reserviertes Geld trägt, wird abgewiesen, sofern nicht
 `--carry-ledger` gesetzt ist: Dann wird die Reservierung unverändert in den neuen
 Policy-Hash übernommen (bedingt auf alten Hash und Betrag), sodass ein Runtime-Update
-verbrauchtes Geld nie vergisst. Der Master-Agent der Runtime ist auf vier Modellzüge
+verbrauchtes Geld nie vergisst. Der Master-Agent der Runtime ist auf sechs Modellzüge
 begrenzt (`FOLDERHOME_AGENTCORE_MAX_TURNS` im geprüften Kostenprofil). Antwortet das
 echte Modell, ohne die lokale Suche aufzurufen, führt die Runtime dieselbe Suche
 deterministisch aus und kennzeichnet den Plan mit

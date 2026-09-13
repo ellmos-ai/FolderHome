@@ -175,7 +175,7 @@ python deploy/aws_demo/manage.py migrate `
 A ledger that already holds reserved money is refused unless `--carry-ledger` is
 given: the reservation is then copied unchanged into the new policy hash (conditional
 on the old hash and amount), so a runtime update never forgets spent money. The
-runtime's master agent is bounded to four model turns (`FOLDERHOME_AGENTCORE_MAX_TURNS`
+runtime's master agent is bounded to six model turns (`FOLDERHOME_AGENTCORE_MAX_TURNS`
 in the reviewed cost profile). If the live model answers without calling the local
 search, the runtime runs that same search deterministically and labels the plan
 `search_performed_by: deterministic_fallback`; the model's own tool calls stay visible

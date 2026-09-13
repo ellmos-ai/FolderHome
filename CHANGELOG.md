@@ -55,9 +55,11 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Changed
 
-- The reviewed cost profile allows the cloud master agent four model turns instead
-  of two (`FOLDERHOME_AGENTCORE_MAX_TURNS=4`): two turns cover exactly one tool call
-  plus the answer, so any request needing two tools in sequence stopped incomplete.
+- The reviewed cost profile allows the cloud master agent six model turns instead
+  of two (`FOLDERHOME_AGENTCORE_MAX_TURNS=6`): two turns cover exactly one tool call
+  plus the answer, so any request needing two tools in sequence stopped incomplete,
+  and a live run with capabilities, search and dossier still hit a limit of four.
+  A turn that ends on the budget now says so instead of returning an empty answer.
   The per-forward reservation doubles to 20 000 µUSD so the ledger stays honest
   against the worst case of nested specialist calls (about 1.3 cents); the reviewed
   185 USD forwarding share now covers 9 250 forwards.

@@ -452,6 +452,17 @@ def run_folderhome_agent_turn(
         application.discard_agent_preparations(tuple(proposed_plans))
         raise
     response_text = _visible_response_text(result)
+    if not response_text:
+        # Live finding 2026-09-13: a turn that ends on the turn budget (stop_reason
+        # limit_turns) or in a reasoning-only message leaves an empty answer; say what
+        # happened instead of showing nothing.
+        used = ", ".join(dict.fromkeys(event.tool_name for event in events)) or "no tools"
+        response_text = (
+            f"I used {used} but reached my turn budget before finishing an answer. "
+            "Ask a narrower question, or send the exact /confirm command if a plan is shown."
+            if str(result.stop_reason) == "limit_turns"
+            else f"I used {used} but produced no visible answer. Please ask more specifically."
+        )
     if len(response_text) > settings.max_response_chars:
         application.discard_agent_preparations(tuple(proposed_plans))
         raise FolderHomeAgentError("Agentenantwort überschreitet das Zeichenbudget.")
