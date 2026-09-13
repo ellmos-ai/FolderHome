@@ -166,3 +166,14 @@ for (const language of ["en", "de"]) {
     assert.match(text(card), language === "de" ? /exklusiv/ : /exclusive/);
   });
 }
+
+test("calendar editor checkbox row has input before label text", () => {
+  const {context, card} = view();
+  context.renderCalendarEditors(card, item);
+  const form = nodes(card).find(node => node.tag === "form");
+  const allDayLabel = form.children.find(child => child.tag === "label" && child.children.some(c => c.name === "all_day"));
+  assert.ok(allDayLabel, "all_day label exists");
+  assert.equal(allDayLabel.className, "checkbox");
+  assert.equal(allDayLabel.children[0].name, "all_day");
+  assert.equal(allDayLabel.children[1].tag, "span");
+});

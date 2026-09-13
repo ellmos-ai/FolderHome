@@ -235,8 +235,17 @@ form { margin-top: 1.7rem; }
 .search-field { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .75rem; padding: .45rem .85rem; background: var(--surface-solid); border: 1px solid var(--field-border); border-radius: .25rem; transition: border-color .18s, box-shadow .18s; }
 .search-field:focus-within { border-color: var(--accent-text); box-shadow: 0 0 0 .25rem var(--focus-shadow); }
 .search-icon { color: var(--accent-text); font-size: 1.6rem; }
-input { width: 100%; padding: .9rem .2rem; border: 0; outline: 0; color: var(--ink); background: transparent; }
-input::placeholder { color: var(--placeholder); }
+input:not([type="checkbox"]) { width: 100%; padding: .9rem .2rem; border: 0; outline: 0; color: var(--ink); background: transparent; }
+input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  flex: 0 0 1.15rem;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--cabinet);
+}
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
 .button { padding: .82rem 1.12rem; border-radius: .2rem; border: 1px solid var(--cabinet); font-weight: 750; transition: transform .16s, background .16s, box-shadow .16s; }
 .button:not(:disabled):hover { transform: translateY(-1px); }
@@ -307,9 +316,51 @@ footer p { margin: 0; }
 .recipe-binding { margin-block: .75rem; padding: .75rem; border: 1px solid var(--line); }
 .recipe-binding pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 16rem; overflow: auto; }
 
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .55rem;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+  font-size: .88rem;
+  line-height: 1.4;
+}
+.checkbox input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  flex: 0 0 1.15rem;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.checkbox span {
+  cursor: pointer;
+  color: var(--ink);
+}
 .calendar-editor { margin-top: 1rem; }
 .calendar-editor form { display: grid; gap: .75rem; margin-top: .75rem; }
 .calendar-editor label { display: grid; gap: .3rem; }
+.calendar-editor .checkbox,
+.calendar-editor label:has(input[type="checkbox"]) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .55rem;
+  cursor: pointer;
+  margin-top: .4rem;
+  color: var(--ink);
+}
+.calendar-editor label:has(input[type="checkbox"]) input[type="checkbox"] {
+  order: -1;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: 0 0 1.15rem;
+  margin: 0;
+}
 .calendar-editor input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; }
 .calendar-editor input[type="checkbox"] { justify-self: start; }
 .calendar-change-table { width: 100%; table-layout: fixed; border-collapse: collapse; }

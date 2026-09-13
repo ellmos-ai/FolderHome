@@ -235,8 +235,17 @@ form { margin-top: 1.7rem; }
 .search-field { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: .75rem; padding: .45rem .85rem; background: var(--surface-solid); border: 1px solid var(--field-border); border-radius: .25rem; transition: border-color .18s, box-shadow .18s; }
 .search-field:focus-within { border-color: var(--accent-text); box-shadow: 0 0 0 .25rem var(--focus-shadow); }
 .search-icon { color: var(--accent-text); font-size: 1.6rem; }
-input { width: 100%; padding: .9rem .2rem; border: 0; outline: 0; color: var(--ink); background: transparent; }
-input::placeholder { color: var(--placeholder); }
+input:not([type="checkbox"]) { width: 100%; padding: .9rem .2rem; border: 0; outline: 0; color: var(--ink); background: transparent; }
+input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  flex: 0 0 1.15rem;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  accent-color: var(--cabinet);
+}
 .actions { display: flex; flex-wrap: wrap; gap: .75rem; margin-top: 1rem; }
 .button { padding: .82rem 1.12rem; border-radius: .2rem; border: 1px solid var(--cabinet); font-weight: 750; transition: transform .16s, background .16s, box-shadow .16s; }
 .button:not(:disabled):hover { transform: translateY(-1px); }
@@ -333,7 +342,41 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
 .field-input { display: flex; gap: .4rem; align-items: stretch; }
 .field-input input { flex: 1; min-width: 0; }
 .button.compact { padding: .45rem .75rem; font-size: .8rem; white-space: nowrap; }
-.checkbox { display: flex; gap: .5rem; align-items: center; margin-top: .8rem; color: var(--muted); }
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .55rem;
+  margin-top: .8rem;
+  color: var(--ink);
+  cursor: pointer;
+  user-select: none;
+  font-size: .88rem;
+  line-height: 1.4;
+}
+.checkbox input[type="checkbox"] {
+  width: 1.15rem;
+  height: 1.15rem;
+  min-width: 1.15rem;
+  flex: 0 0 1.15rem;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.checkbox span {
+  cursor: pointer;
+  color: var(--ink);
+}
+.checkbox:hover span {
+  color: var(--accent-text);
+}
+.field:has(input[type="checkbox"]) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .55rem;
+  cursor: pointer;
+}
 fieldset { margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .2rem; }
 legend { padding: 0 .4rem; font-family: Bahnschrift, "Aptos Display", sans-serif; }
 #summary pre,

@@ -623,8 +623,13 @@ function calendarAccountRow(account) {
 
 function labelled(caption, control) {
   const label = document.createElement("label");
-  label.className = "field";
-  label.append(textElement("span", caption), control);
+  if (control && control.type === "checkbox") {
+    label.className = "checkbox";
+    label.append(control, textElement("span", caption));
+  } else {
+    label.className = "field";
+    label.append(textElement("span", caption), control);
+  }
   return label;
 }
 

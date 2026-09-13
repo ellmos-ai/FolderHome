@@ -779,7 +779,12 @@ function renderCalendarEditors(card, item) {
       else input.value = name === "reminders" ? (version.event.reminders || []).map(value => value.minutes_before).join(", ") : version.event[name] || "";
       input.required = ["title", "start", "end", "timezone"].includes(name);
       input.maxLength = name === "reminders" ? 100 : 8192;
-      wrapper.append(textElement("span", t(label)), input);
+      if (name === "all_day") {
+        wrapper.className = "checkbox";
+        wrapper.append(input, textElement("span", t(label)));
+      } else {
+        wrapper.append(textElement("span", t(label)), input);
+      }
       form.append(wrapper);
       fields[name] = input;
     }
