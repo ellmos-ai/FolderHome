@@ -84,15 +84,40 @@ existing adapters update the synthetic contact register, local calendar,
 contract cockpit and correspondence output. Reset deletes only the demo-owned
 fixture outputs.
 
-`site/` is a separate static, bilingual walkthrough for GitHub Pages. It has no
-backend, calls no API and is visibly labelled as scripted evidence; it does not
-replace the executable local demo.
+`site/` provides a static bilingual walkthrough and a separately configured
+cloud demo through the bounded API Gateway proxy. Cloud availability depends
+on the published site configuration and reviewed runtime deployment.
 
-`application/agentcore_runtime.py` maps the same synthetic journey to the
-current Amazon Bedrock AgentCore HTTP contract (`/ping`, `/invocations`). State
-is separated by a SHA-256 fingerprint of the runtime session header. The ARM64,
-non-root container in `deploy/agentcore/` accepts no uploads, model credentials,
-arbitrary resource identifiers or external effects.
+`application/agentcore_runtime.py` maps `/ping` and `/invocations` to synthetic
+household sessions. Each session copies all 104 files from `examples/`, adds
+the accident fixtures, and retains one `LocalApplication` for real master-agent
+turns and its bounded `prior_messages`. Search covers the copied household;
+only the four existing contact, local-calendar, contract-cockpit and
+correspondence adapters are connected for confirmed effects. The first proposed
+plan is offered with `/confirm <plan_id>`. The published default accident prompt
+keeps its labelled `deterministic_fallback` four-step plan and four result files.
+
+The additive `folderhome.agentcore-response.v1` contract returns the model's
+`response_text` as `response`, sanitized tool names/statuses, `model_turns`,
+`plan`, `result`, and `session_state`. Changed files in registered output
+directories appear in `result.generated_results`: at most 12 per response,
+262144 bytes inline per file, and a serialized response strictly below 1.5 MiB.
+Larger content becomes metadata with a reason. State databases are not downloads.
+Session roots use SHA-256 fingerprints of the session header. `/reset` deletes
+the owned cloud session; LRU eviction removes the least recently used idle
+session. Busy sessions are never evicted. Links are rejected before copying,
+reading outputs, or resetting. The local loopback accident demo keeps its
+existing narrower reset behavior.
+
+Packaged runtimes must supply `folderhome/demo_data/household/` with the complete
+`examples/` tree. Source runs can use the repository's `examples/`; missing
+fixtures fail closed. The direct-code ZIP and Docker build still need this
+packaging addition before deploying this change. No budget-profile values are
+changed here. `specialist_model_provider` describes the accident confirmation
+specialists; free-chat planning specialists inherit the master provider,
+reported separately as `planning_specialist_model_provider`. Their calls and
+retained context must be included in a new cost review before raising turns.
+Neither a local fixture test nor a configured provider proves live acceptance.
 
 ## Strands Agent
 

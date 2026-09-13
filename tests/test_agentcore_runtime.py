@@ -58,12 +58,7 @@ def test_agentcore_runtime_runs_confirmed_synthetic_journey_per_session(
 
     prepared = _invoke(
         app,
-        {
-            "prompt": (
-                "I had an accident with my Hyundai i10. Find the current insurance "
-                "and prepare the next steps."
-            )
-        },
+        {"prompt": accident_demo.DEFAULT_ACCIDENT_PROMPT},
     )
     plan = prepared.payload["plan"]
     other_session = _invoke(
@@ -119,8 +114,10 @@ def test_agentcore_runtime_bounds_process_local_session_workspaces(
     )
 
     assert first.status_code == 200
-    assert overflow.status_code == 503
-    assert "session capacity" in overflow.payload["error"].casefold()
+    assert overflow.status_code == 200
+    assert len(app._sessions) == 1
+    assert not (tmp_path / sha256(SESSION_A.encode()).hexdigest()).exists()
+    assert (tmp_path / sha256(SESSION_B.encode()).hexdigest()).is_dir()
 
 
 def test_agentcore_runtime_passes_explicit_provider_settings_to_synthetic_session(
@@ -191,12 +188,8 @@ def test_agentcore_runtime_rejects_ambiguous_limit_types(
 
 def test_agentcore_deployment_files_pin_arm64_non_root_contract() -> None:
     root = Path(__file__).parents[1]
-    dockerfile = (root / "deploy" / "agentcore" / "Dockerfile").read_text(
-        encoding="utf-8"
-    )
-    readme = (root / "deploy" / "agentcore" / "README.md").read_text(
-        encoding="utf-8"
-    )
+    dockerfile = (root / "deploy" / "agentcore" / "Dockerfile").read_text(encoding="utf-8")
+    readme = (root / "deploy" / "agentcore" / "README.md").read_text(encoding="utf-8")
 
     assert "--platform=linux/arm64" in dockerfile
     assert len(re.findall(r"python:3\.12\.11-slim-bookworm@sha256:[0-9a-f]{64}", dockerfile)) == 2
@@ -208,9 +201,7 @@ def test_agentcore_deployment_files_pin_arm64_non_root_contract() -> None:
     assert "synthetic" in readme.casefold()
     assert "do not expose" in readme.casefold()
     assert "**English** | [Deutsch](./README.de.md)" in readme
-    german = (root / "deploy" / "agentcore" / "README.de.md").read_text(
-        encoding="utf-8"
-    )
+    german = (root / "deploy" / "agentcore" / "README.de.md").read_text(encoding="utf-8")
     assert "[English](./README.md) | **Deutsch**" in german
     assert "ausdrücklich" in german
 
@@ -221,12 +212,7 @@ def test_agentcore_runtime_returns_result_files_inline_for_browser_download(
     app = AgentCoreRuntimeApplication(tmp_path)
     prepared = _invoke(
         app,
-        {
-            "prompt": (
-                "I had an accident with my Hyundai i10. Find the current insurance "
-                "and prepare the next steps."
-            )
-        },
+        {"prompt": accident_demo.DEFAULT_ACCIDENT_PROMPT},
     )
     confirmed = _invoke(
         app,
@@ -258,7 +244,8 @@ def test_agentcore_runtime_returns_result_files_inline_for_browser_download(
 
 @pytest.mark.parametrize("as_json", [False, True])
 def test_inline_result_guard_withholds_content_containing_workspace_paths(
-    tmp_path: Path, as_json: bool,
+    tmp_path: Path,
+    as_json: bool,
 ) -> None:
     content = str(tmp_path / "private" / "source.txt")
     if as_json:
@@ -279,12 +266,7 @@ def test_agentcore_runtime_reports_oversized_results_as_metadata_only(
     app = AgentCoreRuntimeApplication(tmp_path)
     prepared = _invoke(
         app,
-        {
-            "prompt": (
-                "I had an accident with my Hyundai i10. Find the current insurance "
-                "and prepare the next steps."
-            )
-        },
+        {"prompt": accident_demo.DEFAULT_ACCIDENT_PROMPT},
     )
     confirmed = _invoke(
         app,

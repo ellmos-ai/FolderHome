@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+from contextlib import contextmanager
 from hashlib import sha256
 from pathlib import Path
 
@@ -11,6 +12,12 @@ from folderhome.application.accident_demo import (
     SyntheticAccidentDemo,
     SyntheticAccidentDemoError,
     SyntheticAccidentDemoUnavailableError,
+)
+from folderhome.application.local_app import LocalAppError
+from folderhome.application.strands_agent import FolderHomeAgentError
+from folderhome.application.workflow_execution import (
+    WorkflowExecutionError,
+    WorkflowExecutionOutcomeUnknown,
 )
 from folderhome.contracts.local_app import LocalApiResponse
 from folderhome.contracts.strands_agent import StrandsAgentSettings
@@ -36,17 +43,25 @@ class AgentCoreRuntimeApplication:
         request_timeout_seconds: float = 30.0,
         agent_settings: StrandsAgentSettings | None = None,
         specialist_agent_settings: StrandsAgentSettings | None = None,
+        examples_root: Path | None = None,
     ) -> None:
+        from folderhome.application.accident_demo import _assert_no_links
+
+        _assert_no_links(workspace_root.absolute())
         root = workspace_root.resolve()
         if root == Path(root.anchor):
             raise ValueError("AgentCore workspace may not be a filesystem root.")
-        if not isinstance(max_body_bytes, int) or isinstance(
-            max_body_bytes, bool
-        ) or not 1_024 <= max_body_bytes <= 1_048_576:
+        if (
+            not isinstance(max_body_bytes, int)
+            or isinstance(max_body_bytes, bool)
+            or not 1_024 <= max_body_bytes <= 1_048_576
+        ):
             raise ValueError("AgentCore body limit must be between 1024 and 1048576 bytes.")
-        if not isinstance(max_sessions, int) or isinstance(
-            max_sessions, bool
-        ) or not 1 <= max_sessions <= 256:
+        if (
+            not isinstance(max_sessions, int)
+            or isinstance(max_sessions, bool)
+            or not 1 <= max_sessions <= 256
+        ):
             raise ValueError("AgentCore session capacity must be between 1 and 256.")
         if (
             not isinstance(max_concurrent_requests, int)
@@ -70,11 +85,11 @@ class AgentCoreRuntimeApplication:
             max_conversation_messages=64,
         )
         self.model_provider = self.agent_settings.model_provider
-        self.specialist_agent_settings = (
-            specialist_agent_settings or self.agent_settings
-        )
+        self.specialist_agent_settings = specialist_agent_settings or self.agent_settings
         self.specialist_model_provider = self.specialist_agent_settings.model_provider
         self._sessions: dict[str, SyntheticAccidentDemo] = {}
+        self._busy_sessions: set[str] = set()
+        self.examples_root = examples_root
         self._lock = threading.RLock()
 
     def handle(
@@ -98,68 +113,70 @@ class AgentCoreRuntimeApplication:
             return self._error(
                 413, "Invocation body exceeds the configured limit.", reason="body_too_large"
             )
-        if not folded_headers.get("content-type", "").casefold().startswith(
-            "application/json"
-        ):
+        if not folded_headers.get("content-type", "").casefold().startswith("application/json"):
             return self._error(
                 415, "Content-Type must be application/json.", reason="unsupported_media_type"
             )
         try:
             session_id = self._session_id(folded_headers)
             prompt = self._prompt(body)
-            demo = self._demo_for_session(session_id)
-            if prompt == "/reset":
-                reset = demo.reset()
-                self._drop_session(session_id)
-                return self._json(
-                    200,
-                    {
-                        "schema": "folderhome.agentcore-response.v1",
-                        "response": "The synthetic accident workspace was reset.",
-                        "reset": reset,
-                        "synthetic_data_only": True,
-                        "external_network_used": False,
-                        "model_provider": self.model_provider,
-                        "specialist_model_provider": self.specialist_model_provider,
-                    },
-                )
-            if prompt.startswith("/confirm"):
-                result = demo.confirm(prompt)
-                return self._json(
-                    200,
-                    {
-                        "schema": "folderhome.agentcore-response.v1",
-                        "response": (
-                            "The exact plan was confirmed and executed with local, "
-                            "reversible FolderHome adapters."
-                        ),
-                        "result": result,
-                        "synthetic_data_only": True,
-                        "external_network_used": result["network_used"],
-                        "model_provider": self.model_provider,
-                        "specialist_model_provider": self.specialist_model_provider,
-                    },
-                )
-            plan = demo.prepare(prompt)
-            return self._json(
-                200,
-                {
+            with self._session_lease(session_id) as demo:
+                payload = {
                     "schema": "folderhome.agentcore-response.v1",
-                    "response": (
-                        "I found the synthetic current and older Hyundai i10 policies. "
-                        f"Review the plan, then send {plan['confirmation_command']} exactly."
-                    ),
-                    "plan": plan,
+                    "tool_events": [],
+                    "model_turns": 0,
+                    "plan": None,
+                    "result": None,
                     "synthetic_data_only": True,
-                    "external_network_used": plan["network_used"],
+                    "external_network_used": False,
                     "model_provider": self.model_provider,
                     "specialist_model_provider": self.specialist_model_provider,
-                },
-            )
+                }
+                if prompt == "/reset":
+                    payload.update(
+                        response="The synthetic household workspace was reset.", reset=demo.reset()
+                    )
+                    self._drop_session(session_id)
+                elif prompt.startswith("/confirm"):
+                    result = demo.confirm(prompt)
+                    payload.update(
+                        response=(
+                            "The exact plan was confirmed and executed with local, "
+                            "reversible FolderHome adapters."
+                            if result["status"] == "executed"
+                            else "The plan was only partly executed; review the step results."
+                            if result["status"] == "partially_executed"
+                            else "The plan has no connected executable steps."
+                        ),
+                        result=result,
+                        external_network_used=result["network_used"],
+                    )
+                elif prompt.startswith("/"):
+                    raise ValueError("Unknown command. Use /confirm <plan_id> or /reset.")
+                else:
+                    payload.update(demo.chat(prompt))
+                payload["session_state"] = demo.session_state()
+                return self._json(200, payload)
         except AgentCoreRuntimeCapacityError as exc:
             return self._error(503, str(exc), reason="capacity")
         except SyntheticAccidentDemoUnavailableError as exc:
             return self._error(503, str(exc), reason="search_unavailable")
+        except WorkflowExecutionOutcomeUnknown:
+            return self._error(
+                409,
+                "Execution outcome is unknown; do not repeat confirmation.",
+                reason="execution_outcome_unknown",
+            )
+        except (LocalAppError, WorkflowExecutionError):
+            return self._error(
+                409,
+                "The retained workflow could not be safely executed.",
+                reason="workflow_rejected",
+            )
+        except FolderHomeAgentError:
+            return self._error(
+                503, "The bounded model turn could not be completed.", reason="model_turn_failed"
+            )
         except UnicodeError:
             return self._error(400, "Invocation body must be UTF-8 JSON.", reason="UnicodeError")
         except (SyntheticAccidentDemoError, ValueError) as exc:
@@ -210,26 +227,69 @@ class AgentCoreRuntimeApplication:
             demo = self._sessions.get(fingerprint)
             if demo is None:
                 if len(self._sessions) >= self.max_sessions:
-                    raise AgentCoreRuntimeCapacityError(
-                        "AgentCore process-local session capacity is exhausted; reset an "
-                        "existing synthetic session or start a fresh runtime."
+                    victim = next(
+                        (key for key in self._sessions if key not in self._busy_sessions), None
                     )
+                    if victim is None:
+                        raise AgentCoreRuntimeCapacityError("All synthetic sessions are busy.")
+                    self._sessions[victim].destroy()
+                    self._remove_empty_session_root(victim)
+                    del self._sessions[victim]
                 demo = SyntheticAccidentDemo(
                     self.workspace_root / fingerprint,
                     agent_settings=self.agent_settings,
                     specialist_agent_settings=self.specialist_agent_settings,
+                    full_household=True,
+                    examples_root=self.examples_root,
                 )
-                self._sessions[fingerprint] = demo
+            self._sessions.pop(fingerprint, None)
+            self._sessions[fingerprint] = demo
             return demo
+
+    @contextmanager
+    def _session_lease(self, session_id: str):
+        fingerprint = sha256(session_id.encode("utf-8")).hexdigest()
+        with self._lock:
+            if fingerprint in self._busy_sessions:
+                raise AgentCoreRuntimeCapacityError("This synthetic session is busy.")
+            demo = self._demo_for_session(session_id)
+            self._busy_sessions.add(fingerprint)
+        try:
+            yield demo
+        finally:
+            with self._lock:
+                self._busy_sessions.discard(fingerprint)
+
+    def _remove_empty_session_root(self, fingerprint: str) -> None:
+        root = self.workspace_root / fingerprint
+        # Never recursively delete the caller's workspace or unowned siblings.
+        if root.is_dir() and not any(root.iterdir()):
+            root.rmdir()
 
     def _drop_session(self, session_id: str) -> None:
         fingerprint = sha256(session_id.encode("utf-8")).hexdigest()
         with self._lock:
             self._sessions.pop(fingerprint, None)
+            self._remove_empty_session_root(fingerprint)
 
     @staticmethod
     def _json(status: int, payload: dict[str, object]) -> LocalApiResponse:
         content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        maximum = 1_572_864  # Strictly below 1.5 MiB, including JSON escaping/envelope.
+        result = payload.get("result")
+        results = result.get("generated_results", []) if isinstance(result, dict) else []
+        for entry in reversed(results):
+            if len(content) < maximum:
+                break
+            if entry.get("inline"):
+                entry.pop("content", None)
+                entry.pop("content_encoding", None)
+                entry.update(inline=False, inline_skipped_reason="response_size_limit")
+                content = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        if len(content) >= maximum:
+            return AgentCoreRuntimeApplication._error(
+                502, "Runtime response exceeds its size limit.", reason="response_size_limit"
+            )
         return LocalApiResponse(
             status,
             "application/json; charset=utf-8",

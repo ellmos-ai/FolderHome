@@ -92,16 +92,44 @@ Kontaktregister, den lokalen Kalender, das Vertragscockpit und die
 Korrespondenzausgabe aktualisieren. Der Reset löscht ausschließlich
 demoeigene Fixture-Ausgaben.
 
-`site/` ist ein getrennter statischer, zweisprachiger Rundgang für GitHub Pages.
-Er hat kein Backend, ruft keine API auf und ist sichtbar als skriptbasierter
-Nachweis gekennzeichnet; er ersetzt die ausführbare lokale Demo nicht.
+`site/` bietet einen statischen zweisprachigen Rundgang und eine getrennt
+konfigurierte Cloud-Demo über den begrenzten API-Gateway-Proxy. Die Verfügbarkeit
+hängt von der veröffentlichten Seitenkonfiguration und der geprüften Runtime ab.
 
-`application/agentcore_runtime.py` bildet dieselbe synthetische Geschichte auf
-den aktuellen HTTP-Vertrag von Amazon Bedrock AgentCore (`/ping`,
-`/invocations`) ab. Der Zustand wird durch einen SHA-256-Fingerabdruck des
-Runtime-Sitzungsheaders getrennt. Der ARM64-Container ohne Rootrechte unter
-`deploy/agentcore/` akzeptiert weder Uploads noch Modellzugangsdaten, beliebige
-Ressourcen-IDs oder externe Effekte.
+`application/agentcore_runtime.py` verbindet `/ping` und `/invocations` mit
+synthetischen Haushaltssitzungen. Jede Sitzung kopiert alle 104 Dateien aus
+`examples/`, ergänzt die Unfall-Fixtures und behält eine `LocalApplication`
+für echte Master-Agent-Züge samt begrenzten `prior_messages`. Die Suche erfasst
+den kopierten Haushalt; für bestätigte Wirkungen sind ausschließlich die vier
+bisherigen Adapter für Kontakte, lokalen Kalender, Vertragscockpit und
+Korrespondenz verbunden. Der erste vorgeschlagene Plan wird mit
+`/confirm <plan_id>` angeboten. Der veröffentlichte Default-Unfall-Prompt behält
+seinen als `deterministic_fallback` gekennzeichneten Vier-Schritt-Plan und vier
+Ergebnisdateien.
+
+Der additive Vertrag `folderhome.agentcore-response.v1` liefert den Modelltext
+`response_text` als `response`, bereinigte Werkzeugnamen und Statuswerte,
+`model_turns`, `plan`, `result` sowie `session_state`. Geänderte Dateien in
+registrierten Ausgabeordnern erscheinen in `result.generated_results`:
+höchstens 12 je Antwort, 262144 Byte Inline-Inhalt je Datei und eine serialisierte
+Gesamtantwort strikt unter 1,5 MiB. Größere Inhalte werden zu Metadaten mit
+Begründung. Zustandsdatenbanken werden nicht als Downloads ausgegeben.
+Sitzungsordner verwenden SHA-256-Fingerabdrücke des Sitzungsheaders. `/reset`
+löscht die eigene Cloud-Sitzung; LRU-Verdrängung entfernt die am längsten nicht
+verwendete freie Sitzung. Beschäftigte Sitzungen werden nie verdrängt. Links
+werden vor Kopieren, Ausgabelesen und Reset abgewiesen. Die lokale Unfall-Demo
+auf Loopback behält ihr bisheriges engeres Reset-Verhalten.
+
+Paketierte Runtimes benötigen den vollständigen `examples/`-Baum unter
+`folderhome/demo_data/household/`. Quellcode-Läufe können `examples/` im Repo
+verwenden; fehlende Fixtures blockieren. Direct-Code-ZIP und Docker-Build
+benötigen diese Paketierungsergänzung vor dem Deployment der Änderung noch.
+Kostenprofilwerte werden hier nicht verändert. `specialist_model_provider`
+bezeichnet die Spezialisten der Unfallbestätigung; planende Fachagenten im
+freien Chat erben den Master-Provider, getrennt ausgewiesen als
+`planning_specialist_model_provider`. Ihre Aufrufe und der gespeicherte Kontext
+müssen vor einer Erhöhung der Turnzahl in einen neuen Kostenreview eingehen.
+Ein lokaler Fixture-Test oder ein konfigurierter Provider belegt keine Live-Abnahme.
 
 ## Strands-Agent
 
