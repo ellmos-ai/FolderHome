@@ -591,6 +591,12 @@ def test_hero_ctas_and_demo_video_thumbnail() -> None:
     assert 'class="hero-video"' not in hero_copy
     assert ".hero-visual" in css
 
+    # Hero buttons colors: blue for guided case, pink for install
+    assert ".hero-cta .button.primary" in css
+    assert "#2563eb" in css
+    assert ".hero-cta .button-install" in css
+    assert "#db2777" in css
+
 
 def test_demo_section_headings_per_mode() -> None:
     html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")

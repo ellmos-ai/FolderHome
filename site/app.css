@@ -567,22 +567,52 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 }
 
 .button-install .button-main {
-  font-weight: 750;
-  line-height: 1.2;
+.hero-cta .button.primary {
+  background: #2563eb;
+  border-color: #1d4ed8;
+  color: #ffffff;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
 }
 
-.button-install .button-sub {
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: .68rem;
-  font-weight: normal;
-  letter-spacing: .02em;
-  line-height: 1.2;
+.hero-cta .button.primary:hover {
+  background: #3b82f6;
+  border-color: #2563eb;
+  color: #ffffff;
 }
 
-.button-install:hover .button-sub,
-.button-install:focus-visible .button-sub {
-  color: var(--ink);
+.hero-cta .button.primary:focus-visible {
+  outline: 3px solid #60a5fa;
+  outline-offset: 3px;
+}
+
+.hero-cta .button-install {
+  background: #db2777;
+  border-color: #be185d;
+  color: #ffffff;
+  transition: background .15s ease, border-color .15s ease, transform .15s ease;
+}
+
+.hero-cta .button-install .button-main {
+  color: #ffffff;
+}
+
+.hero-cta .button-install .button-sub {
+  color: #fce7f3;
+}
+
+.hero-cta .button-install:hover {
+  background: #ec4899;
+  border-color: #db2777;
+}
+
+.hero-cta .button-install:hover .button-sub,
+.hero-cta .button-install:focus-visible .button-sub {
+  color: #ffffff;
+}
+
+.hero-cta .button-install:focus-visible {
+  outline: 3px solid #f472b6;
+  outline-offset: 3px;
 }
 
 .hero-video {
