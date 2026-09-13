@@ -117,8 +117,25 @@ def test_cloud_mode_badge_is_hidden_unless_runtime_is_enabled():
     assert 'id="cloud-mode-badge" class="cloud-mode-badge" hidden' in html
     badge = html.split('id="cloud-mode-badge"', 1)[1].split('</svg>', 1)[0]
     assert '<svg' in badge and 'aria-hidden="true"' in badge
-    assert 'data-en="cloud-mode" data-de="cloud-mode"' in html
+    assert 'fill="currentColor"' in badge
+    assert 'fill="none"' not in badge
+    assert 'data-en="cloud mode" data-de="cloud mode"' in html
+    brand_markup = html.split('<a class="brand"', 1)[1].split('</a>', 1)[0]
+    assert 'cloud-mode-badge' not in brand_markup
+    assert 'class="cloud-mode-lane"' in html
     assert '.cloud-mode-badge[hidden] { display: none; }' in css
+    assert '@keyframes cloud-wander' in css
+    assert 'translateX' in css
+    assert 'alternate' in css
+    reduced_motion = css.split('@media (prefers-reduced-motion: reduce)', 1)[1]
+    assert '.cloud-mode-badge' in reduced_motion
+    assert 'transform: none' in reduced_motion
+    logo_svg = (ROOT / "site" / "assets" / "logo.svg").read_text(encoding="utf-8")
+    rect_pattern = (
+        r'<rect[^>]*width=["\']800["\'][^>]*height=["\']200["\'][^>]*fill=["\']#(?!none)[0-9a-fA-F]+["\']'
+    )
+    assert not re.search(rect_pattern, logo_svg)
+    assert not re.search(r'<rect[^>]*fill=["\']#0A0F1D["\']', logo_svg)
     # Execute the actual runtime initialization with every enabled input.
     initialization = js.split('const DEFAULT_PROMPTS', 1)[0]
     for config, expected in [({}, True), ({"enabled": False}, True),
