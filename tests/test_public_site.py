@@ -107,6 +107,17 @@ def test_architecture_slideshow_structure_and_behavior() -> None:
     # No autoplay timer (setInterval not used for slideshow)
     assert "setInterval" not in javascript
 
+    # Four architecture cards with blue gradations and pill badges in CSS
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+    assert ".architecture-grid article:nth-child(1)" in css
+    assert "#0b1a38" in css
+    assert "#0f2a5a" in css
+    assert "#153578" in css
+    assert "#1e40af" in css
+    assert "#dbeafe" in css
+    assert "#93c5fd" in css
+    assert ".architecture-grid article span" in css
+
 
 def _service_sources() -> str:
     package = ROOT / "src" / "folderhome"
