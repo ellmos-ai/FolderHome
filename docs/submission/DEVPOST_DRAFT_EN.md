@@ -17,10 +17,16 @@ a home, with optional AWS capabilities when they add value.
   `/confirm <plan_id>` command, bound to the plan's hash, may execute a plan.
 - **Real Strands loop, reproducible without credentials.** A deterministic
   model adapter drives the same agent loop and the same tools for judges and tests.
-- **Optional AWS.** The same runtime runs on Amazon Bedrock, and an AgentCore
-  Runtime completed a Bedrock-backed synthetic journey end to end on 2026-09-13.
-- **Tested.** 1,465 automated tests passed on 2026-09-13 (commit `4f7e596`) with
-  warnings treated as errors.
+- **Hosted demo you can actually use.** The public page runs the real master
+  agent on Amazon Bedrock over a synthetic household of 104 example documents:
+  a guided insurance case *and* a free chat in your own words, every generated
+  file viewable and downloadable, every turn budget-metered.
+- **Optional AWS.** The same runtime runs on Amazon Bedrock; the AgentCore
+  Runtime was verified live on 2026-09-13 and re-verified after every deploy
+  (runtime version 25 at the time of writing).
+- **Tested.** 1,863 automated tests passed on 2026-09-13 (commit `169a2f4`,
+  warnings treated as errors; the scheduler-bridge tests run against the pinned
+  provider checkout).
 
 ## Inspiration
 
@@ -73,14 +79,33 @@ steps.
    keeps the older policy as evidence.
 2. **Plan.** It returns a hash-bound plan. Only the exact `/confirm <plan_id>`
    command may execute it.
-3. **Execute locally.** In the synthetic cloud demo the confirmed plan runs
-   four local steps: contact register, calendar handoff, contract cockpit and
-   correspondence studio. On a privately configured installation the packaged
-   `accident-aftercare` recipe follows the same pattern and adds a draft-only
-   IMAP mailbox.
+3. **Execute locally.** In the hosted demo the confirmed plan runs four local
+   steps inside the synthetic household: contact register, calendar handoff,
+   contract cockpit and correspondence studio, and the four generated files can
+   be viewed and downloaded right on the page. On a privately configured
+   installation the packaged `accident-aftercare` recipe follows the same
+   pattern and adds a draft-only IMAP mailbox.
 
 Neither path **ever** sends a message, places a call, changes an external
 calendar or silently archives the older policy.
+
+### Hosted demo: a real conversation on a synthetic household
+
+The public page offers **two entrances**:
+
+- **Try the test case.** The guided Hyundai i10 insurance claim: four bounded
+  steps, a hash-bound plan, the exact `/confirm`, four synthetic result files.
+- **Try it in your own words.** A free chat with the real FolderHome master
+  agent (Amazon Bedrock Nova Micro) over a synthetic household of **104 example
+  documents**: insurance, health, taxes, contracts, calendar and more. The agent
+  searches the local index itself, builds dossiers, lists its capabilities and
+  proposes plans; the page shows which tools ran and how many model turns a
+  reply took.
+
+Nothing in that household is real data, external actions stay disabled, and
+each turn reserves **2 cents** in the cumulative money ledger under a **195 USD**
+cap for the whole review window. Your own folders never enter the cloud: for
+real documents you install FolderHome locally and bring your own model.
 
 ## How we built it
 
@@ -223,8 +248,8 @@ An isolated HTTP adapter maps the same application contract to **AgentCore**.
 The direct-code Runtime is deployed on ARM64 and, on **2026-09-13**, completed
 one Bedrock-backed synthetic journey end to end through the public proxy:
 
-- the **Nova Micro** master agent (EU inference profile, two bounded model
-  turns) searched the synthetic policies,
+- the **Nova Micro** master agent (EU inference profile, up to six bounded
+  model turns and 1,536 output tokens per reply) searched the synthetic policies,
 - the plan stopped at `/confirm`,
 - and the confirmed run produced **four result files with no external actions**.
 
@@ -234,9 +259,12 @@ is bound to the exact runtime version and cost review. AWS Support had reported
 the Bedrock access issue resolved on 2026-09-08; the local app verified a real
 Bedrock turn on 2026-09-12. Because the cloud runtime exposes only `/ping` and
 `/invocations`, result files are returned inline in the AgentCore response, so a
-browser can save them without a storage service. The public CloudFront
-configuration keeps the browser agent disabled until the owner publishes the
-site.
+browser can save them without a storage service. Since 2026-09-13 the public
+CloudFront page has the browser agent **enabled**: every plain prompt is a
+real master-agent turn over a per-session copy of the synthetic household,
+the default accident prompt keeps its deterministic four-step plan as the
+regression path, and `manage.py verify` re-proves the whole journey (exact
+ledger delta of two forwards) after each deploy.
 
 ## Safety and privacy by construction
 
