@@ -36,284 +36,324 @@
           <p class="hint" id="account-line"></p>
         </section>
 
-        <section class="card">
-          <h2 data-i18n="profilesTitle">1. Profiles</h2>
-          <p class="hint" data-i18n="profilesHint">
-            A profile organises documents inside this operating system account; it is
-            not an access boundary. Every folder, rule and calendar account below binds
-            to one of these profiles.
-          </p>
-          <label class="field">
-            <span data-i18n="profilesDir">Profile folder</span>
-            <div class="field-input">
-              <input id="profiles-dir" spellcheck="false">
-              <button id="profiles-dir-choose" class="button compact" type="button"
-                      data-i18n="chooseButton">Choose folder</button>
-            </div>
-          </label>
-          <div id="profile-starters" hidden>
-            <p class="hint" data-i18n="profilesEmpty">
-              This folder holds no profiles yet. Take the shipped examples as a starting
-              point, or begin with an empty list and add your own.
+        <section class="card" id="card-profiles" data-card-id="profiles">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-profiles">
+            <h2 data-i18n="profilesTitle">1. Profiles</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-profiles">
+            <p class="hint" data-i18n="profilesHint">
+              A profile organises documents inside this operating system account; it is
+              not an access boundary. Every folder, rule and calendar account below binds
+              to one of these profiles.
             </p>
-            <button id="profiles-take-examples" class="button compact" type="button"
-                    data-i18n="profilesTakeExamples">Take the examples</button>
-            <button id="profiles-start-empty" class="button compact" type="button"
-                    data-i18n="profilesStartEmpty">Start empty</button>
-          </div>
-          <div id="profile-list"></div>
-          <button id="profile-add" class="button compact" type="button"
-                  data-i18n="profileAdd">+ Profile</button>
-          <fieldset>
-            <legend data-i18n="householdRules">Rules for everyone</legend>
-            <p class="hint" data-i18n="householdHint">
-              These live in household.json and apply to every profile. A profile rule of
-              the same key wins over them.
-            </p>
-            <div id="household-rules"></div>
-          </fieldset>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="foldersTitle">2. Folders</h2>
-          <p class="hint" data-i18n="foldersHint">
-            Give each profile a folder per purpose. Source folders are read, output folders
-            receive files. Leave a field empty to skip that purpose. A source purpose may
-            list several folders; the first one is the default.
-          </p>
-          <div id="folder-grid"></div>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="modelTitle">3. Model</h2>
-          <p class="hint" data-i18n="modelHint">
-            The provider is a start-up choice: the app reads the active preset when it
-            starts. Network and data approvals stay command-line flags and are never
-            written to a file.
-          </p>
-          <div id="preset-list"></div>
-          <fieldset>
-            <legend data-i18n="presetFormTitle">New or edited preset</legend>
             <label class="field">
-              <span data-i18n="presetName">Preset name (optional)</span>
-              <input id="preset-name" placeholder="local" spellcheck="false">
-            </label>
-          <label class="field">
-            <span data-i18n="providerLabel">Provider</span>
-            <select id="provider">
-              <option value="fixture">fixture</option>
-              <option value="ollama">ollama</option>
-              <option value="bedrock">bedrock</option>
-              <option value="anthropic">anthropic</option>
-              <option value="openai">openai</option>
-            </select>
-          </label>
-          <div id="ollama-fields" hidden>
-            <label class="field">
-              <span data-i18n="ollamaHost">Ollama host</span>
-              <input id="ollama-host" value="http://127.0.0.1:11434" spellcheck="false">
-            </label>
-            <label class="field">
-              <span data-i18n="ollamaModel">Ollama model id</span>
-              <input id="ollama-model-id" placeholder="qwen3.8:27b-mlx" spellcheck="false">
-            </label>
-          </div>
-          <div id="bedrock-fields" hidden>
-            <label class="field">
-              <span data-i18n="bedrockModel">Bedrock model id</span>
-              <input id="bedrock-model-id" spellcheck="false">
-            </label>
-            <label class="field">
-              <span data-i18n="awsRegion">AWS region</span>
-              <input id="aws-region" placeholder="eu-central-1" spellcheck="false">
-            </label>
-          </div>
-          <div id="anthropic-fields" hidden>
-            <label class="field">
-              <span data-i18n="anthropicModel">Anthropic model id</span>
-              <input id="anthropic-model-id" placeholder="claude-sonnet-4-5-20250929"
-                     spellcheck="false">
-            </label>
-          </div>
-          <div id="openai-fields" hidden>
-            <label class="field">
-              <span data-i18n="openaiModel">OpenAI model id</span>
-              <input id="openai-model-id" placeholder="gpt-4o" spellcheck="false">
-            </label>
-            <label class="field">
-              <span data-i18n="openaiBaseUrl">OpenAI base URL (optional)</span>
-              <input id="openai-base-url" placeholder="https://api.openai.com/v1"
-                     spellcheck="false">
-            </label>
-          </div>
-            <button id="preset-save" class="button compact" type="button"
-                    data-i18n="presetSave">Save as preset</button>
-          </fieldset>
-          <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="subscriptionsTitle">4. Subscriptions</h2>
-          <p class="hint" data-i18n="subscriptionsHint">
-            Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
-            subscription can drive FolderHome as a tool: the agent is the brain, FolderHome
-            is the tool. FolderHome needs no key of its own for this, and the provider above
-            may stay fixture. Nothing here reads, stores or checks a subscription.
-          </p>
-          <ol>
-            <li data-i18n="subscriptionsStep1">
-              Start the app with the command shown in section 9 after saving.
-            </li>
-            <li data-i18n="subscriptionsStep2">
-              Take the access URL from its start output and put it in place of the
-              placeholder below.
-            </li>
-            <li data-i18n="subscriptionsStep3">
-              Run the command in Claude Code, or paste the block into
-              ~/.codex/config.toml for Codex.
-            </li>
-          </ol>
-          <div id="subscriptions"></div>
-          <p class="hint" data-i18n="subscriptionsToken">
-            The token changes on every app start, so a stored editor entry goes stale with
-            it. After a restart, put the new access URL in again.
-          </p>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="keysTitle">5. API keys</h2>
-          <p class="hint" data-i18n="keysHint">
-            Hosted providers need a key. The installer stores it in a .env file next to
-            launch.json and never shows it again; on Windows only your user account
-            protects that file. Leave a field empty to keep the stored key.
-          </p>
-          <div id="key-fields"></div>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="runtimeTitle">6. Runtime</h2>
-          <label class="field">
-            <span data-i18n="stateDir">App state folder</span>
-            <input id="state-dir" spellcheck="false" aria-describedby="state-dir-help">
-          </label>
-          <p id="state-dir-help" class="hint" data-i18n="stateDirHelp">
-            Without a saved launch.json, setup suggests a separate state subfolder of
-            the configuration folder. A saved launch path is kept. Changing this path
-            does not move or copy existing data: the app uses the selected folder on
-            its next start. To keep existing state, select its current folder; profile
-            and state folders must not overlap. Back up existing data before a manual move.
-          </p>
-          <label class="field">
-            <span data-i18n="portLabel">Port</span>
-            <input id="port" type="number" min="1" max="65535" value="8765">
-          </label>
-          <label class="checkbox">
-            <input id="outside-home" type="checkbox">
-            <span data-i18n="outsideHome">I confirm folders outside my user folder</span>
-          </label>
-        </section>
-
-        <section class="card">
-          <h2 data-i18n="calendarTitle">7. Calendar</h2>
-          <p class="hint" data-i18n="calendarHint">
-            The app loads these files through launch.json as private, profile-bound resources.
-            Select a calendar.source folder explicitly. The executor supports the local calendar
-            and optional ICS export; external accounts do not enable a live connector.
-            There is no Outlook backend. An account stores a secret reference, never the secret.
-            Unchanged fields preserve existing file references. Editing this section writes
-            setup-owned copies, shown in the preview; custom source files stay untouched.
-          </p>
-          <label class="checkbox">
-            <input id="calendar-enabled" type="checkbox">
-            <span data-i18n="calendarEnable">Write calendar configuration</span>
-          </label>
-          <div id="calendar-fields" hidden>
-            <label class="field">
-              <span data-i18n="calendarBackend">Default backend</span>
-              <select id="calendar-backend"></select>
-            </label>
-            <label class="field">
-              <span data-i18n="calendarTimezone">Default time zone</span>
-              <input id="calendar-timezone" placeholder="Europe/Berlin" spellcheck="false">
-            </label>
-            <label class="field">
-              <span data-i18n="calendarDirectory">UpToday ICS folder</span>
+              <span data-i18n="profilesDir">Profile folder</span>
               <div class="field-input">
-                <input id="calendar-directory" spellcheck="false">
-                <button id="calendar-directory-choose" class="button compact" type="button"
+                <input id="profiles-dir" spellcheck="false">
+                <button id="profiles-dir-choose" class="button compact" type="button"
                         data-i18n="chooseButton">Choose folder</button>
               </div>
             </label>
-            <div id="calendar-accounts"></div>
-            <button id="calendar-account-add" class="button compact" type="button"
-                    data-i18n="calendarAddAccount">+ another account</button>
+            <div id="profile-starters" hidden>
+              <p class="hint" data-i18n="profilesEmpty">
+                This folder holds no profiles yet. Take the shipped examples as a starting
+                point, or begin with an empty list and add your own.
+              </p>
+              <button id="profiles-take-examples" class="button compact" type="button"
+                      data-i18n="profilesTakeExamples">Take the examples</button>
+              <button id="profiles-start-empty" class="button compact" type="button"
+                      data-i18n="profilesStartEmpty">Start empty</button>
+            </div>
+            <div id="profile-list"></div>
+            <button id="profile-add" class="button compact" type="button"
+                    data-i18n="profileAdd">+ Profile</button>
+            <fieldset>
+              <legend data-i18n="householdRules">Rules for everyone</legend>
+              <p class="hint" data-i18n="householdHint">
+                These live in household.json and apply to every profile. A profile rule of
+                the same key wins over them.
+              </p>
+              <div id="household-rules"></div>
+            </fieldset>
           </div>
         </section>
 
-        <section class="card">
-          <h2 data-i18n="schedulerTitle">8. Regular folder checks</h2>
-          <p class="hint" data-i18n="schedulerHint">
-            Prepare one profile at a time. Saving writes local configuration only: no job is registered
-            and no service starts. Registration and execution require separate approval in the app.
-            Existing registrations cannot be changed here.
-          </p>
-          <p id="scheduler-load-error" class="error" role="alert" data-i18n="schedulerLoadError" hidden>
-            Saved scheduler settings could not be loaded. Check the existing files before replacing them;
-            this section is disabled.
-          </p>
-          <label class="checkbox">
-            <input id="scheduler-enabled" type="checkbox">
-            <span data-i18n="schedulerEnable">Edit scheduler settings for this profile</span>
-          </label>
-          <div id="scheduler-fields" hidden>
+        <section class="card" id="card-folders" data-card-id="folders">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-folders">
+            <h2 data-i18n="foldersTitle">2. Folders</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-folders">
+            <p class="hint" data-i18n="foldersHint">
+              Give each profile a folder per purpose. Source folders are read, output folders
+              receive files. Leave a field empty to skip that purpose. A source purpose may
+              list several folders; the first one is the default.
+            </p>
+            <div id="folder-grid"></div>
+          </div>
+        </section>
+
+        <section class="card" id="card-model" data-card-id="model">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-model">
+            <h2 data-i18n="modelTitle">3. Model</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-model">
+            <p class="hint" data-i18n="modelHint">
+              The provider is a start-up choice: the app reads the active preset when it
+              starts. Network and data approvals stay command-line flags and are never
+              written to a file.
+            </p>
+            <div id="preset-list"></div>
+            <fieldset>
+              <legend data-i18n="presetFormTitle">New or edited preset</legend>
+              <label class="field">
+                <span data-i18n="presetName">Preset name (optional)</span>
+                <input id="preset-name" placeholder="local" spellcheck="false">
+              </label>
             <label class="field">
-              <span data-i18n="schedulerProfile">Profile</span>
-              <select id="scheduler-profile"></select>
+              <span data-i18n="providerLabel">Provider</span>
+              <select id="provider">
+                <option value="fixture">fixture</option>
+                <option value="ollama">ollama</option>
+                <option value="bedrock">bedrock</option>
+                <option value="anthropic">anthropic</option>
+                <option value="openai">openai</option>
+              </select>
             </label>
+            <div id="ollama-fields" hidden>
+              <label class="field">
+                <span data-i18n="ollamaHost">Ollama host</span>
+                <input id="ollama-host" value="http://127.0.0.1:11434" spellcheck="false">
+              </label>
+              <label class="field">
+                <span data-i18n="ollamaModel">Ollama model id</span>
+                <input id="ollama-model-id" placeholder="qwen3.8:27b-mlx" spellcheck="false">
+              </label>
+            </div>
+            <div id="bedrock-fields" hidden>
+              <label class="field">
+                <span data-i18n="bedrockModel">Bedrock model id</span>
+                <input id="bedrock-model-id" spellcheck="false">
+              </label>
+              <label class="field">
+                <span data-i18n="awsRegion">AWS region</span>
+                <input id="aws-region" placeholder="eu-central-1" spellcheck="false">
+              </label>
+            </div>
+            <div id="anthropic-fields" hidden>
+              <label class="field">
+                <span data-i18n="anthropicModel">Anthropic model id</span>
+                <input id="anthropic-model-id" placeholder="claude-sonnet-4-5-20250929"
+                       spellcheck="false">
+              </label>
+            </div>
+            <div id="openai-fields" hidden>
+              <label class="field">
+                <span data-i18n="openaiModel">OpenAI model id</span>
+                <input id="openai-model-id" placeholder="gpt-4o" spellcheck="false">
+              </label>
+              <label class="field">
+                <span data-i18n="openaiBaseUrl">OpenAI base URL (optional)</span>
+                <input id="openai-base-url" placeholder="https://api.openai.com/v1"
+                       spellcheck="false">
+              </label>
+            </div>
+              <button id="preset-save" class="button compact" type="button"
+                      data-i18n="presetSave">Save as preset</button>
+            </fieldset>
+            <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
+          </div>
+        </section>
+
+        <section class="card" id="card-subscriptions" data-card-id="subscriptions">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-subscriptions">
+            <h2 data-i18n="subscriptionsTitle">4. Subscriptions</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-subscriptions">
+            <p class="hint" data-i18n="subscriptionsHint">
+              Claude Code with a Claude subscription and the Codex CLI with a ChatGPT
+              subscription can drive FolderHome as a tool: the agent is the brain, FolderHome
+              is the tool. FolderHome needs no key of its own for this, and the provider above
+              may stay fixture. Nothing here reads, stores or checks a subscription.
+            </p>
+            <ol>
+              <li data-i18n="subscriptionsStep1">
+                Start the app with the command shown in section 9 after saving.
+              </li>
+              <li data-i18n="subscriptionsStep2">
+                Take the access URL from its start output and put it in place of the
+                placeholder below.
+              </li>
+              <li data-i18n="subscriptionsStep3">
+                Run the command in Claude Code, or paste the block into
+                ~/.codex/config.toml for Codex.
+              </li>
+            </ol>
+            <div id="subscriptions"></div>
+            <p class="hint" data-i18n="subscriptionsToken">
+              The token changes on every app start, so a stored editor entry goes stale with
+              it. After a restart, put the new access URL in again.
+            </p>
+          </div>
+        </section>
+
+        <section class="card" id="card-keys" data-card-id="keys">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-keys">
+            <h2 data-i18n="keysTitle">5. API keys</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-keys">
+            <p class="hint" data-i18n="keysHint">
+              Hosted providers need a key. The installer stores it in a .env file next to
+              launch.json and never shows it again; on Windows only your user account
+              protects that file. Leave a field empty to keep the stored key.
+            </p>
+            <div id="key-fields"></div>
+          </div>
+        </section>
+
+        <section class="card" id="card-runtime" data-card-id="runtime">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-runtime">
+            <h2 data-i18n="runtimeTitle">6. Runtime</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-runtime">
             <label class="field">
-              <span data-i18n="schedulerSource">Which folder should be checked?</span>
-              <span class="field-input">
-                <input id="scheduler-source" spellcheck="false">
-                <button id="scheduler-source-choose" class="button compact" type="button"
-                        data-i18n="chooseButton">Choose folder</button>
-              </span>
+              <span data-i18n="stateDir">App state folder</span>
+              <input id="state-dir" spellcheck="false" aria-describedby="state-dir-help">
             </label>
+            <p id="state-dir-help" class="hint" data-i18n="stateDirHelp">
+              Without a saved launch.json, setup suggests a separate state subfolder of
+              the configuration folder. A saved launch path is kept. Changing this path
+              does not move or copy existing data: the app uses the selected folder on
+              its next start. To keep existing state, select its current folder; profile
+              and state folders must not overlap. Back up existing data before a manual move.
+            </p>
             <label class="field">
-              <span data-i18n="schedulerTarget">Destination for later filing proposals</span>
-              <span class="field-input">
-                <input id="scheduler-target" spellcheck="false">
-                <button id="scheduler-target-choose" class="button compact" type="button"
-                        data-i18n="chooseButton">Choose folder</button>
-              </span>
-            </label>
-            <label class="field">
-              <span data-i18n="schedulerArea">Document area</span>
-              <input id="scheduler-area" value="documents">
-            </label>
-            <label class="field">
-              <span data-i18n="schedulerInterval">Check every (minutes, 5–1440)</span>
-              <input id="scheduler-interval" type="number" min="5" max="1440" step="1" value="30">
-            </label>
-            <label class="field">
-              <span data-i18n="schedulerStart">First check (ISO date and time with UTC offset)</span>
-              <input id="scheduler-start" placeholder="2026-09-10T08:00:00+02:00" spellcheck="false">
-            </label>
-            <label class="field">
-              <span data-i18n="schedulerTimezone">Time zone (must match the UTC offset)</span>
-              <input id="scheduler-timezone" value="UTC" placeholder="Europe/Berlin" spellcheck="false">
+              <span data-i18n="portLabel">Port</span>
+              <input id="port" type="number" min="1" max="65535" value="8765">
             </label>
             <label class="checkbox">
-              <input id="scheduler-recursive" type="checkbox" checked>
-              <span data-i18n="schedulerRecursive">Include subfolders</span>
-            </label>
-            <label class="checkbox">
-              <input id="scheduler-read" type="checkbox">
-              <span data-i18n="schedulerRead">Allow local reading of these documents</span>
+              <input id="outside-home" type="checkbox">
+              <span data-i18n="outsideHome">I confirm folders outside my user folder</span>
             </label>
           </div>
         </section>
 
-        <section class="card">
+        <section class="card" id="card-calendar" data-card-id="calendar">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-calendar">
+            <h2 data-i18n="calendarTitle">7. Calendar</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-calendar">
+            <p class="hint" data-i18n="calendarHint">
+              The app loads these files through launch.json as private, profile-bound resources.
+              Select a calendar.source folder explicitly. The executor supports the local calendar
+              and optional ICS export; external accounts do not enable a live connector.
+              There is no Outlook backend. An account stores a secret reference, never the secret.
+              Unchanged fields preserve existing file references. Editing this section writes
+              setup-owned copies, shown in the preview; custom source files stay untouched.
+            </p>
+            <label class="checkbox">
+              <input id="calendar-enabled" type="checkbox">
+              <span data-i18n="calendarEnable">Write calendar configuration</span>
+            </label>
+            <div id="calendar-fields" hidden>
+              <label class="field">
+                <span data-i18n="calendarBackend">Default backend</span>
+                <select id="calendar-backend"></select>
+              </label>
+              <label class="field">
+                <span data-i18n="calendarTimezone">Default time zone</span>
+                <input id="calendar-timezone" placeholder="Europe/Berlin" spellcheck="false">
+              </label>
+              <label class="field">
+                <span data-i18n="calendarDirectory">UpToday ICS folder</span>
+                <div class="field-input">
+                  <input id="calendar-directory" spellcheck="false">
+                  <button id="calendar-directory-choose" class="button compact" type="button"
+                          data-i18n="chooseButton">Choose folder</button>
+                </div>
+              </label>
+              <div id="calendar-accounts"></div>
+              <button id="calendar-account-add" class="button compact" type="button"
+                      data-i18n="calendarAddAccount">+ another account</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="card-scheduler" data-card-id="scheduler">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-scheduler">
+            <h2 data-i18n="schedulerTitle">8. Regular folder checks</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-scheduler">
+            <p class="hint" data-i18n="schedulerHint">
+              Prepare one profile at a time. Saving writes local configuration only: no job is registered
+              and no service starts. Registration and execution require separate approval in the app.
+              Existing registrations cannot be changed here.
+            </p>
+            <p id="scheduler-load-error" class="error" role="alert" data-i18n="schedulerLoadError" hidden>
+              Saved scheduler settings could not be loaded. Check the existing files before replacing them;
+              this section is disabled.
+            </p>
+            <label class="checkbox">
+              <input id="scheduler-enabled" type="checkbox">
+              <span data-i18n="schedulerEnable">Edit scheduler settings for this profile</span>
+            </label>
+            <div id="scheduler-fields" hidden>
+              <label class="field">
+                <span data-i18n="schedulerProfile">Profile</span>
+                <select id="scheduler-profile"></select>
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerSource">Which folder should be checked?</span>
+                <span class="field-input">
+                  <input id="scheduler-source" spellcheck="false">
+                  <button id="scheduler-source-choose" class="button compact" type="button"
+                          data-i18n="chooseButton">Choose folder</button>
+                </span>
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerTarget">Destination for later filing proposals</span>
+                <span class="field-input">
+                  <input id="scheduler-target" spellcheck="false">
+                  <button id="scheduler-target-choose" class="button compact" type="button"
+                          data-i18n="chooseButton">Choose folder</button>
+                </span>
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerArea">Document area</span>
+                <input id="scheduler-area" value="documents">
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerInterval">Check every (minutes, 5–1440)</span>
+                <input id="scheduler-interval" type="number" min="5" max="1440" step="1" value="30">
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerStart">First check (ISO date and time with UTC offset)</span>
+                <input id="scheduler-start" placeholder="2026-09-10T08:00:00+02:00" spellcheck="false">
+              </label>
+              <label class="field">
+                <span data-i18n="schedulerTimezone">Time zone (must match the UTC offset)</span>
+                <input id="scheduler-timezone" value="UTC" placeholder="Europe/Berlin" spellcheck="false">
+              </label>
+              <label class="checkbox">
+                <input id="scheduler-recursive" type="checkbox" checked>
+                <span data-i18n="schedulerRecursive">Include subfolders</span>
+              </label>
+              <label class="checkbox">
+                <input id="scheduler-read" type="checkbox">
+                <span data-i18n="schedulerRead">Allow local reading of these documents</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="card" id="card-summary" data-card-id="summary">
           <h2 data-i18n="summaryTitle">9. Summary and save</h2>
           <p class="hint" data-i18n="overwriteHint">
             Saving merges the setup bindings with existing resources. Custom entries
@@ -330,13 +370,18 @@
           <div id="summary" aria-live="polite"></div>
         </section>
 
-        <section class="card">
-          <h2 data-i18n="cloudTitle">Cloud variant</h2>
-          <p class="hint" data-i18n="cloudHint">
-            In the AWS or browser variant there are no local output folders. There the
-            results view is the delivery path: files are downloaded into the download folder
-            of the browser.
-          </p>
+        <section class="card" id="card-cloud" data-card-id="cloud">
+          <div class="card-head" role="button" tabindex="0" aria-expanded="true" aria-controls="card-body-cloud">
+            <h2 data-i18n="cloudTitle">Cloud variant</h2>
+            <span class="card-chevron" aria-hidden="true"></span>
+          </div>
+          <div class="card-body" id="card-body-cloud">
+            <p class="hint" data-i18n="cloudHint">
+              In the AWS or browser variant there are no local output folders. There the
+              results view is the delivery path: files are downloaded into the download folder
+              of the browser.
+            </p>
+          </div>
         </section>
       </main>
     </div>

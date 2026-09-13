@@ -318,8 +318,99 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
   border-top: .35rem solid var(--folder);
   border-radius: .25rem;
   box-shadow: 10px 12px 0 var(--card-shadow);
+  transition: padding .2s ease, border-color .2s ease, box-shadow .2s ease;
 }
 .card h1, .card h2 { margin: 0 0 .6rem; font-family: Bahnschrift, "Aptos Display", sans-serif; }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  gap: 1rem;
+}
+.card-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: Bahnschrift, "Aptos Display", sans-serif;
+  font-size: clamp(1.4rem, 2.8vw, 1.95rem);
+  font-weight: 600;
+  letter-spacing: -.025em;
+  color: var(--ink);
+  cursor: pointer;
+  transition: font-size .2s ease, color .2s ease;
+}
+.card-head h2:focus-visible, .card-head:focus-visible {
+  outline: 2px solid var(--cabinet);
+  outline-offset: 4px;
+  border-radius: .2rem;
+}
+.card-chevron {
+  display: inline-block;
+  width: .6rem;
+  height: .6rem;
+  border-right: 2.5px solid var(--muted);
+  border-bottom: 2.5px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform .2s ease, border-color .2s ease;
+  margin-left: .5rem;
+  flex: 0 0 auto;
+}
+.card-head:hover .card-chevron,
+.card-head:hover h2 {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+.card-body {
+  margin-top: 1rem;
+}
+
+/* Attention variant: ACTIVE / IN-FOCUS STEP */
+.card.is-active {
+  border-top-width: .48rem;
+  border-top-color: var(--cabinet);
+  box-shadow: 0 0 0 2px var(--cabinet), 12px 16px 0 var(--card-shadow);
+}
+.card.is-active .card-head h2 {
+  font-size: clamp(1.65rem, 3.3vw, 2.2rem);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* Attention variant: COLLAPSED / DAMPED */
+.card.is-collapsed {
+  padding: .85rem 1.4rem;
+  border-top-width: .22rem;
+  border-top-color: var(--line);
+  box-shadow: 4px 6px 0 var(--card-shadow);
+  background: var(--surface-solid);
+}
+.card.is-collapsed .card-head h2 {
+  font-size: 1.05rem;
+  font-weight: 550;
+  color: var(--muted);
+}
+.card.is-collapsed .card-chevron {
+  transform: rotate(-45deg);
+}
+.card.is-collapsed .card-body {
+  display: none;
+}
+
+/* Attention variant: VALIDATION ERROR */
+.card.has-error {
+  border-top-width: .48rem !important;
+  border-top-color: var(--danger) !important;
+  box-shadow: 0 0 0 2px var(--danger), 10px 12px 0 var(--card-shadow) !important;
+}
+.card.has-error .card-head h2 {
+  color: var(--danger) !important;
+  font-weight: 700;
+}
+.card.has-error .card-body {
+  display: block !important;
+}
 .lead { margin: 0 0 .6rem; color: var(--muted); line-height: 1.6; }
 .field { display: grid; gap: .3rem; margin: .8rem 0; }
 .field span {
@@ -377,8 +468,70 @@ main { display: grid; gap: 1.4rem; padding-bottom: 3rem; }
   gap: .55rem;
   cursor: pointer;
 }
-fieldset { margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .2rem; }
-legend { padding: 0 .4rem; font-family: Bahnschrift, "Aptos Display", sans-serif; }
+fieldset { margin: 0 0 1rem; padding: .9rem 1rem; border: 1px solid var(--line); border-radius: .25rem; }
+legend { padding: 0 .4rem; font-family: Bahnschrift, "Aptos Display", sans-serif; font-weight: 600; }
+
+/* Submenu / Collapsible fieldset entries (Profiles, Folders, Calendar accounts) */
+.collapsible-entry {
+  margin: 0 0 1rem;
+  padding: .8rem 1.1rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: .25rem;
+  background: var(--surface-solid);
+  transition: padding .18s ease, background .18s ease;
+}
+.collapsible-entry.collapsed {
+  padding-bottom: .3rem;
+  background: var(--surface-glass);
+}
+.collapsible-entry.collapsed .entry-body {
+  display: none;
+}
+.entry-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: .65rem;
+  padding: 0 .4rem;
+  font-family: Bahnschrift, "Aptos Display", sans-serif;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  border-radius: .2rem;
+}
+.entry-legend:hover {
+  color: var(--accent-text);
+}
+.entry-legend:focus-visible {
+  outline: 2px solid var(--cabinet);
+  outline-offset: 2px;
+}
+.entry-legend .entry-status {
+  font-size: .72rem;
+  font-family: Consolas, "Courier New", monospace;
+  color: var(--muted);
+  font-weight: 500;
+  padding: .15rem .45rem;
+  background: var(--desktop);
+  border: 1px solid var(--line);
+  border-radius: .2rem;
+}
+.entry-legend .entry-chevron {
+  display: inline-block;
+  width: .45rem;
+  height: .45rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform .2s ease, border-color .2s ease;
+  margin-left: .2rem;
+}
+.collapsible-entry.collapsed .entry-legend .entry-chevron {
+  transform: rotate(-45deg);
+}
+.entry-body {
+  margin-top: .6rem;
+}
 #summary pre,
 #subscriptions pre {
   overflow-x: auto;
