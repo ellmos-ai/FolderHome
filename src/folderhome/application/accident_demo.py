@@ -538,6 +538,16 @@ class SyntheticAccidentDemo:
                 plan = None
             results = self._changed_results(before)
             response = report.response_text
+            if normalized == DEFAULT_ACCIDENT_PROMPT:
+                # The published journey is deterministic; the visible sentence must be too.
+                # Live finding 2026-09-13: Nova answered the default prompt with an apology
+                # while the deterministic plan stood right below it.
+                response = (
+                    "I found the synthetic current and older Hyundai i10 policies "
+                    "(KFZ_Hyundai_i10_2026.txt is current, KFZ_Hyundai_i10_2025.txt is older). "
+                    "The plan below binds four local, reversible steps: contact register, "
+                    "calendar follow-up, contract cockpit and claim letter draft."
+                )
             if plan is not None and plan["plan_id"] in self._executed_plan_ids:
                 plan = None
                 response += (
@@ -1191,6 +1201,11 @@ class _SyntheticHouseholdSearcher:
             if "hyundai" in query.casefold() or "i10" in query.casefold()
             else ()
         )
+        if insurance:
+            # A query about the Hyundai i10 names one contract object. Adding every household
+            # file that merely contains "insurance" made the contract cockpit list README.md
+            # and unrelated JSON files as "older versions" (live finding 2026-09-13).
+            return insurance[:limit]
         terms = {term for term in re.findall(r"\w+", query.casefold()) if len(term) > 2}
         terms -= {
             "the",
