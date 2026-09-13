@@ -49,6 +49,11 @@ def test_branch_published_site_contains_its_referenced_brand_assets() -> None:
         canonical_asset = (ROOT / "assets" / name).read_text(encoding="utf-8")
         assert published_asset.rstrip() == canonical_asset.rstrip()
 
+    logo = (ROOT / "site" / "assets" / "logo.svg").read_text(encoding="utf-8")
+    assert "Strands Agent 1.53.0" not in logo
+    assert "Gated Home Workflows" not in logo
+    assert "Folder" in logo and "Home" in logo
+
 
 def test_public_architecture_visual_matches_submission_source() -> None:
     assert (ROOT / "site" / "architecture.svg").read_bytes() == (
