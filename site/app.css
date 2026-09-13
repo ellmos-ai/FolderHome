@@ -79,11 +79,96 @@ a { color: inherit; }
   gap: 2rem;
   border-bottom: 1px solid var(--line);
 }
-.brand { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
+.brand { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; text-decoration: none; }
+.brand:hover { text-decoration: none; }
 .brand img { display: block; width: clamp(180px, 19vw, 270px); height: auto; }
-.cloud-mode-badge { display: inline-flex; align-items: center; gap: .3rem; color: #64b5ff; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+
+.cloud-mode-lane {
+  flex: 1;
+  position: relative;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  margin-inline: clamp(0.75rem, 2vw, 2rem);
+  pointer-events: none;
+}
+.cloud-mode-lane:has(.cloud-mode-badge[hidden]) {
+  min-height: 0;
+  margin-inline: 0;
+}
+
+.cloud-mode-badge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  margin-block: auto;
+  height: fit-content;
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  color: #38bdf8;
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  user-select: none;
+  text-decoration: none;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.65);
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.8)) drop-shadow(0 0 14px rgba(34, 211, 238, 0.5));
+  animation: cloud-wander 10s ease-in-out infinite alternate, cloud-pulse 3s ease-in-out infinite alternate;
+  pointer-events: auto;
+}
+.cloud-mode-badge svg {
+  display: block;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.9));
+}
 .cloud-mode-badge[hidden] { display: none; }
-[data-theme="light"] .cloud-mode-badge { color: #075eae; }
+
+[data-theme="light"] .cloud-mode-badge {
+  color: #0284c7;
+  text-shadow: 0 0 6px rgba(2, 132, 199, 0.35);
+  filter: drop-shadow(0 0 4px rgba(2, 132, 199, 0.5)) drop-shadow(0 0 10px rgba(2, 132, 199, 0.25));
+  animation: cloud-wander 10s ease-in-out infinite alternate, cloud-pulse-light 3s ease-in-out infinite alternate;
+}
+[data-theme="light"] .cloud-mode-badge svg {
+  filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.6));
+}
+
+@keyframes cloud-wander {
+  0% {
+    left: 0%;
+    transform: translateX(0);
+  }
+  100% {
+    left: 100%;
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes cloud-pulse {
+  0% {
+    opacity: 0.82;
+    filter: drop-shadow(0 0 5px rgba(56, 189, 248, 0.6)) drop-shadow(0 0 10px rgba(56, 189, 248, 0.3));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 9px rgba(56, 189, 248, 0.95)) drop-shadow(0 0 18px rgba(34, 211, 238, 0.65));
+  }
+}
+
+@keyframes cloud-pulse-light {
+  0% {
+    opacity: 0.82;
+    filter: drop-shadow(0 0 3px rgba(2, 132, 199, 0.35)) drop-shadow(0 0 8px rgba(2, 132, 199, 0.2));
+  }
+  100% {
+    opacity: 1;
+    filter: drop-shadow(0 0 7px rgba(2, 132, 199, 0.7)) drop-shadow(0 0 13px rgba(2, 132, 199, 0.35));
+  }
+}
 .header-actions { display: flex; align-items: center; gap: .75rem; }
 .segmented { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--paper) 76%, transparent); }
 .segmented button { min-height: 30px; border: 0; border-radius: 999px; padding: .25rem .65rem; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--mono); font-size: .7rem; text-transform: uppercase; }
@@ -426,8 +511,39 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   footer p { grid-column: 1 / -1; }
 }
 
+@media (max-width: 700px) {
+  .cloud-mode-lane {
+    min-height: 0;
+    margin: .4rem 0;
+    justify-content: flex-start;
+  }
+  .cloud-mode-lane:has(.cloud-mode-badge[hidden]) {
+    margin: 0;
+  }
+  .cloud-mode-badge {
+    position: relative;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    transform: none;
+    animation: cloud-pulse 3s ease-in-out infinite alternate;
+  }
+  [data-theme="light"] .cloud-mode-badge {
+    animation: cloud-pulse-light 3s ease-in-out infinite alternate;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  .cloud-mode-badge {
+    position: relative !important;
+    left: 0 !important;
+    transform: none !important;
+    animation: cloud-pulse 6s ease-in-out infinite alternate !important;
+  }
+  [data-theme="light"] .cloud-mode-badge {
+    animation: cloud-pulse-light 6s ease-in-out infinite alternate !important;
+  }
 }
 
 .generated-files { grid-template-columns: 1fr; }
