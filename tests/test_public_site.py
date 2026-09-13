@@ -54,12 +54,14 @@ def test_public_architecture_visual_matches_submission_source() -> None:
     assert (ROOT / "site" / "architecture.svg").read_bytes() == (
         ROOT / "docs" / "submission" / "ARCHITECTURE_DIAGRAM.svg"
     ).read_bytes()
-    assert (ROOT / "site" / "assets" / "architecture-agent-flow.svg").read_bytes() == (
-        ROOT / "docs" / "submission" / "ARCHITECTURE_AGENT_FLOW.svg"
-    ).read_bytes()
-    assert (ROOT / "site" / "assets" / "architecture-confirm-sequence.svg").read_bytes() == (
-        ROOT / "docs" / "submission" / "ARCHITECTURE_CONFIRM_SEQUENCE.svg"
-    ).read_bytes()
+    flow_png = ROOT / "site" / "assets" / "architecture-agent-flow.png"
+    assert flow_png.exists()
+    assert flow_png.stat().st_size <= 220 * 1024
+    seq_png = ROOT / "site" / "assets" / "architecture-confirm-sequence.png"
+    assert seq_png.exists()
+    assert seq_png.stat().st_size <= 220 * 1024
+    assert not (ROOT / "site" / "assets" / "architecture-agent-flow.svg").exists()
+    assert not (ROOT / "site" / "assets" / "architecture-confirm-sequence.svg").exists()
     assert (ROOT / "site" / "assets" / "product-architecture.svg").read_bytes() == (
         ROOT / "docs" / "submission" / "PRODUCT_ARCHITECTURE.svg"
     ).read_bytes()
@@ -74,8 +76,8 @@ def test_architecture_slideshow_structure_and_behavior() -> None:
     slide_matches = re.findall(r'<div class="slide[^"]*"[^>]*data-index="(\d+)"', html)
     assert slide_matches == ["0", "1", "2", "3"]
     assert 'src="architecture.svg"' in html
-    assert 'src="assets/architecture-agent-flow.svg"' in html
-    assert 'src="assets/architecture-confirm-sequence.svg"' in html
+    assert 'src="assets/architecture-agent-flow.png"' in html
+    assert 'src="assets/architecture-confirm-sequence.png"' in html
     assert 'src="assets/product-architecture.svg"' in html
 
     # Tone attributes
