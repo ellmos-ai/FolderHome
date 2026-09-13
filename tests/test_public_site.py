@@ -49,17 +49,24 @@ def test_branch_published_site_contains_its_referenced_brand_assets() -> None:
         canonical_asset = (ROOT / "assets" / name).read_text(encoding="utf-8")
         assert published_asset.rstrip() == canonical_asset.rstrip()
 
+    logo = (ROOT / "site" / "assets" / "logo.svg").read_text(encoding="utf-8")
+    assert "Strands Agent 1.53.0" not in logo
+    assert "Gated Home Workflows" not in logo
+    assert "Folder" in logo and "Home" in logo
+
 
 def test_public_architecture_visual_matches_submission_source() -> None:
     assert (ROOT / "site" / "architecture.svg").read_bytes() == (
         ROOT / "docs" / "submission" / "ARCHITECTURE_DIAGRAM.svg"
     ).read_bytes()
-    assert (ROOT / "site" / "assets" / "architecture-agent-flow.svg").read_bytes() == (
-        ROOT / "docs" / "submission" / "ARCHITECTURE_AGENT_FLOW.svg"
-    ).read_bytes()
-    assert (ROOT / "site" / "assets" / "architecture-confirm-sequence.svg").read_bytes() == (
-        ROOT / "docs" / "submission" / "ARCHITECTURE_CONFIRM_SEQUENCE.svg"
-    ).read_bytes()
+    flow_png = ROOT / "site" / "assets" / "architecture-agent-flow.png"
+    assert flow_png.exists()
+    assert flow_png.stat().st_size <= 220 * 1024
+    seq_png = ROOT / "site" / "assets" / "architecture-confirm-sequence.png"
+    assert seq_png.exists()
+    assert seq_png.stat().st_size <= 220 * 1024
+    assert not (ROOT / "site" / "assets" / "architecture-agent-flow.svg").exists()
+    assert not (ROOT / "site" / "assets" / "architecture-confirm-sequence.svg").exists()
     assert (ROOT / "site" / "assets" / "product-architecture.svg").read_bytes() == (
         ROOT / "docs" / "submission" / "PRODUCT_ARCHITECTURE.svg"
     ).read_bytes()
@@ -74,8 +81,8 @@ def test_architecture_slideshow_structure_and_behavior() -> None:
     slide_matches = re.findall(r'<div class="slide[^"]*"[^>]*data-index="(\d+)"', html)
     assert slide_matches == ["0", "1", "2", "3"]
     assert 'src="architecture.svg"' in html
-    assert 'src="assets/architecture-agent-flow.svg"' in html
-    assert 'src="assets/architecture-confirm-sequence.svg"' in html
+    assert 'src="assets/architecture-agent-flow.png"' in html
+    assert 'src="assets/architecture-confirm-sequence.png"' in html
     assert 'src="assets/product-architecture.svg"' in html
 
     # Tone attributes
@@ -99,6 +106,17 @@ def test_architecture_slideshow_structure_and_behavior() -> None:
 
     # No autoplay timer (setInterval not used for slideshow)
     assert "setInterval" not in javascript
+
+    # Four architecture cards with blue gradations and pill badges in CSS
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+    assert ".architecture-grid article:nth-child(1)" in css
+    assert "#0b1a38" in css
+    assert "#0f2a5a" in css
+    assert "#153578" in css
+    assert "#1e40af" in css
+    assert "#dbeafe" in css
+    assert "#93c5fd" in css
+    assert ".architecture-grid article span" in css
 
 
 def _service_sources() -> str:
@@ -175,12 +193,12 @@ def test_cloud_mode_badge_is_hidden_unless_runtime_is_enabled():
     assert 'cloud-mode-badge' not in brand_markup
     assert 'class="cloud-mode-lane"' in html
     assert '.cloud-mode-badge[hidden] { display: none; }' in css
-    assert '@keyframes cloud-wander' in css
-    assert 'translateX' in css
-    assert 'alternate' in css
+    assert '@keyframes cloud-wander' not in css
+    assert 'justify-content: flex-end' in css
+    assert '@keyframes cloud-pulse' in css
     reduced_motion = css.split('@media (prefers-reduced-motion: reduce)', 1)[1]
     assert '.cloud-mode-badge' in reduced_motion
-    assert 'transform: none' in reduced_motion
+    assert 'animation: none' in reduced_motion
     logo_svg = (ROOT / "site" / "assets" / "logo.svg").read_text(encoding="utf-8")
     rect_pattern = (
         r'<rect[^>]*width=["\']800["\'][^>]*height=["\']200["\'][^>]*fill=["\']#(?!none)[0-9a-fA-F]+["\']'
@@ -384,6 +402,14 @@ def test_two_entry_tiles_present_with_bilingual_texts() -> None:
     assert 'data-en="Now try your own question →"' in html
     assert 'data-de="Jetzt eigene Anfrage ausprobieren →"' in html
 
+    # Tile styling: Tile A blue/pink, Tile B neon-green, enlarged typography
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+    assert "#1d4ed8" in css
+    assert "#3b82f6" in css
+    assert "#22c55e" in css
+    assert "clamp(1.6rem" in css
+    assert "clamp(1.05rem" in css
+
 
 def test_mode_display_rules_in_css() -> None:
     css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
@@ -575,6 +601,20 @@ def test_hero_ctas_and_demo_video_thumbnail() -> None:
     assert ".video-play-btn" in css
     assert ".video-duration" in css
     assert ".video-thumb:focus-visible" in css
+
+    # Video tile is in right hero column (hero-visual) above case-file, not in hero-copy
+    assert '<div class="hero-visual">' in html
+    assert html.index('class="hero-video"') > html.index('class="hero-copy"')
+    assert html.index('class="hero-video"') < html.index('class="case-file"')
+    hero_copy = html.split('<div class="hero-copy">', 1)[1].split('<div class="hero-visual">', 1)[0]
+    assert 'class="hero-video"' not in hero_copy
+    assert ".hero-visual" in css
+
+    # Hero buttons colors: blue for guided case, pink for install
+    assert ".hero-cta .button.primary" in css
+    assert "#2563eb" in css
+    assert ".hero-cta .button-install" in css
+    assert "#db2777" in css
 
 
 def test_demo_section_headings_per_mode() -> None:
