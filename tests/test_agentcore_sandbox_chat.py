@@ -4,6 +4,7 @@ from hashlib import sha256
 from types import SimpleNamespace
 
 import pytest
+import strands.models
 
 from folderhome.application import accident_demo
 from folderhome.application.agentcore_runtime import AgentCoreRuntimeApplication
@@ -366,13 +367,23 @@ def test_agentcore_two_sequential_tools_need_more_than_two_turns(tmp_path, monke
 def test_agentcore_default_passes_unchanged_deployment_verifiers_offline(tmp_path, monkeypatch):
     from deploy.aws_demo.manage import validate_confirmed_response, validate_prepared_response
     from folderhome.application import strands_agent
+    from folderhome.application.pseudonymization import PseudonymizingModel
 
-    # Provider boundary is a fixture, explicitly NOT a Bedrock integration test.
+    # Exercise the real remote-provider boundary with an offline deterministic stub.
+    remote_stub = strands_agent._fixture_model_class()()
+    wrapped = []
+
+    def record_wrapper(inner_model, vault):
+        model = PseudonymizingModel(inner_model, vault)
+        wrapped.append(model)
+        return model
+
     monkeypatch.setattr(
-        strands_agent,
-        "_build_model",
-        lambda settings, **kwargs: strands_agent._fixture_model_class()(**kwargs),
+        strands.models,
+        "BedrockModel",
+        lambda **_kwargs: remote_stub,
     )
+    monkeypatch.setattr(strands_agent, "PseudonymizingModel", record_wrapper)
     app = AgentCoreRuntimeApplication(
         tmp_path,
         agent_settings=StrandsAgentSettings(
@@ -391,6 +402,8 @@ def test_agentcore_default_passes_unchanged_deployment_verifiers_offline(tmp_pat
     )
     prepared = invoke(app, accident_demo.DEFAULT_ACCIDENT_PROMPT)
     assert prepared.status_code == 200
+    assert len(wrapped) == 1
+    assert wrapped[0].inner_model is remote_stub
     command = validate_prepared_response(prepared.payload)
     confirmed = invoke(app, command)
     assert confirmed.status_code == 200

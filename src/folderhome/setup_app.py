@@ -279,6 +279,7 @@ class SetupApplication:
             "current_folders": _configured_folders(registry),
             "model_presets": launch.get("model_presets") or {},
             "model_preset": launch.get("model_preset"),
+            "cloud_pseudonymization": launch.get("cloud_pseudonymization", "on"),
             # Instructions only: the same plan `mcp plan` prints, no server started.
             "integrations": integration_plan(None),
             "writes_credentials": False,
@@ -382,6 +383,13 @@ class SetupApplication:
                     "message": "Private Google-Dateien und Nachweisordner müssen auch von "
                     "neuen Dokument- und Schedulerordnern getrennt bleiben.",
                 })
+        current_launch = self._current_launch()
+        cloud_pseudonymization = current_launch.get("cloud_pseudonymization", "on")
+        if cloud_pseudonymization not in {"on", "off"}:
+            errors.append({
+                "field": "cloud_pseudonymization",
+                "message": "cloud_pseudonymization muss on oder off sein.",
+            })
         launch_json = (
             None
             if errors
@@ -393,10 +401,10 @@ class SetupApplication:
                 presets=presets,
                 preset_name=preset_name,
                 port=port,
+                cloud_pseudonymization=cloud_pseudonymization,
             )
         )
         if launch_json is not None:
-            current_launch = self._current_launch()
             for field, path, document in (
                 ("calendar_config", self.calendar_file, calendar_json),
                 ("connector_accounts", self.calendar_accounts_file, calendar_accounts_json),
@@ -1958,6 +1966,7 @@ def _launch_document(
     presets: dict[str, dict[str, Any]],
     preset_name: str | None,
     port: int,
+    cloud_pseudonymization: str,
 ) -> dict[str, Any]:
     document: dict[str, Any] = {
         "schema": LAUNCH_CONFIG_SCHEMA,
@@ -1965,6 +1974,7 @@ def _launch_document(
         "state_dir": str(state_dir) if state_dir else None,
         "resources_file": str(resources_file) if resources_file else None,
         "port": port,
+        "cloud_pseudonymization": cloud_pseudonymization,
         # The flat fields describe the choice; the preset name says where it came
         # from, so switching models later means changing one line, not seven.
         "model_provider": model.get("model_provider") or model.get("provider"),

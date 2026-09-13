@@ -1614,6 +1614,11 @@ def _add_strands_agent_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--openai-base-url", default=argparse.SUPPRESS)
     parser.add_argument("--allow-network", action="store_true")
     parser.add_argument("--approve-sensitive-cloud-data", action="store_true")
+    parser.add_argument(
+        "--cloud-pseudonymization",
+        choices=("on", "off"),
+        default=argparse.SUPPRESS,
+    )
     parser.add_argument("--max-turns", type=int, default=4)
     parser.add_argument("--max-tool-calls", type=int, default=4)
     parser.add_argument("--max-prompt-chars", type=int, default=1_000)
@@ -5096,6 +5101,7 @@ def _strands_agent_settings(args: argparse.Namespace) -> StrandsAgentSettings:
         openai_base_url=args.openai_base_url,
         allow_network=args.allow_network,
         allow_sensitive_cloud_data=args.approve_sensitive_cloud_data,
+        cloud_pseudonymization=args.cloud_pseudonymization,
         max_turns=args.max_turns,
         max_tool_calls=args.max_tool_calls,
         max_prompt_chars=args.max_prompt_chars,
@@ -5370,6 +5376,7 @@ _LAUNCH_CONFIG_FIELDS = {
     "anthropic_model_id": str,
     "openai_model_id": str,
     "openai_base_url": str,
+    "cloud_pseudonymization": str,
 }
 _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "resources_file": None,
@@ -5384,6 +5391,7 @@ _LAUNCH_CONFIG_DEFAULTS: dict[str, object] = {
     "anthropic_model_id": None,
     "openai_model_id": None,
     "openai_base_url": None,
+    "cloud_pseudonymization": "on",
 }
 # Everything a preset may carry: the model choice, never a path, port or gate.
 _PRESET_FIELDS = tuple(

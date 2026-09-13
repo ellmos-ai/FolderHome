@@ -360,6 +360,18 @@ Modell auf diesem Rechner), `ollama` auf einem anderen Host, `bedrock`,
 `anthropic`, `openai`. Alles ab dem dritten verlässt diesen Rechner und braucht
 deshalb beide Freigaben, `--allow-network` und `--approve-sensitive-cloud-data`.
 
+Remote-Provider werden zusätzlich durch die standardmäßig aktive
+Cloud-Pseudonymisierung geschützt. Vor jedem Remote-Aufruf ersetzt FolderHome
+bekannte lokale Namen, Kontakte und Kennungen sowie vorsichtig erkannte Muster
+durch sitzungsstabile Platzhalter; Antworten und Werkzeugargumente werden lokal
+zurückgetauscht. Die Zuordnung gelangt nie in Modell-Payloads, Logs oder
+Berichte. Das senkt Risiken, garantiert aber keine Anonymität: Ein unbekannter
+Name im Freitext kann die Mustererkennung passieren, deshalb bleiben beide
+Freigabegates Pflicht. `--cloud-pseudonymization off` beziehungsweise dasselbe
+Feld in `launch.json` schaltet diese Schicht nach einem Neustart bewusst aus und
+erzeugt eine sichtbare Warnung sowie den Status
+`cloud_pseudonymization: "off"`.
+
 ```powershell
 # Optionale Extras; ein Provider wird nur geladen, wenn du ihn auswählst
 .venv\Scripts\pip.exe install -e ".[anthropic]"
