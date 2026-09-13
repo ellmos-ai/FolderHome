@@ -679,7 +679,7 @@ class SetupApplication:
                 if profiles_dir is not None:
                     profile_files: list[tuple[Path, Path]] = []
                     for profile_id, document in sorted(plan["profiles_json"].items()):
-                        target = profiles_dir / _profile_filename(profile_id)
+                        target = _profile_path(profiles_dir, profile_id)
                         entry = (_stage_json(target, document), target)
                         profile_files.append(entry)
                         staged.append(entry)
@@ -730,7 +730,7 @@ class SetupApplication:
             retired_targets = [Path(item) for item in plan["cascade"]["retired_files"]]
             if profiles_dir is not None:
                 retired_targets.extend(
-                    profiles_dir / _profile_filename(profile_id)
+                    _profile_path(profiles_dir, profile_id)
                     for profile_id in plan["removed_profile_ids"]
                 )
             targets = [target for _, target in staged] + retired_targets
@@ -1268,15 +1268,47 @@ def _profile_filename(profile_id: str) -> str:
 
 
 def _existing_profile_ids(directory: Path) -> list[str]:
-    """List the profile ids currently on disk, ignoring the household file."""
+    """Ids of the profiles on disk, read from the documents, not from file names.
+
+    Profile files may carry a legacy or hand-typed name such as ``Hanna.json`` while
+    the document says ``"profile_id": "hanna"`` (the shipped examples do exactly that).
+    Deriving the id from the stem made every save fail with "Unzulässige Profil-ID"
+    (live finding 2026-09-13).
+    """
 
     if not directory.is_dir():
         return []
-    return sorted(
-        path.stem
-        for path in directory.glob("*.json")
-        if path.name.casefold() != HOUSEHOLD_FILENAME
-    )
+    ids: set[str] = set()
+    for path in directory.glob("*.json"):
+        if path.name.casefold() == HOUSEHOLD_FILENAME or path.is_symlink():
+            continue
+        profile_id: object = None
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(document, dict):
+                profile_id = document.get("profile_id")
+        except (OSError, ValueError):
+            profile_id = None
+        if not isinstance(profile_id, str) or _PROFILE_ID.fullmatch(profile_id) is None:
+            profile_id = path.stem.casefold()
+        if _PROFILE_ID.fullmatch(profile_id) is not None:
+            ids.add(profile_id)
+    return sorted(ids)
+
+
+def _profile_path(directory: Path, profile_id: str) -> Path:
+    """The file for a profile id: an existing file with that id in any letter case wins."""
+
+    canonical = directory / _profile_filename(profile_id)
+    if not directory.is_dir():
+        return canonical
+    wanted = canonical.name.casefold()
+    for path in directory.glob("*.json"):
+        # Match by folded name first so the existing spelling (Hanna.json) is kept on
+        # every file system, instead of a second lowercase file appearing on Linux.
+        if path.name.casefold() == wanted and not path.is_symlink():
+            return path
+    return canonical
 
 
 def _api_key_changes(request: dict[str, Any]) -> dict[str, str | None]:
@@ -1468,7 +1500,7 @@ def _retire_profiles(directory: Path, profile_ids: list[str]) -> list[Path]:
     attic.mkdir(parents=True, exist_ok=False)
     retired = []
     for profile_id in sorted(profile_ids):
-        source = directory / _profile_filename(profile_id)
+        source = _profile_path(directory, profile_id)
         if not source.is_file():
             continue
         destination = attic / source.name
