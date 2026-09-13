@@ -155,10 +155,10 @@ test("setup card heading toggles aria-expanded and is-collapsed class on click",
   const h2 = profilesCard.querySelector("h2");
   const head = profilesCard.querySelector(".card-head");
 
-  // Initial state: every card starts collapsed and none is active yet
+  // Initial state: first card is highlighted as active but still starts collapsed
   assert.equal(h2.getAttribute("aria-expanded"), "false");
   assert.equal(profilesCard.classList.contains("is-collapsed"), true);
-  assert.equal(profilesCard.classList.contains("is-active"), false);
+  assert.equal(profilesCard.classList.contains("is-active"), true);
 
   // Click card head to expand
   head.listeners.click();
