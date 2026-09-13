@@ -583,6 +583,14 @@ def test_hero_ctas_and_demo_video_thumbnail() -> None:
     assert ".video-duration" in css
     assert ".video-thumb:focus-visible" in css
 
+    # Video tile is in right hero column (hero-visual) above case-file, not in hero-copy
+    assert '<div class="hero-visual">' in html
+    assert html.index('class="hero-video"') > html.index('class="hero-copy"')
+    assert html.index('class="hero-video"') < html.index('class="case-file"')
+    hero_copy = html.split('<div class="hero-copy">', 1)[1].split('<div class="hero-visual">', 1)[0]
+    assert 'class="hero-video"' not in hero_copy
+    assert ".hero-visual" in css
+
 
 def test_demo_section_headings_per_mode() -> None:
     html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")

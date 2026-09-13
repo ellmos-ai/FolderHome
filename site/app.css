@@ -169,8 +169,8 @@ main { overflow: clip; }
   margin: 0 auto;
   padding: 7.5rem 0 6rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(420px, .8fr);
-  gap: clamp(4rem, 8vw, 9rem);
+  grid-template-columns: minmax(0, 1.05fr) minmax(420px, .95fr);
+  gap: clamp(3rem, 6vw, 7rem);
   align-items: center;
 }
 .eyebrow { margin: 0 0 1.1rem; color: var(--cyan); font-family: var(--mono); font-size: .72rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
@@ -189,6 +189,18 @@ h1 em { display: block; margin-left: clamp(1rem, 7vw, 8rem); color: var(--amber-
 .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; padding: .75rem 1rem; text-decoration: none; font-weight: 750; }
 .button.primary { border-color: var(--amber); background: var(--amber); color: #111827; }
 .button.secondary { background: color-mix(in srgb, var(--paper) 76%, transparent); }
+
+.hero-visual {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 540px;
+  justify-self: end;
+}
+.hero-visual .case-file {
+  width: 100%;
+  margin-top: calc(37px + 1rem);
+}
 
 .case-file { position: relative; transform: rotate(1.2deg); }
 .folder-tab { position: absolute; top: -37px; left: 30px; z-index: 0; min-width: 180px; height: 52px; padding: .75rem 1.2rem; border-radius: 10px 10px 0 0; background: var(--amber); color: #111827; font-family: var(--mono); font-size: .72rem; font-weight: 800; letter-spacing: .1em; }
@@ -458,7 +470,8 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
   .site-header { align-items: flex-start; padding: 1rem 0; }
   .header-actions { flex-wrap: wrap; justify-content: end; }
   .hero { grid-template-columns: 1fr; padding-top: 5rem; }
-  .case-file { width: min(620px, 100%); margin: 2rem auto 0; }
+  .hero-visual { width: min(620px, 100%); margin: 2.5rem auto 0; justify-self: center; }
+  .case-file { width: 100%; margin: calc(37px + 1rem) auto 0; }
   .section-heading { display: grid; }
   .demo-shell { grid-template-columns: 1fr; }
   .mode-chooser { padding: 1.6rem; gap: 1.2rem; }
@@ -573,14 +586,15 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 }
 
 .hero-video {
-  margin-top: 1.4rem;
+  margin: 0;
+  width: 100%;
 }
 
 .video-thumb {
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   gap: .55rem;
-  width: 320px;
+  width: 100%;
   max-width: 100%;
   text-decoration: none;
   color: inherit;
