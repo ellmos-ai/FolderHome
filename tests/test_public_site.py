@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 import re
 from pathlib import Path
 
@@ -21,7 +22,7 @@ def test_public_site_is_bilingual_static_and_transparent() -> None:
 
     assert "VERIFIED LIVE" in html
     assert "REVIEW PENDING" not in html
-    assert "Run the real local demo" in html
+    assert "Install and run locally" in html
     assert 'data-language="de"' in html
     assert 'data-theme="light"' in html
     assert "github.com/ellmos-ai/FolderHome" in html
@@ -218,11 +219,11 @@ def test_live_disclosure_and_synthetic_data_notes_match_contract() -> None:
     javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
 
     assert (
-        "This AWS-hosted page runs the real FolderHome master agent on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered."  # noqa: E501
+        "This AWS-hosted page runs the real FolderHome master agent on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered."
         in javascript
     )
     assert (
-        "Diese AWS-gehostete Seite führt den echten FolderHome-Master-Agenten auf einem synthetischen Haushalt mit 104 Beispieldokumenten aus. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt."  # noqa: E501
+        "Diese AWS-gehostete Seite führt den echten FolderHome-Master-Agenten auf einem synthetischen Haushalt mit 104 Beispieldokumenten aus. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt."
         in javascript
     )
     assert 'id="live-data-note"' in html
@@ -303,7 +304,7 @@ def test_live_chat_helpers_via_node() -> None:
     if node is None:
         pytest.skip("Node.js is needed to execute JS helper functions")
     script = """
-    global.window = { FOLDERHOME_LIVE_DEMO: { enabled: false }, crypto: { randomUUID: () => "00000000" } };  # noqa: E501
+    global.window = { FOLDERHOME_LIVE_DEMO: { enabled: false }, crypto: { randomUUID: () => "00000000" } };
     global.localStorage = { getItem: () => null, setItem: () => {} };
     const dummy = {
       hidden: false,
@@ -325,7 +326,7 @@ def test_live_chat_helpers_via_node() -> None:
       documentElement: { lang: "en", dataset: {} },
     };
     eval(require("fs").readFileSync("site/app.js", "utf8")
-      + "; global.formatToolName = formatToolName; global.formatApiError = formatApiError; global.setLanguage = setLanguage;");  # noqa: E501
+      + "; global.formatToolName = formatToolName; global.formatApiError = formatApiError; global.setLanguage = setLanguage;");
     const e429 = global.formatApiError(429);
     const e503 = global.formatApiError(503);
     const e502 = global.formatApiError(502);
@@ -465,11 +466,11 @@ def test_data_mode_switching_and_contract_via_node() -> None:
       querySelector: (sel) => getEl(sel),
       querySelectorAll: () => [],
       createElement: () => makeElement(),
-      documentElement: { lang: "en", dataset: {}, setAttribute: function(k, v) { this.dataset[k.replace(/^data-/, "")] = v; } },  # noqa: E501
+      documentElement: { lang: "en", dataset: {}, setAttribute: function(k, v) { this.dataset[k.replace(/^data-/, "")] = v; } },
     };
 
     eval(require("fs").readFileSync("site/app.js", "utf8")
-      + "; global.setMode = setMode; global.currentMode = currentMode; global.resetDemo = resetDemo; global.updateLiveConfigUI = updateLiveConfigUI;");  # noqa: E501
+      + "; global.setMode = setMode; global.currentMode = currentMode; global.resetDemo = resetDemo; global.updateLiveConfigUI = updateLiveConfigUI;");
 
     // 1. Initial mode should be "chooser"
     const initMode = global.document.documentElement.dataset.mode;
