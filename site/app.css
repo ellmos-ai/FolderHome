@@ -1081,6 +1081,15 @@ html[data-mode="chat"] .demo-head-case {
   visibility: visible;
   pointer-events: auto;
   position: relative;
+  /* keep the stage height so max-height: 100% on the image has a reference; without it the
+     tall slides (confirmation sequence, product runtime) overflowed and were cropped */
+  width: 100%;
+  height: 100%;
+}
+.slide[data-index="2"] img,
+.slide[data-index="3"] img {
+  max-height: 92%;
+  max-width: 92%;
 }
 
 .slide[hidden] {
