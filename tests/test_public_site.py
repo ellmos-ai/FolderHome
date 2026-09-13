@@ -79,7 +79,9 @@ def test_architecture_slideshow_structure_and_behavior() -> None:
 
     # Four slides defined
     slide_matches = re.findall(r'<div class="slide[^"]*"[^>]*data-index="(\d+)"', html)
-    assert slide_matches == ["0", "1", "2", "3"]
+    assert slide_matches == ["0", "1", "2", "3", "4"]
+    assert 'src="assets/architecture-system-map.png"' in html
+    assert (ROOT / "site" / "assets" / "architecture-system-map.png").stat().st_size <= 220_000
     assert 'src="architecture.svg"' in html
     assert 'src="assets/architecture-agent-flow.png"' in html
     assert 'src="assets/architecture-confirm-sequence.png"' in html

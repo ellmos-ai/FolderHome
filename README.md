@@ -104,7 +104,7 @@ The accepted competition video is public on YouTube:
 flowchart LR
   H[Human / local OS account] --> UI[CLI or local GUI]
   UI --> A[FolderHome Master / Strands Agent 1.53.0]
-  PUB[Public scripted showcase] -. no backend .-> UI
+  PUB[Public page: guided case + free chat] -. synthetic household, budget-metered .-> AC
   AC[Optional AgentCore HTTP runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]

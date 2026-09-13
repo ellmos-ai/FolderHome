@@ -106,7 +106,7 @@ Das abgenommene Wettbewerbsvideo ist öffentlich auf YouTube:
 flowchart LR
   H[Human / local OS account] --> UI[CLI or local GUI]
   UI --> A[FolderHome Master / Strands Agent 1.53.0]
-  PUB[Öffentlicher skriptbasierter Showcase] -. kein Backend .-> UI
+  PUB[Öffentliche Seite: geführter Fall + freier Chat] -. synthetischer Haushalt, budgetiert .-> AC
   AC[Optionaler AgentCore-HTTP-Runtime] --> A
   A --> F[Deterministic fixture model]
   A -. network + data disclosure gates .-> B[Amazon Bedrock]
