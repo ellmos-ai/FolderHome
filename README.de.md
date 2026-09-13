@@ -223,7 +223,8 @@ Vertrag ist lokal getestet. Am 13.09.2026 hat die bereitgestellte Runtime
 durch den öffentlichen Proxy von Anfang bis Ende durchlaufen: Der Nova-Micro-
 Master-Agent machte zwei Modellzüge, der Plan verlangte `/confirm`, und der
 bestätigte Lauf erzeugte vier Ergebnisdateien ohne externe Aktionen
-(`manage.py verify`, Status `verified`). Die Zulassung ist ein kumulierendes
+(`manage.py verify`, Status `verified`); dieselbe Reise wurde am selben Tag nach einem
+unabhängigen Code-Review auf Runtime-Version 10 erneut verifiziert. Die Zulassung ist ein kumulierendes
 Tages-Geldbudget, keine feste Anfragezahl. Die öffentliche CloudFront-
 Konfiguration bleibt `enabled: false`, bis der Eigentümer die Seite freischaltet.
 

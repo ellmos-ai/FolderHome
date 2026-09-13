@@ -130,7 +130,7 @@ flowchart LR
   T1 --> L[LocalApplication]
   T2 --> L
   L --> K[KnowledgeDigest read-only]
-  A --> R[Planning report: tool events and hashes; no execution]
+  A --> R["Planning report: tool events and hashes; no execution"]
 ```
 
 
@@ -190,7 +190,7 @@ sequenceDiagram
   User->>App: Confirm exact section 1
   App->>Domain: Write new local MD and TXT
   Domain-->>App: Verified preview_id and approved_at
-  App-->>User: Letter artifacts; run ready
+  App-->>User: Letter artifacts - run ready
   User->>App: Prepare next section
   App-->>User: Review bound mail draft and lineage
   User->>App: Confirm exact section 2

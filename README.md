@@ -215,7 +215,9 @@ household uploads or perform external actions. On 2026-09-13 the deployed
 runtime (version 8, endpoint `budget_v8`) completed one Bedrock-backed synthetic
 journey end to end through the public proxy: the Nova Micro master agent ran two
 model turns, the plan required `/confirm`, and the confirmed run produced four
-result files with no external actions (`manage.py verify`, status `verified`).
+result files with no external actions (`manage.py verify`, status `verified`);
+the same journey was re-verified on runtime version 10 after an independent code
+review the same day.
 Admission is a cumulative daily money ledger, not a fixed request count. The
 public CloudFront configuration remains `enabled: false` until the owner
 publishes the site.

@@ -52,7 +52,8 @@
 - [x] Verify one Bedrock-backed AgentCore journey only after AWS assigns non-zero
   on-demand quotas and the user separately authorizes `manage.py verify`
   (done 2026-09-13: runtime version 8, endpoint `budget_v8`, status `verified`,
-  four result files; site still `enabled: false`)
+  four result files; re-verified on version 10 / `budget_v10` after the Codex code
+  review; budget USD 195 for the window; site still `enabled: false`)
 - [x] Record final working demo from the verified build
 - [x] Verify that v2 has no embedded subtitle stream and retains privacy and
   synthetic-data labels
