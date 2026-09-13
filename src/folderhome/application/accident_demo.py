@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import shutil
+import stat
 import threading
 from base64 import b64encode
 from hashlib import sha256
@@ -120,9 +124,7 @@ _LETTER_REQUEST = {
         "police_reference": "SYN-POLICE-0822",
     },
     "attachments": ["Synthetic accident note", "Synthetic police reference"],
-    "evidence_refs": [
-        "doc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-    ],
+    "evidence_refs": ["doc_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
 }
 
 _LETTER_DESIGNS = {
@@ -169,6 +171,21 @@ _LETTER_TEMPLATES = {
 }
 
 _MAX_INLINE_RESULT_BYTES = 262_144
+_MAX_RESULT_FILES = 12
+_PUBLIC_TOOLS = frozenset(
+    {
+        "search_home_documents",
+        "build_home_theme_dossier",
+        "list_home_capabilities",
+        "list_home_resources",
+        "consult_home_specialist",
+        "list_home_recipes",
+        "propose_home_recipe",
+        "list_home_recipe_runs",
+        "propose_next_recipe_stage",
+        "propose_home_workflow",
+    }
+)
 _INLINE_CONTENT_TYPES = {
     ".ics": "text/calendar; charset=utf-8",
     ".json": "application/json; charset=utf-8",
@@ -317,9 +334,7 @@ class _SyntheticInsuranceSearcher:
                 word_count=61,
             ),
         )
-        existing = tuple(
-            hit for hit in hits if (self._document_root / hit.filename).is_file()
-        )
+        existing = tuple(hit for hit in hits if (self._document_root / hit.filename).is_file())
         return existing[:limit]
 
 
@@ -332,10 +347,24 @@ class SyntheticAccidentDemo:
         *,
         agent_settings: StrandsAgentSettings | None = None,
         specialist_agent_settings: StrandsAgentSettings | None = None,
+        full_household: bool = False,
+        examples_root: Path | None = None,
     ) -> None:
+        _assert_no_links(workspace_root.absolute())
         root = workspace_root.resolve()
         if root == Path(root.anchor):
             raise SyntheticAccidentDemoError("Demo workspace may not be a filesystem root.")
+        self.full_household = full_household
+        packaged_examples = Path(__file__).resolve().parents[1] / "demo_data" / "household"
+        self.examples_root = examples_root or (
+            packaged_examples
+            if packaged_examples.is_dir()
+            else Path(__file__).resolve().parents[3] / "examples"
+        )
+        if full_household:
+            if not _safe_files(self.examples_root):
+                raise SyntheticAccidentDemoError("Synthetic household examples are unavailable.")
+            load_profile_configuration(self.examples_root / "profiles")
         self.runtime_root = root / "synthetic-accident-demo"
         self._claim_runtime_root()
         self._lock = threading.RLock()
@@ -343,13 +372,13 @@ class SyntheticAccidentDemo:
         self._executed_plan_ids: set[str] = set()
         self._application: LocalApplication | None = None
         self._specialist_application: LocalApplication | None = None
+        self._turns = 0
+        self._has_results = False
         self.agent_settings = agent_settings or StrandsAgentSettings(
             model_provider="fixture",
             max_conversation_messages=64,
         )
-        self.specialist_agent_settings = (
-            specialist_agent_settings or self.agent_settings
-        )
+        self.specialist_agent_settings = specialist_agent_settings or self.agent_settings
         self._seed_workspace()
 
     def _claim_runtime_root(self) -> None:
@@ -389,17 +418,23 @@ class SyntheticAccidentDemo:
                 "generated_results": self._generated_results(),
             }
 
-    def prepare(self, prompt: str = DEFAULT_ACCIDENT_PROMPT) -> dict[str, object]:
+    def prepare(
+        self,
+        prompt: str = DEFAULT_ACCIDENT_PROMPT,
+        *,
+        agent_report=None,
+    ) -> dict[str, object]:
         normalized = " ".join(prompt.split())
         if not normalized or len(normalized) > 1_000:
             raise SyntheticAccidentDemoError("Demo prompt must contain 1 to 1000 characters.")
         with self._lock:
-            if self._generated_results():
+            if not self.full_household and self._generated_results():
                 raise SyntheticAccidentDemoError(
                     "Demo already has results; reset it before preparing another journey."
                 )
-            self._application = self._build_application(self.agent_settings)
-            search = self._application.run_agent_chat(
+            if self._application is None:
+                self._application = self._build_application(self.agent_settings)
+            search = agent_report or self._application.run_agent_chat(
                 profile_id="lukas",
                 message=normalized,
             )
@@ -450,9 +485,130 @@ class SyntheticAccidentDemo:
                     "master_agent" if fallback_search is None else "deterministic_fallback"
                 ),
                 "deterministic_search": fallback_search,
+                "plan_source": "deterministic_fallback",
             }
             self._prepared = prepared
             return _copy_json(prepared)
+
+    def chat(self, prompt: str) -> dict[str, object]:
+        """Keep the real master application (and its prior_messages) for this session."""
+        normalized = " ".join(prompt.split())
+        if not 1 <= len(normalized) <= 1_000 or normalized.startswith("/"):
+            raise SyntheticAccidentDemoError("Use a prompt of 1 to 1000 characters.")
+        with self._lock:
+            _safe_files(self.runtime_root)
+            before = self._output_snapshot()
+            if self._application is None:
+                self._application = self._build_application(self.agent_settings)
+            report = self._application.run_agent_chat(profile_id="lukas", message=normalized)
+            self._turns += 1
+            # Only the published regression journey gets an explicitly labelled fallback.
+            # Ordinary questions about insurance are ordinary master-agent turns.
+            if normalized == DEFAULT_ACCIDENT_PROMPT:
+                plan = self.prepare(normalized, agent_report=report)
+                plan = {
+                    key: value
+                    for key, value in plan.items()
+                    if key not in {"agent_search", "deterministic_search", "prompt"}
+                }
+                self._prepared = plan
+            elif report.proposed_plans:
+                proposed = report.proposed_plans[0]
+                plan = {
+                    "schema": proposed.SCHEMA,
+                    "plan_id": proposed.plan_id,
+                    "plan_sha256": proposed.plan_sha256,
+                    "confirmation_command": f"/confirm {proposed.plan_id}",
+                    "status": "confirmation_required",
+                    "plan_source": "master_agent",
+                    "network_used": report.network_used,
+                    "external_actions_performed": [],
+                    "detected_documents": [],
+                    "steps": [
+                        {
+                            key: value
+                            for key, value in step.to_dict().items()
+                            if key not in {"cli_commands", "execution_envelope"}
+                        }
+                        for step in proposed.steps
+                    ],
+                }
+                self._prepared = plan
+            else:
+                plan = None
+            results = self._changed_results(before)
+            response = report.response_text
+            if plan is not None and plan["plan_id"] in self._executed_plan_ids:
+                plan = None
+                response += (
+                    "\nThis exact plan was already confirmed. Use /reset for a fresh household."
+                )
+            if plan is not None:
+                response += f"\nReview the plan, then send {plan['confirmation_command']} exactly."
+            return {
+                "response": response,
+                "tool_events": _public_tool_events(report.tool_events),
+                "model_turns": report.model_turns,
+                "stop_reason": report.stop_reason,
+                "planning_specialist_model_provider": self.agent_settings.model_provider,
+                "plan": plan,
+                "result": {"generated_results": results} if results else None,
+                "session_state": self.session_state(),
+                "external_network_used": report.network_used,
+            }
+
+    def session_state(self) -> dict[str, object]:
+        return {
+            "turns": self._turns,
+            "has_plan": self._prepared is not None
+            and self._prepared["plan_id"] not in self._executed_plan_ids,
+            "has_results": self._has_results,
+        }
+
+    def _confirm_master_plan(self, plan_id: str) -> dict[str, object]:
+        application = self._application
+        plan = application.proposed_agent_plan(plan_id)
+        if plan is None:
+            raise SyntheticAccidentDemoError("The confirmed plan is unknown or stale.")
+        before = self._output_snapshot()
+        confirmation = application.confirm_agent_plan(
+            plan_id=plan_id,
+            plan_sha256=self._prepared["plan_sha256"],
+            step_ids=tuple(step.step_id for step in plan.steps if step.confirmation_required),
+        )
+        self._executed_plan_ids.add(plan_id)
+        reports = confirmation.get("execution_reports", [])
+        executed = {item["envelope_id"] for item in reports if item.get("execution_performed")}
+        steps = [
+            {
+                "step_id": step.step_id,
+                "workflow_id": step.workflow_id,
+                "status": "executed"
+                if step.execution_envelope is not None
+                and step.execution_envelope.envelope_id in executed
+                else "not_executed",
+            }
+            for step in plan.steps
+        ]
+        complete = all(step["status"] == "executed" for step in steps)
+        return {
+            "schema": "folderhome.synthetic-accident-demo-result.v1",
+            "status": "executed"
+            if complete
+            else ("partially_executed" if confirmation["execution_performed"] else "not_executed"),
+            "plan_id": plan_id,
+            "plan_sha256": plan.plan_sha256,
+            "network_used": False,
+            "external_actions_performed": [],
+            "local_actions_performed": confirmation["side_effects"],
+            "mail_sent": False,
+            "external_calendar_used": False,
+            "phone_call_made": False,
+            "executions": steps,
+            "execution_outcome_unknown": confirmation.get("execution_outcome_unknown", False),
+            "result_delivery_incomplete": confirmation.get("result_delivery_incomplete", False),
+            "generated_results": self._changed_results(before),
+        }
 
     def _deterministic_search(self, query: str) -> dict[str, object]:
         """Run the local search the master agent was expected to call."""
@@ -485,7 +641,6 @@ class SyntheticAccidentDemo:
             )
         return dict(response.payload)
 
-
     def confirm(self, command: str) -> dict[str, object]:
         with self._lock:
             parts = command.split()
@@ -498,6 +653,10 @@ class SyntheticAccidentDemo:
                 raise SyntheticAccidentDemoError("The confirmed plan is unknown or stale.")
             if plan_id in self._executed_plan_ids:
                 raise SyntheticAccidentDemoError("This plan was already executed.")
+            _safe_files(self.runtime_root)
+            if self._prepared.get("plan_source") == "master_agent":
+                return self._confirm_master_plan(plan_id)
+            before = self._output_snapshot() if self.full_household else {}
             application = self._application
             if application is None:
                 raise SyntheticAccidentDemoError("The prepared demo runtime is unavailable.")
@@ -538,9 +697,7 @@ class SyntheticAccidentDemo:
                     plan_id=plan.plan_id,
                     plan_sha256=plan.plan_sha256,
                     step_ids=tuple(
-                        step.step_id
-                        for step in plan.steps
-                        if step.confirmation_required
+                        step.step_id for step in plan.steps if step.confirmation_required
                     ),
                 )
                 if not confirmation["execution_performed"]:
@@ -571,8 +728,17 @@ class SyntheticAccidentDemo:
                 "mail_sent": False,
                 "external_calendar_used": False,
                 "phone_call_made": False,
-                "executions": executions,
-                "generated_results": self._generated_results(),
+                "executions": executions
+                if not self.full_household
+                else [
+                    {"workflow_id": item["workflow_id"], "status": "executed"}
+                    for item in executions
+                ],
+                "generated_results": (
+                    self._changed_results(before)
+                    if self.full_household
+                    else self._generated_results()
+                ),
             }
             return _copy_json(result)
 
@@ -580,6 +746,8 @@ class SyntheticAccidentDemo:
         """Remove only demo-owned outputs and state files, then restore fixtures."""
 
         with self._lock:
+            if self.full_household:
+                return self.destroy()
             owned_files = [self.runtime_root / "outputs" / name for name in _RESULT_FILES]
             for relative in (
                 Path("state/contacts/contacts.sqlite3"),
@@ -609,6 +777,27 @@ class SyntheticAccidentDemo:
                 "generated_results": [],
             }
 
+    def destroy(self) -> dict[str, object]:
+        """Remove this owned cloud session, never a link target or a foreign directory."""
+        with self._lock:
+            _safe_files(self.runtime_root)
+            marker = self.runtime_root / _OWNERSHIP_MARKER
+            if marker.read_text(encoding="utf-8") != _OWNERSHIP_MARKER_CONTENT:
+                raise SyntheticAccidentDemoError("Demo ownership marker is invalid.")
+            shutil.rmtree(self.runtime_root)
+            self._application = None
+            self._specialist_application = None
+            self._prepared = None
+            self._executed_plan_ids.clear()
+            self._turns = 0
+            self._has_results = False
+            return {
+                "schema": "folderhome.synthetic-accident-demo-reset.v1",
+                "status": "reset",
+                "synthetic_demo_data": True,
+                "generated_results": [],
+            }
+
     def result_file(self, filename: str) -> Path:
         if filename not in _RESULT_FILES:
             raise SyntheticAccidentDemoError("Unknown demo result file.")
@@ -618,6 +807,17 @@ class SyntheticAccidentDemo:
         return path
 
     def _seed_workspace(self) -> None:
+        _safe_files(self.runtime_root)
+        if self.full_household:
+            source = self.examples_root.absolute()
+            files = _safe_files(source)
+            if not files or not (source / "profiles" / "Lukas.json").is_file():
+                raise SyntheticAccidentDemoError("Synthetic household examples are unavailable.")
+            destination = self.runtime_root / "examples"
+            for original in files:
+                target = destination / original.relative_to(source)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(original, target)
         documents = self.runtime_root / "documents"
         follow_up = self.runtime_root / "follow-up"
         correspondence = self.runtime_root / "correspondence"
@@ -643,8 +843,13 @@ class SyntheticAccidentDemo:
             path.write_text(content, encoding="utf-8")
         extractor = _PlainTextExtractor()
         catalog_entries = []
-        for name in ("KFZ_Hyundai_i10_2026.txt", "KFZ_Hyundai_i10_2025.txt"):
-            entry = extractor.extract(documents / name).to_dict()
+        catalog_files = [
+            documents / name for name in ("KFZ_Hyundai_i10_2026.txt", "KFZ_Hyundai_i10_2025.txt")
+        ]
+        if self.full_household:
+            catalog_files.extend(_safe_files(self.runtime_root / "examples"))
+        for path in catalog_files:
+            entry = extractor.extract(path).to_dict()
             entry.pop("text", None)
             catalog_entries.append(entry)
         (state / "folderhome-catalog.json").write_text(
@@ -661,7 +866,10 @@ class SyntheticAccidentDemo:
         self,
         agent_settings: StrandsAgentSettings,
     ) -> LocalApplication:
-        profiles = load_profile_configuration(_PROFILE_DIR)
+        profile_dir = (
+            self.runtime_root / "examples" / "profiles" if self.full_household else _PROFILE_DIR
+        )
+        profiles = load_profile_configuration(profile_dir)
         profile_ids = frozenset(item.profile_id for item in profiles.profiles)
         documents = self.runtime_root / "documents"
         follow_up = self.runtime_root / "follow-up"
@@ -671,6 +879,23 @@ class SyntheticAccidentDemo:
         registry = ResourceRegistry(
             os_account=profiles.os_account,
             resources=(
+                tuple(
+                    LogicalResource(
+                        f"household_{path.name}",
+                        "directory",
+                        path,
+                        frozenset({"list", "read", "sensitive_read"}),
+                        frozenset({f"{path.name}.source"}),
+                        profile_ids,
+                        "synthetic_only",
+                    )
+                    for path in sorted((self.runtime_root / "examples").iterdir())
+                    if path.is_dir()
+                )
+                if self.full_household
+                else ()
+            )
+            + (
                 LogicalResource(
                     "insurance_documents",
                     "directory",
@@ -730,9 +955,7 @@ class SyntheticAccidentDemo:
                     "directory",
                     outputs,
                     frozenset({"create"}),
-                    frozenset(
-                        {"contract_cockpit.output", "correspondence.output"}
-                    ),
+                    frozenset({"contract_cockpit.output", "correspondence.output"}),
                     frozenset({"lukas"}),
                     "deny",
                 ),
@@ -768,7 +991,11 @@ class SyntheticAccidentDemo:
             known_profile_ids=profile_ids,
         )
         extractor = _PlainTextExtractor()
-        searcher = _SyntheticInsuranceSearcher(documents)
+        searcher = (
+            _SyntheticHouseholdSearcher(self.runtime_root)
+            if self.full_household
+            else _SyntheticInsuranceSearcher(documents)
+        )
         gateway = WorkflowExecutionGateway(
             (
                 ContactRegisterWorkflowAdapter(registry=registry, extractor=extractor),
@@ -795,7 +1022,7 @@ class SyntheticAccidentDemo:
             settings=LocalAppSettings(
                 host="127.0.0.1",
                 port=8767,
-                profiles_dir=_PROFILE_DIR,
+                profiles_dir=profile_dir,
                 state_dir=state,
                 max_query_limit=10,
             ),
@@ -806,6 +1033,52 @@ class SyntheticAccidentDemo:
             workflow_executor=gateway,
             resource_registry=registry,
         )
+
+    def _output_snapshot(self) -> dict[Path, tuple[str, int]]:
+        roots = {self.runtime_root / "outputs"}
+        if self._application is not None:
+            for resource in self._application.resource_registry.resources:
+                if resource.kind == "directory" and "create" in resource.operations:
+                    roots.add(resource.local_path)
+        snapshot = {}
+        for root in roots:
+            _assert_no_links(root)
+            if not root.resolve().is_relative_to(self.runtime_root):
+                raise SyntheticAccidentDemoError("Output directory is outside the session.")
+            for path in _safe_files(root):
+                digest = sha256()
+                size = 0
+                with path.open("rb") as stream:
+                    while chunk := stream.read(65_536):
+                        digest.update(chunk)
+                        size += len(chunk)
+                snapshot[path] = (digest.hexdigest(), size)
+        return snapshot
+
+    def _changed_results(self, before: dict[Path, tuple[str, int]]) -> list[dict[str, object]]:
+        after = self._output_snapshot()
+        results = []
+        for path, (digest, size) in sorted(after.items()):
+            if before.get(path) == (digest, size):
+                continue
+            if len(results) >= _MAX_RESULT_FILES:
+                break
+            content_type = _INLINE_CONTENT_TYPES.get(
+                path.suffix.casefold(), "application/octet-stream"
+            )
+            with path.open("rb") as stream:
+                content = stream.read(_MAX_INLINE_RESULT_BYTES + 1)
+            results.append(
+                {
+                    "filename": path.name,
+                    "sha256": digest,
+                    "size_bytes": size,
+                    "content_type": content_type,
+                    **_inline_content(content, content_type, workspace=str(self.runtime_root)),
+                }
+            )
+        self._has_results = bool(after)
+        return results
 
     def _generated_results(self) -> list[dict[str, object]]:
         results = []
@@ -846,6 +1119,12 @@ def _inline_content(
 
     if len(payload) > _MAX_INLINE_RESULT_BYTES:
         return {"inline": False, "inline_skipped_reason": "size_limit"}
+    variants = {workspace, workspace.replace("\\", "/"), workspace.replace("/", "\\")}
+    if any(
+        value.encode("utf-8") in payload or json.dumps(value)[1:-1].encode() in payload
+        for value in variants
+    ):
+        return {"inline": False, "inline_skipped_reason": "local_paths"}
     if content_type.startswith("text/") or content_type.startswith("application/json"):
         try:
             text = payload.decode("utf-8")
@@ -864,6 +1143,101 @@ def _inline_content(
         "content_encoding": "base64",
         "content": b64encode(payload).decode("ascii"),
     }
+
+
+def _assert_no_links(path: Path) -> None:
+    for item in (path, *path.parents):
+        reparse = (
+            item.exists()
+            and getattr(item.lstat(), "st_file_attributes", 0) & stat.FILE_ATTRIBUTE_REPARSE_POINT
+        )
+        if item.is_symlink() or reparse:
+            raise SyntheticAccidentDemoError("Demo workspace may not contain a symbolic link.")
+        if item.is_file() and item.stat().st_nlink > 1:
+            raise SyntheticAccidentDemoError("Demo workspace may not contain a hard link.")
+
+
+def _safe_files(root: Path) -> list[Path]:
+    _assert_no_links(root)
+    files = []
+    for directory, dirs, names in os.walk(root, followlinks=False):
+        for name in dirs + names:
+            path = Path(directory) / name
+            _assert_no_links(path)
+            if path.is_file():
+                files.append(path)
+    return sorted(files)
+
+
+def _public_tool_events(events) -> list[dict[str, str]]:
+    return [
+        {
+            "tool_name": item.tool_name if item.tool_name in _PUBLIC_TOOLS else "unknown_tool",
+            "status": "ok" if item.status in {"executed", "ok"} else "error",
+        }
+        for item in events
+    ]
+
+
+class _SyntheticHouseholdSearcher:
+    """Read only session copies; return bounded excerpts without filesystem locators."""
+
+    def __init__(self, root: Path) -> None:
+        self.root = root
+
+    def search(self, query: str, *, limit: int = 20) -> tuple[KnowledgeDigestSearchHit, ...]:
+        insurance = (
+            _SyntheticInsuranceSearcher(self.root / "documents").search(query, limit=limit)
+            if "hyundai" in query.casefold() or "i10" in query.casefold()
+            else ()
+        )
+        terms = {term for term in re.findall(r"\w+", query.casefold()) if len(term) > 2}
+        terms -= {
+            "the",
+            "and",
+            "with",
+            "find",
+            "current",
+            "older",
+            "please",
+            "meine",
+            "mein",
+            "bitte",
+            "suche",
+            "für",
+            "der",
+            "die",
+            "das",
+            "und",
+            "mit",
+            "dokumente",
+        }
+        ranked = []
+        files = _safe_files(self.root / "examples") + _safe_files(self.root / "documents")
+        for path in files:
+            if any(hit.filename == path.name for hit in insurance):
+                continue
+            content = path.read_text(encoding="utf-8")
+            folded = content.casefold()
+            score = sum(term in folded or term in path.name.casefold() for term in terms)
+            if score:
+                position = min((folded.find(term) for term in terms if term in folded), default=0)
+                ranked.append(
+                    (
+                        score,
+                        path.relative_to(self.root).as_posix(),
+                        KnowledgeDigestSearchHit(
+                            source="document",
+                            filename=path.name,
+                            file_type=path.suffix.lstrip("."),
+                            snippet=content[max(0, position - 80) : position + 900],
+                            relevance=-float(score),
+                            word_count=len(content.split()),
+                        ),
+                    )
+                )
+        ranked.sort(key=lambda item: (-item[0], item[1]))
+        return (insurance + tuple(item[2] for item in ranked))[:limit]
 
 
 def _canonical_json(payload: object) -> bytes:
@@ -900,9 +1274,7 @@ def _detected_policies(search_payload: dict[str, object]) -> list[dict[str, str]
     """Derive the plan's evidence from real hits instead of asserting it."""
     result = search_payload.get("result")
     hits = result.get("hits", []) if isinstance(result, dict) else []
-    filenames = {
-        hit.get("filename") for hit in hits if isinstance(hit, dict) and "filename" in hit
-    }
+    filenames = {hit.get("filename") for hit in hits if isinstance(hit, dict) and "filename" in hit}
     missing = [name for name, _ in _EXPECTED_POLICIES if name not in filenames]
     if missing:
         raise SyntheticAccidentDemoError(

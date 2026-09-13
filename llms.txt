@@ -103,6 +103,34 @@ flags. Setup saves the active preset and its flat fields together; editing only
 Restart the app after saving a new choice. There is no runtime provider switch.
 Verification starts at zero in each process. Status reads never probe a provider.
 
+## Hosted synthetic household chat
+
+The optional AgentCore `/invocations` endpoint accepts a 1–1000-character prompt
+and a separate runtime session header. One persistent `LocalApplication` per
+session retains the bounded conversation over a copy of all `examples/` files
+plus the accident fixtures. The response schema stays
+`folderhome.agentcore-response.v1`: `response` contains the model answer,
+`tool_events` exposes only tool names and `ok|error`, `model_turns` counts master
+cycles, `plan` and `result` may be null, and `session_state` reports turns and
+whether a pending plan or results exist. `stop_reason` exposes the model's stop
+condition. The first proposed plan requires its exact `/confirm <plan_id>`;
+the published default accident prompt retains a labelled deterministic
+four-step fallback. Other prompts are not forced into that scenario.
+
+Changed output files are returned inline in `result.generated_results` (at most
+12 files, 262144 bytes each, serialized response below 1.5 MiB); oversized or
+path-bearing content is withheld with a reason. `/reset` removes the session
+root; capacity evicts the least recently used idle session. The four existing
+local accident adapters remain the only connected effect paths. No external
+mail, calendar or phone action is enabled. Budget admission remains one reviewed
+reservation per proxy forward. Planning specialists in free chat inherit the
+master model; `specialist_model_provider` retains its accident-confirmation
+meaning and `planning_specialist_model_provider` identifies the planning model.
+
+Deployment prerequisite: copy the complete synthetic tree into
+`folderhome/demo_data/household/` in the runtime ZIP/image. The packaging scripts
+still need that addition before this source change is deployed.
+
 ## Model providers
 
 - `fixture` — deterministic, no model, no network. The default, and enough for
