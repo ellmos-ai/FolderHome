@@ -124,6 +124,16 @@ function setupDOM() {
 
   makeCard("profiles", "1. Profiles");
   makeCard("folders", "2. Folders");
+  const runtimeCard = makeCard("runtime", "6. Runtime");
+  const outsideHome = new MockElement("input");
+  outsideHome.setAttribute("id", "outside-home");
+  outsideHome.setAttribute("type", "checkbox");
+  outsideHome.focus = () => { outsideHome._focused = true; };
+  const checkboxLabel = new MockElement("label");
+  checkboxLabel.classList.add("checkbox");
+  checkboxLabel.append(outsideHome);
+  outsideHome.closest = sel => sel === ".checkbox" ? checkboxLabel : null;
+  runtimeCard.querySelector(".card-body").append(checkboxLabel);
   makeCard("calendar", "7. Calendar");
   makeCard("summary", "9. Summary and save");
 
@@ -137,6 +147,7 @@ function setupDOM() {
     saveButton: { disabled: false },
     checkedPlan: null,
     t: k => k,
+    setTimeout: (fn, ms) => ({ fn, ms }),
   });
 
   const source = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.js"), "utf8");
@@ -207,4 +218,24 @@ test("validation error expands the corresponding card and sets has-error", () =>
   assert.equal(calendarCard.classList.contains("is-collapsed"), false);
   assert.equal(calendarCard.classList.contains("has-error"), true);
   assert.equal(calendarCard.classList.contains("is-active"), true);
+});
+
+test("outside-home error navigates to section 6, focuses outside-home checkbox, and highlights it", () => {
+  const { context, root } = setupDOM();
+  context.initCollapsibleCards();
+
+  const runtimeCard = root.querySelector('[data-card-id="runtime"]');
+  const h2 = runtimeCard.querySelector("h2");
+  const outsideHome = root.querySelector("#outside-home");
+
+  assert.equal(runtimeCard.classList.contains("is-collapsed"), true);
+  assert.equal(h2.getAttribute("aria-expanded"), "false");
+
+  context.jumpToError("folders[0]", "Ordner liegt außerhalb des eigenen Benutzerordners; bestätige das ausdrücklich (→ Bestätigung in Abschnitt 6).");
+
+  assert.equal(runtimeCard.classList.contains("is-collapsed"), false);
+  assert.equal(h2.getAttribute("aria-expanded"), "true");
+  assert.equal(outsideHome._focused, true);
+  const label = outsideHome.parent;
+  assert.equal(label.classList.contains("is-highlight-target"), true);
 });

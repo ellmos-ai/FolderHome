@@ -723,6 +723,7 @@ def test_setup_save_rejects_a_folder_outside_home_without_confirmation(
 
     assert blocked.payload["valid"] is False
     assert "außerhalb" in blocked.payload["errors"][0]["message"]
+    assert "Bestätigung in Abschnitt 6" in blocked.payload["errors"][0]["message"]
     assert allowed.payload["valid"] is True
 
 

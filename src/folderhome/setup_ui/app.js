@@ -379,10 +379,11 @@ function setActiveCard(card) {
 function expandCardForError(text) {
   const str = String(text).toLowerCase();
   let targetId = "profiles";
-  if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
+  if (str.includes("außerhalb") || str.includes("abschnitt 6") || str.includes("outside_home") || str.includes("outside home") || str.includes("outside user folder")) targetId = "runtime";
+  else if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
   else if (str.includes("model") || str.includes("preset") || str.includes("ollama") || str.includes("bedrock") || str.includes("anthropic") || str.includes("openai") || str.includes("provider")) targetId = "model";
   else if (str.includes("key") || str.includes("api_key")) targetId = "keys";
-  else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir") || str.includes("outside_home")) targetId = "runtime";
+  else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir")) targetId = "runtime";
   else if (str.includes("calendar")) targetId = "calendar";
   else if (str.includes("scheduler")) targetId = "scheduler";
   else if (str.includes("profile") || str.includes("rule")) targetId = "profiles";
@@ -393,6 +394,31 @@ function expandCardForError(text) {
     setCardExpanded(card, true);
     setActiveCard(card);
   }
+  return card;
+}
+
+function jumpToError(field, message) {
+  const str = `${field} ${message}`.toLowerCase();
+  if (str.includes("außerhalb") || str.includes("abschnitt 6") || str.includes("outside_home") || str.includes("outside home") || str.includes("outside user folder")) {
+    const runtimeCard = document.querySelector('.card[data-card-id="runtime"]');
+    if (runtimeCard) {
+      setCardExpanded(runtimeCard, true);
+      setActiveCard(runtimeCard);
+    }
+    const chk = document.querySelector("#outside-home");
+    if (chk) {
+      if (chk.focus) chk.focus();
+      const parentLabel = (chk.closest && chk.closest(".checkbox")) || chk;
+      if (parentLabel.classList) {
+        parentLabel.classList.add("is-highlight-target");
+        if (typeof setTimeout === "function") {
+          setTimeout(() => parentLabel.classList.remove("is-highlight-target"), 2500);
+        }
+      }
+    }
+    return;
+  }
+  expandCardForError(`${field} ${message}`);
 }
 
 function initCollapsibleCards() {
@@ -1359,8 +1385,16 @@ function renderPlan(plan) {
   if (!plan.valid) {
     summary.append(textElement("p", t("checkFailed"), "error"));
     const list = document.createElement("ul");
+    list.className = "error-list";
     for (const item of plan.errors) {
-      list.append(textElement("li", `${item.field}: ${item.message}`));
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "error-jump-button";
+      btn.textContent = `${item.field}: ${item.message}`;
+      btn.addEventListener("click", () => jumpToError(item.field, item.message));
+      li.append(btn);
+      list.append(li);
       expandCardForError(`${item.field} ${item.message}`);
     }
     summary.append(list);

@@ -1599,7 +1599,7 @@ def _check_folder(entry: dict[str, Any], errors: list[dict[str, str]]) -> None:
                 "field": entry["field"],
                 "message": (
                     "Ordner liegt außerhalb des eigenen Benutzerordners; bestätige das "
-                    "ausdrücklich."
+                    "ausdrücklich (→ Bestätigung in Abschnitt 6)."
                 ),
             }
         )
