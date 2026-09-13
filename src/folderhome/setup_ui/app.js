@@ -404,6 +404,10 @@ function initCollapsibleCards() {
     const head = card.querySelector(".card-head");
     const h2 = card.querySelector("h2");
     if (!head || !h2) return;
+    // initCollapsibleCards runs at load and again after the setup payload arrives;
+    // a second pass must not add a second toggle (two toggles per click cancel out).
+    if (card.dataset.collapsibleInit === "1") return;
+    card.dataset.collapsibleInit = "1";
 
     const stored = getStoredCardState(cardId);
     let expanded = stored !== null ? stored === "true" : false; // start collapsed; expand on demand
