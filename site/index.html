@@ -84,6 +84,34 @@
       </div>
 
       <div class="demo-shell">
+        <div class="mode-chooser" id="mode-chooser" aria-label="Demo mode selection">
+          <article class="entry-tile" id="tile-case">
+            <div class="tile-header">
+              <span class="tile-tag" data-en="Guided case" data-de="Geführter Fall">Guided case</span>
+              <h3 data-en="Try the test case: Hyundai i10 insurance claim" data-de="Testfall ausprobieren: Hyundai-i10-Versicherungsfall">Try the test case: Hyundai i10 insurance claim</h3>
+            </div>
+            <p class="tile-desc" data-en="Guided walkthrough with four bounded steps: search policies → resolve contact → draft claim → exact /confirm → four synthetic files created." data-de="Geführter Fall mit vier begrenzten Schritten: Policen finden → Kontakt ermitteln → Schaden entwerfen → exaktes /confirm → vier erzeugte Dateien.">Guided walkthrough with four bounded steps: search policies → resolve contact → draft claim → exact /confirm → four synthetic files created.</p>
+            <div class="tile-footer">
+              <button type="button" class="button primary tile-button" id="start-case-btn" data-en="Start test case" data-de="Testfall starten">Start test case</button>
+            </div>
+          </article>
+
+          <article class="entry-tile" id="tile-chat">
+            <div class="tile-header">
+              <span class="tile-tag" data-en="Free exploration" data-de="Freies Erkunden">Free exploration</span>
+              <h3 data-en="Try it in your own words" data-de="In eigenen Worten ausprobieren">Try it in your own words</h3>
+            </div>
+            <p class="tile-desc" data-en="Real FolderHome master agent on a synthetic household (104 example documents: insurance, health, taxes, contracts, calendar…). Nothing is real data, external actions disabled, every turn budget-metered." data-de="Echter FolderHome-Master-Agent über einen synthetischen Haushalt (104 Beispieldokumente: Versicherungen, Gesundheit, Steuern, Verträge, Kalender …). Nichts davon echt, externe Aktionen aus, jeder Zug budgetiert.">Real FolderHome master agent on a synthetic household (104 example documents: insurance, health, taxes, contracts, calendar…). Nothing is real data, external actions disabled, every turn budget-metered.</p>
+            <div class="tile-footer">
+              <button type="button" class="button secondary tile-button" id="start-chat-btn" disabled data-en="Open free chat" data-de="Freien Chat öffnen">Open free chat</button>
+              <div class="tile-static-note" id="chat-static-note">
+                <small data-en="Free chat needs the hosted runtime." data-de="Freier Chat braucht die gehostete Runtime.">Free chat needs the hosted runtime.</small>
+                <a href="https://github.com/ellmos-ai/FolderHome#quick-test-for-jurors" target="_blank" rel="noopener noreferrer" data-en="See repo recipe ↗" data-de="Zum Repo-Rezept ↗">See repo recipe ↗</a>
+              </div>
+            </div>
+          </article>
+        </div>
+
         <aside class="case-index" aria-label="Case workflow">
           <div class="index-title"><span>CASE 01</span><b>Accident → claim</b></div>
           <ol id="workflow-steps">
@@ -96,16 +124,23 @@
         </aside>
 
         <div class="chat-panel">
-          <div class="chat-topbar"><div><i class="status-light"></i><span data-en="FolderHome master · fixture ready" data-de="FolderHome-Master · Fixture bereit">FolderHome master · fixture ready</span></div><button type="button" id="reset-demo" class="text-button" data-en="Reset case" data-de="Fall zurücksetzen">Reset case</button></div>
+          <div class="chat-topbar">
+            <div class="topbar-nav">
+              <button type="button" id="back-to-chooser" class="text-button back-link" data-en="← Options" data-de="← Auswahl">← Options</button>
+              <div class="topbar-status"><i class="status-light"></i><span id="chat-topbar-label" data-en="FolderHome master · fixture ready" data-de="FolderHome-Master · Fixture bereit">FolderHome master · fixture ready</span></div>
+            </div>
+            <button type="button" id="reset-demo" class="text-button" data-en="Reset case" data-de="Fall zurücksetzen">Reset case</button>
+          </div>
           <div class="transcript" id="transcript" aria-live="polite">
             <article class="message assistant"><span class="speaker">FH</span><div><small>FOLDERHOME</small><p data-en="Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet." data-de="Erzähl mir, was passiert ist. Ich suche zuerst und schlage einen begrenzten Plan vor; noch wird nichts ausgeführt.">Tell me what happened. I will search first and propose a bounded plan; nothing is executed yet.</p></div></article>
           </div>
           <div class="prompt-suggestions" id="prompt-suggestions" aria-label="Suggested prompts">
             <button type="button" class="prompt-chip"
-              data-en="Accident claim (Hyundai i10)"
-              data-de="Unfallmeldung (Hyundai i10)"
+              data-action="switch-case"
+              data-en="Test case: Accident claim (Hyundai i10) →"
+              data-de="Testfall: Unfallmeldung (Hyundai i10) →"
               data-prompt-en="I had an accident with my Hyundai i10. Find my current car insurance, compare it with older policies, identify the right contact, prepare a claim letter, and save the next follow-up locally."
-              data-prompt-de="Ich hatte einen Unfall mit meinem Hyundai i10. Finde meine aktuelle KFZ-Versicherung, vergleiche sie mit älteren Policen, ermittle den richtigen Kontakt, bereite eine Schadensmeldung vor und speichere die nächste Wiedervorlage lokal.">Accident claim (Hyundai i10)</button>
+              data-prompt-de="Ich hatte einen Unfall mit meinem Hyundai i10. Finde meine aktuelle KFZ-Versicherung, vergleiche sie mit älteren Policen, ermittle den richtigen Kontakt, bereite eine Schadensmeldung vor und speichere die nächste Wiedervorlage lokal.">Test case: Accident claim (Hyundai i10) →</button>
             <button type="button" class="prompt-chip"
               data-en="What health insurance documents do I have?"
               data-de="Welche Unterlagen habe ich zur Krankenversicherung?"
@@ -162,6 +197,13 @@
 
           <div class="audit-line" id="audit-line" hidden aria-live="polite"></div>
           <section class="result-grid generated-files" id="generated-files" hidden aria-live="polite" aria-label="Generated files"></section>
+          <div class="next-mode-banner" id="next-mode-banner" hidden>
+            <div class="next-mode-text">
+              <strong data-en="Test case completed." data-de="Testfall abgeschlossen.">Test case completed.</strong>
+              <span data-en="You saw the four bounded steps. Now try asking anything in your own words." data-de="Du hast die vier begrenzten Schritte gesehen. Probiere jetzt eigene Anfragen in deinen eigenen Worten aus.">You saw the four bounded steps. Now try asking anything in your own words.</span>
+            </div>
+            <button type="button" class="button primary next-mode-btn" id="try-own-question-btn" data-en="Now try your own question →" data-de="Jetzt eigene Anfrage ausprobieren →">Now try your own question →</button>
+          </div>
         </div>
       </div>
     </section>
