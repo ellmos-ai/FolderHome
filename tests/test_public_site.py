@@ -391,6 +391,14 @@ def test_two_entry_tiles_present_with_bilingual_texts() -> None:
     assert 'data-en="Now try your own question →"' in html
     assert 'data-de="Jetzt eigene Anfrage ausprobieren →"' in html
 
+    # Tile styling: Tile A blue/pink, Tile B neon-green, enlarged typography
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+    assert "#1d4ed8" in css
+    assert "#3b82f6" in css
+    assert "#22c55e" in css
+    assert "clamp(1.6rem" in css
+    assert "clamp(1.05rem" in css
+
 
 def test_mode_display_rules_in_css() -> None:
     css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
