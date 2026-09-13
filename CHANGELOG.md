@@ -10,6 +10,8 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-13
+
 ### Added
 
 - The hosted demo is a real conversation: every plain prompt sent to the AgentCore

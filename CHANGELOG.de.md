@@ -11,6 +11,8 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-13
+
 ### Hinzugefügt
 
 - Die gehostete Demo ist eine echte Konversation: Jeder gewöhnliche Prompt an die
