@@ -56,3 +56,6 @@ docs/superpowers/
 /docs/submission/BUILDER_ARTICLE_DRAFT_EN.md
 /devpost-submission.md
 /_reports/
+
+# Lokale Demo-Ausgaben (synthetische Faelle, entstehen bei jedem Lauf neu)
+.local-demo/
