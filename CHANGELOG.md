@@ -60,6 +60,9 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   plus the answer, so any request needing two tools in sequence stopped incomplete,
   and a live run with capabilities, search and dossier still hit a limit of four.
   A turn that ends on the budget now says so instead of returning an empty answer.
+  The output budget rises from 512 to 1536 tokens (`FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS`):
+  Nova Micro spends a long reasoning block before the answer, and 512 tokens cut the
+  answer off entirely in a live run.
   The per-forward reservation doubles to 20 000 µUSD so the ledger stays honest
   against the worst case of nested specialist calls (about 1.3 cents); the reviewed
   185 USD forwarding share now covers 9 250 forwards.

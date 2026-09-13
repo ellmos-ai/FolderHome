@@ -64,7 +64,9 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   Werkzeugaufruf plus Antwort, jede Anfrage mit zwei Werkzeugen hintereinander brach
   unvollständig ab, und ein Live-Lauf mit Fähigkeiten, Suche und Dossier stieß auch
   an eine Grenze von vier. Ein Zug, der am Budget endet, sagt das jetzt statt eine
-  leere Antwort zu liefern. Die Reservierung je Weiterleitung verdoppelt sich auf 20 000 µUSD,
+  leere Antwort zu liefern. Das Ausgabebudget steigt von 512 auf 1536 Token
+  (`FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS`): Nova Micro schreibt vor der Antwort einen
+  langen Denkblock, und 512 Token schnitten die Antwort in einem Live-Lauf ganz ab. Die Reservierung je Weiterleitung verdoppelt sich auf 20 000 µUSD,
   damit das Ledger auch im Worst Case verschachtelter Spezialistenaufrufe (etwa
   1,3 Cent) ehrlich bleibt; der geprüfte Weiterleitungsanteil von 185 USD deckt jetzt
   9 250 Weiterleitungen.

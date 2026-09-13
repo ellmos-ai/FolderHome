@@ -461,6 +461,9 @@ def run_folderhome_agent_turn(
             f"I used {used} but reached my turn budget before finishing an answer. "
             "Ask a narrower question, or send the exact /confirm command if a plan is shown."
             if str(result.stop_reason) == "limit_turns"
+            else f"I used {used} but my answer exceeded the output budget before it became "
+            "visible. Ask a narrower question."
+            if str(result.stop_reason) == "limit_output_tokens"
             else f"I used {used} but produced no visible answer. Please ask more specifically."
         )
     if len(response_text) > settings.max_response_chars:
