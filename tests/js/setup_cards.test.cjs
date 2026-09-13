@@ -156,20 +156,20 @@ test("setup card heading toggles aria-expanded and is-collapsed class on click",
   const head = profilesCard.querySelector(".card-head");
 
   // Initial state: first card is active and expanded
-  assert.equal(h2.getAttribute("aria-expanded"), "true");
-  assert.equal(profilesCard.classList.contains("is-collapsed"), false);
+  assert.equal(h2.getAttribute("aria-expanded"), "false");
+  assert.equal(profilesCard.classList.contains("is-collapsed"), true);
   assert.equal(profilesCard.classList.contains("is-active"), true);
 
   // Click card head to collapse
   head.listeners.click();
-  assert.equal(h2.getAttribute("aria-expanded"), "false");
-  assert.equal(profilesCard.classList.contains("is-collapsed"), true);
+  assert.equal(h2.getAttribute("aria-expanded"), "true");
+  assert.equal(profilesCard.classList.contains("is-collapsed"), false);
   assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "false");
 
   // Click card head again to expand
   head.listeners.click();
-  assert.equal(h2.getAttribute("aria-expanded"), "true");
-  assert.equal(profilesCard.classList.contains("is-collapsed"), false);
+  assert.equal(h2.getAttribute("aria-expanded"), "false");
+  assert.equal(profilesCard.classList.contains("is-collapsed"), true);
   assert.equal(sessionStorage.getItem("fh_setup_card_profiles"), "true");
 });
 

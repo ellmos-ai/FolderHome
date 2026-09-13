@@ -406,7 +406,7 @@ function initCollapsibleCards() {
     if (!head || !h2) return;
 
     const stored = getStoredCardState(cardId);
-    let expanded = stored !== null ? stored === "true" : index === 0;
+    let expanded = stored !== null ? stored === "true" : false; // start collapsed; expand on demand
 
     setCardExpanded(card, expanded);
     if (index === 0 && (stored === null || stored === "true") && card.classList) {
@@ -430,7 +430,10 @@ function initCollapsibleCards() {
       }
     });
 
-    card.addEventListener("focusin", () => {
+    card.addEventListener("focusin", (e) => {
+      // Focus on the head itself (click, Tab) must not re-expand the card; only
+      // work inside the body marks the card as the one in focus.
+      if (head.contains(e.target)) return;
       setActiveCard(card);
     });
   });
@@ -607,7 +610,7 @@ function calendarAccountRow(account) {
   if (legend.setAttribute) {
     legend.setAttribute("role", "button");
     legend.setAttribute("tabindex", "0");
-    legend.setAttribute("aria-expanded", "true");
+    legend.setAttribute("aria-expanded", "false");
   }
   const titleSpan = textElement("span", (account && (account.display_name || account.account_id)) || t("calendarAccount"), "entry-title");
   const statusSpan = textElement("span", (account && `${account.backend} · ${account.profile_id}`) || "new", "entry-status");
@@ -758,6 +761,8 @@ function calendarAccountRow(account) {
   });
   body.append(remove);
   block.append(body);
+  body.hidden = true;
+  if (block.classList) block.classList.add("collapsed");
 
   const toggle = () => {
     const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
@@ -1020,7 +1025,7 @@ function profileCard(profile) {
   if (legend.setAttribute) {
     legend.setAttribute("role", "button");
     legend.setAttribute("tabindex", "0");
-    legend.setAttribute("aria-expanded", "true");
+    legend.setAttribute("aria-expanded", "false");
   }
 
   const titleSpan = textElement("span", profile.display_name || t("profileAdd"), "entry-title");
@@ -1080,6 +1085,8 @@ function profileCard(profile) {
   });
   body.append(remove);
   block.append(body);
+  body.hidden = true;
+  if (block.classList) block.classList.add("collapsed");
 
   const toggle = () => {
     const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
@@ -1229,7 +1236,7 @@ function renderFolders() {
     if (legend.setAttribute) {
       legend.setAttribute("role", "button");
       legend.setAttribute("tabindex", "0");
-      legend.setAttribute("aria-expanded", "true");
+      legend.setAttribute("aria-expanded", "false");
     }
 
     const titleSpan = textElement("span", profile.display_name || profile.profile_id, "entry-title");
@@ -1248,6 +1255,8 @@ function renderFolders() {
       );
     }
     block.append(body);
+    body.hidden = true;
+    if (block.classList) block.classList.add("collapsed");
 
     const toggle = () => {
       const isExpanded = legend.getAttribute ? legend.getAttribute("aria-expanded") === "true" : true;
