@@ -723,6 +723,7 @@ def test_setup_save_rejects_a_folder_outside_home_without_confirmation(
 
     assert blocked.payload["valid"] is False
     assert "außerhalb" in blocked.payload["errors"][0]["message"]
+    assert "Bestätigung in Abschnitt 6" in blocked.payload["errors"][0]["message"]
     assert allowed.payload["valid"] is True
 
 
@@ -1312,6 +1313,78 @@ def test_deleting_a_preset_removes_it_from_the_written_file(tmp_path: Path) -> N
     assert saved.status_code == 200, saved.payload
     stored = json.loads(app.launch_file.read_text(encoding="utf-8"))
     assert sorted(stored["model_presets"]) == ["local"]
+
+
+def test_user_presets_with_model_provider_key_validate_and_switch(tmp_path: Path) -> None:
+    """The four user presets from the brief validate per provider and switch cleanly."""
+    app = _app(tmp_path)
+    user_presets = {
+        "fixture": {
+            "model_provider": "fixture",
+        },
+        "ollama-laptop": {
+            "model_provider": "ollama",
+            "ollama_host": "http://127.0.0.1:11434",
+            "ollama_model_id": "qwen3:4b",
+        },
+        "ollama-mac-studio": {
+            "model_provider": "ollama",
+            "ollama_host": "http://100.119.69.90:11434",
+            "ollama_model_id": "qwen3.8:27b-mlx",
+        },
+        "bedrock-nova-micro": {
+            "model_provider": "bedrock",
+            "bedrock_model_id": "eu.amazon.nova-micro-v1:0",
+            "aws_region": "eu-central-1",
+        },
+    }
+    request = _request(tmp_path, model_presets=user_presets, model_preset="fixture")
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    assert planned.payload["launch_json"]["model_preset"] == "fixture"
+    assert sorted(planned.payload["launch_json"]["model_presets"]) == [
+        "bedrock-nova-micro",
+        "fixture",
+        "ollama-laptop",
+        "ollama-mac-studio",
+    ]
+
+    # Activating ollama-laptop rewrites model_preset and does not ask for remote network gate
+    switched = _post(
+        app,
+        "/api/v1/setup/validate",
+        {**request, "model_preset": "ollama-laptop"},
+    )
+    assert switched.payload["valid"] is True, switched.payload["errors"]
+    assert switched.payload["launch_json"]["model_preset"] == "ollama-laptop"
+    assert "--allow-network" not in switched.payload["launch_command"]
+
+    # Activating ollama-mac-studio requires network gates
+    remote_switched = _post(
+        app,
+        "/api/v1/setup/validate",
+        {**request, "model_preset": "ollama-mac-studio"},
+    )
+    assert remote_switched.payload["valid"] is True, remote_switched.payload["errors"]
+    assert remote_switched.payload["launch_json"]["model_preset"] == "ollama-mac-studio"
+    assert "--allow-network" in remote_switched.payload["launch_command"]
+
+    saved = _post(
+        app,
+        "/api/v1/setup/save",
+        {
+            **request,
+            "model_preset": "ollama-laptop",
+            "confirm": True,
+            "plan_sha256": switched.payload["plan_sha256"],
+        },
+    )
+    assert saved.status_code == 200, saved.payload
+    stored = json.loads(app.launch_file.read_text(encoding="utf-8"))
+    assert stored["model_preset"] == "ollama-laptop"
+    assert stored["model_presets"]["ollama-laptop"]["model_provider"] == "ollama"
+    bedrock = stored["model_presets"]["bedrock-nova-micro"]
+    assert bedrock["bedrock_model_id"] == "eu.amazon.nova-micro-v1:0"
 
 
 def test_a_broken_or_badly_named_preset_is_refused_before_anything_is_written(

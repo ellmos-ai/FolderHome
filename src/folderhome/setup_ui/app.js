@@ -32,6 +32,8 @@ const translations = {
     foldersTitle: "2. Folders",
     foldersHint: "Give each profile a folder per purpose. Source folders are read, output folders receive files. Leave a field empty to skip that purpose. A source purpose may list several folders; the first one is the default.",
     chooseButton: "Choose folder",
+    dialogOpening: "Opening folder dialog...",
+    dialogAlreadyOpen: "A folder dialog is already open. Please complete or close it first.",
     addSource: "+ another source",
     removeSource: "Remove",
     modelTitle: "3. Model",
@@ -156,6 +158,8 @@ const translations = {
     foldersTitle: "2. Ordner",
     foldersHint: "Gib jedem Profil je Zweck einen Ordner. Quellordner werden gelesen, Ausgabeordner nehmen Dateien auf. Ein leeres Feld lässt den Zweck aus. Ein Quellzweck darf mehrere Ordner haben; der erste ist der Standard.",
     chooseButton: "Ordner wählen",
+    dialogOpening: "Ordnerdialog öffnet sich...",
+    dialogAlreadyOpen: "Es ist bereits ein Ordnerdialog geöffnet. Bitte wähle dort einen Ordner oder schließe das Dialogfenster.",
     addSource: "+ weitere Quelle",
     removeSource: "Entfernen",
     modelTitle: "3. Modell",
@@ -298,7 +302,9 @@ async function api(path, options = {}) {
   const payload = await response.json();
   if (!response.ok) {
     const message = payload.message || t("requestFailed", { status: response.status });
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
   }
   return payload;
 }
@@ -376,23 +382,172 @@ function setActiveCard(card) {
   setCardExpanded(card, true);
 }
 
-function expandCardForError(text) {
-  const str = String(text).toLowerCase();
+function getCardForFieldOrText(text) {
+  const str = String(text || "").toLowerCase();
   let targetId = "profiles";
-  if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
+  if (str.includes("außerhalb") || str.includes("abschnitt 6") || str.includes("outside_home") || str.includes("outside home") || str.includes("outside user folder")) targetId = "runtime";
+  else if (str.includes("folder") || str.includes("source") || str.includes("target") || str.includes("path")) targetId = "folders";
   else if (str.includes("model") || str.includes("preset") || str.includes("ollama") || str.includes("bedrock") || str.includes("anthropic") || str.includes("openai") || str.includes("provider")) targetId = "model";
   else if (str.includes("key") || str.includes("api_key")) targetId = "keys";
-  else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir") || str.includes("outside_home")) targetId = "runtime";
+  else if (str.includes("runtime") || str.includes("port") || str.includes("state_dir")) targetId = "runtime";
   else if (str.includes("calendar")) targetId = "calendar";
   else if (str.includes("scheduler")) targetId = "scheduler";
-  else if (str.includes("profile") || str.includes("rule")) targetId = "profiles";
+  else if (str.includes("profile") || str.includes("rule") || str.includes("household")) targetId = "profiles";
 
-  const card = document.querySelector(`.card[data-card-id="${targetId}"]`);
+  return document.querySelector(`.card[data-card-id="${targetId}"]`);
+}
+
+function resolveElementForField(field, message = "") {
+  if (!field && !message) return null;
+  const f = String(field || "").trim();
+  const m = String(message || "").toLowerCase();
+
+  // Special case: outside home confirmation in section 6
+  if (m.includes("außerhalb") || m.includes("abschnitt 6") || m.includes("outside_home") || m.includes("outside home") || m.includes("outside user folder")) {
+    return document.querySelector("#outside-home");
+  }
+
+  // folders[index]
+  const folderMatch = f.match(/^folders\[(\d+)\]/);
+  const fg = typeof folderGrid !== "undefined" && folderGrid ? folderGrid : document.querySelector("#folder-grid");
+  if (folderMatch && fg) {
+    const idx = parseInt(folderMatch[1], 10);
+    const inputs = [...fg.querySelectorAll("input")].filter((inp) => inp.value && inp.value.trim());
+    if (inputs[idx]) return inputs[idx];
+    const allInputs = fg.querySelectorAll("input");
+    if (allInputs[idx]) return allInputs[idx];
+    return fg;
+  }
+  if (f === "folders") {
+    return (fg && fg.querySelector("input")) || fg || document.querySelector('.card[data-card-id="folders"]');
+  }
+
+  // model_presets[name]
+  const presetMatch = f.match(/^model_presets\[([^\]]+)\]/);
+  const pl = typeof presetList !== "undefined" && presetList ? presetList : document.querySelector("#preset-list");
+  if (presetMatch) {
+    const presetName = presetMatch[1];
+    if (pl) {
+      const row = pl.querySelector(`[data-preset-name="${presetName}"]`);
+      if (row) return row;
+      return pl;
+    }
+    return document.querySelector('.card[data-card-id="model"]');
+  }
+
+  // model fields
+  if (f === "model_preset") return document.querySelector("#preset-name") || pl || document.querySelector('.card[data-card-id="model"]');
+  if (f === "model.provider" || f === "model.model_provider" || f === "model") return document.querySelector("#provider");
+  if (f === "model.ollama_host") return document.querySelector("#ollama-host");
+  if (f === "model.ollama_model_id") return document.querySelector("#ollama-model-id");
+  if (f === "model.bedrock_model_id") return document.querySelector("#bedrock-model-id");
+  if (f === "model.aws_region") return document.querySelector("#aws-region");
+  if (f === "model.anthropic_model_id") return document.querySelector("#anthropic-model-id");
+  if (f === "model.openai_model_id") return document.querySelector("#openai-model-id");
+  if (f === "model.openai_base_url") return document.querySelector("#openai-base-url");
+
+  // runtime fields
+  if (f === "port" || f === "runtime.port") return document.querySelector("#port");
+  if (f === "state_dir" || f === "runtime.state_dir") return document.querySelector("#state-dir");
+  if (f === "profiles_dir") return document.querySelector("#profiles-dir");
+
+  // calendar fields
+  if (f === "calendar.directory") return document.querySelector("#calendar-directory");
+  if (f === "calendar.backend") return document.querySelector("#calendar-backend");
+  if (f === "calendar.timezone") return document.querySelector("#calendar-timezone");
+  if (f.startsWith("calendar")) return document.querySelector("#calendar-fields") || document.querySelector("#card-calendar");
+
+  // scheduler fields
+  if (f === "scheduler.source") return document.querySelector("#scheduler-source");
+  if (f === "scheduler.target") return document.querySelector("#scheduler-target");
+  if (f === "scheduler.interval_minutes") return document.querySelector("#scheduler-interval");
+  if (f === "scheduler.start") return document.querySelector("#scheduler-start");
+  if (f === "scheduler.timezone") return document.querySelector("#scheduler-timezone");
+  if (f.startsWith("scheduler")) return document.querySelector("#scheduler-fields") || document.querySelector("#card-scheduler");
+
+  // profiles / household
+  const prl = typeof profileList !== "undefined" && profileList ? profileList : document.querySelector("#profile-list");
+  const profileMatch = f.match(/^profiles\[(\d+)\]/);
+  if (profileMatch && prl) {
+    const idx = parseInt(profileMatch[1], 10);
+    const cards = prl.querySelectorAll(".card, [data-profile-id]");
+    if (cards[idx]) return cards[idx];
+    return prl;
+  }
+  if (f === "profiles") return prl || document.querySelector('.card[data-card-id="profiles"]');
+  const hr = typeof householdRules !== "undefined" && householdRules ? householdRules : document.querySelector("#household-rules");
+  if (f.startsWith("household_rules")) return hr || document.querySelector('.card[data-card-id="profiles"]');
+
+  // Direct ID match fallback
+  const direct = document.querySelector(`#${f}`);
+  if (direct) return direct;
+
+  return null;
+}
+
+function clearValidationErrors() {
+  document.querySelectorAll(".card").forEach((c) => {
+    if (c.classList) c.classList.remove("has-error");
+    const badge = c.querySelector(".card-error-badge");
+    if (badge) badge.remove();
+  });
+  document.querySelectorAll("[aria-invalid='true']").forEach((el) => {
+    if (el.removeAttribute) el.removeAttribute("aria-invalid");
+    if (el.classList) el.classList.remove("is-invalid");
+  });
+  document.querySelectorAll(".is-invalid").forEach((el) => {
+    if (el.classList) el.classList.remove("is-invalid");
+  });
+  document.querySelectorAll(".field-error-msg").forEach((el) => el.remove());
+}
+
+function expandCardForError(text) {
+  const card = getCardForFieldOrText(text);
   if (card) {
     if (card.classList) card.classList.add("has-error");
     setCardExpanded(card, true);
     setActiveCard(card);
+    let badge = card.querySelector(".card-error-badge");
+    if (!badge) {
+      badge = document.createElement("span");
+      badge.className = "card-error-badge";
+      badge.textContent = "1";
+      const chevron = card.querySelector(".card-chevron");
+      if (chevron && chevron.parentNode) {
+        chevron.parentNode.insertBefore(badge, chevron);
+      } else {
+        const head = card.querySelector(".card-head");
+        if (head) head.append(badge);
+      }
+    }
   }
+  return card;
+}
+
+function jumpToError(field, message) {
+  const element = resolveElementForField(field, message);
+  if (element) {
+    const card = (element.closest && element.closest(".card")) || getCardForFieldOrText(`${field} ${message}`);
+    if (card) {
+      setCardExpanded(card, true);
+      setActiveCard(card);
+    }
+    if (element.scrollIntoView) {
+      try { element.scrollIntoView({ behavior: "smooth", block: "center" }); } catch (_) {}
+    }
+    if (element.focus) {
+      try { element.focus(); } catch (_) {}
+    }
+    const highlightTarget = (element.closest && (element.closest(".field") || element.closest(".field-input") || element.closest(".checkbox"))) || element;
+    if (highlightTarget && highlightTarget.classList) {
+      highlightTarget.classList.add("is-highlight-target");
+      if (typeof setTimeout === "function") {
+        setTimeout(() => highlightTarget.classList.remove("is-highlight-target"), 2500);
+      }
+    }
+    return;
+  }
+  expandCardForError(`${field} ${message}`);
 }
 
 function initCollapsibleCards() {
@@ -443,11 +598,32 @@ function initCollapsibleCards() {
   });
 }
 
-async function pickFolder(input) {
-  const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
-  if (!chosen.path) return;
-  input.value = chosen.path;
-  invalidate();
+async function pickFolder(input, button = null) {
+  const originalText = button ? button.textContent : "";
+  if (button) {
+    if (button.setAttribute) button.setAttribute("aria-busy", "true");
+    button.disabled = true;
+    button.textContent = t("dialogOpening");
+  }
+  try {
+    const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
+    if (!chosen || !chosen.path) return chosen;
+    input.value = chosen.path;
+    invalidate();
+    return chosen;
+  } catch (error) {
+    if (error && (error.status === 409 || (error.message && error.message.includes("bereits")))) {
+      showError(new Error(t("dialogAlreadyOpen")));
+      return null;
+    }
+    throw error;
+  } finally {
+    if (button) {
+      if (button.removeAttribute) button.removeAttribute("aria-busy");
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 function folderRow(profileId, purpose, value, removable) {
@@ -464,7 +640,7 @@ function folderRow(profileId, purpose, value, removable) {
   choose.className = "button compact";
   choose.dataset.i18n = "chooseButton";
   choose.textContent = t("chooseButton");
-  choose.addEventListener("click", () => pickFolder(input).catch(showError));
+  choose.addEventListener("click", () => pickFolder(input, choose).catch(showError));
   row.append(input, choose);
   if (removable) {
     const remove = document.createElement("button");
@@ -509,8 +685,10 @@ function purposeField(profileId, purpose, paths, repeatable) {
 const PRESET_NAME = /^[A-Za-z0-9_.-]{1,40}$/;
 
 function modelFromForm() {
+  const provider = providerSelect.value;
   return {
-    provider: providerSelect.value,
+    model_provider: provider,
+    provider,
     ollama_host: document.querySelector("#ollama-host").value.trim() || null,
     ollama_model_id: document.querySelector("#ollama-model-id").value.trim() || null,
     bedrock_model_id: document.querySelector("#bedrock-model-id").value.trim() || null,
@@ -523,7 +701,8 @@ function modelFromForm() {
 }
 
 function fillForm(model) {
-  providerSelect.value = model.provider || model.model_provider || "fixture";
+  if (!model) return;
+  providerSelect.value = model.model_provider || model.provider || "fixture";
   const values = {
     "#ollama-host": model.ollama_host,
     "#ollama-model-id": model.ollama_model_id,
@@ -534,7 +713,8 @@ function fillForm(model) {
     "#openai-base-url": model.openai_base_url,
   };
   for (const [selector, value] of Object.entries(values)) {
-    document.querySelector(selector).value = value || "";
+    const el = document.querySelector(selector);
+    if (el) el.value = value || "";
   }
   showProviderFields();
 }
@@ -554,16 +734,18 @@ function renderPresets() {
     return;
   }
   for (const name of names) {
-    const entry = presets[name];
+    const entry = presets[name] || {};
     const row = document.createElement("div");
     row.className = "field-input";
+    row.dataset.presetName = name;
     const model =
       entry.ollama_model_id
       || entry.bedrock_model_id
       || entry.anthropic_model_id
       || entry.openai_model_id
       || "-";
-    const label = `${name} · ${entry.provider} · ${model}`;
+    const provider = entry.model_provider || entry.provider || "fixture";
+    const label = `${name} · ${provider} · ${model}`;
     row.append(
       textElement("span", name === activePreset ? `${label} (${t("presetActive")})` : label),
     );
@@ -913,11 +1095,12 @@ function bindSchedulerEvents() {
     document.querySelector("#scheduler-fields").addEventListener(event, invalidate);
   }
   for (const name of ["source", "target"]) {
-    document.querySelector(`#scheduler-${name}-choose`).addEventListener("click", async () => {
+    const chooseBtn = document.querySelector(`#scheduler-${name}-choose`);
+    chooseBtn.addEventListener("click", async () => {
       const input = document.querySelector(`#scheduler-${name}`);
       const previous = input.value;
       try {
-        await pickFolder(input);
+        await pickFolder(input, chooseBtn);
         if (previous !== input.value) invalidate();
       } catch (error) { showError(error); }
     });
@@ -1348,17 +1531,73 @@ function buildRequest() {
 
 function renderPlan(plan) {
   summary.replaceChildren();
-  document.querySelectorAll(".card").forEach(c => {
-    if (c.classList) c.classList.remove("has-error");
-  });
+  clearValidationErrors();
   if (!plan.valid) {
     summary.append(textElement("p", t("checkFailed"), "error"));
     const list = document.createElement("ul");
+    list.className = "error-list";
+    const cardErrorCounts = new Map();
+
     for (const item of plan.errors) {
-      list.append(textElement("li", `${item.field}: ${item.message}`));
-      expandCardForError(`${item.field} ${item.message}`);
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "error-jump-button";
+      btn.textContent = `${item.field}: ${item.message}`;
+      btn.addEventListener("click", () => jumpToError(item.field, item.message));
+      li.append(btn);
+      list.append(li);
+
+      // Resolve element and highlight field
+      const element = resolveElementForField(item.field, item.message);
+      let targetCard = null;
+      if (element) {
+        if (element.setAttribute) element.setAttribute("aria-invalid", "true");
+        if (element.classList) element.classList.add("is-invalid");
+        const container = (element.closest && (element.closest(".field") || element.closest(".field-input") || element.closest(".checkbox"))) || element.parentNode;
+        if (container && !container.querySelector(".field-error-msg")) {
+          const msgEl = document.createElement("div");
+          msgEl.className = "field-error-msg";
+          msgEl.setAttribute("role", "alert");
+          msgEl.textContent = item.message;
+          container.append(msgEl);
+        }
+        targetCard = (element.closest && element.closest(".card")) || getCardForFieldOrText(`${item.field} ${item.message}`);
+      } else {
+        targetCard = getCardForFieldOrText(`${item.field} ${item.message}`);
+      }
+      if (targetCard) {
+        const currentCount = cardErrorCounts.get(targetCard) || 0;
+        cardErrorCounts.set(targetCard, currentCount + 1);
+      }
     }
     summary.append(list);
+
+    // Expand cards with errors once and update error badges
+    let firstCard = null;
+    for (const [card, count] of cardErrorCounts.entries()) {
+      if (card.classList) card.classList.add("has-error");
+      setCardExpanded(card, true);
+      if (!firstCard) firstCard = card;
+
+      let badge = card.querySelector(".card-error-badge");
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "card-error-badge";
+        badge.setAttribute("aria-label", `${count} errors`);
+        const chevron = card.querySelector(".card-chevron");
+        if (chevron && chevron.parentNode) {
+          chevron.parentNode.insertBefore(badge, chevron);
+        } else {
+          const head = card.querySelector(".card-head");
+          if (head) head.append(badge);
+        }
+      }
+      badge.textContent = String(count);
+    }
+    if (firstCard) {
+      setActiveCard(firstCard);
+    }
     return;
   }
   summary.append(textElement("p", t("checkOk")));
@@ -1399,47 +1638,79 @@ function renderPlan(plan) {
 }
 
 async function check() {
-  const plan = await api("/api/v1/setup/validate", {
-    method: "POST",
-    body: JSON.stringify(buildRequest()),
-  });
-  checkedPlan = plan.valid ? plan : null;
-  saveButton.disabled = !plan.valid;
-  saveNote.hidden = false;
-  renderPlan(plan);
+  const checkBtn = document.querySelector("#check");
+  const resultsArea = summary.closest ? summary.closest(".results") : null;
+  if (checkBtn) {
+    if (checkBtn.setAttribute) checkBtn.setAttribute("aria-busy", "true");
+    checkBtn.disabled = true;
+  }
+  if (resultsArea && resultsArea.setAttribute) {
+    resultsArea.setAttribute("aria-busy", "true");
+  }
+  try {
+    const plan = await api("/api/v1/setup/validate", {
+      method: "POST",
+      body: JSON.stringify(buildRequest()),
+    });
+    checkedPlan = plan.valid ? plan : null;
+    saveButton.disabled = !plan.valid;
+    saveNote.hidden = false;
+    renderPlan(plan);
+  } finally {
+    if (checkBtn) {
+      if (checkBtn.removeAttribute) checkBtn.removeAttribute("aria-busy");
+      checkBtn.disabled = false;
+    }
+    if (resultsArea && resultsArea.removeAttribute) {
+      resultsArea.removeAttribute("aria-busy");
+    }
+  }
 }
 
 async function save() {
   if (!checkedPlan) return;
-  const request = buildRequest();
-  request.confirm = true;
-  request.plan_sha256 = checkedPlan.plan_sha256;
-  // Keys ride along with the save alone: never with a check, never in the hash.
-  const keyChanges = buildKeyChanges();
-  if (Object.keys(keyChanges).length) request.api_keys = keyChanges;
-  const saved = await api("/api/v1/setup/save", {
-    method: "POST",
-    body: JSON.stringify(request),
-  });
-  summary.replaceChildren();
-  summary.append(textElement("p", t("savedTitle")));
-  summary.append(textElement("pre", saved.launch_command));
-  if (checkedPlan.scheduler) {
-    summary.append(textElement("p", t("schedulerSaved")));
-    summary.append(textElement("pre", JSON.stringify(checkedPlan.scheduler.request, null, 2)));
-  }
-  if ((saved.backups || []).length) {
-    summary.append(textElement("p", t("backupNote"), "hint"));
-  }
+  if (saveButton.setAttribute) saveButton.setAttribute("aria-busy", "true");
   saveButton.disabled = true;
-  saveNote.hidden = true;
-  checkedPlan = null;
-  keyRemovals.clear();
-  // Ask the service what is stored now instead of guessing from the form.
-  state = await api("/api/v1/setup/state");
-  renderKeys();
-  renderCalendar();
-  renderScheduler();
+  const resultsArea = summary.closest ? summary.closest(".results") : null;
+  if (resultsArea && resultsArea.setAttribute) {
+    resultsArea.setAttribute("aria-busy", "true");
+  }
+  try {
+    const request = buildRequest();
+    request.confirm = true;
+    request.plan_sha256 = checkedPlan.plan_sha256;
+    // Keys ride along with the save alone: never with a check, never in the hash.
+    const keyChanges = buildKeyChanges();
+    if (Object.keys(keyChanges).length) request.api_keys = keyChanges;
+    const saved = await api("/api/v1/setup/save", {
+      method: "POST",
+      body: JSON.stringify(request),
+    });
+    summary.replaceChildren();
+    summary.append(textElement("p", t("savedTitle")));
+    summary.append(textElement("pre", saved.launch_command));
+    if (checkedPlan.scheduler) {
+      summary.append(textElement("p", t("schedulerSaved")));
+      summary.append(textElement("pre", JSON.stringify(checkedPlan.scheduler.request, null, 2)));
+    }
+    if ((saved.backups || []).length) {
+      summary.append(textElement("p", t("backupNote"), "hint"));
+    }
+    saveNote.hidden = true;
+    checkedPlan = null;
+    keyRemovals.clear();
+    // Ask the service what is stored now instead of guessing from the form.
+    state = await api("/api/v1/setup/state");
+    renderKeys();
+    renderCalendar();
+    renderScheduler();
+  } finally {
+    if (saveButton.removeAttribute) saveButton.removeAttribute("aria-busy");
+    saveButton.disabled = !checkedPlan;
+    if (resultsArea && resultsArea.removeAttribute) {
+      resultsArea.removeAttribute("aria-busy");
+    }
+  }
 }
 
 function showError(error) {
@@ -1469,8 +1740,9 @@ document.querySelector("#profiles-start-empty").addEventListener("click", () => 
   renderFolders();
   invalidate();
 });
-document.querySelector("#profiles-dir-choose").addEventListener("click", () =>
-  pickFolder(profilesDir).catch(showError),
+const profilesDirChoose = document.querySelector("#profiles-dir-choose");
+profilesDirChoose.addEventListener("click", () =>
+  pickFolder(profilesDir, profilesDirChoose).catch(showError),
 );
 profilesDir.addEventListener("input", invalidate);
 calendarEnabled.addEventListener("change", () => {
@@ -1489,11 +1761,12 @@ document.querySelector("#calendar-account-add").addEventListener("click", () => 
   calendarDirty = true;
   invalidate();
 });
-document.querySelector("#calendar-directory-choose").addEventListener("click", async () => {
+const calendarDirChoose = document.querySelector("#calendar-directory-choose");
+calendarDirChoose.addEventListener("click", async () => {
   const input = document.querySelector("#calendar-directory");
   const previous = input.value;
   try {
-    await pickFolder(input);
+    await pickFolder(input, calendarDirChoose);
     if (input.value !== previous) calendarDirty = true;
   } catch (error) {
     showError(error);

@@ -1599,7 +1599,7 @@ def _check_folder(entry: dict[str, Any], errors: list[dict[str, str]]) -> None:
                 "field": entry["field"],
                 "message": (
                     "Ordner liegt außerhalb des eigenen Benutzerordners; bestätige das "
-                    "ausdrücklich."
+                    "ausdrücklich (→ Bestätigung in Abschnitt 6)."
                 ),
             }
         )
@@ -1613,8 +1613,12 @@ def _model_values(
     """Check one model choice against the real contract, not a second rule set."""
 
     model = raw if isinstance(raw, dict) else {}
-    provider = model.get("provider", "fixture")
-    values: dict[str, Any] = {"provider": provider, "network_used": False}
+    provider = model.get("model_provider") or model.get("provider") or "fixture"
+    values: dict[str, Any] = {
+        "model_provider": str(provider),
+        "provider": str(provider),
+        "network_used": False,
+    }
     for name in _MODEL_FIELDS:
         values[name] = model.get(name) or None
     try:
@@ -1931,11 +1935,13 @@ def _launch_document(
         "port": port,
         # The flat fields describe the choice; the preset name says where it came
         # from, so switching models later means changing one line, not seven.
-        "model_provider": model["provider"],
+        "model_provider": model.get("model_provider") or model.get("provider"),
+        "provider": model.get("model_provider") or model.get("provider"),
         "model_preset": preset_name,
         "model_presets": {
             name: {
-                "model_provider": entry["provider"],
+                "model_provider": entry.get("model_provider") or entry.get("provider"),
+                "provider": entry.get("model_provider") or entry.get("provider"),
                 **{field: entry[field] for field in _MODEL_FIELDS},
             }
             for name, entry in sorted(presets.items())
