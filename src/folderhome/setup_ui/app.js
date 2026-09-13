@@ -32,6 +32,8 @@ const translations = {
     foldersTitle: "2. Folders",
     foldersHint: "Give each profile a folder per purpose. Source folders are read, output folders receive files. Leave a field empty to skip that purpose. A source purpose may list several folders; the first one is the default.",
     chooseButton: "Choose folder",
+    dialogOpening: "Opening folder dialog...",
+    dialogAlreadyOpen: "A folder dialog is already open. Please complete or close it first.",
     addSource: "+ another source",
     removeSource: "Remove",
     modelTitle: "3. Model",
@@ -156,6 +158,8 @@ const translations = {
     foldersTitle: "2. Ordner",
     foldersHint: "Gib jedem Profil je Zweck einen Ordner. Quellordner werden gelesen, Ausgabeordner nehmen Dateien auf. Ein leeres Feld lässt den Zweck aus. Ein Quellzweck darf mehrere Ordner haben; der erste ist der Standard.",
     chooseButton: "Ordner wählen",
+    dialogOpening: "Ordnerdialog öffnet sich...",
+    dialogAlreadyOpen: "Es ist bereits ein Ordnerdialog geöffnet. Bitte wähle dort einen Ordner oder schließe das Dialogfenster.",
     addSource: "+ weitere Quelle",
     removeSource: "Entfernen",
     modelTitle: "3. Modell",
@@ -298,7 +302,9 @@ async function api(path, options = {}) {
   const payload = await response.json();
   if (!response.ok) {
     const message = payload.message || t("requestFailed", { status: response.status });
-    throw new Error(message);
+    const err = new Error(message);
+    err.status = response.status;
+    throw err;
   }
   return payload;
 }
@@ -469,11 +475,32 @@ function initCollapsibleCards() {
   });
 }
 
-async function pickFolder(input) {
-  const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
-  if (!chosen.path) return;
-  input.value = chosen.path;
-  invalidate();
+async function pickFolder(input, button = null) {
+  const originalText = button ? button.textContent : "";
+  if (button) {
+    if (button.setAttribute) button.setAttribute("aria-busy", "true");
+    button.disabled = true;
+    button.textContent = t("dialogOpening");
+  }
+  try {
+    const chosen = await api("/api/v1/setup/pick-folder", { method: "POST" });
+    if (!chosen || !chosen.path) return chosen;
+    input.value = chosen.path;
+    invalidate();
+    return chosen;
+  } catch (error) {
+    if (error && (error.status === 409 || (error.message && error.message.includes("bereits")))) {
+      showError(new Error(t("dialogAlreadyOpen")));
+      return null;
+    }
+    throw error;
+  } finally {
+    if (button) {
+      if (button.removeAttribute) button.removeAttribute("aria-busy");
+      button.disabled = false;
+      button.textContent = originalText;
+    }
+  }
 }
 
 function folderRow(profileId, purpose, value, removable) {
@@ -490,7 +517,7 @@ function folderRow(profileId, purpose, value, removable) {
   choose.className = "button compact";
   choose.dataset.i18n = "chooseButton";
   choose.textContent = t("chooseButton");
-  choose.addEventListener("click", () => pickFolder(input).catch(showError));
+  choose.addEventListener("click", () => pickFolder(input, choose).catch(showError));
   row.append(input, choose);
   if (removable) {
     const remove = document.createElement("button");
@@ -944,11 +971,12 @@ function bindSchedulerEvents() {
     document.querySelector("#scheduler-fields").addEventListener(event, invalidate);
   }
   for (const name of ["source", "target"]) {
-    document.querySelector(`#scheduler-${name}-choose`).addEventListener("click", async () => {
+    const chooseBtn = document.querySelector(`#scheduler-${name}-choose`);
+    chooseBtn.addEventListener("click", async () => {
       const input = document.querySelector(`#scheduler-${name}`);
       const previous = input.value;
       try {
-        await pickFolder(input);
+        await pickFolder(input, chooseBtn);
         if (previous !== input.value) invalidate();
       } catch (error) { showError(error); }
     });
@@ -1540,8 +1568,9 @@ document.querySelector("#profiles-start-empty").addEventListener("click", () => 
   renderFolders();
   invalidate();
 });
-document.querySelector("#profiles-dir-choose").addEventListener("click", () =>
-  pickFolder(profilesDir).catch(showError),
+const profilesDirChoose = document.querySelector("#profiles-dir-choose");
+profilesDirChoose.addEventListener("click", () =>
+  pickFolder(profilesDir, profilesDirChoose).catch(showError),
 );
 profilesDir.addEventListener("input", invalidate);
 calendarEnabled.addEventListener("change", () => {
@@ -1560,11 +1589,12 @@ document.querySelector("#calendar-account-add").addEventListener("click", () => 
   calendarDirty = true;
   invalidate();
 });
-document.querySelector("#calendar-directory-choose").addEventListener("click", async () => {
+const calendarDirChoose = document.querySelector("#calendar-directory-choose");
+calendarDirChoose.addEventListener("click", async () => {
   const input = document.querySelector("#calendar-directory");
   const previous = input.value;
   try {
-    await pickFolder(input);
+    await pickFolder(input, calendarDirChoose);
     if (input.value !== previous) calendarDirty = true;
   } catch (error) {
     showError(error);

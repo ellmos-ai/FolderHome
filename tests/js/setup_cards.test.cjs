@@ -40,6 +40,7 @@ class MockElement {
   }
   setAttribute(name, val) { this.attributes[name] = String(val); }
   getAttribute(name) { return this.attributes[name] !== undefined ? this.attributes[name] : null; }
+  removeAttribute(name) { delete this.attributes[name]; }
   addEventListener(event, fn) { this.listeners[event] = fn; }
   querySelector(selector) {
     return this.querySelectorAll(selector)[0] || null;
@@ -253,4 +254,64 @@ test("button:disabled does not use cursor: wait and aria-busy provides progress 
   // Verify .results[aria-busy] uses progress bar instead of border-color: var(--folder)
   assert.equal(/\.results\[aria-busy="true"\]\s*\{[^}]*border-color:\s*var\(--folder\)/i.test(css), false);
   assert.equal(css.includes("progress-bar-slide"), true);
+});
+
+test("pickFolder provides button aria-busy state and handles 409 already open gracefully", async () => {
+  const { context } = setupDOM();
+  const source = readFileSync(join(__dirname, "../../src/folderhome/setup_ui/app.js"), "utf8");
+  const pickStart = source.indexOf("async function pickFolder(");
+  const pickEnd = source.indexOf("function folderRow(");
+
+  let invalidated = false;
+  let shownError = null;
+  let mockApiResolves = null;
+  let mockApiRejects = null;
+
+  context.invalidate = () => { invalidated = true; };
+  context.showError = (err) => { shownError = err; };
+  context.t = (k) => k;
+  context.api = () => new Promise((resolve, reject) => {
+    mockApiResolves = resolve;
+    mockApiRejects = reject;
+  });
+
+  vm.runInContext(source.slice(pickStart, pickEnd), context);
+
+  const input = new MockElement("input");
+  input.value = "/initial/path";
+  const button = new MockElement("button");
+  button.textContent = "Choose folder";
+
+  // 1. Start pickFolder - check immediate busy state
+  const pickPromise = context.pickFolder(input, button);
+  assert.equal(button.getAttribute("aria-busy"), "true");
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "dialogOpening");
+
+  // Complete api call successfully
+  mockApiResolves({ path: "/new/chosen/folder" });
+  await pickPromise;
+
+  assert.equal(input.value, "/new/chosen/folder");
+  assert.equal(invalidated, true);
+  assert.equal(button.getAttribute("aria-busy"), null);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Choose folder");
+
+  // 2. Test 409 conflict: another dialog is already open
+  const conflictPromise = context.pickFolder(input, button);
+  assert.equal(button.getAttribute("aria-busy"), "true");
+  assert.equal(button.disabled, true);
+  assert.equal(button.textContent, "dialogOpening");
+
+  const err409 = new Error("Es ist bereits ein Verzeichnisdialog offen.");
+  err409.status = 409;
+  mockApiRejects(err409);
+  await conflictPromise;
+
+  assert.equal(shownError !== null, true);
+  assert.equal(shownError.message, "dialogAlreadyOpen");
+  assert.equal(button.getAttribute("aria-busy"), null);
+  assert.equal(button.disabled, false);
+  assert.equal(button.textContent, "Choose folder");
 });
