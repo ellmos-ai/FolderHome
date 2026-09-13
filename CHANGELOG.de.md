@@ -23,18 +23,6 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - `FOLDERHOME_AGENTCORE_MAX_TURNS` begrenzt die Modellzüge des AgentCore-Master-Agenten;
   das geprüfte Kostenprofil setzt 2 (Nova Micro live: Fähigkeiten, dann die Suche).
 
-- Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
-  (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
-  `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem
-  Gesamtbudget des Eigentümers von 195 USD für das Prüffenster (185 Weiterleitungen,
-  10 Infrastruktur).
-
-- Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
-  (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
-  `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem
-  Gesamtbudget des Eigentümers von 195 USD für das Prüffenster (185 Weiterleitungen,
-  10 Infrastruktur).
-
 ### Behoben
 
 - Das Prepare-Gate der synthetischen Unfall-Demo akzeptierte nur einen Master-Agenten,
@@ -44,8 +32,9 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
   deterministisch aus und kennzeichnet den Plan mit
   `search_performed_by: deterministic_fallback`, statt die Reise scheitern zu lassen.
 - AgentCore-Runtime und Proxy protokollierten nichts, wenn sie eine Weiterleitung
-  abwiesen oder scheiterten; beide loggen jetzt Status und konstanten Fehlertext nach
-  CloudWatch.
+  abwiesen oder scheiterten; beide loggen jetzt Status und einen konstanten Grundcode
+  (der Proxy zusätzlich den AWS-Fehlercode) nach CloudWatch, nie Anfrageinhalte oder
+  SDK-Meldungen.
 - `manage.py migrate` lief bei der zweiten Re-Migration in das Endpoint-Kontingent je
   Agent; vor dem Anlegen des neuen Endpunkts löscht es jetzt veraltete
   `budget_v*`-Endpunkte, die kein Proxy nutzt (`pruned_endpoints` im Ergebnis).
@@ -54,11 +43,18 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ### Geändert
 
+- Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
+  (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
+  `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem
+  Gesamtbudget des Eigentümers von 195 USD für das Prüffenster (185 USD für
+  Weiterleitungen, 10 USD für Infrastruktur); das AWS-Budget selbst ist eine
+  Monatswarnung, nicht die Fenstergrenze.
 - Die tägliche Zulassung der öffentlichen Demo ist allein das kumulierende Budget-
   Ledger (Policy P-010): Die feste Obergrenze von 20 AgentCore-Weiterleitungen pro
   UTC-Tag und die Variable `FOLDERHOME_DAILY_QUOTA_LIMIT` entfallen, der Tageszähler
   ist Telemetrie, und der API-Gateway-Nutzungsplan wird eine strukturelle Grenze von
-  1000 Anfragen pro Tag, die übertragenes Guthaben nie unterschreitet.
+  1000 Anfragen pro Tag (laut AWS bestmöglich durchgesetzt), die unabhängig vom
+  Geld-Ledger gilt und übertragenes Guthaben an einem vollen Tag kappen kann.
 
 ## [0.4.0] - 2026-09-12
 

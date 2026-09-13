@@ -255,6 +255,8 @@ def runtime_cost_profile() -> dict[str, Any]:
             "FOLDERHOME_AGENTCORE_BEDROCK_MODEL_ID": _MODEL_ID,
             "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
             "FOLDERHOME_AGENTCORE_MAX_TURNS": "2",
+            "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES": "65536",
+            "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES": "65536",
             "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
             "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
         },
@@ -621,7 +623,9 @@ def migrate_demo(
     if runtime.get("metadataConfiguration", {}).get("requireMMDSV2") is not True:
         raise DeploymentError("Runtime became ready without the required IMDSv2 setting.")
     budget_endpoint = f"budget_v{updated_version}"
-    wired_endpoint = _stack_parameters(_APPLICATION_STACK).get("AgentRuntimeEndpoint", "")
+    wired_endpoint = _stack_parameters(_APPLICATION_STACK).get("AgentRuntimeEndpoint")
+    if not wired_endpoint:
+        raise DeploymentError("Application stack does not expose its runtime endpoint.")
     pruned_endpoints = _prune_stale_budget_endpoints(
         runtime_id, keep={wired_endpoint, budget_endpoint}
     )
@@ -1065,8 +1069,10 @@ def verify_demo(
         forwarded_today = int(quota_item["request_count"]["N"])
     except (KeyError, TypeError, ValueError) as exc:
         raise DeploymentError("Atomic daily quota counter is unavailable.") from exc
-    if not 2 <= forwarded_today <= 20:
-        raise DeploymentError("Atomic daily quota counter is outside its hard bounds.")
+    if forwarded_today < 2:
+        # Telemetry only (policy P-010): the money ledger is the ceiling; the two
+        # paid probes of this run must at least be visible in the day's counter.
+        raise DeploymentError("Atomic daily quota counter did not record this run.")
     concurrency = _aws_json(
         [
             "lambda",
@@ -1078,8 +1084,8 @@ def verify_demo(
     if concurrency.get("ReservedConcurrentExecutions") is not None:
         raise DeploymentError("Lambda concurrency differs from the reviewed unreserved template.")
     reserved_after = _read_budget_reserved(settings)
-    if reserved_after < reserved_before + 2 * settings.budget.forward_microusd:
-        raise DeploymentError("Live journey lacks its two monetary reservations.")
+    if reserved_after != reserved_before + 2 * settings.budget.forward_microusd:
+        raise DeploymentError("Live journey did not reserve exactly two forwards.")
     proxy_logs = _aws_json(
         [
             "logs",
@@ -1133,8 +1139,16 @@ def verify_demo(
             bootstrap["BudgetName"],
         ]
     ).get("Budget", {})
-    if Decimal(str(budget.get("BudgetLimit", {}).get("Amount"))) != Decimal(budget_usd):
-        raise DeploymentError("AWS budget warning threshold does not match approval.")
+    limit = budget.get("BudgetLimit", {})
+    if (
+        Decimal(str(limit.get("Amount"))) != Decimal(budget_usd)
+        or limit.get("Unit") != "USD"
+        or budget.get("BudgetType") != "COST"
+        or budget.get("TimeUnit") != "MONTHLY"
+    ):
+        raise DeploymentError(
+            "AWS budget alert must be a monthly USD cost alert at the approved amount."
+        )
     _write_state(
         repository,
         {
@@ -1165,6 +1179,8 @@ def verify_demo(
         "log_retention_days": 7,
         "site_bucket_private": True,
         "budget_alert_usd": budget_usd,
+        "budget_alert_time_unit": "MONTHLY",
+        "budget_alert_time_unit": "MONTHLY",
         "api_key_value_logged": False,
     }
 

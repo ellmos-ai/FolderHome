@@ -22,16 +22,6 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - `FOLDERHOME_AGENTCORE_MAX_TURNS` bounds the AgentCore master agent's model turns; the
   reviewed cost profile sets it to 2 (live Nova Micro: capabilities, then the search).
 
-- The cost approval token names the reviewed alert amount
-  (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
-  bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
-  owner's total of USD 195 for the review window (185 forwards, 10 infrastructure).
-
-- The cost approval token names the reviewed alert amount
-  (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
-  bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
-  owner's total of USD 195 for the review window (185 forwards, 10 infrastructure).
-
 ### Fixed
 
 - The synthetic accident demo's prepare gate accepted only a master agent whose sole
@@ -40,7 +30,8 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
   runs the same local search deterministically and labels the plan
   `search_performed_by: deterministic_fallback` instead of failing the journey.
 - The AgentCore runtime and the proxy logged nothing when they rejected or failed a
-  forward; both now log the status and constant error text to CloudWatch.
+  forward; both now log the status and a constant reason code (the proxy adds the AWS
+  error code) to CloudWatch, never request content or SDK messages.
 - `manage.py migrate` hit the per-agent endpoint quota on the second re-migration; it
   now deletes stale `budget_v*` endpoints that no proxy targets before creating the new
   one (`pruned_endpoints` in the result).
@@ -49,11 +40,17 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 
 ### Changed
 
+- The cost approval token names the reviewed alert amount
+  (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
+  bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
+  owner's total of USD 195 for the review window (USD 185 for forwards, USD 10 for
+  infrastructure); the AWS Budget itself is a monthly alert, not the window boundary.
 - The public demo's daily admission is the cumulative budget ledger alone (policy
   P-010): the fixed ceiling of 20 AgentCore forwards per UTC day and the
   `FOLDERHOME_DAILY_QUOTA_LIMIT` variable are gone, the per-day counter is telemetry,
   and the API Gateway usage plan becomes a structural 1000-requests-per-day
-  anti-abuse ceiling that never undercuts carried-over entitlement.
+  anti-abuse ceiling (best-effort per AWS) that is independent of the money ledger
+  and may cap carried-over entitlement on a busy day.
 
 ## [0.4.0] - 2026-09-12
 

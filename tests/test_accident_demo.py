@@ -162,7 +162,12 @@ def test_accident_demo_refuses_an_unowned_existing_runtime_directory(
     assert existing.read_text(encoding="utf-8") == "belongs to somebody else"
 
 
-def _master_stub(tool_names: list[str], *, search_status: int = 200):
+def _master_stub(
+    tool_names: list[str],
+    *,
+    search_status: int = 200,
+    hits: tuple[str, ...] = ("KFZ_Hyundai_i10_2026.txt", "KFZ_Hyundai_i10_2025.txt"),
+):
     from types import SimpleNamespace
 
     from folderhome.contracts.local_app import LocalApiResponse
@@ -175,7 +180,10 @@ def _master_stub(tool_names: list[str], *, search_status: int = 200):
     )
     search_payload = {
         "schema": "folderhome.local-search-response.v1",
-        "results": [{"filename": "KFZ_Hyundai_i10_2026.txt"}],
+        "result": {
+            "total_hits": len(hits),
+            "hits": [{"filename": name} for name in hits],
+        },
     }
     return SimpleNamespace(
         run_agent_chat=lambda **kwargs: report,
@@ -223,9 +231,11 @@ def test_accident_demo_falls_back_to_a_deterministic_search_when_the_master_skip
 
     assert prepared["status"] == "confirmation_required"
     assert prepared["search_performed_by"] == "deterministic_fallback"
-    assert prepared["deterministic_search"]["results"][0]["filename"] == (
-        "KFZ_Hyundai_i10_2026.txt"
-    )
+    assert prepared["deterministic_search"]["result"]["total_hits"] == 2
+    assert [d["filename"] for d in prepared["detected_documents"]] == [
+        "KFZ_Hyundai_i10_2026.txt",
+        "KFZ_Hyundai_i10_2025.txt",
+    ]
     assert str(tmp_path) not in json.dumps(prepared, ensure_ascii=False)
 
 
@@ -239,5 +249,24 @@ def test_accident_demo_blocks_when_even_the_deterministic_search_is_unavailable(
         lambda settings: _master_stub(["list_home_capabilities"], search_status=503),
     )
 
-    with pytest.raises(SyntheticAccidentDemoError, match="local document search"):
+    from folderhome.application.accident_demo import SyntheticAccidentDemoUnavailableError
+
+    with pytest.raises(SyntheticAccidentDemoUnavailableError, match="unavailable"):
+        demo.prepare()
+
+
+def test_accident_demo_refuses_a_plan_when_the_search_misses_a_policy(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Codex review F04 (2026-09-13): a tool call or HTTP 200 is not evidence; the hits are.
+    demo = SyntheticAccidentDemo(tmp_path / "workspace")
+    monkeypatch.setattr(
+        demo,
+        "_build_application",
+        lambda settings: _master_stub(
+            ["search_home_documents"], hits=("KFZ_Hyundai_i10_2026.txt",)
+        ),
+    )
+
+    with pytest.raises(SyntheticAccidentDemoError, match="both synthetic"):
         demo.prepare()

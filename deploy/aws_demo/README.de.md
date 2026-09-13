@@ -32,7 +32,9 @@ bleiben.
 - CloudWatch verschlüsselt jede Loggruppe im Ruhezustand mit der serviceverwalteten
   AES-256-GCM-Verschlüsselung. Ein kundenseitig verwalteter KMS-Schlüssel wird bewusst
   nicht verwendet, damit für synthetische Daten keine monatlichen Fixkosten entstehen.
-- Das AWS-Budget (195 USD für das geprüfte Fenster seit 13.09.2026) versendet Warnungen; es ist keine harte Ausgabensperre.
+- Das AWS-Budget ist eine **monatliche** USD-Kostenwarnung (195 seit 13.09.2026); sie setzt
+  jeden Monat zurück und ist keine harte Sperre. Das Fenster-Gesamtbudget setzt das
+  Geld-Ledger durch, die Warnung kommt hinzu.
 - Das Anlegen oder Aktualisieren von AWS-Ressourcen benötigt eine ausdrückliche
   Kostenfreigabe durch einen Menschen.
 
@@ -152,7 +154,8 @@ python deploy/aws_demo/manage.py verify `
   --approval-token DEPLOY_FOLDERHOME_WITH_195_USD_ALERT
 ```
 
-`verify` prüft vor kostenpflichtigen Proben die deployte Geld-Policy, das verbleibende
+`verify` setzt die Log-Gruppen der Runtime auf 7 Tage Aufbewahrung (sein einziger
+Schreibzugriff) und prüft vor kostenpflichtigen Proben die deployte Geld-Policy, das verbleibende
 Guthaben, die Runtime-Version und die bewusst unreservierte Lambda-Konfiguration.
 Es vergleicht außerdem den deployten Lambda-Codehash, das versionierte Runtime-Artefakt,
 IMDSv2 und das vollständige Runtime-Kostenprofil mit dem freigegebenen Material.

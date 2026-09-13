@@ -21,6 +21,7 @@ def test_agentcore_environment_enables_bedrock_only_with_both_explicit_gates() -
             "AWS_REGION": "eu-central-1",
             "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "1024",
             "FOLDERHOME_AGENTCORE_MAX_TURNS": "2",
+            "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES": "65536",
         }
     )
 
@@ -31,6 +32,8 @@ def test_agentcore_environment_enables_bedrock_only_with_both_explicit_gates() -
     assert settings.allow_sensitive_cloud_data is True
     assert settings.max_output_tokens == 1_024
     assert settings.max_turns == 2
+    assert settings.max_tool_result_bytes == 65_536
+    assert settings.max_tool_result_bytes == 65_536
 
 
 @pytest.mark.parametrize(

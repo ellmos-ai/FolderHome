@@ -246,6 +246,14 @@ _REQUESTS: tuple[tuple[str, str, str, dict[str, object]], ...] = (
 )
 
 
+class SyntheticAccidentDemoUnavailableError(RuntimeError):
+    """The local search service the journey depends on is not available."""
+
+
+class SyntheticAccidentDemoUnavailableError(RuntimeError):
+    """The local search service the journey depends on is not available."""
+
+
 class SyntheticAccidentDemoError(RuntimeError):
     """Raised when the synthetic journey is stale, unsafe, or not confirmed."""
 
@@ -400,13 +408,14 @@ class SyntheticAccidentDemo:
                 message=normalized,
             )
             # A live model may inspect capabilities first or answer without a
-            # tool; the journey then rests on the same local search, run
-            # deterministically and labelled as such in the response.
-            fallback_search = None
-            if "search_home_documents" not in {
+            # tool. The evidence for the plan is always the real local search:
+            # both synthetic policies must be among its hits, whoever ran it.
+            master_searched = "search_home_documents" in {
                 item.tool_name for item in search.tool_events
-            }:
-                fallback_search = self._deterministic_search(normalized)
+            }
+            evidence = self._deterministic_search(normalized)
+            detected_documents = _detected_policies(evidence)
+            fallback_search = None if master_searched else evidence
             steps = [
                 {
                     "sequence": index,
@@ -426,16 +435,7 @@ class SyntheticAccidentDemo:
                 "schema": "folderhome.synthetic-accident-demo-plan.v1",
                 "scenario_id": "hyundai-i10-accident",
                 "prompt_sha256": sha256(normalized.encode("utf-8")).hexdigest(),
-                "detected_documents": [
-                    {
-                        "filename": "KFZ_Hyundai_i10_2026.txt",
-                        "classification": "current",
-                    },
-                    {
-                        "filename": "KFZ_Hyundai_i10_2025.txt",
-                        "classification": "older",
-                    },
-                ],
+                "detected_documents": detected_documents,
                 "steps": steps,
                 "network_used": search.network_used,
                 "external_actions_performed": [],
@@ -484,10 +484,11 @@ class SyntheticAccidentDemo:
             server_port=application.settings.port,
         )
         if response.status_code != 200 or response.payload is None:
-            raise SyntheticAccidentDemoError(
-                "The master agent did not perform the expected local document search."
+            raise SyntheticAccidentDemoUnavailableError(
+                "The local document search is unavailable; no plan is offered without it."
             )
         return dict(response.payload)
+
 
     def confirm(self, command: str) -> dict[str, object]:
         with self._lock:
@@ -891,3 +892,28 @@ __all__ = [
     "SyntheticAccidentDemo",
     "SyntheticAccidentDemoError",
 ]
+
+
+_EXPECTED_POLICIES = (
+    ("KFZ_Hyundai_i10_2026.txt", "current"),
+    ("KFZ_Hyundai_i10_2025.txt", "older"),
+)
+
+
+def _detected_policies(search_payload: dict[str, object]) -> list[dict[str, str]]:
+    """Derive the plan's evidence from real hits instead of asserting it."""
+    result = search_payload.get("result")
+    hits = result.get("hits", []) if isinstance(result, dict) else []
+    filenames = {
+        hit.get("filename") for hit in hits if isinstance(hit, dict) and "filename" in hit
+    }
+    missing = [name for name, _ in _EXPECTED_POLICIES if name not in filenames]
+    if missing:
+        raise SyntheticAccidentDemoError(
+            "The local search did not find both synthetic Hyundai i10 policies; "
+            "no plan is offered without that evidence."
+        )
+    return [
+        {"filename": name, "classification": classification}
+        for name, classification in _EXPECTED_POLICIES
+    ]

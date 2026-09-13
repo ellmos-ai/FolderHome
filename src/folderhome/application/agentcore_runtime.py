@@ -8,8 +8,10 @@ from hashlib import sha256
 from pathlib import Path
 
 from folderhome.application.accident_demo import (
+    SyntheticAccidentDemoUnavailableError,
     SyntheticAccidentDemo,
     SyntheticAccidentDemoError,
+    SyntheticAccidentDemoUnavailableError,
 )
 from folderhome.contracts.local_app import LocalApiResponse
 from folderhome.contracts.strands_agent import StrandsAgentSettings
@@ -88,15 +90,21 @@ class AgentCoreRuntimeApplication:
         if method.upper() == "GET" and path == "/ping":
             return self._json(200, {"status": "Healthy"})
         if path != "/invocations":
-            return self._error(404, "Unknown AgentCore endpoint.")
+            return self._error(404, "Unknown AgentCore endpoint.", reason="unknown_endpoint")
         if method.upper() != "POST":
-            return self._error(405, "Only POST is allowed for /invocations.")
+            return self._error(
+                405, "Only POST is allowed for /invocations.", reason="method_not_allowed"
+            )
         if len(body) > self.max_body_bytes:
-            return self._error(413, "Invocation body exceeds the configured limit.")
+            return self._error(
+                413, "Invocation body exceeds the configured limit.", reason="body_too_large"
+            )
         if not folded_headers.get("content-type", "").casefold().startswith(
             "application/json"
         ):
-            return self._error(415, "Content-Type must be application/json.")
+            return self._error(
+                415, "Content-Type must be application/json.", reason="unsupported_media_type"
+            )
         try:
             session_id = self._session_id(folded_headers)
             prompt = self._prompt(body)
@@ -150,11 +158,17 @@ class AgentCoreRuntimeApplication:
                 },
             )
         except AgentCoreRuntimeCapacityError as exc:
-            return self._error(503, str(exc))
-        except (SyntheticAccidentDemoError, UnicodeError, ValueError) as exc:
-            return self._error(400, str(exc))
+            return self._error(503, str(exc), reason="capacity")
+        except SyntheticAccidentDemoUnavailableError as exc:
+            return self._error(503, str(exc), reason="search_unavailable")
+        except UnicodeError:
+            return self._error(400, "Invocation body must be UTF-8 JSON.", reason="UnicodeError")
+        except (SyntheticAccidentDemoError, ValueError) as exc:
+            return self._error(400, str(exc), reason=exc.__class__.__name__)
         except OSError:
-            return self._error(500, "The synthetic runtime workspace is unavailable.")
+            return self._error(
+                500, "The synthetic runtime workspace is unavailable.", reason="workspace"
+            )
 
     @staticmethod
     def _session_id(headers: dict[str, str]) -> str:
@@ -226,11 +240,12 @@ class AgentCoreRuntimeApplication:
         )
 
     @classmethod
-    def _error(cls, status: int, message: str) -> LocalApiResponse:
-        # Operator log (stdout -> CloudWatch): status and constant message only.
+    def _error(cls, status: int, message: str, *, reason: str) -> LocalApiResponse:
+        # Operator log (stdout -> CloudWatch): status and a constant reason code only;
+        # the message may echo request details and stays in the HTTP response.
         print(
             json.dumps(
-                {"event": "invocation_rejected", "status": status, "error": message},
+                {"event": "invocation_rejected", "status": status, "reason": reason},
                 sort_keys=True,
             ),
             flush=True,
@@ -249,7 +264,7 @@ def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
     payload: dict[str, object] = {}
     for key, value in pairs:
         if key in payload:
-            raise ValueError(f"Duplicate JSON key is not allowed: {key}")
+            raise ValueError("Duplicate JSON keys are not allowed.")
         payload[key] = value
     return payload
 

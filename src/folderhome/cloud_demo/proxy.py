@@ -116,13 +116,19 @@ def lambda_handler(event: dict[str, Any], _context: object) -> dict[str, object]
                 separators=(",", ":"),
             ).encode("utf-8"),
         )
-        content = result["response"].read(_MAX_RESPONSE_BYTES + 1)
-        if len(content) > _MAX_RESPONSE_BYTES:
-            raise ValueError("AgentCore response exceeds the public demo limit.")
-        payload = json.loads(content.decode("utf-8"), object_pairs_hook=_unique_object)
-        if not isinstance(payload, dict):
-            raise ValueError("AgentCore response is not a JSON object.")
-        status = int(result.get("statusCode", 200))
+        try:
+            content = result["response"].read(_MAX_RESPONSE_BYTES + 1)
+            if len(content) > _MAX_RESPONSE_BYTES:
+                raise ValueError("AgentCore response exceeds the public demo limit.")
+            payload = json.loads(content.decode("utf-8"), object_pairs_hook=_unique_object)
+            if not isinstance(payload, dict):
+                raise ValueError("AgentCore response is not a JSON object.")
+            status = int(result.get("statusCode", 200))
+        except (KeyError, TypeError, UnicodeError, ValueError):
+            # Upstream shape errors are not the browser's fault.
+            return _response(
+                502, {"error": "AgentCore returned an invalid response."}, headers=cors
+            )
         return _response(status, payload, headers=cors)
     except CloudDemoRuntimeDrift:
         return _response(
@@ -140,13 +146,17 @@ def lambda_handler(event: dict[str, Any], _context: object) -> dict[str, object]
         return _response(400, {"error": "Public demo request is invalid."}, headers=cors)
     except Exception as exc:  # AWS SDK exceptions vary by runtime version.
         if exc.__class__.__module__.startswith(("botocore", "boto3")):
-            # Operator log only (CloudWatch): class and message, never the request.
+            # Operator log only (CloudWatch): exception class and the AWS error code,
+            # never the message (it may carry SDK-transported data) or the request.
+            aws_error = getattr(exc, "response", None)
+            code = aws_error.get("Error", {}).get("Code") if isinstance(aws_error, dict) else None
             print(
                 json.dumps(
                     {
                         "event": "agentcore_forward_failed",
+                        "status": 503,
                         "error": exc.__class__.__name__,
-                        "detail": str(exc)[:500],
+                        "aws_error_code": code if isinstance(code, str) else None,
                     },
                     sort_keys=True,
                 ),

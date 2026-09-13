@@ -30,7 +30,9 @@ bounded in cost and duration.
 - CloudWatch encrypts every log group at rest with its service-managed AES-256-GCM
   encryption; a customer-managed KMS key is intentionally omitted to avoid a fixed
   monthly key charge for synthetic data.
-- The AWS Budget (USD 195 for the reviewed window since 2026-09-13) sends alerts; it is not a hard spending stop.
+- The AWS Budget is a **monthly** USD cost alert (195 since 2026-09-13); it resets each
+  month and is not a hard stop. The window total is enforced by the money ledger, the
+  alert is an additional warning.
 - Creating or updating AWS resources requires an explicit human cost approval.
 
 **This is a forward-reservation ledger, not an account-wide billing stop.**
@@ -143,7 +145,8 @@ python deploy/aws_demo/manage.py verify `
   --approval-token DEPLOY_FOLDERHOME_WITH_195_USD_ALERT
 ```
 
-`verify` checks the deployed monetary policy, remaining entitlement, runtime
+`verify` sets the runtime log groups to a 7-day retention (its only write) and
+checks the deployed monetary policy, remaining entitlement, runtime
 version and intentionally unreserved Lambda configuration before paid probes.
 It also compares the deployed Lambda code hash, versioned Runtime artifact,
 IMDSv2 setting and full runtime cost profile with the approved material.
