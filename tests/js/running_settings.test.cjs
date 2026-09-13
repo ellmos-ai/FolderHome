@@ -152,3 +152,102 @@ test("renderRunningSettings shows stale banner when launch.json has a different 
   assert.equal(staleBanner.hidden, false);
   assert.equal(staleText.textContent, "Saved setting differs: bedrock-nova-micro — reload to apply");
 });
+
+test("reloadSettings aborts when user declines confirmation", async () => {
+  let confirmAsked = false;
+  let apiCalled = false;
+  const context = vm.createContext({
+    window: {
+      confirm: () => { confirmAsked = true; return false; },
+      alert: () => {},
+    },
+    t: (key) => key,
+    reloadSettingsButton: { disabled: false },
+    api: async () => { apiCalled = true; },
+  });
+
+  const fnMatch = appSource.match(/async function reloadSettings\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch);
+  vm.runInContext(fnMatch[0], context);
+
+  await context.reloadSettings();
+  assert.equal(confirmAsked, true);
+  assert.equal(apiCalled, false);
+});
+
+test("reloadSettings posts reload request and updates status and resets transcript on success", async () => {
+  const calls = [];
+  let chatCleared = false;
+  let assistantMessage = null;
+  const context = vm.createContext({
+    window: {
+      confirm: () => true,
+      alert: () => {},
+    },
+    t: (key) => key,
+    reloadSettingsButton: { disabled: false },
+    api: async (url, opts) => {
+      calls.push({ url, opts });
+      if (url === "/api/v1/settings/reload") {
+        return { schema: "folderhome.local-settings-reload-response.v1", status: "reloaded" };
+      }
+      if (url === "/api/v1/status") {
+        return {
+          model_provider: "bedrock",
+          model_state: "configured_unverified",
+          running_preset: "bedrock-nova-micro",
+          model_connection: { model_id: "amazon.nova-micro-v1:0" },
+        };
+      }
+    },
+    renderTopologyBadge: () => {},
+    renderModelStatus: () => {},
+    renderRunningSettings: () => {},
+    renderConnection: () => {},
+    renderCurrentView: () => {},
+    conversationRevision: 0,
+    currentView: "someView",
+    chatTranscript: {
+      replaceChildren: () => { chatCleared = true; },
+    },
+    appendChatMessage: (role, text) => { assistantMessage = { role, text }; },
+  });
+
+  const fnMatch = appSource.match(/async function reloadSettings\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch);
+  vm.runInContext(fnMatch[0], context);
+
+  await context.reloadSettings();
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, "/api/v1/settings/reload");
+  assert.equal(calls[1].url, "/api/v1/status");
+  assert.equal(chatCleared, true);
+  assert.equal(assistantMessage.text, "conversationReset");
+});
+
+test("reloadSettings displays error message when reload fails", async () => {
+  let alertMsg = null;
+  const context = vm.createContext({
+    window: {
+      confirm: () => true,
+      alert: (msg) => { alertMsg = msg; },
+    },
+    t: (key) => key,
+    reloadSettingsButton: { disabled: false },
+    api: async () => {
+      const err = new Error("Request failed");
+      err.payload = { message: "Start the app with --allow-network --approve-sensitive-cloud-data to use bedrock-nova-micro" };
+      throw err;
+    },
+  });
+
+  const fnMatch = appSource.match(/async function reloadSettings\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch);
+  vm.runInContext(fnMatch[0], context);
+
+  await context.reloadSettings();
+  assert.equal(
+    alertMsg,
+    "Start the app with --allow-network --approve-sensitive-cloud-data to use bedrock-nova-micro"
+  );
+});

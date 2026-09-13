@@ -60,6 +60,7 @@ request limit is 65536 bytes.
 - `POST /api/v1/agent/chat` — send `folderhome.local-agent-chat-request.v1`
 - `POST /api/v1/agent/confirm` — send `folderhome.local-agent-confirmation-request.v1`
 - `POST /api/v1/agent/conversation/reset` — send `folderhome.local-agent-conversation-reset-request.v1`
+- `POST /api/v1/settings/reload` — send `folderhome.local-settings-reload-request.v1`
 
 The service binds to `127.0.0.1` only, checks the `Host` header against that
 binding, rejects a foreign browser `Origin` and sends no CORS headers. It is an

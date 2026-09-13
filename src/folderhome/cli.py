@@ -5486,6 +5486,144 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
             )
 
 
+class ReloadGateError(LocalAppError):
+    """Raised when a reloaded preset requires network or cloud gates not granted at start."""
+
+
+def build_reloaded_agent_settings(
+    launch_config_path: Path | str,
+    current_settings: StrandsAgentSettings,
+) -> tuple[StrandsAgentSettings, str | None]:
+    """Build a fresh StrandsAgentSettings from launch config without bypassing startup gates."""
+
+    path = Path(launch_config_path)
+    if not path.is_file():
+        raise ValueError(f"Startkonfiguration ist nicht lesbar: {path}")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Startkonfiguration ist nicht lesbar: {exc}") from exc
+    if not isinstance(payload, dict) or payload.get("schema") != LAUNCH_CONFIG_SCHEMA:
+        raise ValueError("Startkonfiguration verwendet ein unbekanntes Schema.")
+
+    for name, value in read_env_file(path.parent / ENV_FILENAME).items():
+        os.environ.setdefault(name, value)
+
+    preset = _active_preset(payload)
+    model_preset = payload.get("model_preset")
+    running_preset_name = (
+        model_preset.strip()
+        if isinstance(model_preset, str) and model_preset.strip()
+        else None
+    )
+
+    supplied: dict[str, object] = {}
+    for name, kind in _LAUNCH_CONFIG_FIELDS.items():
+        value = payload.get(name)
+        if value is None:
+            value = preset.get(name)
+        if value is None:
+            continue
+        if kind is int and (isinstance(value, bool) or not isinstance(value, int)):
+            raise ValueError(f"Startkonfiguration braucht für {name} eine Zahl.")
+        if kind is not int and not isinstance(value, str):
+            raise ValueError(f"Startkonfiguration braucht für {name} einen Text.")
+        supplied[name] = kind(value) if kind is not str else value
+
+    effective = supplied.get("model_provider", "fixture")
+    if effective != "ollama":
+        supplied.pop("ollama_host", None)
+        supplied.pop("ollama_model_id", None)
+    if effective != "bedrock":
+        supplied.pop("bedrock_model_id", None)
+        supplied.pop("aws_region", None)
+    if effective != "anthropic":
+        supplied.pop("anthropic_model_id", None)
+    if effective != "openai":
+        supplied.pop("openai_model_id", None)
+        supplied.pop("openai_base_url", None)
+
+    for name in _LAUNCH_CONFIG_FIELDS:
+        if name not in supplied and name in _LAUNCH_CONFIG_DEFAULTS:
+            supplied[name] = _LAUNCH_CONFIG_DEFAULTS[name]
+
+    from ipaddress import ip_address
+    from folderhome.contracts.strands_agent import (
+        _HOSTED_PROVIDERS,
+        _LOOPBACK_HOSTS,
+        _parsed_model_host,
+    )
+
+    needs_network = False
+    if effective in _HOSTED_PROVIDERS:
+        needs_network = True
+    elif effective == "ollama":
+        host = supplied.get("ollama_host") or DEFAULT_OLLAMA_HOST
+        parsed = _parsed_model_host(str(host))
+        if parsed is None:
+            needs_network = True
+        else:
+            hostname = parsed.hostname.lower() if parsed.hostname else ""
+            if hostname not in _LOOPBACK_HOSTS:
+                try:
+                    needs_network = not ip_address(hostname).is_loopback
+                except ValueError:
+                    needs_network = True
+
+    preset_label = running_preset_name or effective
+    if needs_network:
+        if not current_settings.allow_network or not current_settings.allow_sensitive_cloud_data:
+            raise ReloadGateError(
+                f"Start the app with --allow-network --approve-sensitive-cloud-data to use {preset_label}"
+            )
+
+    allow_net = False if effective == "fixture" else current_settings.allow_network
+    allow_cloud = False if effective == "fixture" else current_settings.allow_sensitive_cloud_data
+
+    kwargs: dict[str, object] = {
+        "model_provider": effective,
+        "allow_network": allow_net,
+        "allow_sensitive_cloud_data": allow_cloud,
+        "max_turns": current_settings.max_turns,
+        "max_tool_calls": current_settings.max_tool_calls,
+        "max_prompt_chars": current_settings.max_prompt_chars,
+        "max_response_chars": current_settings.max_response_chars,
+        "max_tool_result_bytes": current_settings.max_tool_result_bytes,
+        "max_output_tokens": current_settings.max_output_tokens,
+        "max_conversation_messages": current_settings.max_conversation_messages,
+        "model_timeout_seconds": (
+            int(supplied["model_timeout_seconds"])
+            if "model_timeout_seconds" in supplied
+            else current_settings.model_timeout_seconds
+        ),
+        "bedrock_connect_timeout_seconds": (
+            int(supplied["bedrock_connect_timeout_seconds"])
+            if "bedrock_connect_timeout_seconds" in supplied
+            else current_settings.bedrock_connect_timeout_seconds
+        ),
+        "bedrock_read_timeout_seconds": (
+            int(supplied["bedrock_read_timeout_seconds"])
+            if "bedrock_read_timeout_seconds" in supplied
+            else current_settings.bedrock_read_timeout_seconds
+        ),
+    }
+    if effective == "ollama":
+        kwargs["ollama_host"] = supplied.get("ollama_host") or DEFAULT_OLLAMA_HOST
+        kwargs["ollama_model_id"] = supplied.get("ollama_model_id")
+        if "ollama_num_ctx" in supplied:
+            kwargs["ollama_num_ctx"] = int(supplied["ollama_num_ctx"])
+    elif effective == "bedrock":
+        kwargs["bedrock_model_id"] = supplied.get("bedrock_model_id")
+        kwargs["aws_region"] = supplied.get("aws_region")
+    elif effective == "anthropic":
+        kwargs["anthropic_model_id"] = supplied.get("anthropic_model_id")
+    elif effective == "openai":
+        kwargs["openai_model_id"] = supplied.get("openai_model_id")
+        kwargs["openai_base_url"] = supplied.get("openai_base_url")
+
+    return StrandsAgentSettings(**kwargs), running_preset_name
+
+
 def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
     _apply_launch_config(args)
     scheduler_controller = None

@@ -94,12 +94,13 @@ def _settings(tmp_path: Path, *, host: str = "127.0.0.1") -> LocalAppSettings:
     )
 
 
-def _app(tmp_path: Path) -> LocalApplication:
+def _app(tmp_path: Path, **kwargs: object) -> LocalApplication:
     return LocalApplication(
         settings=_settings(tmp_path),
         profiles=load_profile_configuration(PROFILE_DIR),
         searcher=StubSearcher(),
         session_token="phase35-test-token-with-sufficient-entropy-123456",
+        **kwargs,
     )
 
 
@@ -1898,4 +1899,118 @@ def test_status_exposes_running_and_saved_preset_and_stale_detection(
     assert res_stale.payload["running_preset"] == "ollama-laptop"
     assert res_stale.payload["saved_preset"] == "bedrock-nova-micro"
     assert res_stale.payload["settings_stale"] is True
+
+
+def test_reload_settings_fails_409_when_no_launch_config(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "launch.json" in res.payload["message"]
+
+
+def test_reload_settings_fail_closed_409_when_gates_missing_for_cloud_preset(tmp_path: Path) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "bedrock-nova-micro",
+                "model_presets": {
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert res.payload["message"] == (
+        "Start the app with --allow-network --approve-sensitive-cloud-data to use bedrock-nova-micro"
+    )
+    assert app.agent_settings.model_provider == "fixture"
+
+
+def test_reload_settings_succeeds_and_updates_status_and_resets_turns(tmp_path: Path) -> None:
+    from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "ollama-alt",
+                "model_presets": {
+                    "ollama-init": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "ollama-alt": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "mistral:7b",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    initial_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen2.5:7b",
+    )
+    app = _app(
+        tmp_path,
+        agent_settings=initial_settings,
+        launch_config_path=launch_file,
+        running_preset="ollama-init",
+    )
+    app._successful_live_model_turns = 5
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    assert res.payload["schema"] == "folderhome.local-settings-reload-response.v1"
+    assert res.payload["status"] == "reloaded"
+    assert res.payload["model_provider"] == "ollama"
+    assert res.payload["model_state"] == "configured_unverified"
+    assert res.payload["running_preset"] == "ollama-alt"
+
+    # Status route reflects the new settings
+    status_res = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert status_res.status_code == 200
+    assert status_res.payload["running_preset"] == "ollama-alt"
+    assert status_res.payload["saved_preset"] == "ollama-alt"
+    assert status_res.payload["settings_stale"] is False
+    assert status_res.payload["successful_live_model_turns"] == 0
+    assert status_res.payload["model_state"] == "configured_unverified"
 

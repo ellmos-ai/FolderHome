@@ -1331,6 +1331,9 @@ class LocalApplication:
             payload = self._json_request(headers, body)
             profile_id = self._agent_conversation_reset_request(payload)
             return self._json_response(self.reset_agent_conversation(profile_id))
+        if method == "POST" and parsed.path == "/api/v1/settings/reload":
+            payload = self._json_request(headers, body)
+            return self._reload_settings(payload)
         if method == "POST" and parsed.path == "/api/v1/agent/confirm":
             payload = self._json_request(headers, body)
             request = self._agent_confirmation_request(payload)
@@ -1349,6 +1352,7 @@ class LocalApplication:
             "/api/v1/agent/confirm",
             "/api/v1/agent/calendar/plan",
             "/api/v1/agent/conversation/reset",
+            "/api/v1/settings/reload",
         }:
             return self._error(405, "Lokaler Dienst benötigt eine POST-JSON-Anfrage.")
         return self._error(404, "Unbekannter lokaler Endpunkt.")
@@ -1662,6 +1666,52 @@ class LocalApplication:
         if not isinstance(profile_id, str) or profile_id not in self._profile_ids:
             raise LocalAppError("Gesprächsreset nennt kein bekanntes Profil.")
         return profile_id
+
+    @staticmethod
+    def _settings_reload_request(payload: dict[str, object]) -> None:
+        expected = {"schema"}
+        if set(payload) != expected or payload.get("schema") != (
+            "folderhome.local-settings-reload-request.v1"
+        ):
+            raise LocalAppError("Reload-Anfrage besitzt unbekannte oder fehlende Felder.")
+
+    def _reload_settings(self, payload: dict[str, object]) -> LocalApiResponse:
+        self._settings_reload_request(payload)
+        if self._launch_config_path is None or not self._launch_config_path.is_file():
+            raise _HttpError(
+                409,
+                "Keine gespeicherte Startkonfiguration (launch.json) vorhanden.",
+            )
+        from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
+
+        try:
+            new_settings, new_preset = build_reloaded_agent_settings(
+                self._launch_config_path,
+                self.agent_settings,
+            )
+        except ReloadGateError as exc:
+            raise _HttpError(409, str(exc)) from exc
+        except (ValueError, OSError) as exc:
+            raise _HttpError(
+                409,
+                f"Startkonfiguration konnte nicht geladen werden: {exc}",
+            ) from exc
+
+        self.agent_settings = new_settings
+        self._running_preset = new_preset or "no preset / flags"
+        self._successful_live_model_turns = 0
+        for profile_id in self._profile_ids:
+            self.reset_agent_conversation(profile_id)
+
+        return self._json_response(
+            {
+                "schema": "folderhome.local-settings-reload-response.v1",
+                "status": "reloaded",
+                "model_provider": self.agent_settings.model_provider,
+                "model_state": "configured_unverified",
+                "running_preset": self._running_preset,
+            }
+        )
 
     def _validated_request(
         self,

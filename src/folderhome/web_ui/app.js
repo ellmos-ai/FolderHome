@@ -38,6 +38,8 @@ const translations = {
     noPresetFlags: "no preset / flags",
     savedSettingDiffers: "Saved setting differs: {preset} — reload to apply",
     reloadButton: "Reload",
+    reloadConfirm: "Reloading settings will apply the saved preset and reset the current conversation memory. Continue?",
+    reloadError: "Settings could not be reloaded.",
     serviceEyebrow: "Document and assistance service",
     heroDocuments: "Your documents.",
     heroDaily: "Your everyday life.",
@@ -206,6 +208,8 @@ const translations = {
     noPresetFlags: "kein Preset / Parameter",
     savedSettingDiffers: "Gespeicherte Einstellung weicht ab: {preset} — neu laden zum Übernehmen",
     reloadButton: "Neu laden",
+    reloadConfirm: "Beim Neuladen der Einstellungen wird das gespeicherte Preset angewendet und der bisherige Gesprächsverlauf zurückgesetzt. Fortfahren?",
+    reloadError: "Einstellungen konnten nicht neu geladen werden.",
     serviceEyebrow: "Dokument- und Assistenzservice",
     heroDocuments: "Deine Dokumente.",
     heroDaily: "Dein Alltag.",
@@ -388,6 +392,7 @@ const resultContent = document.querySelector("#result-content");
 const resultCount = document.querySelector("#result-count");
 const messageInput = document.querySelector("#message");
 const newConversationButton = document.querySelector("#new-conversation");
+const reloadSettingsButton = document.querySelector("#reload-settings-btn");
 const chatTranscript = document.querySelector("#chat-transcript");
 const connectionState = document.querySelector("#connection-state");
 const capabilityGrid = document.querySelector("#capability-grid");
@@ -434,10 +439,11 @@ function renderTopologyBadge() {
 }
 
 class LocalRequestError extends Error {
-  constructor(status, outcome = null) {
-    super(`Local request failed with status ${status}`);
+  constructor(status, outcome = null, payload = null) {
+    super(payload?.message || `Local request failed with status ${status}`);
     this.status = status;
     this.outcome = outcome;
+    this.payload = payload;
   }
 }
 
@@ -547,7 +553,7 @@ async function api(path, options = {}) {
       && payload?.schema === "folderhome.local-api-error.v1"
       && payload.execution_outcome_unknown === true && payload.retry_safe === false
       ? payload : null;
-    throw new LocalRequestError(response.status, outcome);
+    throw new LocalRequestError(response.status, outcome, payload);
   }
   return payload;
 }
@@ -688,6 +694,36 @@ function renderRunningSettings() {
       staleBanner.hidden = true;
       staleText.textContent = "";
     }
+  }
+}
+
+async function reloadSettings() {
+  const confirmed = window.confirm(t("reloadConfirm"));
+  if (!confirmed) return;
+  if (reloadSettingsButton) reloadSettingsButton.disabled = true;
+  try {
+    await api("/api/v1/settings/reload", {
+      method: "POST",
+      body: JSON.stringify({
+        schema: "folderhome.local-settings-reload-request.v1",
+      }),
+    });
+    appStatus = await api("/api/v1/status");
+    modelConnection = appStatus.model_connection || null;
+    renderTopologyBadge();
+    renderModelStatus();
+    renderRunningSettings();
+    renderConnection();
+    conversationRevision += 1;
+    currentView = null;
+    chatTranscript.replaceChildren();
+    appendChatMessage("assistant", t("conversationReset"));
+    renderCurrentView(false);
+  } catch (error) {
+    const message = error.payload?.message || error.message || t("reloadError");
+    window.alert(message);
+  } finally {
+    if (reloadSettingsButton) reloadSettingsButton.disabled = false;
   }
 }
 
@@ -1605,6 +1641,11 @@ document.querySelector("#recipe-form").addEventListener("submit", (event) => {
 newConversationButton.addEventListener("click", () => {
   resetConversation().catch(showError);
 });
+if (reloadSettingsButton) {
+  reloadSettingsButton.addEventListener("click", () => {
+    reloadSettings().catch(showError);
+  });
+}
 promptExamples.forEach((button) => {
   button.addEventListener("click", () => {
     messageInput.value = language === "de" ? button.dataset.promptDe : button.dataset.promptEn;
