@@ -48,9 +48,28 @@
           <span><i class="dot amber"></i><b>Reversible file actions</b></span>
         </div>
         <div class="hero-cta">
-          <a class="button primary" href="#demo" data-en="Walk through the accident case" data-de="Unfallbeispiel durchspielen">Walk through the accident case</a>
-          <a class="button secondary" href="https://youtu.be/wPb1wBJcLjQ" target="_blank" rel="noopener noreferrer" data-en="Watch the 3-minute demo" data-de="3-Minuten-Demo ansehen">Watch the 3-minute demo</a>
-          <a class="button secondary" href="https://github.com/ellmos-ai/FolderHome#quick-test-for-jurors" data-en="Run the real local demo" data-de="Echte lokale Demo starten">Run the real local demo</a>
+          <a class="button primary" href="#demo" data-en="Try the guided case" data-de="Geführten Fall ausprobieren">Try the guided case</a>
+          <a class="button secondary button-install" href="https://github.com/ellmos-ai/FolderHome#quick-test-for-jurors">
+            <span class="button-main" data-en="Install and run locally" data-de="Lokal installieren und starten">Install and run locally</span>
+            <small class="button-sub" data-en="pip install · your own folders · your own model" data-de="pip install · eigene Ordner · eigenes Modell">pip install · your own folders · your own model</small>
+          </a>
+        </div>
+        <div class="hero-video">
+          <a class="video-thumb" href="https://youtu.be/wPb1wBJcLjQ" target="_blank" rel="noopener noreferrer" aria-label="Watch the 3-minute demo video on YouTube">
+            <div class="video-thumb-frame">
+              <img src="assets/demo-thumb.jpg" width="640" height="360" alt="FolderHome 3-minute demo video preview" loading="lazy">
+              <span class="video-play-btn" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor">
+                  <polygon points="8,5 19,12 8,19"/>
+                </svg>
+              </span>
+              <span class="video-duration" aria-hidden="true">3:26</span>
+            </div>
+            <span class="video-thumb-caption">
+              <span class="video-caption-icon" aria-hidden="true">▶</span>
+              <span class="video-caption-text" data-en="Watch the 3-minute demo (YouTube ↗)" data-de="3-Minuten-Demo ansehen (YouTube ↗)">Watch the 3-minute demo (YouTube ↗)</span>
+            </span>
+          </a>
         </div>
       </div>
 
@@ -75,12 +94,28 @@
     </section>
 
     <section class="demo-section" id="demo" aria-labelledby="demo-title">
-      <div class="section-heading">
+      <div class="section-heading demo-head-chooser">
+        <div>
+          <p class="eyebrow" data-en="Cloud mode" data-de="Cloud-Modus">Cloud mode</p>
+          <h2 id="demo-title" data-en="Try it here in cloud mode" data-de="Hier im Cloud-Modus ausprobieren">Try it here in cloud mode</h2>
+        </div>
+        <p class="demo-head-note"><span data-en="The real FolderHome master agent runs on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered." data-de="Der echte FolderHome-Master-Agent läuft auf einem synthetischen Haushalt mit 104 Beispieldokumenten. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt.">The real FolderHome master agent runs on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered.</span></p>
+      </div>
+
+      <div class="section-heading demo-head-case">
         <div>
           <p class="eyebrow" data-en="Interactive case file" data-de="Interaktive Fallakte">Interactive case file</p>
-          <h2 id="demo-title" data-en="One request. Four bounded workflows." data-de="Eine Anfrage. Vier begrenzte Workflows.">One request. Four bounded workflows.</h2>
+          <h2 id="demo-title-case" data-en="One request. Four bounded workflows." data-de="Eine Anfrage. Vier begrenzte Workflows.">One request. Four bounded workflows.</h2>
         </div>
         <p class="disclosure"><strong data-en="Scripted synthetic walkthrough" data-de="Skriptbasierter synthetischer Rundgang">Scripted synthetic walkthrough</strong><span data-en="This public page runs no backend and changes no files. The repository command runs the real local adapters." data-de="Diese öffentliche Seite nutzt kein Backend und ändert keine Dateien. Der Repository-Befehl führt die echten lokalen Adapter aus.">This public page runs no backend and changes no files. The repository command runs the real local adapters.</span></p>
+      </div>
+
+      <div class="section-heading demo-head-chat">
+        <div>
+          <p class="eyebrow" data-en="Free chat" data-de="Freier Chat">Free chat</p>
+          <h2 id="demo-title-chat" data-en="Your own words, a synthetic household" data-de="Deine Worte, ein synthetischer Haushalt">Your own words, a synthetic household</h2>
+        </div>
+        <p class="demo-head-note"><span data-en="Ask about insurance, health, contracts, taxes or the calendar. Nothing here is real data." data-de="Frage nach Versicherungen, Gesundheit, Verträgen, Steuern oder dem Kalender. Nichts davon sind echte Daten.">Ask about insurance, health, contracts, taxes or the calendar. Nothing here is real data.</span></p>
       </div>
 
       <div class="demo-shell">
