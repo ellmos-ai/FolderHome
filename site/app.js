@@ -17,6 +17,7 @@ const confirmForm = document.querySelector("#confirm-form");
 const confirmation = document.querySelector("#confirmation");
 const confirmHelp = document.querySelector("#confirm-help");
 const resultGrid = document.querySelector("#result-grid");
+const generatedFiles = document.querySelector("#generated-files");
 const resetButton = document.querySelector("#reset-demo");
 const workflowSteps = Array.from(document.querySelectorAll("#workflow-steps li"));
 const initialTranscript = transcript.cloneNode(true);
@@ -49,6 +50,75 @@ function addMessage(role, content) {
   article.append(speaker, body);
   transcript.append(article);
   transcript.scrollTop = transcript.scrollHeight;
+}
+
+function decodeResult(entry) {
+  if (entry.content_encoding === "base64") {
+    const binary = window.atob(entry.content);
+    const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+    return new Blob([bytes], { type: entry.content_type || "application/octet-stream" });
+  }
+  return new Blob([entry.content], { type: entry.content_type || "text/plain; charset=utf-8" });
+}
+
+function formatBytes(size) {
+  return size < 1024 ? `${size} B` : `${(size / 1024).toFixed(1)} KB`;
+}
+
+// The runtime carries every generated file inline (text or base64, sha256, size);
+// the cloud page has no file route, so viewing and downloading happen from that payload.
+function renderGeneratedFiles(entries) {
+  if (!generatedFiles) return;
+  generatedFiles.replaceChildren();
+  const files = Array.isArray(entries)
+    ? entries.filter((e) => e && e.inline === true && typeof e.content === "string")
+    : [];
+  if (files.length === 0) {
+    generatedFiles.hidden = true;
+    return;
+  }
+  const heading = document.createElement("h3");
+  heading.textContent = text("Generated files (synthetic, from this run)", "Erzeugte Dateien (synthetisch, aus diesem Lauf)");
+  generatedFiles.append(heading);
+  files.forEach((entry) => {
+    const article = document.createElement("article");
+    const icon = document.createElement("span");
+    icon.className = "result-icon";
+    icon.textContent = entry.filename.endsWith(".json") ? "{}" : "¶";
+    const meta = document.createElement("div");
+    const kind = document.createElement("small");
+    kind.textContent = String(entry.content_type || "").split(";")[0].toUpperCase();
+    const name = document.createElement("b");
+    name.textContent = entry.filename;
+    const info = document.createElement("p");
+    info.textContent = `${formatBytes(entry.size_bytes || 0)} · sha256 ${String(entry.sha256 || "").slice(0, 12)}…`;
+    meta.append(kind, name, info);
+    const actions = document.createElement("span");
+    actions.className = "file-actions";
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "file-action";
+    view.textContent = text("View", "Ansehen");
+    const download = document.createElement("a");
+    download.className = "file-action";
+    download.textContent = text("Download", "Herunterladen");
+    download.download = entry.filename;
+    download.href = URL.createObjectURL(decodeResult(entry));
+    actions.append(view, download);
+    article.append(icon, meta, actions);
+    const preview = document.createElement("pre");
+    preview.className = "file-preview";
+    preview.hidden = true;
+    preview.textContent = entry.content_encoding === "base64"
+      ? text("Binary content; use Download.", "Binärinhalt; bitte herunterladen.")
+      : entry.content;
+    view.addEventListener("click", () => {
+      preview.hidden = !preview.hidden;
+      view.textContent = preview.hidden ? text("View", "Ansehen") : text("Hide", "Ausblenden");
+    });
+    generatedFiles.append(article, preview);
+  });
+  generatedFiles.hidden = false;
 }
 
 function setStepState(doneCount) {
@@ -87,6 +157,7 @@ function resetDemo() {
   promptField.value = DEFAULT_PROMPTS[language];
   planCard.hidden = true;
   resultGrid.hidden = true;
+  if (generatedFiles) { generatedFiles.hidden = true; generatedFiles.replaceChildren(); }
   confirmHelp.classList.remove("error");
   setStepState(-1);
   promptField.focus();
@@ -131,6 +202,7 @@ promptForm.addEventListener("submit", async (event) => {
       addMessage("assistant", payload.response);
       planCard.hidden = false;
       resultGrid.hidden = true;
+  if (generatedFiles) { generatedFiles.hidden = true; generatedFiles.replaceChildren(); }
       confirmation.value = `/confirm ${planId}`;
       confirmHelp.classList.remove("error");
       setStepState(0);
@@ -154,6 +226,7 @@ promptForm.addEventListener("submit", async (event) => {
   );
   planCard.hidden = false;
   resultGrid.hidden = true;
+  if (generatedFiles) { generatedFiles.hidden = true; generatedFiles.replaceChildren(); }
   confirmation.value = `/confirm ${planId}`;
   confirmHelp.classList.remove("error");
   setStepState(0);
@@ -179,7 +252,8 @@ confirmForm.addEventListener("submit", async (event) => {
       addMessage("assistant", payload.response);
       setStepState(4);
       resultGrid.hidden = false;
-      resultGrid.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      renderGeneratedFiles(payload.result && payload.result.generated_results);
+      (generatedFiles && !generatedFiles.hidden ? generatedFiles : resultGrid).scrollIntoView({ behavior: "smooth", block: "nearest" });
     } catch (error) {
       confirmHelp.textContent = text(
         `The AWS demo is temporarily unavailable: ${error.message}`,

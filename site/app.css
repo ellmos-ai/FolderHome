@@ -253,3 +253,10 @@ button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visib
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.generated-files { grid-template-columns: 1fr; }
+.generated-files h3 { margin: 0; font-size: .82rem; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.file-actions { display: flex; gap: .4rem; }
+.file-action { font: inherit; font-size: .72rem; padding: .3rem .6rem; border: 1px solid var(--line, #cbd5e1); border-radius: .4rem; background: transparent; color: inherit; cursor: pointer; text-decoration: none; }
+.file-action:hover, .file-action:focus-visible { border-color: var(--emerald, #059669); outline: none; }
+.file-preview { margin: 0; padding: .8rem; font-family: var(--mono); font-size: .72rem; white-space: pre-wrap; word-break: break-word; border: 1px dashed var(--line, #cbd5e1); border-radius: .5rem; max-height: 22rem; overflow: auto; }

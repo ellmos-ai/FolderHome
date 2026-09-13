@@ -123,3 +123,19 @@ def test_cloud_mode_badge_is_hidden_unless_runtime_is_enabled():
                   + initialization + 'console.log(JSON.stringify(badge.hidden));')
         result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True)
         assert json.loads(result.stdout) is expected
+
+
+def test_live_page_renders_generated_files_from_the_runtime_payload() -> None:
+    """The runtime returns every generated file inline; the page must show and offer it."""
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+
+    assert 'id="generated-files"' in html
+    assert "payload.result && payload.result.generated_results" in javascript
+    assert "function renderGeneratedFiles(" in javascript
+    assert 'e.inline === true && typeof e.content === "string"' in javascript
+    assert "URL.createObjectURL(decodeResult(entry))" in javascript
+    assert "download.download = entry.filename" in javascript
+    assert "generatedFiles.replaceChildren()" in javascript  # reset clears the files
+    assert ".file-preview" in css and ".file-action" in css
