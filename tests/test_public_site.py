@@ -139,3 +139,143 @@ def test_live_page_renders_generated_files_from_the_runtime_payload() -> None:
     assert "download.download = entry.filename" in javascript
     assert "generatedFiles.replaceChildren()" in javascript  # reset clears the files
     assert ".file-preview" in css and ".file-action" in css
+
+
+def test_live_disclosure_and_synthetic_data_notes_match_contract() -> None:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+
+    assert (
+        "This AWS-hosted page runs the real FolderHome master agent on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered."
+        in javascript
+    )
+    assert (
+        "Diese AWS-gehostete Seite führt den echten FolderHome-Master-Agenten auf einem synthetischen Haushalt mit 104 Beispieldokumenten aus. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt."
+        in javascript
+    )
+    assert 'id="live-data-note"' in html
+    assert "Synthetic household · nothing here is real data" in html
+    assert "Synthetischer Haushalt · keine echten Daten" in html
+    assert 'id="prompt-suggestions"' in html
+    assert "Welche Unterlagen habe ich zur Krankenversicherung?" in html
+    assert "Erstelle ein Dossier zu meiner KFZ-Versicherung" in html
+    assert "Was steht in meinem Kalender für nächste Woche?" in html
+    assert "Was kannst du für mich tun?" in html
+
+
+def test_tool_events_and_model_turns_chips_rendering() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    css = (ROOT / "site" / "app.css").read_text(encoding="utf-8")
+
+    assert "meta.tool_events" in javascript
+    assert "tool-chips" in javascript and ".tool-chips" in css
+    assert "tool-chip" in javascript and ".tool-chip" in css
+    assert "model-turns-chip" in javascript and ".model-turns-chip" in css
+    assert "search_home_documents" in javascript
+    assert "Suche in Dokumenten" in javascript
+    assert "Search documents" in javascript
+    assert "model_turns" in javascript
+
+
+def test_plan_card_rendered_from_plan_payload() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+
+    assert 'id="plan-steps"' in html
+    assert "function renderPlan(" in javascript
+    assert "plan.steps" in javascript
+    assert "formatWorkflowTitle" in javascript
+    assert "plan.detected_documents" in javascript
+    assert "planCard.hidden = true" in javascript
+
+
+def test_confirm_field_prefilled_from_confirmation_command() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    assert "confirmation.value = plan.confirmation_command" in javascript
+
+
+def test_generated_files_rendered_after_chat_turn() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    # Chat submit handler triggers renderGeneratedFiles if payload has result.generated_results
+    assert "payload.result && payload.result.generated_results" in javascript
+    assert "renderGeneratedFiles(payload.result.generated_results)" in javascript
+
+
+def test_placeholder_cards_hidden_in_live_mode() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    # Live mode keeps #result-grid hidden so static placeholder cards never appear
+    assert "resultGrid.hidden = true;" in javascript
+    live_chat_branch = javascript.split("if (liveConfiguration.enabled)")[1].split("return;")[0]
+    assert "resultGrid.hidden = false;" not in live_chat_branch
+
+
+def test_honest_api_error_handling_covers_status_codes() -> None:
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+
+    assert "status === 429" in javascript
+    assert "Daily budget limit reached" in javascript
+    assert "Tagesbudget erreicht" in javascript
+    assert "status === 503" in javascript
+    assert "status === 502" in javascript
+    assert "formatApiError" in javascript
+
+
+def test_live_chat_helpers_via_node() -> None:
+    import json
+    import shutil
+    import subprocess
+    import pytest
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is needed to execute JS helper functions")
+    script = """
+    global.window = { FOLDERHOME_LIVE_DEMO: { enabled: false }, crypto: { randomUUID: () => "00000000" } };
+    global.localStorage = { getItem: () => null, setItem: () => {} };
+    const dummy = {
+      hidden: false,
+      replaceChildren: () => {},
+      append: () => {},
+      addEventListener: () => {},
+      setAttribute: () => {},
+      classList: { add: () => {}, remove: () => {} },
+      scrollIntoView: () => {},
+      cloneNode: () => dummy,
+      dataset: {},
+      childNodes: [],
+      elements: [],
+    };
+    global.document = {
+      querySelector: () => dummy,
+      querySelectorAll: () => [],
+      createElement: () => dummy,
+      documentElement: { lang: "en", dataset: {} },
+    };
+    eval(require("fs").readFileSync("site/app.js", "utf8")
+      + "; global.formatToolName = formatToolName; global.formatApiError = formatApiError; global.setLanguage = setLanguage;");
+    const e429 = global.formatApiError(429);
+    const e503 = global.formatApiError(503);
+    const e502 = global.formatApiError(502);
+    const toolLabel = global.formatToolName("search_home_documents");
+    const toolFallback = global.formatToolName("custom_specialist_action");
+    global.setLanguage("de");
+    const toolLabelDe = global.formatToolName("search_home_documents");
+    const e429De = global.formatApiError(429);
+    console.log(JSON.stringify({ e429, e503, e502, toolLabel, toolFallback, toolLabelDe, e429De }));
+    """
+    result = subprocess.run(
+        [node, "-e", script],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    out = json.loads(result.stdout)
+    assert "budget" in out["e429"].lower()
+    assert "tagesbudget" in out["e429De"].lower()
+    assert "busy" in out["e503"].lower() or "initializing" in out["e503"].lower()
+    assert "upstream" in out["e502"].lower()
+    assert out["toolLabel"] == "Search documents"
+    assert out["toolLabelDe"] == "Suche in Dokumenten"
+    assert out["toolFallback"] == "Custom specialist action"
+
