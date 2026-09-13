@@ -5,6 +5,7 @@ RUN python -m venv /opt/folderhome-venv
 ENV PATH="/opt/folderhome-venv/bin:$PATH"
 COPY pyproject.toml README.md ./
 COPY src ./src
+COPY examples ./src/folderhome/demo_data/household
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir .
 

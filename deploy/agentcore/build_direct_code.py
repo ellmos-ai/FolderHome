@@ -61,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         cwd=repository,
         check=True,
     )
+    copy_household_examples(repository, build_root)
     shutil.copy2(Path(__file__).with_name("agentcore_entrypoint.py"), build_root)
     if output.exists():
         output.unlink()
@@ -90,6 +91,24 @@ def main(argv: list[str] | None = None) -> int:
         )
     )
     return 0
+
+
+def copy_household_examples(repository: Path, build_root: Path) -> Path:
+    """Stage household data without following links or including Python caches."""
+    source = repository / "examples"
+    if source.is_symlink() or not source.is_dir():
+        raise ValueError("Expected a real household examples directory.")
+    destination = build_root / "folderhome" / "demo_data" / "household"
+
+    def ignore(directory: str, names: list[str]) -> list[str]:
+        return [
+            name for name in names
+            if name == "__pycache__" or name.endswith(".pyc")
+            or (Path(directory) / name).is_symlink()
+        ]
+
+    shutil.copytree(source, destination, ignore=ignore)
+    return destination
 
 
 def _require_inside(repository: Path, target: Path) -> None:
