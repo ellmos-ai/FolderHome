@@ -2,6 +2,8 @@
 
 const SCRIPTED_PLAN_ID = "accident_demo_94b8b3bd56d00cafe000000000000001";
 const liveConfiguration = window.FOLDERHOME_LIVE_DEMO || { enabled: false };
+const cloudModeBadge = document.querySelector("#cloud-mode-badge");
+if (cloudModeBadge) cloudModeBadge.hidden = liveConfiguration.enabled !== true;
 const DEFAULT_PROMPTS = {
   en: "I had an accident with my Hyundai i10. Find my current car insurance, compare it with older policies, identify the right contact, prepare a claim letter, and save the next follow-up locally.",
   de: "Ich hatte einen Unfall mit meinem Hyundai i10. Finde meine aktuelle KFZ-Versicherung, vergleiche sie mit älteren Policen, ermittle den richtigen Kontakt, bereite eine Schadensmeldung vor und speichere die nächste Wiedervorlage lokal.",

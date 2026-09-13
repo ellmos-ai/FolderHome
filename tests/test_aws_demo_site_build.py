@@ -33,3 +33,21 @@ def test_aws_demo_site_builder_never_targets_tracked_site() -> None:
 
     assert 'default=Path("build/aws-demo-site")' in script
     assert "api_key_value_logged" in script
+
+
+def test_site_build_carries_cloud_badge_and_enables_runtime(tmp_path, monkeypatch):
+    import shutil
+
+    from deploy.aws_demo import prepare_site
+
+    root = Path(__file__).parents[1]
+    shutil.copytree(root / "site", tmp_path / "site")
+    monkeypatch.setattr(prepare_site, "__file__", str(tmp_path / "deploy/aws_demo/prepare_site.py"))
+    assert prepare_site.main([
+        "--api-base-url", "https://abc123.execute-api.eu-central-1.amazonaws.com/live/demo",
+        "--api-key", "SyntheticPublicQuotaKey12345",
+    ]) == 0
+    output = tmp_path / "build/aws-demo-site"
+    assert 'id="cloud-mode-badge"' in (output / "index.html").read_text(encoding="utf-8")
+    assert "enabled: true" in (output / "runtime-config.js").read_text(encoding="utf-8")
+    assert "liveConfiguration.enabled !== true" in (output / "app.js").read_text(encoding="utf-8")

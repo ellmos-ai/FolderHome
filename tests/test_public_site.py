@@ -94,3 +94,32 @@ def test_published_agent_guide_matches_the_repository_one() -> None:
     published = (ROOT / "site" / "llms.txt").read_text(encoding="utf-8")
     assert published == (ROOT / "llms.txt").read_text(encoding="utf-8")
     assert "llms.txt" in (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+
+
+def test_cloud_mode_badge_is_hidden_unless_runtime_is_enabled():
+    import json
+    import shutil
+    import subprocess
+
+    import pytest
+
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is needed to execute the browser initialization")
+    html = (ROOT / "site/index.html").read_text(encoding="utf-8")
+    css = (ROOT / "site/app.css").read_text(encoding="utf-8")
+    js = (ROOT / "site/app.js").read_text(encoding="utf-8")
+    assert 'id="cloud-mode-badge" class="cloud-mode-badge" hidden' in html
+    badge = html.split('id="cloud-mode-badge"', 1)[1].split('</svg>', 1)[0]
+    assert '<svg' in badge and 'aria-hidden="true"' in badge
+    assert 'data-en="cloud-mode" data-de="cloud-mode"' in html
+    assert '.cloud-mode-badge[hidden] { display: none; }' in css
+    # Execute the actual runtime initialization with every enabled input.
+    initialization = js.split('const DEFAULT_PROMPTS', 1)[0]
+    for config, expected in [({}, True), ({"enabled": False}, True),
+                             ({"enabled": True}, False), ({"enabled": "true"}, True)]:
+        script = ('const badge = {hidden: true}; const document = {querySelector: () => badge};'
+                  + 'const window = {FOLDERHOME_LIVE_DEMO: ' + json.dumps(config) + '};'
+                  + initialization + 'console.log(JSON.stringify(badge.hidden));')
+        result = subprocess.run([node, "-e", script], capture_output=True, text=True, check=True)
+        assert json.loads(result.stdout) is expected
