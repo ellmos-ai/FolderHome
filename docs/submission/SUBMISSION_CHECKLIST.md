@@ -49,8 +49,10 @@
 - [x] Enable GitHub Pages and verify the public showcase URL
 - [x] Deploy the quota-bounded direct-code AgentCore runtime and read it back as
   `READY`; verify one synthetic fixture invocation up to `confirmation_required`
-- [ ] Verify one Bedrock-backed AgentCore journey only after AWS assigns non-zero
+- [x] Verify one Bedrock-backed AgentCore journey only after AWS assigns non-zero
   on-demand quotas and the user separately authorizes `manage.py verify`
+  (done 2026-09-13: runtime version 8, endpoint `budget_v8`, status `verified`,
+  four result files; site still `enabled: false`)
 - [x] Record final working demo from the verified build
 - [x] Verify that v2 has no embedded subtitle stream and retains privacy and
   synthetic-data labels
@@ -86,6 +88,8 @@
 
 - Bootstrap and application stacks: `CREATE_COMPLETE`
 - AgentCore Runtime `FolderHomeDemo-V7fjgTH232`: `READY`, version 4, HTTP
+  (2026-09-13: version 8, endpoint `budget_v8`, cumulative money ledger, one
+  Bedrock-backed journey verified end to end)
 - Public quota API key: enabled; CloudFront browser agent path: `enabled: false`
 - Monthly budget: 5 USD; calculated actual spend: 0.018 USD
 - EU Nova Micro profile: `ACTIVE`, but applied cross-region quotas remain zero

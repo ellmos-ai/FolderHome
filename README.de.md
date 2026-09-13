@@ -218,11 +218,14 @@ Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
 auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
 synthetische Fixture-Prompts, trennt den Zustand nach AgentCore-Runtime-Sitzung
 und kann weder Haushaltsdateien einlesen noch externe Aktionen ausführen. Der
-Vertrag ist lokal getestet. Die quotenbegrenzte Runtime wurde bereitgestellt
-und zuletzt am 27.08.2026 als `READY` rückgelesen; ihr Fixture-Roundtrip erreichte
-`confirmation_required`. Die öffentliche CloudFront-Konfiguration bleibt
-`enabled: false`. Solange Nova Micros angewandte On-Demand-Quoten null sind,
-wird keine erfolgreiche Bedrock-gestützte Geschichte behauptet.
+Vertrag ist lokal getestet. Am 13.09.2026 hat die bereitgestellte Runtime
+(Version 8, Endpunkt `budget_v8`) eine Bedrock-gestützte synthetische Reise
+durch den öffentlichen Proxy von Anfang bis Ende durchlaufen: Der Nova-Micro-
+Master-Agent machte zwei Modellzüge, der Plan verlangte `/confirm`, und der
+bestätigte Lauf erzeugte vier Ergebnisdateien ohne externe Aktionen
+(`manage.py verify`, Status `verified`). Die Zulassung ist ein kumulierendes
+Tages-Geldbudget, keine feste Anfragezahl. Die öffentliche CloudFront-
+Konfiguration bleibt `enabled: false`, bis der Eigentümer die Seite freischaltet.
 
 Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).

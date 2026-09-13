@@ -164,21 +164,19 @@ file at the repository root; a test asserts that every route, schema and tool it
 names really exists in the service.
 
 An isolated HTTP adapter maps the same application contract to AgentCore. The
-quota-bounded direct-code Runtime is deployed and `READY`; a synthetic fixture
-roundtrip reached `confirmation_required`. The public CloudFront configuration
-keeps the browser agent disabled, and the submission does not claim a
-Bedrock-backed AgentCore journey: the cloud runtime was not re-run. AWS Support
-reported the Bedrock access issue resolved on 2026-09-08, and on 2026-09-12 the
-local FolderHome app completed a real Bedrock turn with the EU Nova Micro
-inference profile (two model turns, `search_home_documents` and
-`build_home_theme_dossier` executed, no side effects). The 2026-08-27 readback
-had found the Runtime `READY`, version 4, the model profile `ACTIVE` and the
-real-time quotas at zero; CloudWatch showed one throttled request and no
-successful invocation over 24 hours. Because
+direct-code Runtime is deployed on ARM64 and, on 2026-09-13, completed one
+Bedrock-backed synthetic journey end to end through the public proxy: the Nova
+Micro master agent (EU inference profile, two bounded model turns) searched the
+synthetic policies, the plan stopped at `/confirm`, and the confirmed run
+produced four result files with no external actions. Admission is governed by a
+cumulative daily money ledger (unspent entitlement carries forward) rather than
+a fixed request count, and the ledger is bound to the exact runtime version and
+cost review. AWS Support had reported the Bedrock access issue resolved on
+2026-09-08; the local app verified a real Bedrock turn on 2026-09-12. Because
 the cloud runtime exposes only `/ping` and `/invocations`, result files are
 returned inline in the AgentCore response, so a browser can save them without a
-storage service. That path is implemented and tested locally and is not yet
-deployed.
+storage service. The public CloudFront configuration keeps the browser agent
+disabled until the owner publishes the site.
 
 ## Safety and privacy by construction
 

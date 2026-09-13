@@ -211,11 +211,14 @@ metadata only and say why.
 The optional AgentCore surface implements the current AWS HTTP contract on
 ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
 fixture prompts, isolates state by AgentCore runtime session, and cannot ingest
-household uploads or perform external actions. The quota-bounded runtime was
-deployed and most recently read back as `READY` on 2026-08-27; its fixture roundtrip reached
-`confirmation_required`. The public CloudFront configuration remains
-`enabled: false`, and no successful Bedrock-backed journey is claimed while
-Nova Micro's applied on-demand quotas remain zero.
+household uploads or perform external actions. On 2026-09-13 the deployed
+runtime (version 8, endpoint `budget_v8`) completed one Bedrock-backed synthetic
+journey end to end through the public proxy: the Nova Micro master agent ran two
+model turns, the plan required `/confirm`, and the confirmed run produced four
+result files with no external actions (`manage.py verify`, status `verified`).
+Admission is a cumulative daily money ledger, not a fixed request count. The
+public CloudFront configuration remains `enabled: false` until the owner
+publishes the site.
 
 More: [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
