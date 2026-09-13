@@ -1276,7 +1276,17 @@ function renderRecipeSelection() {
   prepareRecipeButton.disabled = !selected?.available || Boolean(recipeRunView.busy) || conversationResetPending;
   prepareRecipeButton.textContent = t(selected?.approval_mode === "per_section" ? "recipePrepareSection" : "recipePrepare");
   recipeHint.textContent = !selected ? t("recipeEmpty") : selected.available
-    ? `${selected.summary} ${t(selected.approval_mode === "per_section" ? "recipeStageHint" : "recipeHint")}` : t("recipeUnavailable");
+    ? `${selected.summary} ${t(selected.approval_mode === "per_section" ? "recipeStageHint" : "recipeHint")}`
+    : selected.unavailable_reason
+      ? `${t("recipeUnavailable")} ${selected.unavailable_reason}`
+      : t("recipeUnavailable");
+  // Journeys that cannot run here yet (missing resources or executors) stay out of the way:
+  // the panel collapses; the user can still open it to see what is missing.
+  const panel = recipeSelect && typeof recipeSelect.closest === "function"
+    ? recipeSelect.closest(".collapsible-panel") : null;
+  if (panel && recipeItems.length > 0 && !recipeItems.some((item) => item.available)) {
+    setPanelExpanded(panel, false);
+  }
 }
 
 async function prepareRecipe(event) {
