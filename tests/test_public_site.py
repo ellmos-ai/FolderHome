@@ -15,9 +15,13 @@ def test_public_site_is_bilingual_static_and_transparent() -> None:
     assert '<html lang="en">' in html
     assert "Scripted synthetic walkthrough" in html
     assert 'src="architecture.svg"' in html
-    assert "fresh AWS acceptance is pending" in html
+    assert "verified live with Amazon Bedrock" in html
     assert "Install and run locally" in html
     assert "Lokal installieren und starten" in html
+
+    assert "VERIFIED LIVE" in html
+    assert "REVIEW PENDING" not in html
+    assert "Run the real local demo" in html
     assert 'data-language="de"' in html
     assert 'data-theme="light"' in html
     assert "github.com/ellmos-ai/FolderHome" in html
@@ -49,6 +53,51 @@ def test_public_architecture_visual_matches_submission_source() -> None:
     assert (ROOT / "site" / "architecture.svg").read_bytes() == (
         ROOT / "docs" / "submission" / "ARCHITECTURE_DIAGRAM.svg"
     ).read_bytes()
+    assert (ROOT / "site" / "assets" / "architecture-agent-flow.svg").read_bytes() == (
+        ROOT / "docs" / "submission" / "ARCHITECTURE_AGENT_FLOW.svg"
+    ).read_bytes()
+    assert (ROOT / "site" / "assets" / "architecture-confirm-sequence.svg").read_bytes() == (
+        ROOT / "docs" / "submission" / "ARCHITECTURE_CONFIRM_SEQUENCE.svg"
+    ).read_bytes()
+    assert (ROOT / "site" / "assets" / "product-architecture.svg").read_bytes() == (
+        ROOT / "docs" / "submission" / "PRODUCT_ARCHITECTURE.svg"
+    ).read_bytes()
+
+
+def test_architecture_slideshow_structure_and_behavior() -> None:
+    html = (ROOT / "site" / "index.html").read_text(encoding="utf-8")
+    javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
+    product_svg = (ROOT / "docs" / "submission" / "PRODUCT_ARCHITECTURE.svg").read_bytes()
+
+    # Four slides defined
+    slide_matches = re.findall(r'<div class="slide[^"]*"[^>]*data-index="(\d+)"', html)
+    assert slide_matches == ["0", "1", "2", "3"]
+    assert 'src="architecture.svg"' in html
+    assert 'src="assets/architecture-agent-flow.svg"' in html
+    assert 'src="assets/architecture-confirm-sequence.svg"' in html
+    assert 'src="assets/product-architecture.svg"' in html
+
+    # Tone attributes
+    assert 'data-tone="dark"' in html
+    assert 'data-tone="light"' in html
+
+    # Navigation buttons, dots and full-size link
+    assert 'id="arch-prev"' in html
+    assert 'id="arch-next"' in html
+    assert 'class="slideshow-dots"' in html
+    assert 'id="architecture-fullsize-link"' in html
+
+    # PRODUCT_ARCHITECTURE.svg without full-surface background rect
+    assert b'<rect width="1200" height="1080" fill="#ffffff"/>' not in product_svg
+    assert b'<rect width="1200" height="1080"' not in product_svg
+
+    # Verified live text instead of review pending
+    assert "VERIFIED LIVE" in html
+    assert "REVIEW PENDING" not in html
+    assert "AgentCore runtime on Bedrock" in html
+
+    # No autoplay timer (setInterval not used for slideshow)
+    assert "setInterval" not in javascript
 
 
 def _service_sources() -> str:
@@ -169,11 +218,11 @@ def test_live_disclosure_and_synthetic_data_notes_match_contract() -> None:
     javascript = (ROOT / "site" / "app.js").read_text(encoding="utf-8")
 
     assert (
-        "This AWS-hosted page runs the real FolderHome master agent on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered."
+        "This AWS-hosted page runs the real FolderHome master agent on a synthetic household of 104 example documents. External actions stay disabled; every turn is budget-metered."  # noqa: E501
         in javascript
     )
     assert (
-        "Diese AWS-gehostete Seite führt den echten FolderHome-Master-Agenten auf einem synthetischen Haushalt mit 104 Beispieldokumenten aus. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt."
+        "Diese AWS-gehostete Seite führt den echten FolderHome-Master-Agenten auf einem synthetischen Haushalt mit 104 Beispieldokumenten aus. Externe Aktionen bleiben deaktiviert; jeder Zug ist budgetbegrenzt."  # noqa: E501
         in javascript
     )
     assert 'id="live-data-note"' in html
@@ -247,13 +296,14 @@ def test_live_chat_helpers_via_node() -> None:
     import json
     import shutil
     import subprocess
+
     import pytest
 
     node = shutil.which("node")
     if node is None:
         pytest.skip("Node.js is needed to execute JS helper functions")
     script = """
-    global.window = { FOLDERHOME_LIVE_DEMO: { enabled: false }, crypto: { randomUUID: () => "00000000" } };
+    global.window = { FOLDERHOME_LIVE_DEMO: { enabled: false }, crypto: { randomUUID: () => "00000000" } };  # noqa: E501
     global.localStorage = { getItem: () => null, setItem: () => {} };
     const dummy = {
       hidden: false,
@@ -275,7 +325,7 @@ def test_live_chat_helpers_via_node() -> None:
       documentElement: { lang: "en", dataset: {} },
     };
     eval(require("fs").readFileSync("site/app.js", "utf8")
-      + "; global.formatToolName = formatToolName; global.formatApiError = formatApiError; global.setLanguage = setLanguage;");
+      + "; global.formatToolName = formatToolName; global.formatApiError = formatApiError; global.setLanguage = setLanguage;");  # noqa: E501
     const e429 = global.formatApiError(429);
     const e503 = global.formatApiError(503);
     const e502 = global.formatApiError(502);
@@ -362,6 +412,7 @@ def test_data_mode_switching_and_contract_via_node() -> None:
     import json
     import shutil
     import subprocess
+
     import pytest
 
     node = shutil.which("node")
@@ -414,11 +465,11 @@ def test_data_mode_switching_and_contract_via_node() -> None:
       querySelector: (sel) => getEl(sel),
       querySelectorAll: () => [],
       createElement: () => makeElement(),
-      documentElement: { lang: "en", dataset: {}, setAttribute: function(k, v) { this.dataset[k.replace(/^data-/, "")] = v; } },
+      documentElement: { lang: "en", dataset: {}, setAttribute: function(k, v) { this.dataset[k.replace(/^data-/, "")] = v; } },  # noqa: E501
     };
 
     eval(require("fs").readFileSync("site/app.js", "utf8")
-      + "; global.setMode = setMode; global.currentMode = currentMode; global.resetDemo = resetDemo; global.updateLiveConfigUI = updateLiveConfigUI;");
+      + "; global.setMode = setMode; global.currentMode = currentMode; global.resetDemo = resetDemo; global.updateLiveConfigUI = updateLiveConfigUI;");  # noqa: E501
 
     // 1. Initial mode should be "chooser"
     const initMode = global.document.documentElement.dataset.mode;
