@@ -83,6 +83,26 @@ interface for programs on this machine, not a network service.
   report; fetch produced files through the results routes above rather than from a
   directory you assume.
 
+## Runtime status
+
+`GET /api/v1/status` keeps `folderhome.local-app-status.v1` and its legacy
+`model_connection` object. Its additive top-level fields are `model_provider`,
+`model_state`, `runtime_topology`, `model_state_label_en`, `model_state_label_de`,
+`successful_live_model_turns`, and `live_model_verified_in_process`.
+`model_state` is `fixture_only`, `configured_unverified`, or `verified_in_process`:
+only a successful real model turn in this process establishes verification.
+`runtime_topology` is `loopback_local` for fixture and loopback Ollama,
+`remote_host` for other Ollama hosts, and `cloud` for Bedrock/Anthropic/OpenAI.
+Loopback means 127.0.0.0/8, ::1, or localhost; the same check enforces the gates.
+Legacy `model_connection.runtime_topology` and `connection_status` retain their
+existing vocabulary. Read the new fields at the top level, not from that object.
+
+The provider is chosen at startup using `app serve --launch-config` or explicit
+flags. Setup saves the active preset and its flat fields together; editing only
+`model_preset` in a generated file does not override its flat provider fields.
+Restart the app after saving a new choice. There is no runtime provider switch.
+Verification starts at zero in each process. Status reads never probe a provider.
+
 ## Model providers
 
 - `fixture` — deterministic, no model, no network. The default, and enough for

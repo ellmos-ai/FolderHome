@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from ipaddress import ip_address
 from urllib.parse import SplitResult, urlsplit
 
 from folderhome.contracts.master_agent import MasterAgentPlan
@@ -187,7 +188,15 @@ class StrandsAgentSettings:
         if self.model_provider != "ollama":
             return False
         parsed = _parsed_model_host(self.ollama_host)
-        return parsed is None or parsed.hostname.lower() not in _LOOPBACK_HOSTS
+        if parsed is None:
+            return True
+        hostname = parsed.hostname.lower()
+        if hostname in _LOOPBACK_HOSTS:
+            return False
+        try:
+            return not ip_address(hostname).is_loopback
+        except ValueError:
+            return True
 
     @property
     def is_live_model(self) -> bool:

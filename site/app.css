@@ -79,7 +79,11 @@ a { color: inherit; }
   gap: 2rem;
   border-bottom: 1px solid var(--line);
 }
+.brand { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 .brand img { display: block; width: clamp(180px, 19vw, 270px); height: auto; }
+.cloud-mode-badge { display: inline-flex; align-items: center; gap: .3rem; color: #64b5ff; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.cloud-mode-badge[hidden] { display: none; }
+[data-theme="light"] .cloud-mode-badge { color: #075eae; }
 .header-actions { display: flex; align-items: center; gap: .75rem; }
 .segmented { display: inline-flex; padding: 3px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--paper) 76%, transparent); }
 .segmented button { min-height: 30px; border: 0; border-radius: 999px; padding: .25rem .65rem; background: transparent; color: var(--muted); cursor: pointer; font-family: var(--mono); font-size: .7rem; text-transform: uppercase; }

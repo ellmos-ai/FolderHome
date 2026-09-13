@@ -37,6 +37,7 @@ from folderhome.contracts.local_app import (
     LocalApiResponse,
     LocalAppSettings,
     OperatingSystemIdentity,
+    model_status_fields,
 )
 from folderhome.contracts.master_agent import MasterAgentPlan, MasterPlanApproval
 from folderhome.contracts.recipe_results import ResultBoundRecipe
@@ -1394,6 +1395,7 @@ class LocalApplication:
         return self._json_response(result)
 
     def _status_payload(self, server_port: int) -> dict[str, object]:
+        connection = self._model_connection_payload()
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",
@@ -1409,7 +1411,10 @@ class LocalApplication:
             "chat_is_approval": False,
             "approval_bound_execution": True,
             "conversation_memory": "process_only",
-            "model_connection": self._model_connection_payload(),
+            "model_connection": connection,
+            **model_status_fields(
+                self.agent_settings, connection["successful_live_model_turns"],
+            ),
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,
