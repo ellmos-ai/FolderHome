@@ -40,6 +40,14 @@ const translations = {
     reloadButton: "Reload",
     reloadConfirm: "Reloading settings will apply the saved preset and reset the current conversation memory. Continue?",
     reloadError: "Settings could not be reloaded.",
+    openSettings: "Open settings",
+    settingsDialogTitle: "FolderHome Settings",
+    settingsDialogText: "To configure models or workspaces, run the start menu in your terminal and select Option 2 (Setup):",
+    copyCommand: "Copy",
+    commandCopied: "Copied!",
+    closeDialog: "Close",
+    setupServerActiveText: "A setup server is currently running:",
+    openSetupPage: "Open Setup page",
     serviceEyebrow: "Document and assistance service",
     heroDocuments: "Your documents.",
     heroDaily: "Your everyday life.",
@@ -210,6 +218,14 @@ const translations = {
     reloadButton: "Neu laden",
     reloadConfirm: "Beim Neuladen der Einstellungen wird das gespeicherte Preset angewendet und der bisherige Gesprächsverlauf zurückgesetzt. Fortfahren?",
     reloadError: "Einstellungen konnten nicht neu geladen werden.",
+    openSettings: "Einstellungen öffnen",
+    settingsDialogTitle: "FolderHome-Einstellungen",
+    settingsDialogText: "Um Modelle oder Arbeitsordner zu konfigurieren, starte das Startmenü im Terminal und wähle Option 2 (Setup):",
+    copyCommand: "Kopieren",
+    commandCopied: "Kopiert!",
+    closeDialog: "Schließen",
+    setupServerActiveText: "Ein Setup-Server läuft derzeit:",
+    openSetupPage: "Setup-Seite öffnen",
     serviceEyebrow: "Dokument- und Assistenzservice",
     heroDocuments: "Deine Dokumente.",
     heroDaily: "Dein Alltag.",
@@ -393,6 +409,12 @@ const resultCount = document.querySelector("#result-count");
 const messageInput = document.querySelector("#message");
 const newConversationButton = document.querySelector("#new-conversation");
 const reloadSettingsButton = document.querySelector("#reload-settings-btn");
+const openSettingsButton = document.querySelector("#open-settings-btn");
+const settingsDialog = document.querySelector("#settings-dialog");
+const closeSettingsDialogButton = document.querySelector("#close-settings-dialog-btn");
+const copySettingsCommandButton = document.querySelector("#copy-settings-command-btn");
+const setupServerActiveBox = document.querySelector("#setup-server-active-box");
+const openSetupServerLink = document.querySelector("#open-setup-server-link");
 const chatTranscript = document.querySelector("#chat-transcript");
 const connectionState = document.querySelector("#connection-state");
 const capabilityGrid = document.querySelector("#capability-grid");
@@ -725,6 +747,39 @@ async function reloadSettings() {
   } finally {
     if (reloadSettingsButton) reloadSettingsButton.disabled = false;
   }
+}
+
+function openSettingsModal() {
+  if (!settingsDialog) return;
+  if (appStatus?.setup_url && setupServerActiveBox && openSetupServerLink) {
+    openSetupServerLink.href = appStatus.setup_url;
+    setupServerActiveBox.hidden = false;
+  } else if (setupServerActiveBox) {
+    setupServerActiveBox.hidden = true;
+  }
+  settingsDialog.hidden = false;
+}
+
+function closeSettingsModal() {
+  if (settingsDialog) settingsDialog.hidden = true;
+}
+
+async function copySettingsCommand() {
+  if (!copySettingsCommandButton) return;
+  const command = "scripts\\START.cmd";
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(command);
+    }
+  } catch (_error) {
+    // Clipboard may be restricted in some environments
+  }
+  copySettingsCommandButton.textContent = t("commandCopied");
+  setTimeout(() => {
+    if (copySettingsCommandButton) {
+      copySettingsCommandButton.textContent = t("copyCommand");
+    }
+  }, 2000);
 }
 
 function renderCapabilities() {
@@ -1644,6 +1699,22 @@ newConversationButton.addEventListener("click", () => {
 if (reloadSettingsButton) {
   reloadSettingsButton.addEventListener("click", () => {
     reloadSettings().catch(showError);
+  });
+}
+if (openSettingsButton) {
+  openSettingsButton.addEventListener("click", openSettingsModal);
+}
+if (closeSettingsDialogButton) {
+  closeSettingsDialogButton.addEventListener("click", closeSettingsModal);
+}
+if (settingsDialog) {
+  settingsDialog.addEventListener("click", (event) => {
+    if (event.target === settingsDialog) closeSettingsModal();
+  });
+}
+if (copySettingsCommandButton) {
+  copySettingsCommandButton.addEventListener("click", () => {
+    copySettingsCommand().catch(showError);
   });
 }
 promptExamples.forEach((button) => {

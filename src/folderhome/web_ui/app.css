@@ -507,8 +507,103 @@ footer p { margin: 0; }
 }
 .calendar-editor input:not([type="checkbox"]) { width: 100%; min-width: 0; box-sizing: border-box; }
 .calendar-editor input[type="checkbox"] { justify-self: start; }
-.calendar-change-table { width: 100%; table-layout: fixed; border-collapse: collapse; }
 .calendar-change-table th, .calendar-change-table td { padding: .5rem; border: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; text-align: left; }
+
+.topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  padding: .35rem .65rem;
+  font-size: .8125rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--subtle-border);
+  background: var(--surface-solid);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+
+.topbar-btn:hover {
+  background: var(--desktop);
+}
+
+.settings-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.settings-dialog-backdrop[hidden] {
+  display: none;
+}
+
+.settings-dialog {
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: var(--shadow);
+}
+
+.dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .75rem;
+}
+
+.dialog-header h2 {
+  font-size: 1.125rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+.dialog-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 1.125rem;
+  cursor: pointer;
+  padding: .25rem .5rem;
+  color: var(--muted);
+  border-radius: 4px;
+}
+
+.dialog-close-btn:hover {
+  background: var(--desktop);
+  color: var(--ink);
+}
+
+.command-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--desktop);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: .5rem .75rem;
+  margin: .75rem 0;
+}
+
+.command-box code {
+  font-family: monospace;
+  font-size: .875rem;
+  color: var(--ink);
+}
+
+.setup-server-active-box {
+  margin-top: 1rem;
+  padding-top: .75rem;
+  border-top: 1px solid var(--line);
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; }

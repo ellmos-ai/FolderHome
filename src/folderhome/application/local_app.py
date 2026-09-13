@@ -1431,6 +1431,15 @@ class LocalApplication:
             and saved_preset is not None
             and saved_preset != self._running_preset
         )
+        setup_file = self.settings.state_dir / "setup-server.json"
+        setup_url = None
+        if setup_file.is_file():
+            try:
+                setup_data = json.loads(setup_file.read_text(encoding="utf-8"))
+                if isinstance(setup_data, dict) and "port" in setup_data:
+                    setup_url = f"http://127.0.0.1:{setup_data['port']}/"
+            except (OSError, json.JSONDecodeError):
+                setup_url = None
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",
@@ -1458,6 +1467,7 @@ class LocalApplication:
             "running_preset": self._running_preset,
             "saved_preset": saved_preset,
             "settings_stale": settings_stale,
+            "setup_url": setup_url,
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,

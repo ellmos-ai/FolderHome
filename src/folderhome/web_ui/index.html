@@ -19,6 +19,7 @@
         <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
       </a>
       <div class="topbar-tools">
+        <button id="open-settings-btn" type="button" class="topbar-btn" data-i18n="openSettings">Open settings</button>
         <div id="theme-switch" class="theme-switch" role="group" aria-label="FolderHome theme">
           <button type="button" data-theme-mode="light" aria-label="Light theme" aria-pressed="true">
             <span aria-hidden="true">☀</span><span data-i18n="lightTheme">Light</span>
@@ -206,6 +207,24 @@
         <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
       </section>
     </main>
+
+    <div id="settings-dialog" class="settings-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title" hidden>
+      <div class="settings-dialog">
+        <div class="dialog-header">
+          <h2 id="settings-dialog-title" data-i18n="settingsDialogTitle">FolderHome Settings</h2>
+          <button id="close-settings-dialog-btn" type="button" class="dialog-close-btn" aria-label="Close" data-i18n-aria-label="closeDialog">✕</button>
+        </div>
+        <p data-i18n="settingsDialogText">To configure models or workspaces, run the start menu in your terminal and select Option 2 (Setup):</p>
+        <div class="command-box">
+          <code id="settings-command">scripts\START.cmd</code>
+          <button id="copy-settings-command-btn" type="button" class="small-btn" data-i18n="copyCommand">Copy</button>
+        </div>
+        <div id="setup-server-active-box" class="setup-server-active-box" hidden>
+          <p data-i18n="setupServerActiveText">A setup server is currently running:</p>
+          <a id="open-setup-server-link" href="#" target="_blank" rel="noopener noreferrer" class="small-btn" data-i18n="openSetupPage">Open Setup page</a>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <p data-i18n="footer">FolderHome works locally, transparently, and with deliberate approvals.</p>
