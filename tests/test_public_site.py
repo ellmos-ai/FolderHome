@@ -177,12 +177,12 @@ def test_cloud_mode_badge_is_hidden_unless_runtime_is_enabled():
     assert 'cloud-mode-badge' not in brand_markup
     assert 'class="cloud-mode-lane"' in html
     assert '.cloud-mode-badge[hidden] { display: none; }' in css
-    assert '@keyframes cloud-wander' in css
-    assert 'translateX' in css
-    assert 'alternate' in css
+    assert '@keyframes cloud-wander' not in css
+    assert 'justify-content: flex-end' in css
+    assert '@keyframes cloud-pulse' in css
     reduced_motion = css.split('@media (prefers-reduced-motion: reduce)', 1)[1]
     assert '.cloud-mode-badge' in reduced_motion
-    assert 'transform: none' in reduced_motion
+    assert 'animation: none' in reduced_motion
     logo_svg = (ROOT / "site" / "assets" / "logo.svg").read_text(encoding="utf-8")
     rect_pattern = (
         r'<rect[^>]*width=["\']800["\'][^>]*height=["\']200["\'][^>]*fill=["\']#(?!none)[0-9a-fA-F]+["\']'
