@@ -12,7 +12,7 @@ Parameters:
     Type: Number
     Default: 5
     MinValue: 1
-    MaxValue: 5
+    MaxValue: 195
   BudgetAlertEmail:
     Type: String
     NoEcho: true

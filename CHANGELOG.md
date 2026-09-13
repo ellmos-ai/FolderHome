@@ -22,6 +22,16 @@ All relevant changes are documented in this file. The detailed phase‑by‑phas
 - `FOLDERHOME_AGENTCORE_MAX_TURNS` bounds the AgentCore master agent's model turns; the
   reviewed cost profile sets it to 2 (live Nova Micro: capabilities, then the search).
 
+- The cost approval token names the reviewed alert amount
+  (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
+  bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
+  owner's total of USD 195 for the review window (185 forwards, 10 infrastructure).
+
+- The cost approval token names the reviewed alert amount
+  (`DEPLOY_FOLDERHOME_WITH_<amount>_USD_ALERT`) instead of hard-coding USD 5; the
+  bootstrap template's `BudgetLimitUsd` ceiling is 195. The public demo runs on the
+  owner's total of USD 195 for the review window (185 forwards, 10 infrastructure).
+
 ### Fixed
 
 - The synthetic accident demo's prepare gate accepted only a master agent whose sole

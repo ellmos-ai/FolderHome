@@ -23,6 +23,18 @@ ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 - `FOLDERHOME_AGENTCORE_MAX_TURNS` begrenzt die Modellzüge des AgentCore-Master-Agenten;
   das geprüfte Kostenprofil setzt 2 (Nova Micro live: Fähigkeiten, dann die Suche).
 
+- Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
+  (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
+  `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem
+  Gesamtbudget des Eigentümers von 195 USD für das Prüffenster (185 Weiterleitungen,
+  10 Infrastruktur).
+
+- Das Kosten-Freigabetoken nennt den geprüften Warnbetrag
+  (`DEPLOY_FOLDERHOME_WITH_<Betrag>_USD_ALERT`) statt fest 5 USD; die Obergrenze
+  `BudgetLimitUsd` im Bootstrap-Template liegt bei 195. Die öffentliche Demo läuft mit dem
+  Gesamtbudget des Eigentümers von 195 USD für das Prüffenster (185 Weiterleitungen,
+  10 Infrastruktur).
+
 ### Behoben
 
 - Das Prepare-Gate der synthetischen Unfall-Demo akzeptierte nur einen Master-Agenten,

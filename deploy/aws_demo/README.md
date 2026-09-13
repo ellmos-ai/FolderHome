@@ -30,7 +30,7 @@ bounded in cost and duration.
 - CloudWatch encrypts every log group at rest with its service-managed AES-256-GCM
   encryption; a customer-managed KMS key is intentionally omitted to avoid a fixed
   monthly key charge for synthetic data.
-- The USD 5 AWS Budget sends alerts; it is not a hard spending stop.
+- The AWS Budget (USD 195 for the reviewed window since 2026-09-13) sends alerts; it is not a hard spending stop.
 - Creating or updating AWS resources requires an explicit human cost approval.
 
 **This is a forward-reservation ledger, not an account-wide billing stop.**
@@ -69,7 +69,8 @@ Before deployment, prepare a private `build/budget-review.json` using schema
 
 - `approved`: explicit boolean `true`, only after the account owner's review.
 - `available_funds_microusd`: verified, unspent allocation; it must equal the
-  approved billing-alert amount (the existing deployment gate remains USD 5).
+  approved billing-alert amount; the approval token names that amount, e.g.
+  `DEPLOY_FOLDERHOME_WITH_195_USD_ALERT` for `--budget-usd 195`.
 - `other_costs_reserved_microusd`: allocation retained for non-forward costs.
 - `total_microusd`, `forward_microusd`: positive integer invocation allocation
   and substantiated upper-bound reservation per forward. Their units are
@@ -119,7 +120,7 @@ The underlying atomicity and retry semantics are documented in the
 The AWS site is the live demonstration. The GitHub Pages site remains a deterministic
 fixture demo and never contains the live public quota key.
 
-The deploy command is deliberately unusable without both the reviewed USD 5 alert
+The deploy command is deliberately unusable without both the reviewed alert
 threshold and an exact approval token. Invoke it only after the account owner has
 explicitly accepted that AWS charges can occur and that the budget is an alert rather
 than a hard spending stop:
@@ -127,9 +128,9 @@ than a hard spending stop:
 ```powershell
 python deploy/aws_demo/manage.py deploy `
   --budget-alert-email "ACCOUNT-OWNER-EMAIL" `
-  --budget-usd 5 `
+  --budget-usd 195 `
   --budget-review build/budget-review.json `
-  --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
+  --approval-token DEPLOY_FOLDERHOME_WITH_195_USD_ALERT
 ```
 
 After deployment, the same approval gate permits exactly one synthetic two-request
@@ -137,9 +138,9 @@ journey and the operational readback:
 
 ```powershell
 python deploy/aws_demo/manage.py verify `
-  --budget-usd 5 `
+  --budget-usd 195 `
   --budget-review build/budget-review.json `
-  --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
+  --approval-token DEPLOY_FOLDERHOME_WITH_195_USD_ALERT
 ```
 
 `verify` checks the deployed monetary policy, remaining entitlement, runtime
@@ -163,9 +164,9 @@ creates the ledger conditionally. The static site is left untouched unless
 
 ```powershell
 python deploy/aws_demo/manage.py migrate `
-  --budget-usd 5 `
+  --budget-usd 195 `
   --budget-review build/budget-review.json `
-  --approval-token DEPLOY_FOLDERHOME_WITH_5_USD_ALERT
+  --approval-token DEPLOY_FOLDERHOME_WITH_195_USD_ALERT
 ```
 
 A ledger that already holds reserved money is refused unless `--carry-ledger` is

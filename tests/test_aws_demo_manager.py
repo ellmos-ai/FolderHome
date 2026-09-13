@@ -38,9 +38,14 @@ TEST_RUNTIME_PROFILE = {
 
 def test_deployment_requires_exact_reviewed_cost_gate() -> None:
     require_cost_approval("DEPLOY_FOLDERHOME_WITH_5_USD_ALERT", "5")
+    require_cost_approval("DEPLOY_FOLDERHOME_WITH_195_USD_ALERT", "195")
 
     with pytest.raises(DeploymentError, match="blocked"):
         require_cost_approval("yes", "5")
+    with pytest.raises(DeploymentError, match="blocked"):
+        require_cost_approval("DEPLOY_FOLDERHOME_WITH_5_USD_ALERT", "195")
+    with pytest.raises(DeploymentError, match="positive"):
+        require_cost_approval("DEPLOY_FOLDERHOME_WITH_0_USD_ALERT", "0")
     with pytest.raises(DeploymentError, match="blocked"):
         require_cost_approval("DEPLOY_FOLDERHOME_WITH_5_USD_ALERT", "5.01")
     with pytest.raises(DeploymentError, match="decimal"):

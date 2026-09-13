@@ -38,7 +38,7 @@ _RUNTIME_NAME = "FolderHomeDemo"
 _MODEL_ID = "eu.amazon.nova-micro-v1:0"
 _BOOTSTRAP_STACK = "folderhome-demo-bootstrap"
 _APPLICATION_STACK = "folderhome-demo-application"
-_APPROVAL_TOKEN = "DEPLOY_FOLDERHOME_WITH_5_USD_ALERT"
+_APPROVAL_TOKEN_TEMPLATE = "DEPLOY_FOLDERHOME_WITH_{amount}_USD_ALERT"
 # Structural anti-abuse ceiling of the API Gateway usage plan; never the cost boundary.
 _API_DAILY_REQUEST_QUOTA = 1000
 _E2E_PROMPT = (
@@ -124,15 +124,18 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def require_cost_approval(token: str, budget_usd: str) -> None:
-    """Require a deliberate exact token and the reviewed USD 5 alert threshold."""
+    """Require a deliberate exact token that names the reviewed alert threshold."""
 
     try:
         limit = Decimal(budget_usd)
     except InvalidOperation as exc:
         raise DeploymentError("Budget limit must be a decimal USD amount.") from exc
-    if token != _APPROVAL_TOKEN or limit != Decimal("5"):
+    if not limit.is_finite() or limit <= 0:
+        raise DeploymentError("Budget limit must be a positive USD amount.")
+    expected = _APPROVAL_TOKEN_TEMPLATE.format(amount=format(limit.normalize(), "f"))
+    if token != expected:
         raise DeploymentError(
-            "AWS creation is blocked without the exact USD 5 alert approval and limit."
+            "AWS creation is blocked without the exact alert approval token naming the limit."
         )
 
 

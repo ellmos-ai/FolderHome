@@ -20,7 +20,7 @@ def test_bootstrap_template_has_a_five_dollar_budget_and_secure_artifacts() -> N
     template = BOOTSTRAP.read_text(encoding="utf-8")
 
     assert "AWS::Budgets::Budget" in template
-    assert "MaxValue: 5" in template
+    assert "MaxValue: 195" in template
     assert "NotificationType: FORECASTED" in template
     assert "AWS::KMS::Key" not in template
     assert "BlockPublicAcls: true" in template
@@ -82,7 +82,7 @@ def test_aws_demo_documentation_is_english_first_and_bilingual() -> None:
         "python deploy/aws_demo/build_proxy.py",
         "python deploy/aws_demo/manage.py preflight",
         "python deploy/aws_demo/manage.py verify",
-        "DEPLOY_FOLDERHOME_WITH_5_USD_ALERT",
+        "DEPLOY_FOLDERHOME_WITH_195_USD_ALERT",
     ):
         assert invariant in english
         assert invariant in german
