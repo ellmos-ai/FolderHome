@@ -71,6 +71,16 @@
                 <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
               </span>
             </div>
+            <div id="running-settings" class="running-settings" role="status" aria-live="polite">
+              <div class="running-settings-main">
+                <span class="running-label" data-i18n="runningLabel">Running:</span>
+                <span id="running-settings-summary">…</span>
+              </div>
+              <div id="settings-stale-banner" class="settings-stale-banner" hidden>
+                <span id="settings-stale-text"></span>
+                <button type="button" id="reload-settings-btn" class="button secondary small-btn" data-i18n="reloadButton">Reload</button>
+              </div>
+            </div>
             <label class="profile-control"><span data-i18n="profile">Profile</span>
               <select id="profile-select" aria-label="Organizational profile"
                 data-i18n-aria-label="profileLabel"></select>

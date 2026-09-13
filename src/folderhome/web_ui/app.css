@@ -313,6 +313,60 @@ h2 { margin-bottom: 0; font-family: Bahnschrift, "Aptos Display", sans-serif; fo
 .model-status strong, .model-status small { display: block; }
 .model-status strong { font-size: .78rem; }
 .model-status small { margin-top: .15rem; color: var(--muted); font-size: .66rem; line-height: 1.35; }
+.running-settings {
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+  padding: .5rem .75rem;
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-radius: .25rem;
+  font-size: .75rem;
+  max-width: 26rem;
+}
+.running-settings-main {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.running-label {
+  font-weight: 700;
+  color: var(--muted);
+  font-size: .67rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+#running-settings-summary {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: .72rem;
+  color: var(--ink);
+}
+.settings-stale-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: .5rem;
+  padding: .25rem .5rem;
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #facc15;
+  border-radius: .2rem;
+  font-size: .7rem;
+  font-weight: 600;
+}
+[data-theme="dark"] .settings-stale-banner {
+  background: #422006;
+  color: #fef08a;
+  border-color: #a16207;
+}
+.small-btn {
+  padding: .2rem .5rem;
+  font-size: .68rem;
+  cursor: pointer;
+}
 .profile-control { display: grid; gap: .3rem; color: var(--muted); font-family: Consolas, "Courier New", monospace; font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 select { min-width: 10rem; padding: .65rem 2.2rem .65rem .75rem; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: .2rem; }
 .chat-transcript { display: grid; gap: .85rem; margin-top: 1.7rem; }

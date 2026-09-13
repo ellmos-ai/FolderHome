@@ -1797,3 +1797,105 @@ def test_launch_preset_status_and_network_gate(tmp_path, preset, fields, topolog
     assert result["model_state"] == (
         "fixture_only" if preset == "fixture" else "configured_unverified"
     )
+
+
+def test_status_exposes_running_and_saved_preset_and_stale_detection(
+    tmp_path: Path,
+) -> None:
+    # 1. Without launch config
+    app_no_config = _app(tmp_path)
+    res_no_config = app_no_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_no_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_no_config.status_code == 200
+    assert res_no_config.payload["launch_config_path"] is None
+    assert res_no_config.payload["running_preset"] == "no preset / flags"
+    assert res_no_config.payload["saved_preset"] is None
+    assert res_no_config.payload["settings_stale"] is False
+
+    # 2. With launch config
+    app2_dir = tmp_path / "app2"
+    app2_dir.mkdir()
+    launch_file = app2_dir / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-configuration.v1",
+                "model_preset": "ollama-laptop",
+                "model_presets": {
+                    "ollama-laptop": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app_with_config = LocalApplication(
+        settings=_settings(app2_dir),
+        profiles=load_profile_configuration(PROFILE_DIR),
+        searcher=StubSearcher(),
+        session_token="synthetic-token-for-status-test-12345678",
+        launch_config_path=launch_file,
+        running_preset="ollama-laptop",
+    )
+    res_with_config = app_with_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_with_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_with_config.status_code == 200
+    # Must only disclose filename, never full path
+    assert res_with_config.payload["launch_config_path"] == "launch.json"
+    assert "C:\\" not in str(res_with_config.payload["launch_config_path"])
+    assert res_with_config.payload["running_preset"] == "ollama-laptop"
+    assert res_with_config.payload["saved_preset"] == "ollama-laptop"
+    assert res_with_config.payload["settings_stale"] is False
+
+    # 3. Modify launch.json active preset -> status reports settings_stale: True
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-configuration.v1",
+                "model_preset": "bedrock-nova-micro",
+                "model_presets": {
+                    "ollama-laptop": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    res_stale = app_with_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_with_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_stale.status_code == 200
+    assert res_stale.payload["running_preset"] == "ollama-laptop"
+    assert res_stale.payload["saved_preset"] == "bedrock-nova-micro"
+    assert res_stale.payload["settings_stale"] is True
+

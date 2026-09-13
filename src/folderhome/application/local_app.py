@@ -118,6 +118,8 @@ class LocalApplication:
         workflow_executor: WorkflowExecutionGateway | None = None,
         resource_registry: ResourceRegistry | None = None,
         scheduler_controller=None,
+        launch_config_path: Path | str | None = None,
+        running_preset: str | None = None,
     ) -> None:
         if profiles.os_account.strip() == "":
             raise LocalAppError("Profilkonfiguration besitzt kein OS-Konto-Label.")
@@ -147,6 +149,16 @@ class LocalApplication:
         self._token_sha256 = sha256(token.encode("utf-8")).hexdigest()
         self._identity = capture_os_identity()
         self._profile_ids = frozenset(profile_ids)
+        self._launch_config_path = (
+            Path(launch_config_path).resolve() if launch_config_path else None
+        )
+        if running_preset is not None:
+            self._running_preset = running_preset
+        elif self._launch_config_path is not None:
+            saved = self._read_saved_preset()
+            self._running_preset = saved or "no preset / flags"
+        else:
+            self._running_preset = "no preset / flags"
         self._proposed_agent_plans: dict[str, MasterAgentPlan] = {}
         self._recipe_plans: dict[str, CapabilityRecipePlan | RecipeStagePlan] = {}
         self._recipe_runs = {}
@@ -1394,8 +1406,27 @@ class LocalApplication:
             return self._error(503, "Scheduler-Dienst ist derzeit nicht verfügbar.")
         return self._json_response(result)
 
+    def _read_saved_preset(self) -> str | None:
+        if self._launch_config_path is None or not self._launch_config_path.is_file():
+            return None
+        try:
+            payload = json.loads(self._launch_config_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                name = payload.get("model_preset")
+                if isinstance(name, str) and name.strip():
+                    return name.strip()
+        except (OSError, json.JSONDecodeError):
+            return None
+        return None
+
     def _status_payload(self, server_port: int) -> dict[str, object]:
         connection = self._model_connection_payload()
+        saved_preset = self._read_saved_preset()
+        settings_stale = bool(
+            self._launch_config_path is not None
+            and saved_preset is not None
+            and saved_preset != self._running_preset
+        )
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",
@@ -1415,6 +1446,14 @@ class LocalApplication:
             **model_status_fields(
                 self.agent_settings, connection["successful_live_model_turns"],
             ),
+            "launch_config_path": (
+                self._launch_config_path.name
+                if self._launch_config_path is not None
+                else None
+            ),
+            "running_preset": self._running_preset,
+            "saved_preset": saved_preset,
+            "settings_stale": settings_stale,
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,

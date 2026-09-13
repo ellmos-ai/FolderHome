@@ -34,6 +34,10 @@ const translations = {
     lightTheme: "Light",
     darkTheme: "Dark",
     localBadge: "Local to this operating-system account",
+    runningLabel: "Running:",
+    noPresetFlags: "no preset / flags",
+    savedSettingDiffers: "Saved setting differs: {preset} — reload to apply",
+    reloadButton: "Reload",
     serviceEyebrow: "Document and assistance service",
     heroDocuments: "Your documents.",
     heroDaily: "Your everyday life.",
@@ -198,6 +202,10 @@ const translations = {
     lightTheme: "Hell",
     darkTheme: "Dunkel",
     localBadge: "Lokal auf diesem Betriebssystemkonto",
+    runningLabel: "Aktiv:",
+    noPresetFlags: "kein Preset / Parameter",
+    savedSettingDiffers: "Gespeicherte Einstellung weicht ab: {preset} — neu laden zum Übernehmen",
+    reloadButton: "Neu laden",
     serviceEyebrow: "Dokument- und Assistenzservice",
     heroDocuments: "Deine Dokumente.",
     heroDaily: "Dein Alltag.",
@@ -480,6 +488,7 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   renderConnection();
   renderTopologyBadge();
   renderModelStatus();
+  renderRunningSettings();
   renderRuntimeAccount();
   renderCapabilities();
   renderCurrentView(false);
@@ -656,6 +665,30 @@ function renderModelStatus() {
     modelStatusTitle.textContent = t(titleKey);
   }
   modelStatusDetail.textContent = t(`${titleKey}Detail`, values);
+}
+
+function renderRunningSettings() {
+  if (!appStatus) return;
+  const runningPreset = appStatus.running_preset || t("noPresetFlags");
+  const provider = appStatus.model_provider || "fixture";
+  const modelId = (appStatus.model_connection && appStatus.model_connection.model_id) || (provider === "fixture" ? "fixture" : "none");
+
+  const summaryEl = document.querySelector("#running-settings-summary");
+  if (summaryEl) {
+    summaryEl.textContent = `${runningPreset} · ${provider} · ${modelId}`;
+  }
+
+  const staleBanner = document.querySelector("#settings-stale-banner");
+  const staleText = document.querySelector("#settings-stale-text");
+  if (staleBanner && staleText) {
+    if (appStatus.settings_stale && appStatus.saved_preset) {
+      staleText.textContent = t("savedSettingDiffers", { preset: appStatus.saved_preset });
+      staleBanner.hidden = false;
+    } else {
+      staleBanner.hidden = true;
+      staleText.textContent = "";
+    }
+  }
 }
 
 function renderCapabilities() {
@@ -1522,6 +1555,7 @@ async function bootstrap() {
   renderRuntimeAccount();
   renderTopologyBadge();
   renderModelStatus();
+  renderRunningSettings();
   renderConnection();
   renderCapabilities();
   initCollapsiblePanels();

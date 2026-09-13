@@ -5441,6 +5441,9 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
         ).items():
             os.environ.setdefault(name, value)
         preset = _active_preset(payload)
+        model_preset = payload.get("model_preset")
+        if isinstance(model_preset, str) and model_preset.strip():
+            setattr(args, "model_preset", model_preset.strip())
         for name, kind in _LAUNCH_CONFIG_FIELDS.items():
             # A flat field wins over the active preset, and an explicit flag
             # over both: a hand-written file keeps working unchanged.
@@ -5743,6 +5746,12 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
         workflow_executor=workflow_executor,
         resource_registry=resource_registry,
         scheduler_controller=scheduler_controller,
+        launch_config_path=(
+            Path(args.launch_config)
+            if getattr(args, "launch_config", None) is not None
+            else None
+        ),
+        running_preset=getattr(args, "model_preset", None),
     )
 
 
