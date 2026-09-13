@@ -33,7 +33,6 @@ def test_agentcore_environment_enables_bedrock_only_with_both_explicit_gates() -
     assert settings.max_output_tokens == 1_024
     assert settings.max_turns == 2
     assert settings.max_tool_result_bytes == 65_536
-    assert settings.max_tool_result_bytes == 65_536
 
 
 @pytest.mark.parametrize(

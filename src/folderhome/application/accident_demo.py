@@ -250,10 +250,6 @@ class SyntheticAccidentDemoUnavailableError(RuntimeError):
     """The local search service the journey depends on is not available."""
 
 
-class SyntheticAccidentDemoUnavailableError(RuntimeError):
-    """The local search service the journey depends on is not available."""
-
-
 class SyntheticAccidentDemoError(RuntimeError):
     """Raised when the synthetic journey is stale, unsafe, or not confirmed."""
 

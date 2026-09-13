@@ -256,7 +256,6 @@ def runtime_cost_profile() -> dict[str, Any]:
             "FOLDERHOME_AGENTCORE_MAX_OUTPUT_TOKENS": "512",
             "FOLDERHOME_AGENTCORE_MAX_TURNS": "2",
             "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES": "65536",
-            "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES": "65536",
             "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS": "3",
             "FOLDERHOME_AGENTCORE_BEDROCK_READ_TIMEOUT_SECONDS": "18",
         },
@@ -1179,7 +1178,6 @@ def verify_demo(
         "log_retention_days": 7,
         "site_bucket_private": True,
         "budget_alert_usd": budget_usd,
-        "budget_alert_time_unit": "MONTHLY",
         "budget_alert_time_unit": "MONTHLY",
         "api_key_value_logged": False,
     }

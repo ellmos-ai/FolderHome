@@ -8,7 +8,6 @@ from hashlib import sha256
 from pathlib import Path
 
 from folderhome.application.accident_demo import (
-    SyntheticAccidentDemoUnavailableError,
     SyntheticAccidentDemo,
     SyntheticAccidentDemoError,
     SyntheticAccidentDemoUnavailableError,

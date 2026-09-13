@@ -48,9 +48,6 @@ def agent_settings_from_environment(
         max_tool_result_bytes=_bounded_integer(
             environment, "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES", default=1_048_576
         ),
-        max_tool_result_bytes=_bounded_integer(
-            environment, "FOLDERHOME_AGENTCORE_MAX_TOOL_RESULT_BYTES", default=1_048_576
-        ),
         bedrock_connect_timeout_seconds=_bounded_integer(
             environment,
             "FOLDERHOME_AGENTCORE_BEDROCK_CONNECT_TIMEOUT_SECONDS",
