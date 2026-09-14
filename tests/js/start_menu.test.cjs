@@ -76,7 +76,7 @@ describe("Menu options and choice normalization", () => {
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting FolderHome\.\.\./);
       assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd/);
-      assert.match(res.stdout, /\[Dry-run URL\] http:\/\/127\.0\.0\.1:8765\//);
+      assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
       assert.match(res.stdout, /\[Dry-run\] Operation completed without launching subprocesses\./);
     }
   });
@@ -89,7 +89,7 @@ describe("Menu options and choice normalization", () => {
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting Setup\.\.\./);
       assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd --config-dir/);
-      assert.match(res.stdout, /\[Dry-run URL\] http:\/\/127\.0\.0\.1:8766\//);
+      assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
     }
   });
 
@@ -102,8 +102,9 @@ describe("Menu options and choice normalization", () => {
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting FolderHome\.\.\./);
       assert.match(res.stdout, /Starting Setup\.\.\./);
-      assert.match(res.stdout, /http:\/\/127\.0\.0\.1:8765\//);
-      assert.match(res.stdout, /http:\/\/127\.0\.0\.1:8766\//);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd/);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd/);
+      assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
     }
   });
 
@@ -288,7 +289,7 @@ test("dry-run mode executes zero subprocesses and causes zero user-config mutati
     const res = runMenu(["--config-dir", tmp, "--dry-run", "--action", "3"]);
     assert.equal(res.status, 0);
     assert.match(res.stdout, /\[Dry-run Command\]/);
-    assert.match(res.stdout, /\[Dry-run URL\]/);
+    assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
     assert.match(res.stdout, /\[Dry-run\] Operation completed without launching subprocesses\./);
 
     // Verify user config was completely unmutated

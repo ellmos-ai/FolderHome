@@ -18,14 +18,16 @@ import argparse
 import contextlib
 import json
 import os
+import queue
 import subprocess
 import sys
+import threading
 import time
 import webbrowser
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 MENU_CONFIG_SCHEMA = "folderhome.start-menu-config.v1"
 MENU_CONFIG_FILENAME = "start_menu.json"
@@ -271,6 +273,150 @@ def normalize_action(raw: str) -> str | None:
     return None
 
 
+def validate_access_url(url: str) -> str | None:
+    """Validate that access URL is an HTTP loopback URL containing a non-empty session token."""
+    if not url or not isinstance(url, str):
+        return "Missing or empty access URL"
+    try:
+        parsed = urlsplit(url)
+    except ValueError as exc:
+        return f"Malformed access URL: {exc}"
+
+    if parsed.scheme.lower() != "http":
+        return f"Access URL must use HTTP scheme, got: {parsed.scheme}"
+
+    if not is_loopback_host(parsed.hostname):
+        return f"Access URL must target loopback host, got: {parsed.hostname}"
+
+    if parsed.port is None or not (1 <= parsed.port <= 65535):
+        return f"Access URL must include a valid port, got: {parsed.port}"
+
+    query_params = parse_qs(parsed.query, keep_blank_values=True)
+    tokens = query_params.get("token")
+    if not tokens or not tokens[0].strip():
+        return f"Access URL must contain non-empty session token in query: {url}"
+
+    return None
+
+
+class ProcessOutputHandler:
+    def __init__(self, proc: Any, target_name: str) -> None:
+        self.proc = proc
+        self.target_name = target_name
+        self.stdout_queue: queue.Queue[str | None] = queue.Queue()
+        self.stderr_lines: list[str] = []
+
+        self.stdout_thread = threading.Thread(
+            target=self._read_stdout, daemon=True
+        )
+        self.stderr_thread = threading.Thread(
+            target=self._read_stderr, daemon=True
+        )
+        self.stdout_thread.start()
+        self.stderr_thread.start()
+
+    def _read_stdout(self) -> None:
+        try:
+            stream = getattr(self.proc, "stdout", None)
+            if stream is not None:
+                for line in iter(stream.readline, ""):
+                    if not line:
+                        break
+                    self.stdout_queue.put(line)
+        except Exception:
+            pass
+        finally:
+            self.stdout_queue.put(None)
+
+    def _read_stderr(self) -> None:
+        try:
+            stream = getattr(self.proc, "stderr", None)
+            if stream is not None:
+                for line in iter(stream.readline, ""):
+                    if not line:
+                        break
+                    self.stderr_lines.append(line.rstrip())
+                    if len(self.stderr_lines) > 100:
+                        self.stderr_lines.pop(0)
+        except Exception:
+            pass
+
+    def _check_line(self, line: str) -> tuple[str | None, str | None]:
+        stripped = line.strip()
+        if not (stripped.startswith("{") and stripped.endswith("}")):
+            return None, None
+        try:
+            data = json.loads(stripped)
+        except json.JSONDecodeError:
+            return None, None
+
+        if not isinstance(data, dict):
+            return None, None
+
+        if "access_url" not in data:
+            return None, None
+
+        raw_url = data.get("access_url")
+        if not isinstance(raw_url, str):
+            return None, f"Invalid access_url in JSON from {self.target_name}: {raw_url!r}"
+
+        val_err = validate_access_url(raw_url)
+        if val_err:
+            return None, val_err
+
+        return raw_url, None
+
+    def wait_for_bootstrap(self, timeout: float = 15.0) -> tuple[str | None, str | None]:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if hasattr(self.proc, "poll"):
+                code = self.proc.poll()
+                if code is not None:
+                    # Drain remaining queue lines
+                    while not self.stdout_queue.empty():
+                        try:
+                            line = self.stdout_queue.get_nowait()
+                            if line:
+                                url, err = self._check_line(line)
+                                if url:
+                                    return url, None
+                        except queue.Empty:
+                            break
+                    err_msg = "\n".join(self.stderr_lines).strip()
+                    detail = f": {err_msg}" if err_msg else ""
+                    msg = (
+                        f"Subprocess {self.target_name} exited prematurely with "
+                        f"code {code}{detail}"
+                    )
+                    return None, msg
+
+            remaining = max(0.01, min(0.2, deadline - time.monotonic()))
+            try:
+                line = self.stdout_queue.get(timeout=remaining)
+            except queue.Empty:
+                continue
+
+            if line is None:
+                err_msg = "\n".join(self.stderr_lines).strip()
+                detail = f": {err_msg}" if err_msg else ""
+                msg = (
+                    f"Subprocess {self.target_name} closed output stream without "
+                    f"emitting access_url{detail}"
+                )
+                return None, msg
+
+            url, err = self._check_line(line)
+            if err:
+                return None, err
+            if url:
+                return url, None
+
+        err_msg = "\n".join(self.stderr_lines).strip()
+        detail = f": {err_msg}" if err_msg else ""
+        msg = f"Timed out after {timeout}s waiting for access_url from {self.target_name}{detail}"
+        return None, msg
+
+
 class StartMenuController:
     def __init__(
         self,
@@ -280,6 +426,7 @@ class StartMenuController:
         dry_run: bool = False,
         confirm_gates: bool | None = None,
         open_browser: bool = True,
+        bootstrap_timeout: float = 15.0,
         input_func: Callable[[str], str] = input,
         print_func: Callable[..., None] = print,
         subprocess_runner: Callable[..., Any] = subprocess.Popen,
@@ -289,6 +436,7 @@ class StartMenuController:
         self.dry_run = dry_run
         self.confirm_gates = confirm_gates
         self.open_browser = open_browser
+        self.bootstrap_timeout = bootstrap_timeout
         self.input_func = input_func
         self.print_func = print_func
         self.subprocess_runner = subprocess_runner
@@ -368,8 +516,7 @@ class StartMenuController:
             else:
                 self.print_func(self.t("gates_denied"))
 
-        url = f"http://127.0.0.1:{DEFAULT_APP_PORT}/"
-        return cmd, url, None
+        return cmd, None, None
 
     def resolve_setup_command_and_url(self) -> tuple[list[str] | None, str | None, str | None]:
         starter = find_starter_script("START-SETUP.cmd", self.config_dir)
@@ -377,8 +524,7 @@ class StartMenuController:
             return None, None, self.t("starter_missing", script="START-SETUP.cmd")
 
         cmd = [str(starter), "--config-dir", str(self.config_dir)]
-        url = f"http://127.0.0.1:{DEFAULT_SETUP_PORT}/"
-        return cmd, url, None
+        return cmd, None, None
 
     def run_action(self, action_key: str) -> int:
         norm = normalize_action(action_key)
@@ -390,75 +536,132 @@ class StartMenuController:
             return 0
 
         ResolverFn = Callable[[], tuple[list[str] | None, str | None, str | None]]
-        targets: list[tuple[str, ResolverFn]] = []
+        targets: list[tuple[str, str, ResolverFn]] = []
         if norm == "1":
-            targets.append((self.t("launching_app"), self.resolve_app_command_and_url))
+            targets.append(("app", self.t("launching_app"), self.resolve_app_command_and_url))
         elif norm == "2":
-            targets.append((self.t("launching_setup"), self.resolve_setup_command_and_url))
+            targets.append(("setup", self.t("launching_setup"), self.resolve_setup_command_and_url))
         elif norm == "3":
-            targets.append((self.t("launching_app"), self.resolve_app_command_and_url))
-            targets.append((self.t("launching_setup"), self.resolve_setup_command_and_url))
+            targets.append(("app", self.t("launching_app"), self.resolve_app_command_and_url))
+            targets.append(("setup", self.t("launching_setup"), self.resolve_setup_command_and_url))
         else:
             self.print_func(self.t("invalid_choice", choice=action_key))
             return 1
 
         has_error = False
-        commands_to_run: list[tuple[list[str], str]] = []
-        for msg, resolver in targets:
+        commands_to_run: list[tuple[str, list[str]]] = []
+        for kind, msg, resolver in targets:
             self.print_func(msg)
-            cmd, url, err = resolver()
+            cmd, _, err = resolver()
             if err:
                 self.print_func(err)
                 has_error = True
-            elif cmd and url:
-                commands_to_run.append((cmd, url))
+            elif cmd:
+                commands_to_run.append((kind, cmd))
 
         if has_error or not commands_to_run:
             return 1
 
         if self.dry_run:
-            for cmd, url in commands_to_run:
+            for _, cmd in commands_to_run:
                 self.print_func(f"[Dry-run Command] {' '.join(cmd)}")
-                self.print_func(f"[Dry-run URL] {url}")
             self.print_func(self.t("dry_run_notice"))
             return 0
 
-        for cmd, url in commands_to_run:
-            if "START-APP" in cmd[0]:
-                self.print_func(self.t("app_url", url=url))
-            else:
-                self.print_func(self.t("setup_url", url=url))
-
+        started_entries: list[tuple[str, Any, ProcessOutputHandler]] = []
+        for kind, cmd in commands_to_run:
             try:
-                proc = self.subprocess_runner(cmd)
-                self.processes.append(proc)
+                proc = self.subprocess_runner(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    bufsize=1,
+                )
+            except TypeError:
+                try:
+                    proc = self.subprocess_runner(cmd)
+                except OSError as exc:
+                    self.print_func(f"Failed to start subprocess: {exc}")
+                    has_error = True
+                    break
             except OSError as exc:
                 self.print_func(f"Failed to start subprocess: {exc}")
                 has_error = True
+                break
 
-            if self.open_browser:
-                with contextlib.suppress(Exception):
-                    self.browser_opener(url)
+            self.processes.append(proc)
+            handler = ProcessOutputHandler(proc, kind)
+            started_entries.append((kind, proc, handler))
 
         if has_error:
             self.cleanup_processes()
             return 1
 
+        # Bootstrap each process and extract validated loopback access URL
+        validated_urls: list[tuple[str, str]] = []
         exit_code = 0
-        if self.processes:
-            try:
-                while any(p.poll() is None for p in self.processes if hasattr(p, "poll")):
-                    time.sleep(0.5)
-            except KeyboardInterrupt:
-                self.print_func(self.t("stopping_processes"))
-            finally:
+        for kind, proc, handler in started_entries:
+            url, err = handler.wait_for_bootstrap(timeout=self.bootstrap_timeout)
+            if err or not url:
+                self.print_func(err or f"Failed to obtain access URL for {kind}")
+                has_error = True
+                if hasattr(proc, "poll") and proc.poll() not in (0, None):
+                    exit_code = proc.poll()
+                else:
+                    exit_code = 1
+                break
+            validated_urls.append((kind, url))
+
+        if has_error or len(validated_urls) != len(commands_to_run):
+            self.cleanup_processes()
+            return exit_code if exit_code != 0 else 1
+
+        # All processes successfully bootstrapped!
+        # Print URLs and open in browser
+        for kind, url in validated_urls:
+            if kind == "app":
+                self.print_func(self.t("app_url", url=url))
+            else:
+                self.print_func(self.t("setup_url", url=url))
+
+        if self.open_browser:
+            for _, url in validated_urls:
+                with contextlib.suppress(Exception):
+                    self.browser_opener(url)
+
+        # Supervision loop: monitor processes until completion or error
+        try:
+            while True:
+                # P1-B: Check if any process exited with non-zero
                 for p in self.processes:
-                    if hasattr(p, "poll") and p.poll() not in (0, None):
-                        exit_code = p.poll()
-                self.cleanup_processes()
+                    code = p.poll() if hasattr(p, "poll") else None
+                    if code is not None and code != 0:
+                        exit_code = code
+                        break
+
+                if exit_code != 0:
+                    break
+
+                # If all processes finished cleanly
+                if all(
+                    (p.poll() is not None if hasattr(p, "poll") else True)
+                    for p in self.processes
+                ):
+                    break
+
+                time.sleep(0.1)
+        except KeyboardInterrupt:
+            self.print_func(self.t("stopping_processes"))
+        finally:
+            self.cleanup_processes()
+
         return exit_code
 
     def cleanup_processes(self) -> None:
+        had_processes = bool(self.processes)
         for p in self.processes:
             if hasattr(p, "poll") and p.poll() is None:
                 try:
@@ -468,7 +671,8 @@ class StartMenuController:
                 except Exception:
                     with contextlib.suppress(Exception):
                         p.kill()
-        self.print_func(self.t("processes_stopped"))
+        if had_processes:
+            self.print_func(self.t("processes_stopped"))
         self.processes.clear()
 
     def interactive_loop(self) -> int:
@@ -553,6 +757,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main(
     argv: list[str] | None = None,
     *,
+    bootstrap_timeout: float = 15.0,
     input_func: Callable[[str], str] = input,
     print_func: Callable[..., None] = print,
     subprocess_runner: Callable[..., Any] = subprocess.Popen,
@@ -575,6 +780,7 @@ def main(
         dry_run=args.dry_run,
         confirm_gates=confirm_gates,
         open_browser=not args.no_browser,
+        bootstrap_timeout=bootstrap_timeout,
         input_func=input_func,
         print_func=print_func,
         subprocess_runner=subprocess_runner,

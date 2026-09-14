@@ -2307,15 +2307,45 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     tmp_path: Path,
 ) -> None:
     from test_recipe_results import payload
-    from test_recipe_runs import Gateway, core_gateway
+    from test_recipe_runs import Adapter, Gateway
     from test_recipes import APPROVED_AT, RESOURCE_IDS, _statuses
 
     from folderhome.application import recipes
+    from folderhome.application.workflow_execution import WorkflowExecutionGateway
     from folderhome.contracts.master_agent import MasterPlanApproval
-    from folderhome.contracts.recipes import CapabilityRecipeError
+    from folderhome.contracts.recipe_stages import RecipeStagePlan
+
+    class FailingCleanupGateway(WorkflowExecutionGateway):
+        def __init__(self, adapters):
+            super().__init__(adapters)
+            self.fail_discard = False
+            self.created_scopes: list[WorkflowExecutionGateway] = []
+
+        def new_preparation_scope(self) -> WorkflowExecutionGateway:
+            scope = super().new_preparation_scope()
+            self.created_scopes.append(scope)
+            parent_gw = self
+            original_discard = scope.discard_unexecuted
+
+            def discard_hook(envelope_ids: tuple[str, ...]) -> tuple[str, ...]:
+                if parent_gw.fail_discard:
+                    raise RuntimeError("Gateway discard failure during unexecuted cleanup")
+                return original_discard(envelope_ids)
+
+            scope.discard_unexecuted = discard_hook
+            return scope
 
     driver = Gateway()
-    gateway = core_gateway(driver)
+    adapters = tuple(
+        Adapter(driver, name)
+        for name in (
+            "contact-register",
+            "correspondence-studio",
+            "mail-connector",
+            "calendar-handoff",
+        )
+    )
+    gateway = FailingCleanupGateway(adapters)
     recipe = recipes.parse_recipe(payload())
     statuses = _statuses()
 
@@ -2324,6 +2354,26 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
 
     plan1 = run1.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
     plan2 = run2.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
+
+    # Prove that real external envelopes were prepared by the gateway and tracked
+    env1_ids = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan1.steps
+        if s.execution_envelope is not None
+    )
+    env2_ids = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan2.steps
+        if s.execution_envelope is not None
+    )
+    assert len(env1_ids) > 0
+    assert len(env2_ids) > 0
+    assert len(driver.prepared) >= 2
+    # Verify envelopes are actively prepared in gateway scopes before close
+    assert any(
+        all(eid in scope._prepared for eid in env2_ids)
+        for scope in gateway.created_scopes
+    )
 
     assert run1.snapshot()["pending_plan_id"] == plan1.plan_id
     assert run1.snapshot()["status"] == "awaiting_approval"
@@ -2348,6 +2398,18 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     app = _app(tmp_path, launch_config_path=launch_file)
     app._recipe_runs[run1.snapshot()["run_id"]] = run1
     app._recipe_runs[run2.snapshot()["run_id"]] = run2
+
+    # Register plans in _proposed_agent_plans and _recipe_plans
+    app._retain_agent_plan(plan1)
+    app._recipe_plans[plan1.plan_id] = RecipeStagePlan(plan1, run1.snapshot())
+    app._retain_agent_plan(plan2)
+    app._recipe_plans[plan2.plan_id] = RecipeStagePlan(plan2, run2.snapshot())
+
+    assert plan1.plan_id in app._proposed_agent_plans
+    assert plan1.plan_id in app._recipe_plans
+    assert plan2.plan_id in app._proposed_agent_plans
+    assert plan2.plan_id in app._recipe_plans
+
     orig_settings = app.agent_settings
     orig_preset = app._running_preset
 
@@ -2365,6 +2427,8 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     assert "Offene Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
     assert app.agent_settings == orig_settings
     assert app._running_preset == orig_preset
+    assert plan1.plan_id in app._proposed_agent_plans
+    assert plan2.plan_id in app._proposed_agent_plans
 
     # 2. Run 1 preparations were NOT discarded by reload;
     # Run 1 remains fully confirmable and executable
@@ -2380,19 +2444,50 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     assert confirmed1["status"] == "executed"
     assert "contact-register" in driver.executed
 
-    # 3. Simulate later failing cleanup on Run 2 (gateway discard failure)
-    def failing_discard(ids: tuple[str, ...]) -> tuple[str, ...]:
-        raise RuntimeError("Gateway discard failure during unexecuted cleanup")
+    # 3. Trigger intentionally failing cleanup on Run 2 during the API close call
+    gateway.fail_discard = True
 
-    run2._discard = failing_discard
-    with pytest.raises(CapabilityRecipeError):
-        run2.close()
+    # Real prepared envelopes for run2 are still tracked before close
+    assert all(
+        s.execution_envelope.envelope_id in env2_ids
+        for s in run2._pending.steps
+        if s.execution_envelope is not None
+    )
+    assert any(
+        all(eid in scope._prepared for eid in env2_ids)
+        for scope in gateway.created_scopes
+    )
+
+    res_close = app.handle(
+        method="POST",
+        target="/api/v1/agent/recipes/close",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {
+                "schema": "folderhome.local-recipe-close-request.v1",
+                "profile_id": "lukas",
+                "run_id": run2.snapshot()["run_id"],
+            }
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_close.status_code == 422
+    assert (
+        "Offene Rezeptvorbereitungen konnten nicht bereinigt werden"
+        in res_close.payload["message"]
+    )
+
+    # Verify loss/fail-closed semantics:
+    # Plan 2 is completely discarded from _proposed_agent_plans and _recipe_plans
+    assert plan2.plan_id not in app._proposed_agent_plans
+    assert plan2.plan_id not in app._recipe_plans
 
     # Verify Run 2 is aborted and does NOT claim a confirmable plan whose preparation is lost
     snap2 = run2.snapshot()
     assert snap2["status"] == "aborted"
     assert snap2["pending_plan_id"] is None
     assert snap2["cleanup_pending_count"] > 0
+    assert set(env2_ids).issubset(set(run2._cleanup_pending))
 
     # 4. Attempting reload while Run 2 has uncleaned preparations also rejects fail-closed with 409
     res2 = app.handle(
@@ -2409,6 +2504,8 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
         "Ausstehende Bereinigungen von Rezeptabschnitten verhindern das Neuladen"
         in res2.payload["message"]
     )
+    assert app.agent_settings == orig_settings
+    assert app._running_preset == orig_preset
 
 
 def test_reload_settings_fixture_reports_fixture_only(tmp_path: Path) -> None:

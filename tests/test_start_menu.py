@@ -13,6 +13,7 @@ Covers:
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import sys
 from pathlib import Path
@@ -45,6 +46,7 @@ load_menu_config = start_menu.load_menu_config
 main = start_menu.main
 normalize_action = start_menu.normalize_action
 save_menu_language = start_menu.save_menu_language
+validate_access_url = start_menu.validate_access_url
 
 
 
@@ -275,7 +277,7 @@ def test_option_1_resolves_app_cmd_and_url(tmp_path: Path) -> None:
     assert err is None
     assert cmd is not None
     assert cmd[0] == str(app_script)
-    assert url == f"http://127.0.0.1:{DEFAULT_APP_PORT}/"
+    assert url is None
 
 
 def test_option_2_resolves_setup_cmd_and_url(tmp_path: Path) -> None:
@@ -290,7 +292,7 @@ def test_option_2_resolves_setup_cmd_and_url(tmp_path: Path) -> None:
     assert cmd[0] == str(setup_script)
     assert "--config-dir" in cmd
     assert str(tmp_path) in cmd
-    assert url == f"http://127.0.0.1:{DEFAULT_SETUP_PORT}/"
+    assert url is None
 
 
 def test_option_3_resolves_both_app_and_setup(tmp_path: Path) -> None:
@@ -305,8 +307,8 @@ def test_option_3_resolves_both_app_and_setup(tmp_path: Path) -> None:
     full_log = "\n".join(logs)
     assert "Starting FolderHome..." in full_log
     assert "Starting Setup..." in full_log
-    assert f"http://127.0.0.1:{DEFAULT_APP_PORT}/" in full_log
-    assert f"http://127.0.0.1:{DEFAULT_SETUP_PORT}/" in full_log
+    assert "[Dry-run Command]" in full_log
+    assert "http://127.0.0.1" not in full_log
     assert "[Dry-run] Operation completed without launching subprocesses." in full_log
 
 
@@ -638,7 +640,7 @@ def test_dry_run_never_spawns_subprocesses_or_browser(tmp_path: Path) -> None:
 
     full_output = "\n".join(logs)
     assert "[Dry-run Command]" in full_output
-    assert "[Dry-run URL]" in full_output
+    assert "http://127.0.0.1" not in full_output
     assert "[Dry-run] Operation completed without launching subprocesses." in full_output
 
 
@@ -891,3 +893,318 @@ def test_confirm_gates_and_deny_gates_parse_individually() -> None:
 def test_main_with_mutually_exclusive_gates_raises_exit(tmp_path: Path) -> None:
     with pytest.raises(SystemExit):
         main(["--config-dir", str(tmp_path), "--confirm-gates", "--deny-gates"])
+
+
+# ============================================================================
+# 11. Controlled Regression Tests: URL Validation, Fake Processes & Browser Spy
+# ============================================================================
+
+
+class FakeProcess:
+    def __init__(
+        self,
+        *,
+        stdout_lines: list[str] | None = None,
+        stderr_lines: list[str] | None = None,
+        returncode: int | None = None,
+        poll_sequence: list[int | None] | None = None,
+    ) -> None:
+        self._stdout_lines = list(stdout_lines or [])
+        self._stderr_lines = list(stderr_lines or [])
+        self.stdout = io.StringIO(
+            "\n".join(self._stdout_lines) + ("\n" if self._stdout_lines else "")
+        )
+        self.stderr = io.StringIO(
+            "\n".join(self._stderr_lines) + ("\n" if self._stderr_lines else "")
+        )
+        self.returncode = returncode
+        self._poll_seq = list(poll_sequence) if poll_sequence is not None else None
+        self._poll_idx = 0
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        if self._poll_seq is not None:
+            if self._poll_idx < len(self._poll_seq):
+                val = self._poll_seq[self._poll_idx]
+                self._poll_idx += 1
+                self.returncode = val
+                return val
+            return self._poll_seq[-1]
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+        if self.returncode is None:
+            self.returncode = -15
+
+    def kill(self) -> None:
+        self.killed = True
+        if self.returncode is None:
+            self.returncode = -9
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        return self.returncode
+
+
+def test_validate_access_url_rules() -> None:
+    # Valid loopback URLs with tokens
+    for ok_url in (
+        "http://127.0.0.1:8765/?token=secret-token",
+        "http://localhost:8766/?token=another-token",
+        "http://[::1]:8765/?token=ipv6-token",
+    ):
+        assert validate_access_url(ok_url) is None
+
+    # Invalid: tokenless root URLs
+    for tokenless in (
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/?other=param",
+        "http://127.0.0.1:8765/?token=",
+        "http://127.0.0.1:8765/?token=   ",
+    ):
+        err = validate_access_url(tokenless)
+        assert err is not None
+        assert "token" in err
+
+    # Invalid: non-loopback hosts
+    for non_loopback in (
+        "http://0.0.0.0:8765/?token=tok",
+        "http://192.168.1.1:8765/?token=tok",
+        "http://127.0.0.1.evil.com:8765/?token=tok",
+        "http://example.com:8765/?token=tok",
+    ):
+        err = validate_access_url(non_loopback)
+        assert err is not None
+        assert "loopback" in err
+
+    # Invalid: non-http schemes
+    for non_http in (
+        "https://127.0.0.1:8765/?token=tok",
+        "file://127.0.0.1:8765/?token=tok",
+    ):
+        err = validate_access_url(non_http)
+        assert err is not None
+        assert "HTTP" in err
+
+
+def test_real_run_action_1_captures_access_url_from_json_and_opens_browser(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    expected_url = "http://127.0.0.1:8765/?token=test-app-token-12345"
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({
+            "schema": "folderhome.local-server-start.v1",
+            "access_url": expected_url,
+        })],
+        poll_sequence=[None, 0],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("1")
+    assert code == 0
+    browser_spy.assert_called_once_with(expected_url)
+    assert any(expected_url in msg for msg in logs)
+
+
+def test_real_run_action_rejects_tokenless_url_fails_closed_without_browser(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/"})],
+        poll_sequence=[None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_rejects_non_loopback_url_fails_closed_without_browser(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://192.168.1.100:8765/?token=secret"})],
+        poll_sequence=[None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_fails_closed_on_bootstrap_timeout(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[None, None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        bootstrap_timeout=0.05,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_fails_closed_on_popen_oserror_without_browser(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    def failing_runner(*args, **kwargs):
+        raise OSError("Process creation failed")
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=failing_runner,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+
+
+def test_action_3_fails_closed_and_terminates_sibling_when_second_popen_raises_oserror(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    proc1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok1"})],
+        poll_sequence=[None, None],
+    )
+
+    call_count = 0
+
+    def mixed_runner(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return proc1
+        raise OSError("Setup process spawn failed")
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=mixed_runner,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    assert code == 1
+    assert proc1.terminated is True
+    assert browser_spy.call_count == 0
+
+
+def test_action_3_detects_nonzero_child_immediately_and_terminates_living_sibling(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1 stays alive; Child 2 fails on second poll with returncode 2
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, 2],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    # Immediate non-zero detection: returns Child 2's exit code 2
+    assert code == 2
+    # Living sibling Child 1 must be cleanly terminated
+    assert child1.terminated is True
+    # Both URLs were safely opened prior to the subsequent crash
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
+
+def test_action_3_successful_children_run_together_until_clean_completion(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, 0],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, 0],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    assert code == 0
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
