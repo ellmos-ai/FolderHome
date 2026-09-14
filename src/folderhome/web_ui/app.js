@@ -34,6 +34,22 @@ const translations = {
     lightTheme: "Light",
     darkTheme: "Dark",
     localBadge: "Local to this operating-system account",
+    runningLabel: "Running:",
+    noPresetFlags: "no preset / flags",
+    savedSettingDiffers: "Saved setting differs: {preset} — reload to apply",
+    reloadButton: "Reload",
+    reloadConfirm: "Reloading settings will apply the saved preset and reset the current conversation memory. Continue?",
+    reloadError: "Settings could not be reloaded.",
+    statusReadbackError: "Settings were reloaded, but reading updated status failed. The interface is locked; please refresh the page.",
+    recipeSyncWarning: "Settings were reloaded, but recipe catalog or runs could not be fully reconciled. Please refresh the page.",
+    openSettings: "Open settings",
+    settingsDialogTitle: "FolderHome Settings",
+    settingsDialogText: "To configure models or workspaces, run the start menu in your terminal and select Option 2 (Setup):",
+    copyCommand: "Copy",
+    commandCopied: "Copied!",
+    closeDialog: "Close",
+    setupServerActiveText: "A setup server is currently running:",
+    openSetupPage: "Open Setup page",
     serviceEyebrow: "Document and assistance service",
     heroDocuments: "Your documents.",
     heroDaily: "Your everyday life.",
@@ -41,18 +57,37 @@ const translations = {
     heroCopy: "Find scattered information, build topic summaries, and keep track of private documents locally.",
     securityBoundary: "Security boundary",
     operatingSystemAccount: "Operating-system account",
+    boundaryScopeRemote: "Remote operating-system account",
+    boundaryScopeCloud: "Cloud sandbox",
+    boundaryScopeDisconnected: "Disconnected",
     familyProfiles: "Family profiles organize information; they do not grant access.",
+    familyProfilesAuthorization: "Family profiles serve as authorization boundaries.",
+    localBadge: "Local to this operating-system account",
+    localBadgeLocal: "Local to this operating-system account",
+    localBadgeDisconnected: "Disconnected from service",
+    localBadgeBlocked: "Connection blocked",
+    connectionBlockedDetail: "The local request was blocked (token missing, invalid, or forbidden origin).",
+    serviceDisconnectedDetail: "The local FolderHome service is currently unreachable.",
     activeFolder: "Active workspace",
     agentChat: "FolderHome agent",
     whatHelp: "What can I help you with?",
+    modelStatusBanner: "Model status",
     modelChecking: "Checking model …",
     modelCheckingDetail: "Reading the local runtime configuration.",
     modelFixture: "Demo model (fixture)",
     modelFixtureDetail: "FolderHome and its files stay local. No live LLM is connected; responses use deterministic test behavior.",
     modelConfigured: "Amazon Bedrock configured",
-    modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in {region}. No successful live chat has been verified in this process yet.",
+    modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in AWS region {region}. No successful live chat has been verified in this process yet.",
     modelVerified: "Amazon Bedrock active",
-    modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in {region}. {count} successful live model turn(s) in this process.",
+    modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in AWS region {region}. {count} successful live model turn(s) in this process.",
+    modelAnthropicConfigured: "Anthropic cloud model configured",
+    modelAnthropicConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} via Anthropic cloud API. No successful live chat has been verified in this process yet.",
+    modelAnthropicVerified: "Anthropic cloud model active",
+    modelAnthropicVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} via Anthropic cloud API. {count} successful live model turn(s) in this process.",
+    modelOpenAIConfigured: "OpenAI-compatible cloud model configured",
+    modelOpenAIConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} via OpenAI-compatible cloud API{endpoint}. No successful live chat has been verified in this process yet.",
+    modelOpenAIVerified: "OpenAI-compatible cloud model active",
+    modelOpenAIVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} via OpenAI-compatible cloud API{endpoint}. {count} successful live model turn(s) in this process.",
     resultsEyebrow: "Delivery",
     resultsTitle: "Results you can pick up",
     refreshResults: "Refresh",
@@ -63,6 +98,10 @@ const translations = {
     modelLocalConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} at {host}. No successful live chat has been verified in this process yet.",
     modelLocalVerified: "Local model active (Ollama)",
     modelLocalVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} at {host}. {count} successful live model turn(s) in this process.",
+    modelRemoteConfigured: "Remote model configured (Ollama)",
+    modelRemoteConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} on remote host {host}. No successful live chat has been verified in this process yet.",
+    modelRemoteVerified: "Remote model active (Ollama)",
+    modelRemoteVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} on remote host {host}. {count} successful live model turn(s) in this process.",
     welcomeMessage: "Tell me what you want to find, understand, organize, or prepare. I will use a safe tool directly or propose a bounded workflow.",
     chatPlaceholder: "Find my latest Hyundai i10 insurance and show me what changed …",
     sendButton: "Send",
@@ -154,9 +193,18 @@ const translations = {
     localMatches: "Local matches",
     capabilityEyebrow: "One home, many workflows",
     capabilityTitle: "What FolderHome brings together",
+    capabilityInfoShow: "Show capabilities",
+    capabilityInfoHide: "Hide capabilities",
     connectionChecking: "Checking connection …",
     connectionReady: "Local connection ready",
+    connectionReadyRemote: "Remote connection ready",
+    connectionReadyCloud: "Cloud connection ready",
     connectionBlocked: "Local connection blocked",
+    connectionBlockedRemote: "Remote connection blocked",
+    connectionBlockedCloud: "Cloud connection blocked",
+    connectionDisconnected: "Disconnected",
+    notConnected: "Not connected in this installation",
+    planningOnly: "Planning only",
     footer: "FolderHome works locally, transparently, and with deliberate approvals.",
     processAccount: "Process account: {account}",
     directUse: "Available here",
@@ -198,6 +246,22 @@ const translations = {
     lightTheme: "Hell",
     darkTheme: "Dunkel",
     localBadge: "Lokal auf diesem Betriebssystemkonto",
+    runningLabel: "Aktiv:",
+    noPresetFlags: "kein Preset / Parameter",
+    savedSettingDiffers: "Gespeicherte Einstellung weicht ab: {preset} — neu laden zum Übernehmen",
+    reloadButton: "Neu laden",
+    reloadConfirm: "Beim Neuladen der Einstellungen wird das gespeicherte Preset angewendet und der bisherige Gesprächsverlauf zurückgesetzt. Fortfahren?",
+    reloadError: "Einstellungen konnten nicht neu geladen werden.",
+    statusReadbackError: "Einstellungen wurden neu geladen, aber das Lesen des aktualisierten Status ist fehlgeschlagen. Die Oberfläche ist gesperrt; bitte Seite aktualisieren.",
+    recipeSyncWarning: "Einstellungen wurden neu geladen, aber Rezepte oder Rezeptläufe konnten nicht vollständig abgeglichen werden. Bitte Seite aktualisieren.",
+    openSettings: "Einstellungen öffnen",
+    settingsDialogTitle: "FolderHome-Einstellungen",
+    settingsDialogText: "Um Modelle oder Arbeitsordner zu konfigurieren, starte das Startmenü im Terminal und wähle Option 2 (Setup):",
+    copyCommand: "Kopieren",
+    commandCopied: "Kopiert!",
+    closeDialog: "Schließen",
+    setupServerActiveText: "Ein Setup-Server läuft derzeit:",
+    openSetupPage: "Setup-Seite öffnen",
     serviceEyebrow: "Dokument- und Assistenzservice",
     heroDocuments: "Deine Dokumente.",
     heroDaily: "Dein Alltag.",
@@ -205,18 +269,37 @@ const translations = {
     heroCopy: "Finde verstreute Informationen, fasse Themen zusammen und behalte deine privaten Unterlagen lokal im Blick.",
     securityBoundary: "Sicherheitsgrenze",
     operatingSystemAccount: "Betriebssystemkonto",
+    boundaryScopeRemote: "Entferntes Betriebssystemkonto",
+    boundaryScopeCloud: "Cloud-Sandbox",
+    boundaryScopeDisconnected: "Getrennt",
     familyProfiles: "Familienprofile organisieren – sie erteilen keine Zugriffsrechte.",
+    familyProfilesAuthorization: "Familienprofile bilden Autorisierungsgrenzen.",
+    localBadge: "Lokal auf diesem Betriebssystemkonto",
+    localBadgeLocal: "Lokal auf diesem Betriebssystemkonto",
+    localBadgeDisconnected: "Vom Dienst getrennt",
+    localBadgeBlocked: "Verbindung blockiert",
+    connectionBlockedDetail: "Die lokale Anfrage wurde blockiert (Token fehlt, ist ungültig oder Origin abgewiesen).",
+    serviceDisconnectedDetail: "Der lokale FolderHome-Dienst ist derzeit nicht erreichbar.",
     activeFolder: "Aktiver Arbeitsordner",
     agentChat: "FolderHome-Agent",
     whatHelp: "Wobei kann ich dir helfen?",
+    modelStatusBanner: "Modellstatus",
     modelChecking: "Modell wird geprüft …",
     modelCheckingDetail: "Die lokale Laufzeitkonfiguration wird gelesen.",
     modelFixture: "Demomodell (Fixture)",
     modelFixtureDetail: "FolderHome und seine Dateien bleiben lokal. Kein Live-LLM ist verbunden; Antworten verwenden deterministisches Testverhalten.",
     modelConfigured: "Amazon Bedrock konfiguriert",
-    modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in AWS-Region {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelVerified: "Amazon Bedrock aktiv",
-    modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in AWS-Region {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelAnthropicConfigured: "Anthropic-Cloud-Modell konfiguriert",
+    modelAnthropicConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} über die Anthropic-Cloud-API konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelAnthropicVerified: "Anthropic-Cloud-Modell aktiv",
+    modelAnthropicVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} über die Anthropic-Cloud-API. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelOpenAIConfigured: "OpenAI-kompatibles Cloud-Modell konfiguriert",
+    modelOpenAIConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} über die OpenAI-kompatible Cloud-API{endpoint} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelOpenAIVerified: "OpenAI-kompatibles Cloud-Modell aktiv",
+    modelOpenAIVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} über die OpenAI-kompatible Cloud-API{endpoint}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
     resultsEyebrow: "Zustellung",
     resultsTitle: "Ergebnisse zum Abholen",
     refreshResults: "Aktualisieren",
@@ -227,6 +310,10 @@ const translations = {
     modelLocalConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelLocalVerified: "Lokales Modell aktiv (Ollama)",
     modelLocalVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} auf {host}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelRemoteConfigured: "Remote-Modell konfiguriert (Ollama)",
+    modelRemoteConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf dem Remote-Host {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelRemoteVerified: "Remote-Modell aktiv (Ollama)",
+    modelRemoteVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} auf dem Remote-Host {host}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
     welcomeMessage: "Sag mir, was du finden, verstehen, ordnen oder vorbereiten möchtest. Ich nutze direkt ein sicheres Werkzeug oder schlage einen begrenzten Workflow vor.",
     chatPlaceholder: "Finde meine neueste Hyundai-i10-Versicherung und zeige mir die Änderungen …",
     sendButton: "Senden",
@@ -318,9 +405,18 @@ const translations = {
     localMatches: "Lokale Fundstellen",
     capabilityEyebrow: "Ein Zuhause, viele Abläufe",
     capabilityTitle: "Was FolderHome zusammenführt",
+    capabilityInfoShow: "Funktionen anzeigen",
+    capabilityInfoHide: "Funktionen ausblenden",
     connectionChecking: "Verbindung wird geprüft …",
     connectionReady: "Lokale Verbindung bereit",
+    connectionReadyRemote: "Remote-Verbindung bereit",
+    connectionReadyCloud: "Cloud-Verbindung bereit",
     connectionBlocked: "Lokale Verbindung blockiert",
+    connectionBlockedRemote: "Remote-Verbindung blockiert",
+    connectionBlockedCloud: "Cloud-Verbindung blockiert",
+    connectionDisconnected: "Getrennt",
+    notConnected: "In dieser Installation nicht verbunden",
+    planningOnly: "Nur Planung",
     footer: "FolderHome arbeitet lokal, transparent und mit bewussten Freigaben.",
     processAccount: "Prozesskonto: {account}",
     directUse: "Hier direkt nutzbar",
@@ -380,10 +476,69 @@ const resultContent = document.querySelector("#result-content");
 const resultCount = document.querySelector("#result-count");
 const messageInput = document.querySelector("#message");
 const newConversationButton = document.querySelector("#new-conversation");
+const reloadSettingsButton = document.querySelector("#reload-settings-btn");
+const openSettingsButton = document.querySelector("#open-settings-btn");
+const settingsDialog = document.querySelector("#settings-dialog");
+const closeSettingsDialogButton = document.querySelector("#close-settings-dialog-btn");
+const copySettingsCommandButton = document.querySelector("#copy-settings-command-btn");
+const setupServerActiveBox = document.querySelector("#setup-server-active-box");
+const openSetupServerLink = document.querySelector("#open-setup-server-link");
 const chatTranscript = document.querySelector("#chat-transcript");
 const connectionState = document.querySelector("#connection-state");
 const capabilityGrid = document.querySelector("#capability-grid");
+const capabilityInfoButton = document.querySelector("#capability-info-btn");
 const runtimeAccount = document.querySelector("#runtime-account");
+const localBoundaryBadge = document.querySelector("#local-boundary-badge");
+const boundaryScope = document.querySelector("#boundary-scope");
+const boundaryProfilesClaim = document.querySelector("#boundary-profiles-claim");
+const capabilityWorkflows = {
+  "documents.search": ["document-library"],
+  "documents.theme_dossier": ["document-library"],
+  "folders.organize": [
+    "directory-observation",
+    "document-action-execution",
+    "document-action-plan",
+    "folder-cleanup",
+    "folder-routine",
+    "routine-queue",
+  ],
+  "documents.create": [
+    "artifact-studio",
+    "document-bundle",
+    "document-package",
+  ],
+  "communications.manage": [
+    "calendar-connectors",
+    "calendar-handoff",
+    "contact-register",
+    "correspondence-studio",
+    "findcall",
+    "mail-connector",
+  ],
+  "calendar.manage": [
+    "calendar-connectors",
+    "calendar-handoff",
+  ],
+  "finance.overview": [
+    "contract-cockpit",
+    "finance-import",
+    "tax-workpaper",
+  ],
+  "health.organize": [
+    "health-dossier",
+    "medication-intake",
+  ],
+  "legal.orient": [
+    "administrative-drafts",
+    "benefit-screening",
+    "legal-change-monitor",
+    "official-notice-understanding",
+  ],
+  "household.manage": [
+    "daily-briefing",
+    "inventory-import",
+  ],
+};
 const modelStatus = document.querySelector("#model-status");
 const modelStatusTitle = document.querySelector("#model-status-title");
 const modelStatusDetail = document.querySelector("#model-status-detail");
@@ -426,10 +581,11 @@ function renderTopologyBadge() {
 }
 
 class LocalRequestError extends Error {
-  constructor(status, outcome = null) {
-    super(`Local request failed with status ${status}`);
+  constructor(status, outcome = null, payload = null) {
+    super(payload?.message || `Local request failed with status ${status}`);
     this.status = status;
     this.outcome = outcome;
+    this.payload = payload;
   }
 }
 
@@ -478,8 +634,10 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   }
   applyStaticTranslations();
   renderConnection();
+  renderBoundary();
   renderTopologyBadge();
   renderModelStatus();
+  renderRunningSettings();
   renderRuntimeAccount();
   renderCapabilities();
   renderCurrentView(false);
@@ -515,8 +673,19 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
     element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
   });
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    element.setAttribute("title", t(element.dataset.i18nTitle));
+  });
   document.querySelector("#language-switch").setAttribute("aria-label", t("languageSwitch"));
   document.querySelector("#theme-switch").setAttribute("aria-label", t("themeSwitch"));
+  if (capabilityInfoButton && typeof capabilityInfoButton.getAttribute === "function") {
+    const isExpanded = capabilityInfoButton.getAttribute("aria-expanded") === "true";
+    const labelKey = isExpanded ? "capabilityInfoHide" : "capabilityInfoShow";
+    if (typeof capabilityInfoButton.setAttribute === "function") {
+      capabilityInfoButton.setAttribute("aria-label", t(labelKey));
+      capabilityInfoButton.setAttribute("title", t(labelKey));
+    }
+  }
   languageButtons.forEach((button) => {
     const isActive = button.dataset.language === language;
     button.setAttribute("aria-pressed", String(isActive));
@@ -538,7 +707,7 @@ async function api(path, options = {}) {
       && payload?.schema === "folderhome.local-api-error.v1"
       && payload.execution_outcome_unknown === true && payload.retry_safe === false
       ? payload : null;
-    throw new LocalRequestError(response.status, outcome);
+    throw new LocalRequestError(response.status, outcome, payload);
   }
   return payload;
 }
@@ -555,12 +724,89 @@ function hitCount(count) {
 }
 
 function renderConnection() {
-  const key = connectionStatus === "ready"
-    ? "connectionReady"
-    : connectionStatus === "blocked"
-      ? "connectionBlocked"
-      : "connectionChecking";
+  if (!connectionState) return;
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
+
+  let key;
+  if (connectionStatus === "checking") {
+    key = "connectionChecking";
+  } else if (connectionStatus === "blocked") {
+    if (topology === "cloud") key = "connectionBlockedCloud";
+    else if (topology === "remote_host" || topology === "remote") key = "connectionBlockedRemote";
+    else key = "connectionBlocked";
+  } else if (connectionStatus === "ready") {
+    if (topology === "cloud") key = "connectionReadyCloud";
+    else if (topology === "remote_host" || topology === "remote") key = "connectionReadyRemote";
+    else key = "connectionReady";
+  } else {
+    key = "connectionDisconnected";
+  }
   connectionState.textContent = t(key);
+  if (typeof connectionState.setAttribute === "function") {
+    connectionState.setAttribute("data-state", connectionStatus);
+    connectionState.setAttribute("data-topology", topology);
+  }
+}
+
+function renderBoundary() {
+  const localBadgeEl = document.querySelector("#local-boundary-badge") || document.querySelector(".local-badge span:not(.status-dot)");
+  const boundaryScopeEl = document.querySelector("#boundary-scope");
+  const boundaryProfilesEl = document.querySelector("#boundary-profiles-claim");
+  const localBadgeContainer = document.querySelector(".local-badge");
+
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
+
+  const isConnected = connectionStatus === "ready";
+  const isBlocked = connectionStatus === "blocked";
+
+  if (localBadgeEl) {
+    let badgeKey;
+    if (isBlocked) {
+      badgeKey = "localBadgeBlocked";
+    } else if (!isConnected && connectionStatus !== "checking") {
+      badgeKey = "localBadgeDisconnected";
+    } else {
+      badgeKey = "localBadgeLocal";
+    }
+    localBadgeEl.textContent = t(badgeKey);
+    if (localBadgeEl.dataset) {
+      localBadgeEl.dataset.i18n = badgeKey;
+    }
+  }
+  if (localBadgeContainer && typeof localBadgeContainer.setAttribute === "function") {
+    localBadgeContainer.setAttribute("data-topology", topology);
+    localBadgeContainer.setAttribute("data-status", connectionStatus);
+  }
+
+  if (boundaryScopeEl) {
+    let scopeKey;
+    if (isBlocked || (!isConnected && connectionStatus !== "checking")) {
+      scopeKey = "boundaryScopeDisconnected";
+    } else {
+      scopeKey = "operatingSystemAccount";
+    }
+    boundaryScopeEl.textContent = t(scopeKey);
+    if (boundaryScopeEl.dataset) {
+      boundaryScopeEl.dataset.i18n = scopeKey;
+    }
+  }
+
+  if (boundaryProfilesEl) {
+    const isAuthBoundary = Boolean(appStatus?.profiles_are_authorization_boundaries);
+    const claimKey = isAuthBoundary ? "familyProfilesAuthorization" : "familyProfiles";
+    boundaryProfilesEl.textContent = t(claimKey);
+    if (boundaryProfilesEl.dataset) {
+      boundaryProfilesEl.dataset.i18n = claimKey;
+    }
+  }
 }
 
 function renderRuntimeAccount() {
@@ -612,9 +858,19 @@ function initCollapsiblePanels() {
 
 function renderModelStatus() {
   if (!modelConnection && !appStatus) {
-    modelStatus.dataset.state = "checking";
-    modelStatusTitle.textContent = t("modelChecking");
-    modelStatusDetail.textContent = t("modelCheckingDetail");
+    if (connectionStatus === "blocked") {
+      modelStatus.dataset.state = "error";
+      modelStatusTitle.textContent = t("connectionBlocked");
+      modelStatusDetail.textContent = t("connectionBlockedDetail");
+    } else if (connectionStatus === "disconnected") {
+      modelStatus.dataset.state = "error";
+      modelStatusTitle.textContent = t("connectionDisconnected");
+      modelStatusDetail.textContent = t("serviceDisconnectedDetail");
+    } else {
+      modelStatus.dataset.state = "checking";
+      modelStatusTitle.textContent = t("modelChecking");
+      modelStatusDetail.textContent = t("modelCheckingDetail");
+    }
     return;
   }
   const state = appStatus?.model_state || modelConnection?.connection_status || "fixture_only";
@@ -639,42 +895,293 @@ function renderModelStatus() {
     modelStatusDetail.textContent = t("modelFixtureDetail");
     return;
   }
-  const provider = appStatus?.model_provider || modelConnection?.provider;
-  const isOllama = provider === "ollama";
+  const provider = appStatus?.model_provider || modelConnection?.provider || "fixture";
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
   const turns = appStatus?.successful_live_model_turns ?? modelConnection?.successful_live_model_turns ?? 0;
-  const values = {
-    model: modelConnection?.model_id || (isOllama ? "Ollama model" : "Bedrock model"),
-    region: modelConnection?.aws_region || "AWS region",
-    host: modelConnection?.ollama_host || "the configured Ollama host",
-    count: turns,
-  };
   const verified = state === "verified_in_process";
-  const titleKey = isOllama
-    ? (verified ? "modelLocalVerified" : "modelLocalConfigured")
-    : (verified ? "modelVerified" : "modelConfigured");
-  if (!directLabel) {
-    modelStatusTitle.textContent = t(titleKey);
+
+  if (provider === "ollama") {
+    const isRemote = topology === "remote_host" || topology === "remote";
+    const model = modelConnection?.model_id || "Ollama model";
+    const host = modelConnection?.ollama_host || (isRemote ? "remote host" : "http://127.0.0.1:11434");
+    const titleKey = isRemote
+      ? (verified ? "modelRemoteVerified" : "modelRemoteConfigured")
+      : (verified ? "modelLocalVerified" : "modelLocalConfigured");
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, host, count: turns });
+  } else if (provider === "bedrock") {
+    const model = modelConnection?.model_id || "Bedrock model";
+    const region = modelConnection?.aws_region || "AWS region";
+    const titleKey = verified ? "modelVerified" : "modelConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, region, count: turns });
+  } else if (provider === "anthropic") {
+    const model = modelConnection?.model_id || "Anthropic model";
+    const titleKey = verified ? "modelAnthropicVerified" : "modelAnthropicConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, count: turns });
+  } else if (provider === "openai") {
+    const model = modelConnection?.model_id || "OpenAI model";
+    const baseUrl = modelConnection?.openai_base_url || "";
+    const endpoint = baseUrl ? ` (${baseUrl})` : "";
+    const titleKey = verified ? "modelOpenAIVerified" : "modelOpenAIConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, endpoint, count: turns });
+  } else {
+    if (!directLabel) modelStatusTitle.textContent = t("modelFixture");
+    modelStatusDetail.textContent = t("modelFixtureDetail");
   }
-  modelStatusDetail.textContent = t(`${titleKey}Detail`, values);
+}
+
+function renderRunningSettings() {
+  if (!appStatus) return;
+  const runningPreset = appStatus.running_preset || t("noPresetFlags");
+  const provider = appStatus.model_provider || "fixture";
+  const modelId = (appStatus.model_connection && appStatus.model_connection.model_id) || (provider === "fixture" ? "fixture" : "none");
+
+  const summaryEl = document.querySelector("#running-settings-summary");
+  if (summaryEl) {
+    summaryEl.textContent = `${runningPreset} · ${provider} · ${modelId}`;
+  }
+
+  const staleBanner = document.querySelector("#settings-stale-banner");
+  const staleText = document.querySelector("#settings-stale-text");
+  if (staleBanner && staleText) {
+    if (appStatus.settings_stale && appStatus.saved_preset) {
+      staleText.textContent = t("savedSettingDiffers", { preset: appStatus.saved_preset });
+      staleBanner.hidden = false;
+    } else {
+      staleBanner.hidden = true;
+      staleText.textContent = "";
+    }
+  }
+}
+
+function isLoopbackHost(hostname) {
+  if (typeof hostname !== "string" || !hostname.trim()) return false;
+  const clean = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (clean === "localhost" || clean === "::1") return true;
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(clean);
+  if (!match) return false;
+  const octets = match.slice(1).map(Number);
+  if (octets.some((o) => o < 0 || o > 255)) return false;
+  return octets[0] === 127;
+}
+
+function isLoopbackUrl(rawUrl) {
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return isLoopbackHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+async function reloadSettings() {
+  const confirmed = window.confirm(t("reloadConfirm"));
+  if (!confirmed) return;
+  if (reloadSettingsButton) reloadSettingsButton.disabled = true;
+  let reloadPostSucceeded = false;
+  let statusReadbackFailed = false;
+  try {
+    await api("/api/v1/settings/reload", {
+      method: "POST",
+      body: JSON.stringify({
+        schema: "folderhome.local-settings-reload-request.v1",
+      }),
+    });
+    reloadPostSucceeded = true;
+
+    // Fail-closed invalidation: Immediately clear conversation, recipe, and plan state
+    // before any status readback occurs, as the mutated server invalidated previous state.
+    conversationRevision += 1;
+    currentView = null;
+    appStatus = null;
+    modelConnection = null;
+    connectionStatus = "disconnected";
+    if (typeof planOutcomes !== "undefined") {
+      for (const planId of Object.keys(planOutcomes)) delete planOutcomes[planId];
+    }
+    if (typeof messageInput !== "undefined" && messageInput) messageInput.value = "";
+    if (chatTranscript) chatTranscript.replaceChildren();
+    if (typeof renderCurrentView === "function") renderCurrentView(false);
+    if (typeof resetRecipeControls === "function") resetRecipeControls();
+    if (typeof resultsRequestVersion !== "undefined") resultsRequestVersion += 1;
+    if (typeof resultsContent !== "undefined" && resultsContent) resultsContent.replaceChildren();
+    if (typeof resultsSection !== "undefined" && resultsSection) resultsSection.hidden = true;
+    appendChatMessage("assistant", t("conversationReset"));
+
+    try {
+      appStatus = await api("/api/v1/status");
+      modelConnection = appStatus.model_connection || null;
+      renderTopologyBadge();
+      renderModelStatus();
+      renderRunningSettings();
+      renderConnection();
+      try {
+        await Promise.all([
+          typeof loadRecipes === "function" ? loadRecipes() : Promise.resolve(),
+          typeof loadRecipeRuns === "function" ? loadRecipeRuns() : Promise.resolve(),
+        ]);
+      } catch (_syncError) {
+        appendChatMessage("assistant", t("recipeSyncWarning"));
+      }
+    } catch (_readbackError) {
+      // POST succeeded (mutated settings on server), but GET /status readback failed.
+      // Do NOT revert UI to old state or claim reload failed.
+      // Show safe readback error and keep UI locked/empty until a successful page refresh.
+      statusReadbackFailed = true;
+      if (connectionState) {
+        connectionState.textContent = t("statusReadbackError");
+        if (connectionState.classList) {
+          connectionState.classList.add("is-disconnected");
+        }
+      }
+      appendChatMessage("assistant", t("statusReadbackError"));
+      if (messageInput) messageInput.disabled = true;
+      if (prepareRecipeButton) prepareRecipeButton.disabled = true;
+      if (newConversationButton) newConversationButton.disabled = true;
+      if (typeof actionButtons !== "undefined") {
+        actionButtons.forEach((button) => { button.disabled = true; });
+      }
+      window.alert(t("statusReadbackError"));
+      return;
+    }
+  } catch (error) {
+    if (!reloadPostSucceeded) {
+      const message = error.payload?.message || error.message || t("reloadError");
+      window.alert(message);
+    }
+  } finally {
+    if (reloadSettingsButton) reloadSettingsButton.disabled = statusReadbackFailed;
+  }
+}
+
+function openSettingsModal() {
+  if (!settingsDialog) return;
+  // Variant b never transfers setup trust through a URL. The settings dialog
+  // exclusively presents scripts\START.cmd / Option 2, even if stale or
+  // unexpected status data contains a tokenless loopback URL.
+  if (setupServerActiveBox) setupServerActiveBox.hidden = true;
+  if (openSetupServerLink) {
+    if (typeof openSetupServerLink.removeAttribute === "function") {
+      openSetupServerLink.removeAttribute("href");
+    } else {
+      openSetupServerLink.href = "";
+    }
+  }
+  settingsDialog.hidden = false;
+}
+
+function closeSettingsModal() {
+  if (settingsDialog) settingsDialog.hidden = true;
+}
+
+async function copySettingsCommand() {
+  if (!copySettingsCommandButton) return;
+  const command = "scripts\\START.cmd";
+  try {
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(command);
+    }
+  } catch (_error) {
+    // Clipboard may be restricted in some environments
+  }
+  copySettingsCommandButton.textContent = t("commandCopied");
+  setTimeout(() => {
+    if (copySettingsCommandButton) {
+      copySettingsCommandButton.textContent = t("copyCommand");
+    }
+  }, 2000);
+}
+
+const CAPABILITY_STORAGE_KEY = "folderhome.capability_info_open";
+
+function getStoredCapabilityState() {
+  try {
+    return window.sessionStorage.getItem(CAPABILITY_STORAGE_KEY) === "true";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function setStoredCapabilityState(isOpen) {
+  try {
+    window.sessionStorage.setItem(CAPABILITY_STORAGE_KEY, String(isOpen));
+  } catch (_error) {
+    // SessionStorage may be restricted in some environments
+  }
+}
+
+function setCapabilityExpanded(expanded, { persist = true } = {}) {
+  if (!capabilityGrid || !capabilityInfoButton) return;
+  const isExpanded = Boolean(expanded);
+  if (typeof capabilityInfoButton.setAttribute === "function") {
+    capabilityInfoButton.setAttribute("aria-expanded", String(isExpanded));
+    const labelKey = isExpanded ? "capabilityInfoHide" : "capabilityInfoShow";
+    capabilityInfoButton.setAttribute("aria-label", t(labelKey));
+    capabilityInfoButton.setAttribute("title", t(labelKey));
+  }
+  capabilityGrid.hidden = !isExpanded;
+  if (persist) {
+    setStoredCapabilityState(isExpanded);
+  }
+  if (isExpanded) {
+    renderCapabilities();
+  }
+}
+
+function toggleCapabilityInfo() {
+  if (!capabilityInfoButton) return;
+  const isExpanded = typeof capabilityInfoButton.getAttribute === "function"
+    ? capabilityInfoButton.getAttribute("aria-expanded") === "true"
+    : false;
+  setCapabilityExpanded(!isExpanded);
+}
+
+function initCapabilityInfo() {
+  const isOpen = getStoredCapabilityState();
+  if (isOpen) {
+    setCapabilityExpanded(true, { persist: false });
+  } else {
+    setCapabilityExpanded(false, { persist: false });
+  }
 }
 
 function renderCapabilities() {
-  if (!capabilityItems.length) return;
+  if (!capabilityItems.length || !capabilityGrid) return;
   const cards = capabilityItems.map((item) => {
     const card = document.createElement("article");
     card.className = "capability-card";
     card.dataset.status = item.surface_status;
-    card.append(textElement("strong", capabilityTitles[language][item.capability_id] || item.title));
-    card.append(textElement(
-      "small",
-      t(
-        item.surface_status === "interactive_read_only"
-          ? "directUse"
-          : item.surface_status === "agent_guided"
-            ? "agentUse"
-            : "cliUse",
-      ),
-    ));
+    card.append(textElement("strong", capabilityTitles[language]?.[item.capability_id] || item.title));
+    let statusKey;
+    if (item.surface_status === "interactive_read_only") {
+      statusKey = "directUse";
+    } else if (item.surface_status === "agent_guided") {
+      statusKey = "agentUse";
+    } else if (item.surface_status === "planning_only") {
+      statusKey = "planningOnly";
+    } else if (item.surface_status === "not_connected") {
+      statusKey = "notConnected";
+    } else {
+      statusKey = "notConnected";
+    }
+    card.append(textElement("small", t(statusKey)));
     return card;
   });
   capabilityGrid.replaceChildren(...cards);
@@ -1522,6 +2029,7 @@ async function bootstrap() {
   renderRuntimeAccount();
   renderTopologyBadge();
   renderModelStatus();
+  renderRunningSettings();
   renderConnection();
   renderCapabilities();
   initCollapsiblePanels();
@@ -1571,6 +2079,30 @@ document.querySelector("#recipe-form").addEventListener("submit", (event) => {
 newConversationButton.addEventListener("click", () => {
   resetConversation().catch(showError);
 });
+if (reloadSettingsButton) {
+  reloadSettingsButton.addEventListener("click", () => {
+    reloadSettings().catch(() => {});
+  });
+}
+if (openSettingsButton) {
+  openSettingsButton.addEventListener("click", openSettingsModal);
+}
+if (closeSettingsDialogButton) {
+  closeSettingsDialogButton.addEventListener("click", closeSettingsModal);
+}
+if (settingsDialog) {
+  settingsDialog.addEventListener("click", (event) => {
+    if (event.target === settingsDialog) closeSettingsModal();
+  });
+}
+if (copySettingsCommandButton) {
+  copySettingsCommandButton.addEventListener("click", () => {
+    copySettingsCommand().catch(showError);
+  });
+}
+if (capabilityInfoButton) {
+  capabilityInfoButton.addEventListener("click", toggleCapabilityInfo);
+}
 promptExamples.forEach((button) => {
   button.addEventListener("click", () => {
     messageInput.value = language === "de" ? button.dataset.promptDe : button.dataset.promptEn;
@@ -1587,9 +2119,16 @@ for (const [id, action] of Object.entries({
 
 setLanguage(language, { persist: false });
 setTheme(theme, { persist: false });
+initCapabilityInfo();
 initCollapsiblePanels();
 bootstrap().catch((error) => {
-  connectionStatus = "blocked";
+  if (error instanceof LocalRequestError && (error.status === 401 || error.status === 403)) {
+    connectionStatus = "blocked";
+  } else {
+    connectionStatus = "disconnected";
+  }
   renderConnection();
+  renderBoundary();
+  renderModelStatus();
   showError(error);
 });

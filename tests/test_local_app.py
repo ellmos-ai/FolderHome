@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import socket
 import threading
 import time
@@ -9,6 +10,7 @@ import urllib.request
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -19,6 +21,7 @@ from folderhome.application.medication_intake import (
     build_medication_import_plan,
 )
 from folderhome.application.profile_rules import load_profile_configuration
+from folderhome.application.recipes import create_recipe_run
 from folderhome.application.workflow_execution import (
     FindCallWorkflowAdapter,
     MedicationIntakeWorkflowAdapter,
@@ -94,12 +97,13 @@ def _settings(tmp_path: Path, *, host: str = "127.0.0.1") -> LocalAppSettings:
     )
 
 
-def _app(tmp_path: Path) -> LocalApplication:
+def _app(tmp_path: Path, **kwargs: object) -> LocalApplication:
     return LocalApplication(
         settings=_settings(tmp_path),
         profiles=load_profile_configuration(PROFILE_DIR),
         searcher=StubSearcher(),
         session_token="phase35-test-token-with-sufficient-entropy-123456",
+        **kwargs,
     )
 
 
@@ -336,6 +340,7 @@ def test_status_and_profiles_expose_organizational_boundary(tmp_path: Path) -> N
         "model_id": None,
         "aws_region": None,
         "ollama_host": None,
+        "openai_base_url": None,
         "network_authorized": False,
         "sensitive_cloud_data_authorized": False,
         "status_probe_performed": False,
@@ -1797,3 +1802,1469 @@ def test_launch_preset_status_and_network_gate(tmp_path, preset, fields, topolog
     assert result["model_state"] == (
         "fixture_only" if preset == "fixture" else "configured_unverified"
     )
+
+
+def test_status_exposes_running_and_saved_preset_and_stale_detection(
+    tmp_path: Path,
+) -> None:
+    # 1. Without launch config
+    app_no_config = _app(tmp_path)
+    res_no_config = app_no_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_no_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_no_config.status_code == 200
+    assert res_no_config.payload["launch_config_path"] is None
+    assert res_no_config.payload["running_preset"] == "no preset / flags"
+    assert res_no_config.payload["saved_preset"] is None
+    assert res_no_config.payload["settings_stale"] is False
+
+    # 2. With launch config
+    app2_dir = tmp_path / "app2"
+    app2_dir.mkdir()
+    launch_file = app2_dir / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-configuration.v1",
+                "model_preset": "ollama-laptop",
+                "model_presets": {
+                    "ollama-laptop": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app_with_config = LocalApplication(
+        settings=_settings(app2_dir),
+        profiles=load_profile_configuration(PROFILE_DIR),
+        searcher=StubSearcher(),
+        session_token="synthetic-token-for-status-test-12345678",
+        launch_config_path=launch_file,
+        running_preset="ollama-laptop",
+    )
+    res_with_config = app_with_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_with_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_with_config.status_code == 200
+    # Must only disclose filename, never full path
+    assert res_with_config.payload["launch_config_path"] == "launch.json"
+    assert "C:\\" not in str(res_with_config.payload["launch_config_path"])
+    assert res_with_config.payload["running_preset"] == "ollama-laptop"
+    assert res_with_config.payload["saved_preset"] == "ollama-laptop"
+    assert res_with_config.payload["settings_stale"] is False
+
+    # 3. Modify launch.json active preset -> status reports settings_stale: True
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-configuration.v1",
+                "model_preset": "bedrock-nova-micro",
+                "model_presets": {
+                    "ollama-laptop": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    res_stale = app_with_config.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app_with_config.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res_stale.status_code == 200
+    assert res_stale.payload["running_preset"] == "ollama-laptop"
+    assert res_stale.payload["saved_preset"] == "bedrock-nova-micro"
+    assert res_stale.payload["settings_stale"] is True
+
+
+def test_reload_settings_fails_409_when_no_launch_config(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "launch.json" in res.payload["message"]
+
+
+def test_reload_settings_fail_closed_409_when_gates_missing_for_cloud_preset(
+    tmp_path: Path,
+) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "bedrock-nova-micro",
+                "model_presets": {
+                    "bedrock-nova-micro": {
+                        "model_provider": "bedrock",
+                        "bedrock_model_id": "amazon.nova-micro-v1:0",
+                        "aws_region": "eu-central-1",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert res.payload["message"] == (
+        "Start the app with --allow-network --approve-sensitive-cloud-data "
+        "to use bedrock-nova-micro"
+    )
+    assert app.agent_settings.model_provider == "fixture"
+
+
+def test_reload_settings_succeeds_and_updates_status_and_resets_turns(tmp_path: Path) -> None:
+    from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "ollama-alt",
+                "model_presets": {
+                    "ollama-init": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                    "ollama-alt": {
+                        "model_provider": "ollama",
+                        "ollama_host": "http://127.0.0.1:11434",
+                        "ollama_model_id": "mistral:7b",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    initial_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen2.5:7b",
+    )
+    app = _app(
+        tmp_path,
+        agent_settings=initial_settings,
+        launch_config_path=launch_file,
+        running_preset="ollama-init",
+    )
+    app._successful_live_model_turns = 5
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    assert res.payload["schema"] == "folderhome.local-settings-reload-response.v1"
+    assert res.payload["status"] == "reloaded"
+    assert res.payload["model_provider"] == "ollama"
+    assert res.payload["model_state"] == "configured_unverified"
+    assert res.payload["running_preset"] == "ollama-alt"
+
+    # Status route reflects the new settings
+    status_res = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert status_res.status_code == 200
+    assert status_res.payload["running_preset"] == "ollama-alt"
+    assert status_res.payload["saved_preset"] == "ollama-alt"
+    assert status_res.payload["settings_stale"] is False
+    assert status_res.payload["successful_live_model_turns"] == 0
+    assert status_res.payload["model_state"] == "configured_unverified"
+
+
+def test_reload_settings_atomicity_fail_closed_leaves_environ_and_state_unmutated_on_409(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "anthropic-claude",
+                "model_presets": {
+                    "anthropic-claude": {
+                        "model_provider": "anthropic",
+                        "anthropic_model_id": "claude-3-5-sonnet",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=test-secret-key-must-not-leak\n", encoding="utf-8")
+
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._successful_live_model_turns = 7
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    expected_gate_msg = (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+    )
+    assert expected_gate_msg in res.payload["message"]
+    # os.environ must NOT have been mutated before or after gate rejection
+    assert "ANTHROPIC_API_KEY" not in os.environ
+    # Live agent state must remain untouched
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._successful_live_model_turns == 7
+
+
+@pytest.mark.parametrize(
+    "remote_host",
+    ["http://0.0.0.0:11434", "http://127.0.0.1.evil.invalid:11434"],
+)
+def test_reload_settings_remote_lookalikes_require_gates_and_leave_state_unchanged(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    remote_host: str,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=remote-gate-token-never-loaded\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "ollama-lookalike",
+                "model_presets": {
+                    "ollama-lookalike": {
+                        "model_provider": "ollama",
+                        "ollama_host": remote_host,
+                        "ollama_model_id": "qwen2.5:7b",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._successful_live_model_turns = 3
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    expected_gate_msg = (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+    )
+    assert expected_gate_msg in res.payload["message"]
+    assert "OPENAI_API_KEY" not in os.environ
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._successful_live_model_turns == 3
+
+
+def test_build_reloaded_agent_settings_isolated_mapping_atomicity(tmp_path: Path) -> None:
+    from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
+    from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "anthropic-claude",
+                "model_presets": {
+                    "anthropic-claude": {
+                        "model_provider": "anthropic",
+                        "anthropic_model_id": "claude-3-5-sonnet",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=test-isolated-key\n", encoding="utf-8")
+
+    # 1. Gate missing -> ReloadGateError, isolated target mapping is not mutated
+    isolated_target: dict[str, str] = {}
+    current = StrandsAgentSettings(model_provider="fixture")
+    with pytest.raises(ReloadGateError):
+        build_reloaded_agent_settings(launch_file, current, target_environ=isolated_target)
+    assert isolated_target == {}
+
+    # 2. Gate present -> succeeds, isolated target mapping receives the key
+    current_allowed = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-3-5-sonnet",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    new_settings, preset = build_reloaded_agent_settings(
+        launch_file, current_allowed, target_environ=isolated_target
+    )
+    assert preset == "anthropic-claude"
+    assert new_settings.model_provider == "anthropic"
+    assert isolated_target.get("ANTHROPIC_API_KEY") == "test-isolated-key"
+
+
+def test_reload_settings_post_validation_reset_exception_rollback(tmp_path: Path) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("SENSITIVE_RELOAD_SECRET=secret-token-never-leaked\n", encoding="utf-8")
+
+    app = _app(tmp_path, launch_config_path=launch_file)
+    profile_id = sorted(app._profile_ids)[0]
+    app._agent_conversation_messages[profile_id] = (
+        {"role": "user", "content": "Important retained conversation"},
+    )
+    app._agent_conversation_turns[profile_id] = 2
+    app._successful_live_model_turns = 5
+    app._running_preset = "original-preset"
+
+    # Simulate an error during conversation reset (post-validation)
+    def _faulty_reset(pid: str):
+        raise RuntimeError("simulated post-validation reset failure")
+
+    app.reset_agent_conversation = _faulty_reset
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+    assert "SENSITIVE_RELOAD_SECRET" not in os.environ
+    assert "secret-token" not in res.payload["message"]
+    # Entire old state confirmed intact
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._running_preset == "original-preset"
+    assert app._successful_live_model_turns == 5
+    assert len(app._agent_conversation_messages[profile_id]) == 1
+    assert (
+        app._agent_conversation_messages[profile_id][0]["content"]
+        == "Important retained conversation"
+    )
+    assert app._agent_conversation_turns[profile_id] == 2
+
+
+def test_reload_settings_concurrency_parallel_requests(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+
+    def send_reload():
+        return app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(send_reload) for _ in range(8)]
+        results = [f.result() for f in futures]
+
+    for res in results:
+        assert res.status_code == 200
+        assert res.payload["status"] == "reloaded"
+
+
+def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None:
+    class MockRecipeRunActive:
+        def __init__(self, status: str):
+            self._status = status
+
+        def snapshot(self) -> dict[str, object]:
+            return {"status": self._status, "run_id": "run_1", "profile_id": "personal"}
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    for active_st in ("running", "preparing"):
+        app._recipe_runs["run_1"] = MockRecipeRunActive(active_st)
+        res = app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+        assert res.status_code == 409
+        assert "Laufende Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
+
+
+def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
+    tmp_path: Path,
+) -> None:
+    from test_recipe_results import payload
+    from test_recipe_runs import Adapter, Gateway
+    from test_recipes import APPROVED_AT, RESOURCE_IDS, _statuses
+
+    from folderhome.application import recipes
+    from folderhome.application.workflow_execution import WorkflowExecutionGateway
+    from folderhome.contracts.master_agent import MasterPlanApproval
+    from folderhome.contracts.recipe_stages import RecipeStagePlan
+
+    class FailingCleanupGateway(WorkflowExecutionGateway):
+        def __init__(self, adapters):
+            super().__init__(adapters)
+            self.fail_discard = False
+            self.created_scopes: list[WorkflowExecutionGateway] = []
+
+        def new_preparation_scope(self) -> WorkflowExecutionGateway:
+            scope = super().new_preparation_scope()
+            self.created_scopes.append(scope)
+            parent_gw = self
+            original_discard = scope.discard_unexecuted
+
+            def discard_hook(envelope_ids: tuple[str, ...]) -> tuple[str, ...]:
+                if parent_gw.fail_discard:
+                    raise RuntimeError("Gateway discard failure during unexecuted cleanup")
+                return original_discard(envelope_ids)
+
+            scope.discard_unexecuted = discard_hook
+            return scope
+
+    driver = Gateway()
+    adapters = tuple(
+        Adapter(driver, name)
+        for name in (
+            "contact-register",
+            "correspondence-studio",
+            "mail-connector",
+            "calendar-handoff",
+        )
+    )
+    gateway = FailingCleanupGateway(adapters)
+    recipe = recipes.parse_recipe(payload())
+    statuses = _statuses()
+
+    run1 = recipes.create_recipe_run(recipe, profile_id="lukas", language="de", gateway=gateway)
+    run2 = recipes.create_recipe_run(recipe, profile_id="lukas", language="de", gateway=gateway)
+
+    plan1 = run1.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
+    plan2 = run2.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
+
+    # Prove that real external envelopes were prepared by the gateway and tracked
+    env1_ids = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan1.steps
+        if s.execution_envelope is not None
+    )
+    env2_ids = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan2.steps
+        if s.execution_envelope is not None
+    )
+    assert len(env1_ids) > 0
+    assert len(env2_ids) > 0
+    assert len(driver.prepared) >= 2
+    # Verify envelopes are actively prepared in gateway scopes before close
+    assert any(
+        all(eid in scope._prepared for eid in env2_ids)
+        for scope in gateway.created_scopes
+    )
+
+    assert run1.snapshot()["pending_plan_id"] == plan1.plan_id
+    assert run1.snapshot()["status"] == "awaiting_approval"
+    assert run2.snapshot()["pending_plan_id"] == plan2.plan_id
+    assert run2.snapshot()["status"] == "awaiting_approval"
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._recipe_runs[run1.snapshot()["run_id"]] = run1
+    app._recipe_runs[run2.snapshot()["run_id"]] = run2
+
+    # Register plans in _proposed_agent_plans and _recipe_plans
+    app._retain_agent_plan(plan1)
+    app._recipe_plans[plan1.plan_id] = RecipeStagePlan(plan1, run1.snapshot())
+    app._retain_agent_plan(plan2)
+    app._recipe_plans[plan2.plan_id] = RecipeStagePlan(plan2, run2.snapshot())
+
+    assert plan1.plan_id in app._proposed_agent_plans
+    assert plan1.plan_id in app._recipe_plans
+    assert plan2.plan_id in app._proposed_agent_plans
+    assert plan2.plan_id in app._recipe_plans
+
+    orig_settings = app.agent_settings
+    orig_preset = app._running_preset
+
+    # 1. Reload is rejected fail-closed with 409 before any mutating cleanup
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "Offene Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
+    assert app.agent_settings == orig_settings
+    assert app._running_preset == orig_preset
+    assert plan1.plan_id in app._proposed_agent_plans
+    assert plan2.plan_id in app._proposed_agent_plans
+
+    # 2. Run 1 preparations were NOT discarded by reload;
+    # Run 1 remains fully confirmable and executable
+    approval1 = MasterPlanApproval(
+        approval_id="approval_1",
+        plan_id=plan1.plan_id,
+        plan_sha256=plan1.plan_sha256,
+        step_ids=tuple(s.step_id for s in plan1.steps),
+        approved_at=APPROVED_AT,
+    )
+    confirmed1 = run1.confirm(approval1)
+    assert confirmed1["run_status"] == "ready"
+    assert confirmed1["status"] == "executed"
+    assert "contact-register" in driver.executed
+
+    # 3. Trigger intentionally failing cleanup on Run 2 during the API close call
+    gateway.fail_discard = True
+
+    # Real prepared envelopes for run2 are still tracked before close
+    assert all(
+        s.execution_envelope.envelope_id in env2_ids
+        for s in run2._pending.steps
+        if s.execution_envelope is not None
+    )
+    assert any(
+        all(eid in scope._prepared for eid in env2_ids)
+        for scope in gateway.created_scopes
+    )
+
+    res_close = app.handle(
+        method="POST",
+        target="/api/v1/agent/recipes/close",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {
+                "schema": "folderhome.local-recipe-close-request.v1",
+                "profile_id": "lukas",
+                "run_id": run2.snapshot()["run_id"],
+            }
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_close.status_code == 422
+    assert (
+        "Offene Rezeptvorbereitungen konnten nicht bereinigt werden"
+        in res_close.payload["message"]
+    )
+
+    # Verify loss/fail-closed semantics:
+    # Plan 2 is completely discarded from _proposed_agent_plans and _recipe_plans
+    assert plan2.plan_id not in app._proposed_agent_plans
+    assert plan2.plan_id not in app._recipe_plans
+
+    # Verify Run 2 is aborted and does NOT claim a confirmable plan whose preparation is lost
+    snap2 = run2.snapshot()
+    assert snap2["status"] == "aborted"
+    assert snap2["pending_plan_id"] is None
+    assert snap2["cleanup_pending_count"] > 0
+    assert set(env2_ids).issubset(set(run2._cleanup_pending))
+
+    # 4. Closing executed Run 1 via the API endpoint succeeds with 200 and unlinks plan1
+    res_close1 = app.handle(
+        method="POST",
+        target="/api/v1/agent/recipes/close",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {
+                "schema": "folderhome.local-recipe-close-request.v1",
+                "profile_id": "lukas",
+                "run_id": run1.snapshot()["run_id"],
+            }
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_close1.status_code == 200
+    assert res_close1.payload["recipe_run"]["status"] == "closed"
+    assert plan1.plan_id not in app._recipe_plans
+    # Run 2 remains aborted with pending cleanup, unaffected by Run 1 close
+    assert run2.snapshot()["status"] == "aborted"
+
+    # 5. Attempting reload while Run 2 has uncleaned preparations also rejects fail-closed with 409
+    res2 = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res2.status_code == 409
+    assert (
+        "Ausstehende Bereinigungen von Rezeptabschnitten verhindern das Neuladen"
+        in res2.payload["message"]
+    )
+    assert app.agent_settings == orig_settings
+    assert app._running_preset == orig_preset
+
+
+def test_reload_settings_fixture_reports_fixture_only(tmp_path: Path) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    assert res.payload["status"] == "reloaded"
+    assert res.payload["model_provider"] == "fixture"
+    assert res.payload["model_state"] == "fixture_only"
+
+
+def test_status_and_model_connection_redacts_ollama_credentials_query_fragment(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://admin:secret_password@127.0.0.1:11434/api?token=private#section1",
+        ollama_model_id="qwen3:4b",
+    )
+    res = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    conn = res.payload["model_connection"]
+    assert conn["ollama_host"] == "http://127.0.0.1:11434/api"
+    serialized = json.dumps(res.payload)
+    assert "secret_password" not in serialized
+    assert "private" not in serialized
+    assert "section1" not in serialized
+    assert conn["runtime_topology"] == "local_only_model"
+    assert res.payload["runtime_topology"] == "loopback_local"
+
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://user:pass123@remote.server.internal:11434/?admin=true",
+        ollama_model_id="qwen3:4b",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    res2 = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res2.status_code == 200
+    conn2 = res2.payload["model_connection"]
+    assert conn2["ollama_host"] == "http://remote.server.internal:11434/"
+    serialized2 = json.dumps(res2.payload)
+    assert "pass123" not in serialized2
+    assert "admin=true" not in serialized2
+    assert conn2["runtime_topology"] == "local_first_hybrid"
+    assert res2.payload["runtime_topology"] == "remote_host"
+
+
+def test_capabilities_conservative_aggregation(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+
+    # Case A: documents.create has ("artifact-studio", "document-bundle", "document-package")
+    # Only artifact-studio is connected and siblings are disconnected
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="not_connected"),
+            SimpleNamespace(workflow_id="document-package", status="not_connected"),
+        ]
+    )
+    res = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    caps = {c["capability_id"]: c for c in res.payload["capabilities"]}
+    assert caps["documents.create"]["surface_status"] == "not_connected"
+    assert caps["documents.search"]["surface_status"] == "interactive_read_only"
+
+    # Case B: All workflows connected -> agent_guided
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="connected"),
+            SimpleNamespace(workflow_id="document-package", status="connected"),
+        ]
+    )
+    res2 = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    caps2 = {c["capability_id"]: c for c in res2.payload["capabilities"]}
+    assert caps2["documents.create"]["surface_status"] == "agent_guided"
+
+    # Case C: All workflows connected or planning_only -> planning_only
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="planning_only"),
+            SimpleNamespace(workflow_id="document-package", status="connected"),
+        ]
+    )
+    res3 = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    caps3 = {c["capability_id"]: c for c in res3.payload["capabilities"]}
+    assert caps3["documents.create"]["surface_status"] == "planning_only"
+
+
+def test_reload_settings_invalid_staged_env_rejects_without_mutating_state(
+    tmp_path: Path,
+) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._agent_conversation_turns["lukas"] = 5
+    orig_settings = app.agent_settings
+    orig_env = dict(os.environ)
+
+    with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
+        def side_effect(path, current, target_environ=None, **kwargs):
+            if target_environ is not None:
+                target_environ["BAD\0KEY"] = "invalid"
+            return current, "fixture"
+
+        mock_build.side_effect = side_effect
+
+        res = app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+        assert res.status_code == 500
+        assert "Ungültige Umgebungsvariablen" in res.payload["message"]
+        assert app._agent_conversation_turns["lukas"] == 5
+        assert app.agent_settings == orig_settings
+        assert os.environ == orig_env
+
+
+def test_status_lock_atomicity_prevents_pairing_new_provider_with_old_turns(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen3:4b",
+    )
+    app._successful_live_model_turns = 10
+
+    with app._model_status_lock:
+        app._successful_live_model_turns = 0
+        app.agent_settings = StrandsAgentSettings(model_provider="fixture")
+        status = app._status_payload(8765)
+        assert status["model_provider"] == "fixture"
+        assert status["successful_live_model_turns"] == 0
+        assert status["model_state"] == "fixture_only"
+
+
+def test_reload_settings_staged_env_mutation_failure_rolls_back_everything(
+    tmp_path: Path,
+) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._agent_conversation_turns["lukas"] = 7
+    orig_settings = app.agent_settings
+    orig_env = dict(os.environ)
+
+    with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
+        def side_effect(path, current, target_environ=None, **kwargs):
+            if target_environ is not None:
+                target_environ["TEST_STAGE_VAR_1"] = "val1"
+                target_environ["TEST_STAGE_VAR_2"] = "val2"
+            return current, "fixture"
+
+        mock_build.side_effect = side_effect
+
+        orig_setitem = os.environ.__class__.__setitem__
+
+        def failing_setitem(self, key, value):
+            if key == "TEST_STAGE_VAR_2":
+                raise OSError("Simulated environment set failure")
+            orig_setitem(self, key, value)
+
+        with patch.object(os.environ.__class__, "__setitem__", failing_setitem):
+            res = app.handle(
+                method="POST",
+                target="/api/v1/settings/reload",
+                headers=_api_headers(8765, app.session_token),
+                body=json.dumps(
+                    {"schema": "folderhome.local-settings-reload-request.v1"}
+                ).encode("utf-8"),
+                server_port=8765,
+            )
+
+        assert res.status_code == 500
+        assert "Umgebungsvariablen konnten nicht gesetzt werden" in res.payload["message"]
+        assert app._agent_conversation_turns["lukas"] == 7
+        assert app.agent_settings == orig_settings
+        assert "TEST_STAGE_VAR_1" not in os.environ
+        assert "TEST_STAGE_VAR_2" not in os.environ
+        assert os.environ == orig_env
+
+
+def test_remote_to_fixture_to_remote_reload_succeeds_when_started_with_gates(
+    tmp_path: Path,
+) -> None:
+    """Startup authorizations decouple from transient current_settings:
+
+    Starting with network & cloud clearances permits reloading to fixture and subsequently
+    reloading back to a remote provider without being rejected by startup gates.
+    """
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=valid-anthropic-key\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_content = {
+        "schema": "folderhome.launch-config.v1",
+        "model_preset": "anthropic-claude",
+        "model_presets": {
+            "anthropic-claude": {
+                "model_provider": "anthropic",
+                "anthropic_model_id": "claude-3-5-sonnet",
+            },
+            "fixture": {
+                "model_provider": "fixture",
+            },
+        },
+    }
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    # Start app with network and cloud clearances granted at startup
+    initial_settings = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-3-5-sonnet",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    app = _app(
+        tmp_path,
+        agent_settings=initial_settings,
+        launch_config_path=launch_file,
+        startup_allow_network=True,
+        startup_allow_sensitive_cloud_data=True,
+    )
+    assert app.agent_settings.model_provider == "anthropic"
+    assert app.agent_settings.allow_network is True
+    assert app.agent_settings.allow_sensitive_cloud_data is True
+
+    # 1. Reload from remote -> fixture
+    launch_content["model_preset"] = "fixture"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res_to_fixture = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_to_fixture.status_code == 200
+    assert res_to_fixture.payload["status"] == "reloaded"
+    assert res_to_fixture.payload["model_provider"] == "fixture"
+    assert app.agent_settings.model_provider == "fixture"
+    assert app.agent_settings.allow_network is False
+    assert app.agent_settings.allow_sensitive_cloud_data is False
+
+    # 2. Reload back from fixture -> remote (anthropic)
+    launch_content["model_preset"] = "anthropic-claude"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res_to_remote = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_to_remote.status_code == 200
+    assert res_to_remote.payload["status"] == "reloaded"
+    assert res_to_remote.payload["model_provider"] == "anthropic"
+    assert app.agent_settings.model_provider == "anthropic"
+    assert app.agent_settings.allow_network is True
+    assert app.agent_settings.allow_sensitive_cloud_data is True
+
+
+def test_remote_to_fixture_to_remote_reload_fails_closed_when_started_without_gates(
+    tmp_path: Path,
+) -> None:
+    """Apps started without network or cloud clearances strictly reject remote reloads."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=valid-anthropic-key\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_content = {
+        "schema": "folderhome.launch-config.v1",
+        "model_preset": "fixture",
+        "model_presets": {
+            "anthropic-claude": {
+                "model_provider": "anthropic",
+                "anthropic_model_id": "claude-3-5-sonnet",
+            },
+            "fixture": {
+                "model_provider": "fixture",
+            },
+        },
+    }
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    # Start app WITHOUT network or cloud clearances
+    app = _app(
+        tmp_path,
+        agent_settings=StrandsAgentSettings(model_provider="fixture"),
+        launch_config_path=launch_file,
+        startup_allow_network=False,
+        startup_allow_sensitive_cloud_data=False,
+    )
+
+    # Attempt reload to remote (anthropic)
+    launch_content["model_preset"] = "anthropic-claude"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+        in res.payload["message"]
+    )
+    assert app.agent_settings.model_provider == "fixture"
+
+
+def test_status_setup_url_never_delivers_tokens_or_links_under_variant_b(tmp_path: Path) -> None:
+    """Per Variant b contract, status payload must never expose a tokenized setup_url or tokens."""
+    app = _app(tmp_path)
+    setup_file = app.settings.state_dir / "setup-server.json"
+
+    # Case A: Even with loopback access_url with token in setup-server.json, setup_url is None
+    valid_setup_url = "http://127.0.0.1:8766/?token=valid-setup-token-999"
+    setup_file.write_text(json.dumps({"access_url": valid_setup_url}), encoding="utf-8")
+    status_a = app._status_payload(8765)
+    assert status_a["setup_url"] is None
+    assert "valid-setup-token-999" not in json.dumps(status_a)
+
+    # Case B: Even with valid port and token in JSON, setup_url is None
+    setup_file.write_text(
+        json.dumps({"port": 8766, "token": "synthesized-token"}),
+        encoding="utf-8",
+    )
+    status_b = app._status_payload(8765)
+    assert status_b["setup_url"] is None
+    assert "synthesized-token" not in json.dumps(status_b)
+
+    # Case C: Foreign hostname -> setup_url is None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://evil.attacker.com:8766/?token=tok"}),
+        encoding="utf-8",
+    )
+    status_c = app._status_payload(8765)
+    assert status_c["setup_url"] is None
+
+    # Case D: Tokenless loopback URL -> setup_url is None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:8766/"}),
+        encoding="utf-8",
+    )
+    status_d = app._status_payload(8765)
+    assert status_d["setup_url"] is None
+
+    # Case E: Empty token query parameter -> setup_url is None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:8766/?token=  "}),
+        encoding="utf-8",
+    )
+    status_e = app._status_payload(8765)
+    assert status_e["setup_url"] is None
+
+    # Case F: Non-numeric port in URL -> setup_url is None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:invalid_port/?token=tok"}),
+        encoding="utf-8",
+    )
+    status_f = app._status_payload(8765)
+    assert status_f["setup_url"] is None
+
+
+def test_status_payload_delivers_redacted_openai_base_url(tmp_path: Path) -> None:
+    """Model connection status exposes openai_base_url redacted of credentials."""
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="openai",
+        openai_model_id="gpt-4o",
+        openai_base_url="http://user:secret_pass@internal-openai-host.local:8080/v1?auth=param#frag",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    status = app._status_payload(8765)
+    conn = status["model_connection"]
+    assert conn["provider"] == "openai"
+    assert conn["model_id"] == "gpt-4o"
+    assert conn["openai_base_url"] == "http://internal-openai-host.local:8080/v1"
+    assert "user" not in conn["openai_base_url"]
+    assert "secret_pass" not in conn["openai_base_url"]
+    assert "auth=param" not in conn["openai_base_url"]
+
+
+def test_reload_rollback_fail_closed_multiple_runs_never_resuscitate_discarded(
+    tmp_path: Path,
+) -> None:
+    """When reload fails midway, closed/invalidated runs must remain closed and discarded plans
+
+    must NEVER be restored into _proposed_agent_plans or _recipe_plans.
+    """
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {"model_provider": "fixture"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+
+    from test_recipe_results import payload
+
+    from folderhome.application.recipes import parse_recipe
+
+    recipe = parse_recipe(payload())
+    run1 = create_recipe_run(
+        recipe,
+        profile_id="lukas",
+        language="de",
+        gateway=app.workflow_executor,
+    )
+    run2 = create_recipe_run(
+        recipe,
+        profile_id="hanna",
+        language="de",
+        gateway=app.workflow_executor,
+    )
+    app._recipe_runs[run1.snapshot()["run_id"]] = run1
+    app._recipe_runs[run2.snapshot()["run_id"]] = run2
+
+    # Simulate an error during reset_agent_conversation on profile "simon"
+    orig_reset = app.reset_agent_conversation
+
+    def fail_on_simon(pid: str):
+        if pid == "simon":
+            raise RuntimeError("Simulated failure during simon conversation reset")
+        return orig_reset(pid)
+
+    app.reset_agent_conversation = fail_on_simon
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+    assert "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen" in res.payload["message"]
+
+    # Post-rollback verification:
+    # 1. Run 1 and Run 2 were closed during reset_agent_conversation for "hanna" and "lukas"
+    # Their state must REMAIN closed; they must not be restored as active or confirmable runs!
+    assert run1.snapshot()["status"] == "closed"
+    assert run2.snapshot()["status"] == "closed"
+    assert run1.snapshot()["pending_plan_id"] is None
+    assert run2.snapshot()["pending_plan_id"] is None
+
+    # 2. No discarded plans for the closed runs may exist in _proposed_agent_plans or _recipe_plans
+    for plan in app._proposed_agent_plans.values():
+        ctx_run_id = plan.approval_context.get("run_id") if plan.approval_context else None
+        assert ctx_run_id not in (run1.snapshot()["run_id"], run2.snapshot()["run_id"])
+
+
+def test_is_strict_loopback_host_rejects_evil_hosts_and_subdomains() -> None:
+    from folderhome.application.local_app import _is_strict_loopback_host
+
+    # Rejected evil/remote hosts
+    for evil in (
+        "127.evil.example",
+        "127.0.0.1.evil.example",
+        "127.0.0.1.example.com",
+        "evil.example",
+        "localhost.evil.com",
+        "192.168.1.1",
+        "0.0.0.0",
+        "",
+        "   ",
+        None,
+    ):
+        assert _is_strict_loopback_host(evil) is False, f"Expected {evil} to be rejected"
+
+    # Accepted authentic loopback hosts
+    for ok in ("127.0.0.1", "127.0.0.2", "127.1.2.3", "localhost", "::1", "[::1]"):
+        assert _is_strict_loopback_host(ok) is True, f"Expected {ok} to be accepted"
+
+
+def test_redact_url_credentials_invalid_port_returns_none_safely() -> None:
+    from folderhome.application.local_app import _redact_url_credentials
+
+    # Malformed non-numeric port must not raise ValueError or leak credentials
+    bad_port_url = "http://user:pass@127.0.0.1:badport/path?token=super_secret_tok"
+    assert _redact_url_credentials(bad_port_url) is None
+
+    # Out-of-range port must not leak credentials
+    assert _redact_url_credentials("http://user:pass@127.0.0.1:99999/path?token=secret") is None
+    assert _redact_url_credentials("http://user:pass@127.0.0.1:0/path?token=secret") is None
+
+    # Valid port redacts credentials and query params cleanly
+    valid_url = "http://user:pass@127.0.0.1:8765/path?token=secret"
+    redacted = _redact_url_credentials(valid_url)
+    assert redacted == "http://127.0.0.1:8765/path"
+    assert "user" not in redacted
+    assert "pass" not in redacted
+    assert "secret" not in redacted
+
+    # None and empty
+    assert _redact_url_credentials(None) is None
+    assert _redact_url_credentials("") == ""
+
+
+def test_status_setup_url_rejects_evil_hosts_and_invalid_ports(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    setup_json = app.settings.state_dir / "setup-server.json"
+    setup_json.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. 127.evil.example host must be rejected
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.evil.example:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 2. 127.0.0.1.evil.example host must be rejected
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1.evil.example:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 3. Non-numeric port must not raise ValueError and must be rejected safely
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1:invalid_port/?token=tok123",
+            "port": "not_a_number",
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 4. Under Variant b, setup_url is strictly None (never exposing token or setup link)
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+
+def test_reload_rollback_transaction_excludes_externally_discarded_pending_envelopes(
+    tmp_path: Path,
+) -> None:
+    from test_local_recipes import RecipeGateway
+    from test_recipes import RESOURCE_IDS
+
+    from folderhome.contracts import LogicalResource, ResourceRegistry
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps({
+            "schema": "folderhome.launch-config.v1",
+            "model_preset": "fixture",
+            "model_presets": {
+                "fixture": {"model_provider": "fixture"},
+            },
+        }),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app.workflow_executor = RecipeGateway()
+    app.resource_registry = ResourceRegistry(
+        os_account=app.profiles.os_account,
+        resources=tuple(
+            LogicalResource(
+                resource_id=key,
+                kind="directory",
+                local_path=tmp_path / key,
+                operations=frozenset({"read", "list"}),
+                purposes=frozenset({"documents.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            )
+            for key in sorted(RESOURCE_IDS)
+        ),
+        profile_defaults={},
+        known_profile_ids=app._profile_ids,
+    )
+
+    pending = app.prepare_recipe(profile_id="lukas", recipe_id="accident-aftercare", language="en")
+    plan = pending.plan
+    plan_id = pending.plan_id
+    assert plan.approval_context.get("run_id") is None
+    assert id(plan) in app._pending_agent_plans
+    assert id(plan) in app._pending_recipe_plans
+
+    step_envs = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan.steps
+        if getattr(s, "execution_envelope", None) is not None
+    )
+    assert len(step_envs) == 4
+
+    # Simulate reload failure where resetting simon fails after lukas reset discarded envelopes
+    orig_reset = app.reset_agent_conversation
+
+    def fail_on_simon(pid: str):
+        if pid == "simon":
+            raise RuntimeError("Simulated failure during simon conversation reset")
+        return orig_reset(pid)
+
+    app.reset_agent_conversation = fail_on_simon
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+
+    # Verification upon rollback:
+    # Discarded envelope's plan must NOT reappear in pending or proposed maps!
+    assert id(plan) not in app._pending_agent_plans
+    assert id(plan) not in app._pending_recipe_plans
+    assert plan_id not in app._proposed_agent_plans
+    assert plan_id not in app._recipe_plans
+    assert set(step_envs).issubset(set(app.workflow_executor.discarded))

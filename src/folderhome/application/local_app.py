@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 import getpass
 import hmac
+import ipaddress
 import json
 import os
 import platform
@@ -15,7 +17,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import parse_qs, quote, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from folderhome.application.document_search import build_theme_dossier, search_documents
 from folderhome.application.master_agent import MasterAgentError, confirm_master_agent_plan
@@ -104,6 +106,92 @@ class LocalAppError(RuntimeError):
     """Raised when the local app boundary cannot be established safely."""
 
 
+def _is_strict_loopback_host(host: str | None) -> bool:
+    """Return True only if host is strictly a loopback address or localhost."""
+    if not host or not isinstance(host, str):
+        return False
+    clean = host.strip("[]").lower()
+    if clean == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(clean)
+        return ip.is_loopback
+    except ValueError:
+        return False
+
+
+def _redact_url_credentials(value: str | None) -> str | None:
+    """Redact userinfo, query, and fragment from a model URL for public exposure."""
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        return value
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
+        return None
+    if not parsed.scheme or not hostname:
+        return None
+    if port is not None and not (1 <= port <= 65535):
+        return None
+    host = f"[{hostname}]" if ":" in hostname else hostname
+    port_str = f":{port}" if port is not None else ""
+    netloc = f"{host}{port_str}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+_CAPABILITY_WORKFLOWS: dict[str, tuple[str, ...]] = {
+    "documents.search": ("document-library",),
+    "documents.theme_dossier": ("document-library",),
+    "folders.organize": (
+        "directory-observation",
+        "document-action-execution",
+        "document-action-plan",
+        "folder-cleanup",
+        "folder-routine",
+        "routine-queue",
+    ),
+    "documents.create": (
+        "artifact-studio",
+        "document-bundle",
+        "document-package",
+    ),
+    "communications.manage": (
+        "calendar-connectors",
+        "calendar-handoff",
+        "contact-register",
+        "correspondence-studio",
+        "findcall",
+        "mail-connector",
+    ),
+    "calendar.manage": (
+        "calendar-connectors",
+        "calendar-handoff",
+    ),
+    "finance.overview": (
+        "contract-cockpit",
+        "finance-import",
+        "tax-workpaper",
+    ),
+    "health.organize": (
+        "health-dossier",
+        "medication-intake",
+    ),
+    "legal.orient": (
+        "administrative-drafts",
+        "benefit-screening",
+        "legal-change-monitor",
+        "official-notice-understanding",
+    ),
+    "household.manage": (
+        "daily-briefing",
+        "inventory-import",
+    ),
+}
+
+
 class LocalApplication:
     """Pure request dispatcher between local HTTP and existing app services."""
 
@@ -118,6 +206,10 @@ class LocalApplication:
         workflow_executor: WorkflowExecutionGateway | None = None,
         resource_registry: ResourceRegistry | None = None,
         scheduler_controller=None,
+        launch_config_path: Path | str | None = None,
+        running_preset: str | None = None,
+        startup_allow_network: bool | None = None,
+        startup_allow_sensitive_cloud_data: bool | None = None,
     ) -> None:
         if profiles.os_account.strip() == "":
             raise LocalAppError("Profilkonfiguration besitzt kein OS-Konto-Label.")
@@ -131,6 +223,16 @@ class LocalApplication:
         self.profiles = profiles
         self.searcher = searcher
         self.agent_settings = agent_settings or StrandsAgentSettings(model_provider="fixture")
+        self._startup_allow_network = (
+            startup_allow_network
+            if startup_allow_network is not None
+            else bool(self.agent_settings.allow_network)
+        )
+        self._startup_allow_sensitive_cloud_data = (
+            startup_allow_sensitive_cloud_data
+            if startup_allow_sensitive_cloud_data is not None
+            else bool(self.agent_settings.allow_sensitive_cloud_data)
+        )
         self.workflow_executor = workflow_executor or WorkflowExecutionGateway()
         if resource_registry is not None:
             if resource_registry.os_account != profiles.os_account:
@@ -147,6 +249,16 @@ class LocalApplication:
         self._token_sha256 = sha256(token.encode("utf-8")).hexdigest()
         self._identity = capture_os_identity()
         self._profile_ids = frozenset(profile_ids)
+        self._launch_config_path = (
+            Path(launch_config_path).resolve() if launch_config_path else None
+        )
+        if running_preset is not None:
+            self._running_preset = running_preset
+        elif self._launch_config_path is not None:
+            saved = self._read_saved_preset()
+            self._running_preset = saved or "no preset / flags"
+        else:
+            self._running_preset = "no preset / flags"
         self._proposed_agent_plans: dict[str, MasterAgentPlan] = {}
         self._recipe_plans: dict[str, CapabilityRecipePlan | RecipeStagePlan] = {}
         self._recipe_runs = {}
@@ -156,6 +268,8 @@ class LocalApplication:
         self._pending_recipe_plans: dict[int, CapabilityRecipePlan | RecipeStagePlan] = {}
         self._pending_agent_plans: dict[int, MasterAgentPlan] = {}
         self._started_recipe_plans: set[str] = set()
+        self._active_transaction_discarded_envelopes: set[str] | None = None
+        self._active_transaction_discarded_plans: set[str] | None = None
         self._agent_plan_lock = threading.RLock()
         self._agent_conversation_messages: dict[
             str, tuple[dict[str, Any], ...]
@@ -169,6 +283,7 @@ class LocalApplication:
         self._execution_results_lock = threading.RLock()
         self._successful_live_model_turns = 0
         self._model_status_lock = threading.RLock()
+        self._reload_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
 
     def close(self) -> None:
@@ -310,9 +425,13 @@ class LocalApplication:
         retained = set(_plan_envelope_ids(
             tuple(self._proposed_agent_plans.values()) + pending
         )) | set(protected)
-        self.workflow_executor.discard_unexecuted(tuple(
+        to_discard = tuple(
             item for item in envelope_ids if item not in retained
-        ))
+        )
+        if to_discard:
+            self.workflow_executor.discard_unexecuted(to_discard)
+            if self._active_transaction_discarded_envelopes is not None:
+                self._active_transaction_discarded_envelopes.update(to_discard)
 
     def discard_recipe_preparations(self, recipes: tuple[CapabilityRecipePlan, ...]) -> None:
         """Release unretained recipe preparations when a model turn fails."""
@@ -370,16 +489,44 @@ class LocalApplication:
 
     def _close_recipe_run(self, run_id):
         run = self._recipe_runs[run_id]
-        # Keep a failed cleanup reachable for an explicit retry; never resurrect a plan.
-        for key, plan in tuple(self._proposed_agent_plans.items()):
-            if plan.approval_context.get("run_id") == run_id:
-                self._proposed_agent_plans.pop(key)
-                self._recipe_plans.pop(key, None)
-        for key, plan in tuple(self._pending_agent_plans.items()):
-            if plan.approval_context.get("run_id") == run_id:
-                self._pending_agent_plans.pop(key)
-                self._pending_recipe_plans.pop(key, None)
-        run.close()
+        saved_proposed = {
+            key: plan for key, plan in self._proposed_agent_plans.items()
+            if plan.approval_context.get("run_id") == run_id
+        }
+        for key in saved_proposed:
+            self._proposed_agent_plans.pop(key, None)
+            self._recipe_plans.pop(key, None)
+        for key in [
+            key for key, plan in self._pending_agent_plans.items()
+            if plan.approval_context.get("run_id") == run_id
+        ]:
+            self._pending_agent_plans.pop(key, None)
+            self._pending_recipe_plans.pop(key, None)
+
+        if self._active_transaction_discarded_plans is not None:
+            self._active_transaction_discarded_plans.update(saved_proposed.keys())
+        pending_plan = getattr(run, "_pending", None)
+        if pending_plan is not None:
+            pending_envs = tuple(
+                s.execution_envelope.envelope_id
+                for s in getattr(pending_plan, "steps", ())
+                if getattr(s, "execution_envelope", None) is not None
+            )
+            if self._active_transaction_discarded_envelopes is not None:
+                self._active_transaction_discarded_envelopes.update(pending_envs)
+            if self._active_transaction_discarded_plans is not None:
+                self._active_transaction_discarded_plans.add(pending_plan.plan_id)
+        if (
+            hasattr(run, "_cleanup_pending")
+            and run._cleanup_pending
+            and self._active_transaction_discarded_envelopes is not None
+        ):
+            self._active_transaction_discarded_envelopes.update(run._cleanup_pending)
+
+        try:
+            run.close()
+        except Exception:
+            raise
         state = run.snapshot()
         self._recipe_runs.pop(run_id)
         return state
@@ -600,6 +747,11 @@ class LocalApplication:
                     plan for plan in self._pending_agent_plans.values()
                     if plan.profile_id == profile_id
                 )
+                if self._active_transaction_discarded_plans is not None:
+                    self._active_transaction_discarded_plans.update(discarded)
+                    self._active_transaction_discarded_plans.update(
+                        getattr(p, "plan_id", str(id(p))) for p in pending
+                    )
                 for plan in pending:
                     self._pending_agent_plans.pop(id(plan), None)
                     self._pending_recipe_plans.pop(id(plan), None)
@@ -1319,6 +1471,9 @@ class LocalApplication:
             payload = self._json_request(headers, body)
             profile_id = self._agent_conversation_reset_request(payload)
             return self._json_response(self.reset_agent_conversation(profile_id))
+        if method == "POST" and parsed.path == "/api/v1/settings/reload":
+            payload = self._json_request(headers, body)
+            return self._reload_settings(payload)
         if method == "POST" and parsed.path == "/api/v1/agent/confirm":
             payload = self._json_request(headers, body)
             request = self._agent_confirmation_request(payload)
@@ -1337,6 +1492,7 @@ class LocalApplication:
             "/api/v1/agent/confirm",
             "/api/v1/agent/calendar/plan",
             "/api/v1/agent/conversation/reset",
+            "/api/v1/settings/reload",
         }:
             return self._error(405, "Lokaler Dienst benötigt eine POST-JSON-Anfrage.")
         return self._error(404, "Unbekannter lokaler Endpunkt.")
@@ -1394,8 +1550,40 @@ class LocalApplication:
             return self._error(503, "Scheduler-Dienst ist derzeit nicht verfügbar.")
         return self._json_response(result)
 
+    def _read_saved_preset(self) -> str | None:
+        if self._launch_config_path is None or not self._launch_config_path.is_file():
+            return None
+        try:
+            payload = json.loads(self._launch_config_path.read_text(encoding="utf-8"))
+            if isinstance(payload, dict):
+                name = payload.get("model_preset")
+                if isinstance(name, str) and name.strip():
+                    return name.strip()
+        except (OSError, json.JSONDecodeError):
+            return None
+        return None
+
     def _status_payload(self, server_port: int) -> dict[str, object]:
-        connection = self._model_connection_payload()
+        with self._model_status_lock:
+            current_settings = self.agent_settings
+            successful_turns = self._successful_live_model_turns
+            running_preset = self._running_preset
+            connection = self._build_model_connection_payload(
+                current_settings, successful_turns
+            )
+            status_fields = model_status_fields(
+                current_settings, successful_turns
+            )
+        saved_preset = self._read_saved_preset()
+        settings_stale = bool(
+            self._launch_config_path is not None
+            and saved_preset is not None
+            and saved_preset != running_preset
+        )
+        # Per security contract (Variant b): /api/v1/status never exposes a tokenized
+        # setup_url or any setup/app token. The UI exclusively presents the safe local
+        # start command scripts\START.cmd / Option 2.
+        setup_url = None
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",
@@ -1412,9 +1600,16 @@ class LocalApplication:
             "approval_bound_execution": True,
             "conversation_memory": "process_only",
             "model_connection": connection,
-            **model_status_fields(
-                self.agent_settings, connection["successful_live_model_turns"],
+            **status_fields,
+            "launch_config_path": (
+                self._launch_config_path.name
+                if self._launch_config_path is not None
+                else None
             ),
+            "running_preset": running_preset,
+            "saved_preset": saved_preset,
+            "settings_stale": settings_stale,
+            "setup_url": setup_url,
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,
@@ -1422,10 +1617,16 @@ class LocalApplication:
 
     def _model_connection_payload(self) -> dict[str, object]:
         with self._model_status_lock:
-            successful_turns = self._successful_live_model_turns
-        is_live_provider = self.agent_settings.is_live_model
-        provider = self.agent_settings.model_provider
-        is_local_model = provider == "ollama" and not self.agent_settings.network_used
+            return self._build_model_connection_payload(
+                self.agent_settings, self._successful_live_model_turns
+            )
+
+    def _build_model_connection_payload(
+        self, agent_settings: StrandsAgentSettings, successful_turns: int
+    ) -> dict[str, object]:
+        is_live_provider = agent_settings.is_live_model
+        provider = agent_settings.model_provider
+        is_local_model = provider == "ollama" and not agent_settings.network_used
         inference_location = {
             "bedrock": "aws_cloud",
             "anthropic": "anthropic_api",
@@ -1433,13 +1634,13 @@ class LocalApplication:
             "openai": "openai_compatible_api",
             "ollama": (
                 "remote_ollama_host"
-                if self.agent_settings.network_used
+                if agent_settings.network_used
                 else "local_ollama_host"
             ),
         }.get(provider, "local_fixture")
         return {
             "schema": "folderhome.model-connection-status.v1",
-            "provider": self.agent_settings.model_provider,
+            "provider": agent_settings.model_provider,
             "mode": (
                 "local_model" if is_local_model
                 else "network_model" if is_live_provider else "deterministic_fixture"
@@ -1465,16 +1666,21 @@ class LocalApplication:
                 "live_model" if is_live_provider else "deterministic_fixture"
             ),
             "model_id": (
-                self.agent_settings.bedrock_model_id
-                or self.agent_settings.ollama_model_id
-                or self.agent_settings.anthropic_model_id
-                or self.agent_settings.openai_model_id
+                agent_settings.bedrock_model_id
+                or agent_settings.ollama_model_id
+                or agent_settings.anthropic_model_id
+                or agent_settings.openai_model_id
             ),
-            "aws_region": self.agent_settings.aws_region,
-            "ollama_host": self.agent_settings.ollama_host,
-            "network_authorized": self.agent_settings.allow_network,
+            "aws_region": agent_settings.aws_region,
+            "ollama_host": _redact_url_credentials(agent_settings.ollama_host),
+            "openai_base_url": (
+                _redact_url_credentials(agent_settings.openai_base_url)
+                if agent_settings.openai_base_url
+                else None
+            ),
+            "network_authorized": agent_settings.allow_network,
             "sensitive_cloud_data_authorized": (
-                self.agent_settings.allow_sensitive_cloud_data
+                agent_settings.allow_sensitive_cloud_data
             ),
             "status_probe_performed": False,
         }
@@ -1494,8 +1700,7 @@ class LocalApplication:
             ],
         }
 
-    @staticmethod
-    def _capabilities_payload() -> dict[str, object]:
+    def _capabilities_payload(self) -> dict[str, object]:
         interactive = {"documents.search", "documents.theme_dossier"}
         capabilities = (
             ("documents.search", "Dokumentensuche"),
@@ -1509,21 +1714,38 @@ class LocalApplication:
             ("legal.orient", "Bescheide und Rechtsänderungen orientieren"),
             ("household.manage", "Haushalt und Medikamente verwalten"),
         )
-        return {
-            "schema": "folderhome.local-capability-list.v1",
-            "capabilities": [
+        catalog = (
+            {item.workflow_id: item.status for item in self.workflow_executor.catalog()}
+            if self.workflow_executor is not None
+            else {}
+        )
+        items = []
+        for capability_id, title in capabilities:
+            wf_ids = _CAPABILITY_WORKFLOWS.get(capability_id, ())
+            if capability_id in interactive:
+                surface_status = "interactive_read_only"
+            else:
+                statuses = [catalog.get(wid, "not_connected") for wid in wf_ids]
+                if not statuses:
+                    surface_status = "not_connected"
+                elif all(s == "connected" for s in statuses):
+                    surface_status = "agent_guided"
+                elif all(s in {"connected", "planning_only"} for s in statuses):
+                    surface_status = "planning_only"
+                else:
+                    surface_status = "not_connected"
+            items.append(
                 {
                     "capability_id": capability_id,
                     "title": title,
-                    "surface_status": (
-                        "interactive_read_only"
-                        if capability_id in interactive
-                        else "agent_guided"
-                    ),
+                    "surface_status": surface_status,
+                    "workflow_ids": list(wf_ids),
                     "side_effects": [],
                 }
-                for capability_id, title in capabilities
-            ],
+            )
+        return {
+            "schema": "folderhome.local-capability-list.v1",
+            "capabilities": items,
         }
 
     def _json_request(self, headers: dict[str, str], body: bytes) -> dict[str, object]:
@@ -1623,6 +1845,327 @@ class LocalApplication:
         if not isinstance(profile_id, str) or profile_id not in self._profile_ids:
             raise LocalAppError("Gesprächsreset nennt kein bekanntes Profil.")
         return profile_id
+
+    @staticmethod
+    def _settings_reload_request(payload: dict[str, object]) -> None:
+        expected = {"schema"}
+        if set(payload) != expected or payload.get("schema") != (
+            "folderhome.local-settings-reload-request.v1"
+        ):
+            raise LocalAppError("Reload-Anfrage besitzt unbekannte oder fehlende Felder.")
+
+    def _reload_settings(self, payload: dict[str, object]) -> LocalApiResponse:
+        with self._reload_lock:
+            self._settings_reload_request(payload)
+            if self._launch_config_path is None or not self._launch_config_path.is_file():
+                raise _HttpError(
+                    409,
+                    "Keine gespeicherte Startkonfiguration (launch.json) vorhanden.",
+                )
+            from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
+
+            staging_env: dict[str, str] = {}
+            try:
+                new_settings, new_preset = build_reloaded_agent_settings(
+                    self._launch_config_path,
+                    self.agent_settings,
+                    target_environ=staging_env,
+                    startup_allow_network=self._startup_allow_network,
+                    startup_allow_sensitive_cloud_data=self._startup_allow_sensitive_cloud_data,
+                )
+            except ReloadGateError as exc:
+                raise _HttpError(409, str(exc)) from exc
+            except (ValueError, OSError) as exc:
+                raise _HttpError(
+                    409,
+                    f"Startkonfiguration konnte nicht geladen werden: {exc}",
+                ) from exc
+
+            # Validate staging_env before mutating anything
+            for name, value in staging_env.items():
+                if (
+                    not isinstance(name, str)
+                    or not isinstance(value, str)
+                    or not name
+                    or "=" in name
+                    or "\0" in name
+                    or "\0" in value
+                ):
+                    raise _HttpError(
+                        500,
+                        "Ungültige Umgebungsvariablen in der Startkonfiguration.",
+                    )
+
+            with contextlib.ExitStack() as stack:
+                for profile_id in sorted(self._profile_ids):
+                    stack.enter_context(self._agent_conversation_locks[profile_id])
+                stack.enter_context(self._agent_plan_lock)
+                stack.enter_context(self._model_status_lock)
+                stack.enter_context(self._execution_results_lock)
+
+                # Fail closed: reject reload before any mutating cleanup action if any recipe run
+                # is active, awaiting approval with a pending plan, or has uncleaned preparations.
+                for run in self._recipe_runs.values():
+                    run_snapshot = (
+                        run.snapshot()
+                        if hasattr(run, "snapshot")
+                        else {"status": getattr(run, "status", None)}
+                    )
+                    run_status = run_snapshot.get("status")
+                    if run_status in {"running", "preparing"}:
+                        raise _HttpError(
+                            409,
+                            "Laufende Rezeptabschnitte verhindern das Neuladen.",
+                        )
+                    if (
+                        run_snapshot.get("pending_plan_id") is not None
+                        or run_status == "awaiting_approval"
+                    ):
+                        raise _HttpError(
+                            409,
+                            "Offene Rezeptabschnitte verhindern das Neuladen.",
+                        )
+                    if (run_snapshot.get("cleanup_pending_count") or 0) > 0:
+                        raise _HttpError(
+                            409,
+                            "Ausstehende Bereinigungen von Rezeptabschnitten "
+                            "verhindern das Neuladen.",
+                        )
+
+                old_messages = {
+                    pid: self._agent_conversation_messages[pid] for pid in self._profile_ids
+                }
+                old_turns = dict(self._agent_conversation_turns)
+                old_proposed = dict(self._proposed_agent_plans)
+                old_recipe_plans = dict(self._recipe_plans)
+                old_pending_agent = dict(self._pending_agent_plans)
+                old_pending_recipe = dict(self._pending_recipe_plans)
+                old_started = set(self._started_recipe_plans)
+                old_runs = dict(self._recipe_runs)
+                old_runs_state = {}
+                for r_id, r in self._recipe_runs.items():
+                    lock = getattr(r, "_lock", None)
+                    if lock is not None:
+                        with lock:
+                            old_runs_state[r_id] = {
+                                "run": r,
+                                "status": getattr(r, "_status", None),
+                                "pending": getattr(r, "_pending", None),
+                                "results": dict(getattr(r, "_results", {})),
+                                "stage_ids": list(getattr(r, "_stage_ids", [])),
+                                "last_execution": deepcopy(getattr(r, "_last_execution", None)),
+                                "cleanup_pending": getattr(r, "_cleanup_pending", ()),
+                            }
+                    else:
+                        old_runs_state[r_id] = {
+                            "run": r,
+                            "status": getattr(r, "status", None),
+                        }
+
+                self._active_transaction_discarded_envelopes = set()
+                self._active_transaction_discarded_plans = set()
+
+                def _rollback_state() -> None:
+                    # Determine all discarded envelope IDs and plan IDs across the transaction
+                    discarded_envs: set[str] = set(
+                        self._active_transaction_discarded_envelopes or ()
+                    )
+                    discarded_pids: set[str] = set(self._active_transaction_discarded_plans or ())
+
+                    # Also mark runs that were closed or whose cleanup was pending
+                    invalidated_run_ids: set[str] = set()
+                    for r_id, r_state in old_runs_state.items():
+                        r = r_state["run"]
+                        current_status = getattr(r, "_status", getattr(r, "status", None))
+                        has_pending_cleanup = (
+                            hasattr(r, "_cleanup_pending") and bool(r._cleanup_pending)
+                        )
+                        if (
+                            r_id not in self._recipe_runs
+                            or current_status in {"closed", "aborted"}
+                            or has_pending_cleanup
+                        ):
+                            invalidated_run_ids.add(r_id)
+
+                    def _plan_is_discarded(plan_obj: Any) -> bool:
+                        if not plan_obj:
+                            return True
+                        pid = getattr(plan_obj, "plan_id", None)
+                        if pid and pid in discarded_pids:
+                            return True
+                        # Check direct envelope
+                        direct_env = getattr(plan_obj, "execution_envelope", None)
+                        direct_env_id = (
+                            getattr(direct_env, "envelope_id", None) if direct_env else None
+                        )
+                        if direct_env_id and direct_env_id in discarded_envs:
+                            return True
+                        # Check step envelopes
+                        steps = (
+                            getattr(plan_obj, "steps", None)
+                            or getattr(plan_obj, "recipe_steps", None)
+                        )
+                        if steps:
+                            for s in steps:
+                                env = getattr(s, "execution_envelope", None)
+                                env_id = getattr(env, "envelope_id", None) if env else None
+                                if env_id and env_id in discarded_envs:
+                                    return True
+                        inner = getattr(plan_obj, "plan", None)
+                        if inner is not None and inner is not plan_obj:
+                            return _plan_is_discarded(inner)
+                        return False
+
+                    # Identify all plan IDs associated with invalidated runs or discarded envelopes
+                    for plan_id, plan in old_proposed.items():
+                        run_id = (
+                            plan.approval_context.get("run_id")
+                            if plan.approval_context
+                            else None
+                        )
+                        if (
+                            plan_id not in self._proposed_agent_plans
+                            or (run_id and run_id in invalidated_run_ids)
+                            or _plan_is_discarded(plan)
+                        ):
+                            discarded_pids.add(plan_id)
+
+                    for plan_id, plan in old_pending_agent.items():
+                        run_id = (
+                            plan.approval_context.get("run_id")
+                            if plan.approval_context
+                            else None
+                        )
+                        if (run_id and run_id in invalidated_run_ids) or _plan_is_discarded(plan):
+                            discarded_pids.add(getattr(plan, "plan_id", str(plan_id)))
+
+                    self._agent_conversation_messages = {
+                        pid: old_messages[pid] for pid in self._profile_ids
+                    }
+                    self._agent_conversation_turns = dict(old_turns)
+
+                    # Restore ONLY plans and pending items that were NOT discarded externally
+                    self._proposed_agent_plans = {
+                        k: v for k, v in old_proposed.items()
+                        if k not in discarded_pids and not _plan_is_discarded(v)
+                    }
+                    self._recipe_plans = {
+                        k: v for k, v in old_recipe_plans.items()
+                        if k not in discarded_pids and not _plan_is_discarded(v)
+                    }
+                    self._pending_agent_plans = {
+                        k: v for k, v in old_pending_agent.items()
+                        if getattr(v, "plan_id", None) not in discarded_pids
+                        and not _plan_is_discarded(v)
+                    }
+                    self._pending_recipe_plans = {
+                        k: v for k, v in old_pending_recipe.items()
+                        if getattr(v, "plan_id", None) not in discarded_pids
+                        and not _plan_is_discarded(v)
+                    }
+                    self._started_recipe_plans = set(old_started)
+
+                    # For recipe runs: invalidated runs or runs with discarded
+                    # pending plans stay closed/aborted
+                    self._recipe_runs = {}
+                    for r_id, r in old_runs.items():
+                        if r_id in invalidated_run_ids:
+                            r_state = old_runs_state[r_id]
+                            run_obj = r_state["run"]
+                            current_status = getattr(
+                                run_obj, "_status", getattr(run_obj, "status", None)
+                            )
+                            if current_status != "closed":
+                                self._recipe_runs[r_id] = r
+                        else:
+                            self._recipe_runs[r_id] = r
+
+                    for r_id, r_state in old_runs_state.items():
+                        r = r_state["run"]
+                        lock = getattr(r, "_lock", None)
+                        ctx = lock if lock is not None else contextlib.nullcontext()
+                        with ctx:
+                            pending_plan = r_state.get("pending")
+                            pending_discarded = _plan_is_discarded(pending_plan)
+                            if r_id in invalidated_run_ids or pending_discarded:
+                                current_status = getattr(
+                                    r, "_status", getattr(r, "status", None)
+                                )
+                                target_status = (
+                                    "closed" if current_status == "closed" else "aborted"
+                                )
+                                if hasattr(r, "_status"):
+                                    r._status = target_status
+                                elif hasattr(r, "status"):
+                                    r.status = target_status
+                                if hasattr(r, "_pending"):
+                                    r._pending = None
+                            else:
+                                if r_state["status"] is not None:
+                                    if hasattr(r, "_status"):
+                                        r._status = r_state["status"]
+                                    elif hasattr(r, "status"):
+                                        r.status = r_state["status"]
+                                if hasattr(r, "_pending"):
+                                    r._pending = r_state["pending"]
+                                if hasattr(r, "_results"):
+                                    r._results = r_state["results"]
+                                if hasattr(r, "_stage_ids"):
+                                    r._stage_ids = r_state["stage_ids"]
+                                if hasattr(r, "_last_execution"):
+                                    r._last_execution = r_state["last_execution"]
+                                if hasattr(r, "_cleanup_pending"):
+                                    r._cleanup_pending = r_state["cleanup_pending"]
+
+                try:
+                    try:
+                        for profile_id in sorted(self._profile_ids):
+                            self.reset_agent_conversation(profile_id)
+                    except Exception as exc:
+                        _rollback_state()
+                        if isinstance(exc, _HttpError):
+                            raise
+                        raise _HttpError(
+                            500,
+                            "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen.",
+                        ) from exc
+
+                    env_revert: list[str] = []
+                    try:
+                        for name, value in staging_env.items():
+                            if name not in os.environ:
+                                env_revert.append(name)
+                                os.environ[name] = value
+                    except Exception as exc:
+                        for name in env_revert:
+                            os.environ.pop(name, None)
+                        _rollback_state()
+                        raise _HttpError(
+                            500,
+                            f"Umgebungsvariablen konnten nicht gesetzt werden: {exc}",
+                        ) from exc
+
+                    self.agent_settings = new_settings
+                    self._running_preset = new_preset or "no preset / flags"
+                    self._successful_live_model_turns = 0
+                finally:
+                    self._active_transaction_discarded_envelopes = None
+                    self._active_transaction_discarded_plans = None
+
+            expected_model_state = (
+                "fixture_only"
+                if self.agent_settings.model_provider == "fixture"
+                else "configured_unverified"
+            )
+            return self._json_response(
+                {
+                    "schema": "folderhome.local-settings-reload-response.v1",
+                    "status": "reloaded",
+                    "model_provider": self.agent_settings.model_provider,
+                    "model_state": expected_model_state,
+                    "running_preset": self._running_preset,
+                }
+            )
 
     def _validated_request(
         self,

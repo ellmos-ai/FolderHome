@@ -405,13 +405,17 @@ class RecipeRun:
             pending = self._pending
             self._pending = None
             self._status = "closed"
-            if pending is not None:
-                self._cleanup(
-                    tuple(
-                        s.execution_envelope.envelope_id
-                        for s in pending.steps
-                        if s.execution_envelope is not None
+            try:
+                if pending is not None:
+                    self._cleanup(
+                        tuple(
+                            s.execution_envelope.envelope_id
+                            for s in pending.steps
+                            if s.execution_envelope is not None
+                        )
                     )
-                )
-            else:
-                self._cleanup(())
+                else:
+                    self._cleanup(())
+            except Exception:
+                self._status = "aborted"
+                raise

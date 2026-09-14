@@ -91,9 +91,9 @@ class MockElement {
 const html = readFileSync(join(__dirname, "../../src/folderhome/web_ui/index.html"), "utf8");
 const appSource = readFileSync(join(__dirname, "../../src/folderhome/web_ui/app.js"), "utf8");
 
-test("topology badge exists in shipped HTML next to brand mark", () => {
+test("topology badge exists in shipped HTML in model status banner", () => {
   assert.match(html, /id="topology-badge"/);
-  assert.match(html, /class="brand-mark"[^>]*>FH<\/span>\s*<span id="topology-badge"/);
+  assert.match(html, /id="model-status-banner"[\s\S]*?id="topology-badge"/);
 });
 
 test("topology badge shows CLOUD when runtime_topology is cloud", () => {

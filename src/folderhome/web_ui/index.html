@@ -15,7 +15,6 @@
       <a class="brand" href="/?token=__FOLDERHOME_TOKEN__" aria-label="FolderHome home"
         data-i18n-aria-label="brandHome">
         <span class="brand-mark" aria-hidden="true">FH</span>
-        <span id="topology-badge" class="topology-badge" data-topology="loopback_local">LOCAL</span>
         <span><strong>FolderHome</strong><small>Assistantify your home</small></span>
       </a>
       <div class="topbar-tools">
@@ -33,7 +32,7 @@
         </div>
         <div class="local-badge">
           <span class="status-dot" aria-hidden="true"></span>
-          <span data-i18n="localBadge">Local to this operating-system account</span>
+          <span id="local-boundary-badge" data-i18n="localBadge">Local to this operating-system account</span>
         </div>
       </div>
     </header>
@@ -49,10 +48,44 @@
           <div class="boundary-icon" aria-hidden="true">⌂</div>
           <div>
             <p id="boundary-title" data-i18n="securityBoundary">Security boundary</p>
-            <strong data-i18n="operatingSystemAccount">Operating-system account</strong>
-            <small data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
+            <strong id="boundary-scope" data-i18n="operatingSystemAccount">Operating-system account</strong>
+            <small id="boundary-profiles-claim" data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
           </div>
         </aside>
+      </section>
+
+      <section id="model-status-banner" class="model-status-banner" role="region" aria-label="Model status" data-i18n-aria-label="modelStatusBanner">
+        <div class="model-banner-left">
+          <svg class="model-banner-icon" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="16" height="16" rx="2"/>
+            <rect x="9" y="9" width="6" height="6"/>
+            <path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/>
+          </svg>
+          <div id="model-status" class="model-status" data-state="checking" role="status"
+            aria-live="polite">
+            <span class="model-status-dot" aria-hidden="true"></span>
+            <span>
+              <strong id="model-status-title" data-i18n="modelChecking">Checking model …</strong>
+              <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
+            </span>
+          </div>
+        </div>
+        <div class="model-banner-right">
+          <div class="model-banner-controls">
+            <span id="topology-badge" class="topology-badge" data-topology="loopback_local">LOCAL</span>
+            <button id="open-settings-btn" type="button" class="open-settings-btn" data-i18n="openSettings">Open settings</button>
+          </div>
+          <div id="running-settings" class="running-settings" role="status" aria-live="polite">
+            <div class="running-settings-main">
+              <span class="running-label" data-i18n="runningLabel">Running:</span>
+              <span id="running-settings-summary">…</span>
+            </div>
+            <div id="settings-stale-banner" class="settings-stale-banner" hidden>
+              <span id="settings-stale-text"></span>
+              <button type="button" id="reload-settings-btn" class="button secondary small-btn" data-i18n="reloadButton">Reload</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="workspace" aria-labelledby="chat-title">
@@ -63,14 +96,6 @@
             <h2 id="chat-title" data-i18n="whatHelp">What can I help you with?</h2>
           </div>
           <div class="workspace-controls">
-            <div id="model-status" class="model-status" data-state="checking" role="status"
-              aria-live="polite">
-              <span class="model-status-dot" aria-hidden="true"></span>
-              <span>
-                <strong id="model-status-title" data-i18n="modelChecking">Checking model …</strong>
-                <small id="model-status-detail" data-i18n="modelCheckingDetail">Reading the local runtime configuration.</small>
-              </span>
-            </div>
             <label class="profile-control"><span data-i18n="profile">Profile</span>
               <select id="profile-select" aria-label="Organizational profile"
                 data-i18n-aria-label="profileLabel"></select>
@@ -191,11 +216,32 @@
             <p class="eyebrow" data-i18n="capabilityEyebrow">One home, many workflows</p>
             <h2 id="capability-title" data-i18n="capabilityTitle">What FolderHome brings together</h2>
           </div>
-          <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
+          <div class="capability-controls">
+            <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
+            <button id="capability-info-btn" type="button" class="capability-info-btn" aria-expanded="false" aria-controls="capability-grid" aria-label="Show capabilities" title="Show capabilities" data-i18n-aria-label="capabilityInfoShow" data-i18n-title="capabilityInfoShow">ⓘ</button>
+          </div>
         </div>
-        <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
+        <div id="capability-grid" class="capability-grid" aria-live="polite" hidden></div>
       </section>
     </main>
+
+    <div id="settings-dialog" class="settings-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title" hidden>
+      <div class="settings-dialog">
+        <div class="dialog-header">
+          <h2 id="settings-dialog-title" data-i18n="settingsDialogTitle">FolderHome Settings</h2>
+          <button id="close-settings-dialog-btn" type="button" class="dialog-close-btn" aria-label="Close" data-i18n-aria-label="closeDialog">✕</button>
+        </div>
+        <p data-i18n="settingsDialogText">To configure models or workspaces, run the start menu in your terminal and select Option 2 (Setup):</p>
+        <div class="command-box">
+          <code id="settings-command">scripts\START.cmd</code>
+          <button id="copy-settings-command-btn" type="button" class="small-btn" data-i18n="copyCommand">Copy</button>
+        </div>
+        <div id="setup-server-active-box" class="setup-server-active-box" hidden>
+          <p data-i18n="setupServerActiveText">A setup server is currently running:</p>
+          <a id="open-setup-server-link" href="#" target="_blank" rel="noopener noreferrer" class="small-btn" data-i18n="openSetupPage">Open Setup page</a>
+        </div>
+      </div>
+    </div>
 
     <footer>
       <p data-i18n="footer">FolderHome works locally, transparently, and with deliberate approvals.</p>

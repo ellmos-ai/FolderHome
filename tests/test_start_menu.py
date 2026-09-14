@@ -1,0 +1,2165 @@
+"""Tests for scripts/start_menu.py and scripts/START.cmd.
+
+Covers:
+- Pure ASCII validation for START.cmd.
+- Menu options 1, 2, 3, 4, quit, and normalization of numeric and name choices.
+- English default language and fallback behavior.
+- start_menu.json language persistence and schema conformity.
+- Explicit network and cloud gates (remote/cloud presets, fail-closed default).
+- Ollama 600 second model timeout enforcement.
+- Dry-run mode with zero subprocess execution and zero user-config mutation.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import io
+import json
+import sys
+from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+START_MENU_PATH = SCRIPTS_DIR / "start_menu.py"
+
+_spec = importlib.util.spec_from_file_location("start_menu", START_MENU_PATH)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Cannot load spec from {START_MENU_PATH}")
+start_menu = importlib.util.module_from_spec(_spec)
+sys.modules["start_menu"] = start_menu
+sys.modules["scripts.start_menu"] = start_menu
+_spec.loader.exec_module(start_menu)
+
+DEFAULT_APP_PORT = start_menu.DEFAULT_APP_PORT
+DEFAULT_OLLAMA_TIMEOUT = start_menu.DEFAULT_OLLAMA_TIMEOUT
+DEFAULT_SETUP_PORT = start_menu.DEFAULT_SETUP_PORT
+MENU_CONFIG_FILENAME = start_menu.MENU_CONFIG_FILENAME
+MENU_CONFIG_SCHEMA = start_menu.MENU_CONFIG_SCHEMA
+StartMenuController = start_menu.StartMenuController
+build_parser = start_menu.build_parser
+get_text = start_menu.get_text
+inspect_launch_config = start_menu.inspect_launch_config
+is_loopback_host = start_menu.is_loopback_host
+load_menu_config = start_menu.load_menu_config
+main = start_menu.main
+normalize_action = start_menu.normalize_action
+save_menu_language = start_menu.save_menu_language
+validate_access_url = start_menu.validate_access_url
+
+
+
+# ============================================================================
+# 1. START.cmd Pure ASCII Verification
+# ============================================================================
+
+def test_start_cmd_remains_pure_ascii() -> None:
+    """Verify that scripts/START.cmd exists and contains strictly pure ASCII characters."""
+    start_cmd = SCRIPTS_DIR / "START.cmd"
+    assert start_cmd.is_file(), f"scripts/START.cmd not found at {start_cmd}"
+
+    raw_bytes = start_cmd.read_bytes()
+    assert len(raw_bytes) > 0, "scripts/START.cmd must not be empty"
+
+    non_ascii_bytes = [(i, b) for i, b in enumerate(raw_bytes) if b >= 128]
+    assert not non_ascii_bytes, f"Non-ASCII bytes found in START.cmd: {non_ascii_bytes}"
+
+    # Must decode cleanly with strict ASCII codec
+    text = raw_bytes.decode("ascii")
+    assert "@echo off" in text
+    assert "start_menu.py" in text
+
+    # Check root START.cmd if it exists
+    root_cmd = REPO_ROOT / "START.cmd"
+    if root_cmd.is_file():
+        root_raw = root_cmd.read_bytes()
+        root_non_ascii = [b for b in root_raw if b >= 128]
+        assert not root_non_ascii, f"Non-ASCII bytes in root START.cmd: {root_non_ascii}"
+        root_raw.decode("ascii")
+
+
+# ============================================================================
+# 2. Action Normalization (Numeric and Name Choices)
+# ============================================================================
+
+@pytest.mark.parametrize(
+    ("raw_input", "expected"),
+    [
+        # Option 1: FolderHome app
+        ("1", "1"),
+        (" 1 ", "1"),
+        ("folderhome", "1"),
+        ("FolderHome", "1"),
+        ("FOLDERHOME", "1"),
+        ("app", "1"),
+        ("APP", "1"),
+        ("folder-home", "1"),
+        ("1. folderhome", "1"),
+        ("1 folderhome", "1"),
+        # Option 2: Setup
+        ("2", "2"),
+        (" 2 ", "2"),
+        ("setup", "2"),
+        ("Setup", "2"),
+        ("SETUP", "2"),
+        ("einrichtung", "2"),
+        ("Einrichtung", "2"),
+        ("EINRICHTUNG", "2"),
+        ("2. setup", "2"),
+        ("2 setup", "2"),
+        # Option 3: Both
+        ("3", "3"),
+        (" 3 ", "3"),
+        ("both", "3"),
+        ("Both", "3"),
+        ("BOTH", "3"),
+        ("beides", "3"),
+        ("Beides", "3"),
+        ("BEIDES", "3"),
+        ("3. both", "3"),
+        ("3 both", "3"),
+        ("3. beides", "3"),
+        ("3 beides", "3"),
+        # Option 4: Language
+        ("4", "4"),
+        (" 4 ", "4"),
+        ("language", "4"),
+        ("Language", "4"),
+        ("LANGUAGE", "4"),
+        ("sprache", "4"),
+        ("Sprache", "4"),
+        ("SPRACHE", "4"),
+        ("lang", "4"),
+        ("4. language", "4"),
+        ("4 language", "4"),
+        ("4. sprache", "4"),
+        ("4 sprache", "4"),
+        # Option q: Quit
+        ("q", "q"),
+        ("Q", "q"),
+        ("quit", "q"),
+        ("Quit", "q"),
+        ("QUIT", "q"),
+        ("exit", "q"),
+        ("EXIT", "q"),
+        ("beenden", "q"),
+        ("Beenden", "q"),
+        ("stop", "q"),
+        ("close", "q"),
+        # Invalid / Unrecognized
+        ("0", None),
+        ("5", None),
+        ("-1", None),
+        ("help", None),
+        ("unknown", None),
+        ("", None),
+        ("   ", None),
+    ],
+)
+def test_normalize_action_choices(raw_input: str, expected: str | None) -> None:
+    assert normalize_action(raw_input) == expected
+
+
+# ============================================================================
+# 3. English Default and Translations
+# ============================================================================
+
+def test_default_language_is_english_when_no_config(tmp_path: Path) -> None:
+    config = load_menu_config(tmp_path)
+    assert config == {"language": "en"}
+
+    controller = StartMenuController(tmp_path)
+    assert controller.language == "en"
+    assert "=== FolderHome Starter ===" in controller.t("title")
+    assert "Select an option" in controller.t("prompt_choice")
+    assert "Starting FolderHome..." in controller.t("launching_app")
+
+
+def test_load_menu_config_handles_missing_corrupt_or_malformed_files(tmp_path: Path) -> None:
+    # Non-existent config
+    assert load_menu_config(tmp_path / "nonexistent") == {"language": "en"}
+
+    # Corrupt JSON
+    cfg_file = tmp_path / MENU_CONFIG_FILENAME
+    cfg_file.write_text("NOT_VALID_JSON{", encoding="utf-8")
+    assert load_menu_config(tmp_path) == {"language": "en"}
+
+    # JSON with primitive or list rather than dict
+    cfg_file.write_text('"english"', encoding="utf-8")
+    assert load_menu_config(tmp_path) == {"language": "en"}
+
+    cfg_file.write_text('["en", "de"]', encoding="utf-8")
+    assert load_menu_config(tmp_path) == {"language": "en"}
+
+    # Unsupported language in config falls back to default 'en' in controller
+    cfg_file.write_text(json.dumps({"language": "es"}), encoding="utf-8")
+    ctrl = StartMenuController(tmp_path)
+    assert ctrl.language == "en"
+
+
+def test_get_text_fallbacks_and_placeholders() -> None:
+    # Existing key with placeholder
+    rendered = get_text("en", "config_dir_info", path="C:/test/path")
+    assert "C:/test/path" in rendered
+
+    # Fallback when key missing in German
+    rendered_fallback = get_text("de", "non_existent_key")
+    assert rendered_fallback == "non_existent_key"
+
+
+# ============================================================================
+# 4. start_menu.json Language Persistence
+# ============================================================================
+
+def test_save_menu_language_persists_schema_and_language(tmp_path: Path) -> None:
+    save_menu_language(tmp_path, "de")
+    cfg_path = tmp_path / MENU_CONFIG_FILENAME
+    assert cfg_path.is_file()
+
+    payload = json.loads(cfg_path.read_text(encoding="utf-8"))
+    assert payload["schema"] == MENU_CONFIG_SCHEMA
+    assert payload["language"] == "de"
+
+    # New controller instance automatically picks up saved language
+    controller = StartMenuController(tmp_path)
+    assert controller.language == "de"
+    assert "Option auswählen" in controller.t("prompt_choice")
+
+
+def test_change_language_flow_interactive_switch_and_persistence(tmp_path: Path) -> None:
+    logs: list[str] = []
+    # Initial controller with English default
+    controller = StartMenuController(
+        tmp_path,
+        input_func=lambda prompt: "2",  # Choose Deutsch
+        print_func=logs.append,
+    )
+    assert controller.language == "en"
+
+    controller.change_language_flow()
+    assert controller.language == "de"
+    assert any("Sprache auf Deutsch gesetzt" in msg for msg in logs)
+
+    cfg = json.loads((tmp_path / MENU_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    assert cfg["language"] == "de"
+
+    # Now switch back to English with "1"
+    logs.clear()
+    controller.input_func = lambda prompt: "1"  # Choose English
+    controller.change_language_flow()
+    assert controller.language == "en"
+    assert any("Language set to English" in msg for msg in logs)
+
+    cfg = json.loads((tmp_path / MENU_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    assert cfg["language"] == "en"
+
+
+def test_controller_explicit_language_override_persists(tmp_path: Path) -> None:
+    # Explicit language='de' passed at init
+    controller = StartMenuController(tmp_path, language="de")
+    assert controller.language == "de"
+    cfg = json.loads((tmp_path / MENU_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    assert cfg["language"] == "de"
+
+
+# ============================================================================
+# 5. Menu Options Resolution (1, 2, 3, 4, q)
+# ============================================================================
+
+def test_option_1_resolves_app_cmd_and_url(tmp_path: Path) -> None:
+    app_script = tmp_path / "START-APP.cmd"
+    app_script.write_text("@echo off\n", encoding="ascii")
+
+    controller = StartMenuController(tmp_path, dry_run=True)
+    cmd, url, err = controller.resolve_app_command_and_url()
+
+    assert err is None
+    assert cmd is not None
+    assert cmd[0] == str(app_script)
+    assert "--json" in cmd
+    assert url is None
+
+
+def test_option_2_resolves_setup_cmd_and_url(tmp_path: Path) -> None:
+    setup_script = tmp_path / "START-SETUP.cmd"
+    setup_script.write_text("@echo off\n", encoding="ascii")
+
+    controller = StartMenuController(tmp_path, dry_run=True)
+    cmd, url, err = controller.resolve_setup_command_and_url()
+
+    assert err is None
+    assert cmd is not None
+    assert cmd[0] == str(setup_script)
+    assert "--config-dir" in cmd
+    assert str(tmp_path) in cmd
+    assert "--json" in cmd
+    assert url is None
+
+
+def test_option_3_resolves_both_app_and_setup(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    logs: list[str] = []
+    controller = StartMenuController(tmp_path, dry_run=True, print_func=logs.append)
+    code = controller.run_action("3")
+
+    assert code == 0
+    full_log = "\n".join(logs)
+    assert "Starting FolderHome..." in full_log
+    assert "Starting Setup..." in full_log
+    assert "[Dry-run Command]" in full_log
+    assert "http://127.0.0.1" not in full_log
+    assert "[Dry-run] Operation completed without launching subprocesses." in full_log
+
+
+def test_option_4_via_run_action_switches_language(tmp_path: Path) -> None:
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        input_func=lambda prompt: "2",
+        print_func=logs.append,
+    )
+    code = controller.run_action("4")
+    assert code == 0
+    assert controller.language == "de"
+
+
+def test_option_quit_returns_cleanly(tmp_path: Path) -> None:
+    logs: list[str] = []
+    controller = StartMenuController(tmp_path, print_func=logs.append)
+    code = controller.run_action("q")
+    assert code == 0
+    assert any("Exiting starter menu" in msg for msg in logs)
+
+
+def test_option_invalid_returns_code_1(tmp_path: Path) -> None:
+    logs: list[str] = []
+    controller = StartMenuController(tmp_path, print_func=logs.append)
+    code = controller.run_action("unrecognized_action")
+    assert code == 1
+    assert any("Unknown option 'unrecognized_action'" in msg for msg in logs)
+
+
+def test_missing_starter_scripts_fail_gracefully_with_nonzero_exitcode(tmp_path: Path) -> None:
+    # Option 1 (FolderHome) without START-APP.cmd
+    logs1: list[str] = []
+    controller1 = StartMenuController(tmp_path, dry_run=True, print_func=logs1.append)
+    code1 = controller1.run_action("1")
+    assert code1 == 1
+    assert any("START-APP.cmd was not found" in msg for msg in logs1)
+
+    # Option 2 (Setup) without START-SETUP.cmd
+    logs2: list[str] = []
+    controller2 = StartMenuController(tmp_path, dry_run=True, print_func=logs2.append)
+    code2 = controller2.run_action("2")
+    assert code2 == 1
+    assert any("START-SETUP.cmd was not found" in msg for msg in logs2)
+
+    # Option 3 (Both) without wrappers
+    logs3: list[str] = []
+    controller3 = StartMenuController(tmp_path, dry_run=True, print_func=logs3.append)
+    code3 = controller3.run_action("3")
+    assert code3 == 1
+    assert any("START-APP.cmd was not found" in msg for msg in logs3)
+    assert any("START-SETUP.cmd was not found" in msg for msg in logs3)
+
+
+def test_start_cmd_propagates_nonzero_exit_codes(tmp_path: Path) -> None:
+    import subprocess
+
+    start_cmd = SCRIPTS_DIR / "START.cmd"
+    assert start_cmd.is_file()
+
+    # 1. Missing wrapper on action 1 must propagate exit code 1
+    res1 = subprocess.run(
+        ["cmd.exe", "/c", str(start_cmd), "--config-dir", str(tmp_path), "--action", "1"],
+        capture_output=True,
+        text=True,
+    )
+    assert res1.returncode == 1
+    assert "START-APP.cmd" in res1.stdout
+
+    # 2. Mutually exclusive arguments must propagate parser exit code 2
+    res2 = subprocess.run(
+        [
+            "cmd.exe",
+            "/c",
+            str(start_cmd),
+            "--config-dir",
+            str(tmp_path),
+            "--confirm-gates",
+            "--deny-gates",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res2.returncode == 2
+
+
+# ============================================================================
+# 6. Explicit Network and Cloud Gates
+# ============================================================================
+
+def test_inspect_launch_config_remote_and_cloud_detection(tmp_path: Path) -> None:
+    launch_path = tmp_path / "launch.json"
+
+    # Hosted providers: bedrock, anthropic, openai
+    for provider in ("bedrock", "anthropic", "openai"):
+        launch_path.write_text(
+            json.dumps({"model_preset": f"{provider}-model", "model_provider": provider}),
+            encoding="utf-8",
+        )
+        info = inspect_launch_config(launch_path)
+        assert info["is_remote_or_cloud"] is True, f"{provider} should be remote/cloud"
+        assert info["is_ollama"] is False
+
+    # Ollama on loopback host: not remote/cloud (127.0.0.1, localhost, ::1 only)
+    for host in (
+        "127.0.0.1:11434",
+        "localhost:11434",
+        "http://127.0.0.1:11434",
+        "http://localhost:11434",
+        "::1",
+        "[::1]:11434",
+        "http://[::1]:11434",
+    ):
+        launch_path.write_text(
+            json.dumps({
+                "model_preset": "deepseek-coder",
+                "model_provider": "ollama",
+                "ollama_host": host,
+            }),
+            encoding="utf-8",
+        )
+        info = inspect_launch_config(launch_path)
+        assert info["is_ollama"] is True
+        assert info["is_remote_or_cloud"] is False, f"Loopback host {host} should not be cloud"
+
+    # Ollama on remote host or non-loopback lookalikes: remote/cloud detected
+    for remote_host in (
+        "http://192.168.1.80:11434",
+        "0.0.0.0",
+        "0.0.0.0:11434",
+        "http://0.0.0.0:11434",
+        "127.0.0.1.evil.invalid",
+        "http://127.0.0.1.evil.invalid:11434",
+        "localhost.evil.invalid",
+    ):
+        launch_path.write_text(
+            json.dumps({
+                "model_preset": "deepseek-coder",
+                "model_provider": "ollama",
+                "ollama_host": remote_host,
+            }),
+            encoding="utf-8",
+        )
+        info = inspect_launch_config(launch_path)
+        assert info["is_ollama"] is True
+        assert info["is_remote_or_cloud"] is True, f"Host {remote_host} should be remote/cloud"
+
+    # Nested model_presets dictionary lookup
+    launch_path.write_text(
+        json.dumps({
+            "model_preset": "remote-preset",
+            "model_presets": {
+                "remote-preset": {"model_provider": "openai"}
+            },
+        }),
+        encoding="utf-8",
+    )
+    info = inspect_launch_config(launch_path)
+    assert info["provider"] == "openai"
+    assert info["is_remote_or_cloud"] is True
+
+
+def test_cloud_gates_explicitly_granted_with_confirm_flag(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "claude-sonnet", "model_provider": "anthropic"}),
+        encoding="utf-8",
+    )
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        confirm_gates=True,
+        dry_run=True,
+        print_func=logs.append,
+    )
+    cmd, _, _ = controller.resolve_app_command_and_url()
+
+    assert cmd is not None
+    assert "--allow-network" in cmd
+    assert "--approve-sensitive-cloud-data" in cmd
+    assert any("Network and cloud data gates approved" in msg for msg in logs)
+
+
+def test_cloud_gates_explicitly_denied_with_deny_flag(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "claude-sonnet", "model_provider": "anthropic"}),
+        encoding="utf-8",
+    )
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        confirm_gates=False,
+        dry_run=True,
+        print_func=logs.append,
+    )
+    cmd, _, _ = controller.resolve_app_command_and_url()
+
+    assert cmd is not None
+    assert "--allow-network" not in cmd
+    assert "--approve-sensitive-cloud-data" not in cmd
+    assert any("No network or cloud gates granted (fail-closed)" in msg for msg in logs)
+
+
+def test_cloud_gates_interactive_prompt_requires_explicit_yes(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "gpt-4o", "model_provider": "openai"}),
+        encoding="utf-8",
+    )
+
+    # Empty answer / Enter -> fail closed
+    logs_denied: list[str] = []
+    ctrl_denied = StartMenuController(
+        tmp_path,
+        confirm_gates=None,
+        input_func=lambda prompt: "",
+        dry_run=True,
+        print_func=logs_denied.append,
+    )
+    cmd_denied, _, _ = ctrl_denied.resolve_app_command_and_url()
+    assert "--allow-network" not in (cmd_denied or [])
+    assert any("No network or cloud gates granted" in m for m in logs_denied)
+
+    # Explicit 'y' -> granted
+    logs_granted: list[str] = []
+    ctrl_granted = StartMenuController(
+        tmp_path,
+        confirm_gates=None,
+        input_func=lambda prompt: "y",
+        dry_run=True,
+        print_func=logs_granted.append,
+    )
+    cmd_granted, _, _ = ctrl_granted.resolve_app_command_and_url()
+    assert "--allow-network" in (cmd_granted or [])
+    assert any("Network and cloud data gates approved" in m for m in logs_granted)
+
+
+# ============================================================================
+# 7. Ollama 600 Second Timeout
+# ============================================================================
+
+def test_ollama_timeout_600s_applied_for_ollama_provider(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "qwen2.5-coder", "model_provider": "ollama"}),
+        encoding="utf-8",
+    )
+
+    logs: list[str] = []
+    controller = StartMenuController(tmp_path, dry_run=True, print_func=logs.append)
+    cmd, _, _ = controller.resolve_app_command_and_url()
+
+    assert cmd is not None
+    assert "--model-timeout-seconds" in cmd
+    idx = cmd.index("--model-timeout-seconds")
+    assert cmd[idx + 1] == str(DEFAULT_OLLAMA_TIMEOUT)
+    assert str(DEFAULT_OLLAMA_TIMEOUT) == "600"
+    assert any(f"Applied Ollama model timeout: {DEFAULT_OLLAMA_TIMEOUT}s" in m for m in logs)
+
+
+def test_ollama_timeout_applied_when_preset_name_contains_ollama(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "my-ollama-runner", "model_provider": "local"}),
+        encoding="utf-8",
+    )
+
+    logs: list[str] = []
+    controller = StartMenuController(tmp_path, dry_run=True, print_func=logs.append)
+    cmd, _, _ = controller.resolve_app_command_and_url()
+
+    assert cmd is not None
+    assert "--model-timeout-seconds" in cmd
+    idx = cmd.index("--model-timeout-seconds")
+    assert cmd[idx + 1] == "600"
+
+
+def test_non_ollama_presets_do_not_receive_ollama_timeout(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+    launch_path.write_text(
+        json.dumps({"model_preset": "default-fixture", "model_provider": "fixture"}),
+        encoding="utf-8",
+    )
+
+    controller = StartMenuController(tmp_path, dry_run=True)
+    cmd, _, _ = controller.resolve_app_command_and_url()
+
+    assert cmd is not None
+    assert "--model-timeout-seconds" not in cmd
+
+
+# ============================================================================
+# 8. Dry-Run (No Subprocess & No User-Config Mutation)
+# ============================================================================
+
+def test_dry_run_never_spawns_subprocesses_or_browser(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    mock_runner = MagicMock()
+    mock_browser = MagicMock()
+    logs: list[str] = []
+
+    controller = StartMenuController(
+        tmp_path,
+        dry_run=True,
+        subprocess_runner=mock_runner,
+        browser_opener=mock_browser,
+        print_func=logs.append,
+    )
+
+    # Run actions 1, 2, 3
+    for act in ("1", "2", "3"):
+        code = controller.run_action(act)
+        assert code == 0
+
+    assert mock_runner.call_count == 0, "Subprocess runner was invoked during dry-run"
+    assert mock_browser.call_count == 0, "Browser opener was invoked during dry-run"
+
+    full_output = "\n".join(logs)
+    assert "[Dry-run Command]" in full_output
+    assert "http://127.0.0.1" not in full_output
+    assert "[Dry-run] Operation completed without launching subprocesses." in full_output
+
+
+def test_dry_run_leaves_user_config_unmutated(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_file = tmp_path / "launch.json"
+    initial_content = json.dumps({"model_preset": "original", "user_key": 12345}, indent=2)
+    launch_file.write_text(initial_content, encoding="utf-8")
+
+    controller = StartMenuController(tmp_path, dry_run=True)
+    controller.run_action("1")
+
+    # Verify launch.json is byte-for-byte unchanged
+    assert launch_file.read_text(encoding="utf-8") == initial_content
+
+
+# ============================================================================
+# 9. CLI Parser and Main Entrypoint Integration
+# ============================================================================
+
+def test_cli_parser_defaults() -> None:
+    parser = build_parser()
+    args = parser.parse_args([])
+    assert args.config_dir is None
+    assert args.dry_run is False
+    assert args.action is None
+    assert args.language is None
+    assert args.confirm_gates is None
+    assert args.deny_gates is None
+    assert args.no_browser is False
+
+
+def test_main_cli_dry_run_action_execution(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    logs: list[str] = []
+
+    code = main(
+        ["--config-dir", str(tmp_path), "--dry-run", "--action", "folderhome"],
+        print_func=logs.append,
+    )
+    assert code == 0
+    full_output = "\n".join(logs)
+    assert "Starting FolderHome..." in full_output
+    assert "[Dry-run Command]" in full_output
+
+
+def test_main_cli_interactive_loop_flow(tmp_path: Path) -> None:
+    # User tries invalid input, then selects '4' (language), picks '2' (de), then 'q' (quit)
+    user_inputs = iter(["invalid_choice", "4", "2", "q"])
+    logs: list[str] = []
+
+    code = main(
+        ["--config-dir", str(tmp_path)],
+        input_func=lambda prompt: next(user_inputs),
+        print_func=logs.append,
+    )
+    assert code == 0
+    full_output = "\n".join(logs)
+    assert "=== FolderHome Starter ===" in full_output
+    assert "Unknown option 'invalid_choice'" in full_output
+    assert "Sprache auf Deutsch gesetzt" in full_output
+    assert "Starter-Menü beendet." in full_output
+
+    # start_menu.json should reflect German selection
+    cfg = json.loads((tmp_path / MENU_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    assert cfg["language"] == "de"
+
+
+# ============================================================================
+# 10. Regression Tests: Dry-Run Language Persistence & Host Classification
+# ============================================================================
+
+def test_dry_run_with_explicit_language_never_writes_start_menu_json(tmp_path: Path) -> None:
+    # Initializing with explicit language 'de' in dry_run mode
+    ctrl_de = StartMenuController(tmp_path, language="de", dry_run=True)
+    assert ctrl_de.language == "de"
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+    # Initializing with explicit language 'en' in dry_run mode
+    ctrl_en = StartMenuController(tmp_path, language="en", dry_run=True)
+    assert ctrl_en.language == "en"
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+
+def test_dry_run_menu_option_4_never_writes_start_menu_json(tmp_path: Path) -> None:
+    logs: list[str] = []
+    ctrl = StartMenuController(
+        tmp_path,
+        dry_run=True,
+        input_func=lambda prompt: "2",
+        print_func=logs.append,
+    )
+    # Direct change_language_flow call
+    ctrl.change_language_flow()
+    assert ctrl.language == "de"
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+    # Via run_action("4")
+    ctrl.input_func = lambda prompt: "1"
+    code = ctrl.run_action("4")
+    assert code == 0
+    assert ctrl.language == "en"
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+
+def test_dry_run_main_cli_option_4_and_explicit_language_never_write(tmp_path: Path) -> None:
+    # CLI with --language de --dry-run
+    code = main(
+        ["--config-dir", str(tmp_path), "--dry-run", "--language", "de", "--action", "q"],
+        print_func=lambda _: None,
+    )
+    assert code == 0
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+    # CLI with --dry-run --action 4
+    code2 = main(
+        ["--config-dir", str(tmp_path), "--dry-run", "--action", "4"],
+        input_func=lambda _: "2",
+        print_func=lambda _: None,
+    )
+    assert code2 == 0
+    assert not (tmp_path / MENU_CONFIG_FILENAME).exists()
+
+
+def test_dry_run_preserves_preexisting_start_menu_json(tmp_path: Path) -> None:
+    cfg_file = tmp_path / MENU_CONFIG_FILENAME
+    original_content = json.dumps({"schema": MENU_CONFIG_SCHEMA, "language": "en"}, indent=2) + "\n"
+    cfg_file.write_text(original_content, encoding="utf-8")
+
+    ctrl = StartMenuController(
+        tmp_path,
+        language="de",
+        dry_run=True,
+        input_func=lambda _: "2",
+        print_func=lambda _: None,
+    )
+    ctrl.change_language_flow()
+    assert ctrl.language == "de"
+    # The file on disk must still contain the unmutated original content
+    assert cfg_file.read_text(encoding="utf-8") == original_content
+
+
+def test_is_loopback_host_exact_and_fail_closed() -> None:
+    # Literal loopback hosts, including the complete IPv4 127/8 range
+    for loopback in (
+        "127.0.0.1",
+        "127.0.0.2",
+        "127.12.34.56",
+        "127.255.255.254",
+        "localhost",
+        "::1",
+        "[::1]",
+        "http://127.0.0.1:11434",
+        "http://localhost:11434",
+        "http://[::1]:11434",
+        "http://127.0.0.1:11434/",
+        "127.0.0.1:11434",
+        "localhost:11434",
+        "[::1]:11434",
+        "https://127.0.0.1:11434",
+        "https://localhost:11434",
+        "http://127.0.0.2:11434",
+        "127.0.0.2:11434",
+    ):
+        assert is_loopback_host(loopback) is True, f"{loopback} must be loopback"
+
+    # Remote hosts, 0.0.0.0, and lookalikes must fail closed
+    for remote in (
+        "0.0.0.0",
+        "0.0.0.0:11434",
+        "http://0.0.0.0:11434",
+        "https://0.0.0.0:11434",
+        "127.0.0.1.evil.invalid",
+        "http://127.0.0.1.evil.invalid:11434",
+        "127.0.0.1.evil.invalid:11434",
+        "localhost.evil.invalid",
+        "http://localhost.evil.invalid:11434",
+        "::1.evil.invalid",
+        "192.168.1.1",
+        "http://192.168.1.80:11434",
+        "http://example.com:11434",
+        "127.0.0.1@evil.com",
+        "http://user:pass@127.0.0.1.evil.com",
+        "",
+        "   ",
+        None,
+    ):
+        assert is_loopback_host(remote) is False, f"{remote} must be remote"
+
+
+def test_remote_lookalikes_and_all_interfaces_require_both_explicit_gates(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    launch_path = tmp_path / "launch.json"
+
+    for remote_host in ("http://0.0.0.0:11434", "http://127.0.0.1.evil.invalid:11434"):
+        launch_path.write_text(
+            json.dumps({
+                "model_preset": "test-remote",
+                "model_provider": "ollama",
+                "ollama_host": remote_host,
+            }),
+            encoding="utf-8",
+        )
+
+        # 1. Fail-closed: unconfirmed prompt -> neither gate granted
+        logs_denied: list[str] = []
+        ctrl_denied = StartMenuController(
+            tmp_path,
+            confirm_gates=None,
+            input_func=lambda prompt: "n",
+            dry_run=True,
+            print_func=logs_denied.append,
+        )
+        cmd_denied, _, _ = ctrl_denied.resolve_app_command_and_url()
+        assert cmd_denied is not None
+        assert "--allow-network" not in cmd_denied
+        assert "--approve-sensitive-cloud-data" not in cmd_denied
+        assert any("Remote/cloud model preset" in m for m in logs_denied)
+        assert any("No network or cloud gates granted (fail-closed)" in m for m in logs_denied)
+
+        # 2. Confirmed: both gates granted
+        logs_granted: list[str] = []
+        ctrl_granted = StartMenuController(
+            tmp_path,
+            confirm_gates=True,
+            dry_run=True,
+            print_func=logs_granted.append,
+        )
+        cmd_granted, _, _ = ctrl_granted.resolve_app_command_and_url()
+        assert cmd_granted is not None
+        assert "--allow-network" in cmd_granted
+        assert "--approve-sensitive-cloud-data" in cmd_granted
+        assert any("Network and cloud data gates approved" in m for m in logs_granted)
+
+
+def test_confirm_and_deny_gates_are_mutually_exclusive() -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--confirm-gates", "--deny-gates"])
+
+
+def test_confirm_gates_and_deny_gates_parse_individually() -> None:
+    parser = build_parser()
+    args_confirm = parser.parse_args(["--confirm-gates"])
+    assert args_confirm.confirm_gates is True
+    assert args_confirm.deny_gates is None
+
+    args_deny = parser.parse_args(["--deny-gates"])
+    assert args_deny.deny_gates is True
+    assert args_deny.confirm_gates is None
+
+
+def test_main_with_mutually_exclusive_gates_raises_exit(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        main(["--config-dir", str(tmp_path), "--confirm-gates", "--deny-gates"])
+
+
+# ============================================================================
+# 11. Controlled Regression Tests: URL Validation, Fake Processes & Browser Spy
+# ============================================================================
+
+
+class FakeProcess:
+    def __init__(
+        self,
+        *,
+        stdout_lines: list[str] | None = None,
+        stderr_lines: list[str] | None = None,
+        returncode: int | None = None,
+        poll_sequence: list[int | None] | None = None,
+        can_terminate: bool = True,
+    ) -> None:
+        self._stdout_lines = list(stdout_lines or [])
+        self._stderr_lines = list(stderr_lines or [])
+        self.stdout = io.StringIO(
+            "\n".join(self._stdout_lines) + ("\n" if self._stdout_lines else "")
+        )
+        self.stderr = io.StringIO(
+            "\n".join(self._stderr_lines) + ("\n" if self._stderr_lines else "")
+        )
+        self.returncode = returncode
+        self._poll_seq = list(poll_sequence) if poll_sequence is not None else None
+        self._poll_idx = 0
+        self.terminated = False
+        self.killed = False
+        self.can_terminate = can_terminate
+        self.pid = None
+
+    def poll(self) -> int | None:
+        if (self.terminated or self.killed) and self.can_terminate:
+            return self.returncode
+        if self._poll_seq is not None:
+            if self._poll_idx < len(self._poll_seq):
+                val = self._poll_seq[self._poll_idx]
+                self._poll_idx += 1
+                self.returncode = val
+                return val
+            return self._poll_seq[-1]
+        return self.returncode
+
+    def terminate(self) -> None:
+        self.terminated = True
+        if self.can_terminate and self.returncode is None:
+            self.returncode = -15
+
+    def kill(self) -> None:
+        self.killed = True
+        if self.can_terminate and self.returncode is None:
+            self.returncode = -9
+
+    def wait(self, timeout: float | None = None) -> int | None:
+        return self.returncode
+
+
+def test_validate_access_url_rules() -> None:
+    # Valid loopback URLs with tokens
+    for ok_url in (
+        "http://127.0.0.1:8765/?token=secret-token",
+        "http://localhost:8766/?token=another-token",
+        "http://[::1]:8765/?token=ipv6-token",
+    ):
+        assert validate_access_url(ok_url) is None
+
+    # Invalid: tokenless root URLs
+    for tokenless in (
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/?other=param",
+        "http://127.0.0.1:8765/?token=",
+        "http://127.0.0.1:8765/?token=   ",
+    ):
+        err = validate_access_url(tokenless)
+        assert err is not None
+        assert "token" in err
+
+    # Invalid: non-loopback hosts
+    for non_loopback in (
+        "http://0.0.0.0:8765/?token=tok",
+        "http://192.168.1.1:8765/?token=tok",
+        "http://127.0.0.1.evil.com:8765/?token=tok",
+        "http://example.com:8765/?token=tok",
+    ):
+        err = validate_access_url(non_loopback)
+        assert err is not None
+        assert "loopback" in err
+
+    # Invalid: non-http schemes
+    for non_http in (
+        "https://127.0.0.1:8765/?token=tok",
+        "file://127.0.0.1:8765/?token=tok",
+    ):
+        err = validate_access_url(non_http)
+        assert err is not None
+        assert "HTTP" in err
+
+
+def test_real_run_action_1_captures_access_url_from_json_and_opens_browser(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    expected_url = "http://127.0.0.1:8765/?token=test-app-token-12345"
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({
+            "schema": "folderhome.local-server-start.v1",
+            "access_url": expected_url,
+        })],
+        poll_sequence=[None, None, None, 0],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("1")
+    assert code == 0
+    browser_spy.assert_called_once_with(expected_url)
+    assert any("FolderHome URL: http://127.0.0.1:8765/" in msg for msg in logs)
+    assert not any("token=" in msg for msg in logs)
+    assert not any("test-app-token-12345" in msg for msg in logs)
+
+
+def test_real_run_action_rejects_tokenless_url_fails_closed_without_browser(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/"})],
+        poll_sequence=[None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_rejects_non_loopback_url_fails_closed_without_browser(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://192.168.1.100:8765/?token=secret"})],
+        poll_sequence=[None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_fails_closed_on_bootstrap_timeout(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[None, None, None],
+    )
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        bootstrap_timeout=0.05,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+
+
+def test_real_run_action_fails_closed_on_popen_oserror_without_browser(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    def failing_runner(*args, **kwargs):
+        raise OSError("Process creation failed")
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=failing_runner,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+
+
+def test_action_3_fails_closed_and_terminates_sibling_when_second_popen_raises_oserror(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    proc1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok1"})],
+        poll_sequence=[None, None],
+    )
+
+    call_count = 0
+
+    def mixed_runner(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return proc1
+        raise OSError("Setup process spawn failed")
+
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=mixed_runner,
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    assert code == 1
+    assert proc1.terminated is True
+    assert browser_spy.call_count == 0
+
+
+def test_action_3_detects_nonzero_child_immediately_and_terminates_living_sibling(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1 stays alive; Child 2 fails on second poll with returncode 2
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None, None],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None, None, None, 2],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    # Immediate non-zero detection: returns Child 2's exit code 2
+    assert code == 2
+    # Living sibling Child 1 must be cleanly terminated
+    assert child1.terminated is True
+    # Both URLs were safely opened prior to the subsequent crash
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
+
+def test_action_3_successful_children_run_together_until_clean_completion(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None, 0],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None, None, None, 0],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=lambda _: None,
+    )
+
+    code = controller.run_action("3")
+    # Finding 3: Premature exit of long-lived child (even exit code 0) without Ctrl+C is an error
+    assert code == 1
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
+
+def test_action_3_fails_fast_when_sibling_crashes_during_bootstrap(tmp_path: Path) -> None:
+    """Child 2 crashes during bootstrap while Child 1 is still waiting.
+
+    Must immediately abort, terminate Child 1, open no browser, and return Child 2's exit code.
+    """
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    # Child 1: alive but produces no URL
+    child1 = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[None, None, None],
+    )
+    # Child 2: crashes immediately with code 42
+    child2 = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[42],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        bootstrap_timeout=5.0,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 42
+    assert child1.terminated is True
+    assert browser_spy.call_count == 0
+    assert any("exited prematurely with code 42" in msg for msg in logs)
+
+
+def test_action_3_detects_early_server_exit_before_browser_opening(tmp_path: Path) -> None:
+    """Child 1 emits URL but exits before Child 2 finishes bootstrap and before browser launch.
+
+    Must fail closed, open no browser, terminate Child 2, and return non-zero exit code.
+    """
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=secret1"
+    url2 = "http://127.0.0.1:8766/?token=secret2"
+
+    # Child 1 emits URL and terminates immediately with code 0 before browser launch
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[0],
+    )
+    # Child 2 is still running
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code != 0
+    assert child2.terminated is True
+    assert browser_spy.call_count == 0
+    assert any("exited prematurely before browser launch" in msg for msg in logs)
+
+
+def test_action_3_console_redacts_tokens_while_browser_receives_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-sensitive-token"
+    url2 = "http://127.0.0.1:8766/?token=setup-sensitive-token"
+
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None, None],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None, None, None, None],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    def fake_sleep(sec: float) -> None:
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("time.sleep", fake_sleep)
+
+    code = controller.run_action("3")
+    assert code == 0
+    # Browser opener receives authentic URLs with tokens
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
+    # Console output contains ONLY sanitized loopback URLs without tokens
+    assert any("FolderHome URL: http://127.0.0.1:8765/" in msg for msg in logs)
+    assert any("Setup URL: http://127.0.0.1:8766/" in msg for msg in logs)
+    assert not any("token=" in msg for msg in logs)
+    assert not any("app-sensitive-token" in msg for msg in logs)
+    assert not any("setup-sensitive-token" in msg for msg in logs)
+
+
+def test_validate_access_url_does_not_leak_token_in_error_message() -> None:
+    err = validate_access_url("http://127.0.0.1:8765/?token=")
+    assert err is not None
+    assert "token" in err
+    # Ensure error message does not reflect input query strings
+    assert "http://" not in err
+    assert "127.0.0.1" not in err
+
+
+def test_invalid_access_url_with_non_numeric_port_fails_gracefully_without_unhandled_value_error(
+    tmp_path: Path,
+) -> None:
+    from scripts.start_menu import redact_url_credentials
+
+    # Test redact_url_credentials directly with non-numeric port
+    bad_url = "http://127.0.0.1:invalid_port/?token=sensitive_token"
+    redacted = redact_url_credentials(bad_url)
+    assert "sensitive_token" not in redacted
+
+    # Test validate_access_url with non-numeric port
+    err = validate_access_url(bad_url)
+    assert err is not None
+    assert "sensitive_token" not in err
+
+    # Test controller run with bad access_url cleans up child and returns 1
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": bad_url})],
+        poll_sequence=[None, None],
+    )
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert not any("sensitive_token" in msg for msg in logs)
+
+
+def test_redact_diagnostics_sanitizes_tokens_and_urls_in_child_stderr(tmp_path: Path) -> None:
+    from scripts.start_menu import redact_diagnostics
+
+    sample_diag = (
+        "Fatal error connecting to http://127.0.0.1:8765/?token=secret_12345 "
+        "with token in payload: {\"token\": \"secret_67890\"} and url http://secret:pass@127.0.0.1:8080/path"
+    )
+    cleaned = redact_diagnostics(sample_diag)
+    assert "secret_12345" not in cleaned
+    assert "secret_67890" not in cleaned
+    assert "secret:pass@" not in cleaned
+    assert "[REDACTED]" in cleaned
+
+
+def test_action_3_pre_browser_check_aborts_when_child_dies_before_browser_launch(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1: URL produced, stays alive
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None],
+    )
+    # Child 2: URL produced on poll 1, but dies on joint pre-browser check (poll 2) with code 42
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, 42],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 42
+    # Zero browsers opened!
+    assert browser_spy.call_count == 0
+    # Sibling child 1 terminated!
+    assert child1.terminated is True
+    assert not controller.processes
+
+
+def test_action_3_child_dies_between_first_and_second_browser_launch(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1: stays alive throughout
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None, None],
+    )
+    # Child 2: alive during bootstrap (poll 0), pre-browser check (poll 1),
+    # alive before browser 1 (poll 2), but dies before browser 2 (poll 3) with code 77
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None, None, 77],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 77
+    # Exactly one browser opened (for Child 1); second browser for Child 2 never opened!
+    assert browser_spy.call_count == 1
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    # Sibling child 1 terminated!
+    assert child1.terminated is True
+    assert not controller.processes
+
+
+def test_browser_opener_failure_is_fatal(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok"})],
+        poll_sequence=[None, None, None, None],
+    )
+    browser_mock = MagicMock(return_value=False)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_mock,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert any("Failed to open browser" in msg for msg in logs)
+
+
+def test_browser_opener_exception_is_fatal(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok"})],
+        poll_sequence=[None, None, None, None],
+    )
+    browser_mock = MagicMock(
+        side_effect=RuntimeError(
+            "Browser error with secret token: http://127.0.0.1:8765/?token=secret_pass_123"
+        )
+    )
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_mock,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert any("Failed to open browser" in msg for msg in logs)
+    assert not any("secret_pass_123" in msg for msg in logs)
+    assert any("http://127.0.0.1:8765/" in msg for msg in logs)
+
+
+def test_cleanup_processes_keeps_living_processes_and_omits_stopped_message() -> None:
+    # Process refusing to terminate
+    stubborn_proc = FakeProcess(
+        poll_sequence=[None] * 50,
+        can_terminate=False,
+    )
+    logs: list[str] = []
+    controller = StartMenuController(
+        Path("."),
+        print_func=logs.append,
+    )
+    controller.processes.append(stubborn_proc)
+
+    success = controller.cleanup_processes()
+    assert success is False
+    # Stubborn process must REMAIN in tracking list
+    assert stubborn_proc in controller.processes
+    # Must NOT claim that all processes stopped
+    assert not any("All processes stopped" in msg for msg in logs)
+    assert not any("Alle Prozesse beendet" in msg for msg in logs)
+
+
+def test_redact_diagnostics_comprehensive_positive_and_negative() -> None:
+    from scripts.start_menu import redact_diagnostics
+
+    # Positive test cases (must be redacted, leaving zero sensitive value behind)
+    cases = [
+        ("Authorization: Basic dXNlcjpwYXNz", "Authorization: [REDACTED]"),
+        (
+            "Authorization: AWS4-HMAC-SHA256 Credential=AKIA..., Signature=deadbeef",
+            "Authorization: [REDACTED]",
+        ),
+        ("child failed: token=super_secret_token", "child failed: token=[REDACTED]"),
+        ("URL mit user:pass@host:badport?token=secret", "URL mit [REDACTED_URL]"),
+        ("Authorization: Bearer secret-token-12345", "Authorization: [REDACTED]"),
+        ("Authorization: secret-token-basic", "Authorization: [REDACTED]"),
+        ("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "Bearer [REDACTED]"),
+        ("ANTHROPIC_API_KEY=sk-ant-api03-abcdef12345", "ANTHROPIC_API_KEY=[REDACTED]"),
+        ("export OPENAI_API_KEY=sk-proj-xyz987654321", "export OPENAI_API_KEY=[REDACTED]"),
+        (
+            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=[REDACTED]",
+        ),
+        ("AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE", "AWS_ACCESS_KEY_ID=[REDACTED]"),
+        ("AWS_SESSION_TOKEN=AQoDYXdzEJr1xyz123", "AWS_SESSION_TOKEN=[REDACTED]"),
+        ('STRIPE_API_KEY="dummy value with spaces"', 'STRIPE_API_KEY="[REDACTED]"'),
+        (
+            "CUSTOM_PROVIDER_SESSION_TOKEN: 'dummy session value'",
+            "CUSTOM_PROVIDER_SESSION_TOKEN: '[REDACTED]'",
+        ),
+        ("X-Api-Key: dummy-header-value", "X-Api-Key: [REDACTED]"),
+        ("client_secret=fixture-client-secret", "client_secret=[REDACTED]"),
+        (
+            "AWS4-HMAC-SHA256 Credential=AKIA/20260914/eu, Signature=deadbeef",
+            "AWS4-HMAC-SHA256 Credential=[REDACTED], Signature=[REDACTED]",
+        ),
+        ("password=super_secret_pw", "password=[REDACTED]"),
+        ("api_key: secret-api-key-value", "api_key: [REDACTED]"),
+        ('{"api_key": "my-json-key"}', '{"api_key": "[REDACTED]"}'),
+        ('{"password": "secret_password"}', '{"password": "[REDACTED]"}'),
+        ('{"session_token": "token-12345"}', '{"session_token": "[REDACTED]"}'),
+        (
+            '{"provider_access_token": "dummy-provider-token"}',
+            '{"provider_access_token": "[REDACTED]"}',
+        ),
+        ("http://user:pass@127.0.0.1:8765/foo?token=my_secret_token", "http://127.0.0.1:8765/foo"),
+        ("http://user:pass@127.0.0.1:badport/path?token=secret", "[REDACTED_URL]"),
+    ]
+    for raw, expected in cases:
+        actual = redact_diagnostics(raw)
+        assert actual == expected, (
+            f"Failed for:\nRaw     : {raw}\nExpected: {expected}\nActual  : {actual}"
+        )
+
+    # Verify that the 4 review probes leave ZERO secret value behind
+    p1 = redact_diagnostics("Authorization: Basic dXNlcjpwYXNz")
+    assert "dXNlcjpwYXNz" not in p1 and "pass" not in p1
+
+    p2 = redact_diagnostics(
+        "Authorization: AWS4-HMAC-SHA256 Credential=AKIA..., Signature=deadbeef"
+    )
+    assert "AKIA..." not in p2 and "deadbeef" not in p2
+
+    p3 = redact_diagnostics("child failed: token=super_secret_token")
+    assert "super_secret_token" not in p3
+
+    p4 = redact_diagnostics("URL mit user:pass@host:badport?token=secret")
+    assert "pass" not in p4 and "secret" not in p4
+
+    # Negative test cases (harmless diagnostic messages and names must NOT be damaged)
+    harmless = [
+        "Normal diagnostic line with no secrets",
+        "Connected to http://127.0.0.1:8765/api/v1/status successfully.",
+        "Model preset: ollama-local",
+        "No matching record found for password_reset_timestamp",
+        "field password_reset_timestamp is set to 12345",
+        "password_reset_timestamp=2026-09-14T10:00:00Z",
+        '{"password_reset_timestamp": "2026-09-14"}',
+        "api_key_rotation_timestamp=2026-09-14T10:00:00Z",
+        "secretary=available",
+        "token_type=Bearer",
+        "Subprocess app exited prematurely with code 0",
+    ]
+    for msg in harmless:
+        assert redact_diagnostics(msg) == msg
+
+
+def test_resolve_config_dir_trust_boundary_does_not_auto_use_canonical_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scripts.start_menu import resolve_config_dir
+
+    # Clear FOLDERHOME_CONFIG_DIR from environment
+    monkeypatch.delenv("FOLDERHOME_CONFIG_DIR", raising=False)
+
+    # Without explicit dir, must resolve strictly to repo's .local-state/config
+    default_dir = resolve_config_dir()
+    assert ".local-state" in str(default_dir)
+    assert default_dir.name == "config"
+    assert "folderhome-config" not in str(default_dir)
+
+    # With explicit dir, respects explicit dir
+    explicit = tmp_path / "custom-cfg"
+    assert resolve_config_dir(explicit) == explicit.resolve()
+
+    # With FOLDERHOME_CONFIG_DIR env var, respects it
+    monkeypatch.setenv("FOLDERHOME_CONFIG_DIR", str(tmp_path / "env-cfg"))
+    assert resolve_config_dir() == (tmp_path / "env-cfg").resolve()
+
+
+def test_find_starter_script_does_not_use_system_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scripts.start_menu import find_starter_script
+
+    # Put a fake START-APP.cmd in a directory that is only in system PATH
+    foreign_dir = tmp_path / "foreign_bin"
+    foreign_dir.mkdir()
+    foreign_script = foreign_dir / "START-APP.cmd"
+    foreign_script.write_text("@echo off\n", encoding="ascii")
+    monkeypatch.setenv("PATH", str(foreign_dir))
+
+    empty_config_dir = tmp_path / "isolated_config"
+    empty_config_dir.mkdir()
+
+    # find_starter_script must NOT find the script from system PATH!
+    found = find_starter_script("START-APP.cmd", empty_config_dir)
+    assert found is None or foreign_dir not in found.parents
+
+
+def test_install_starter_wrappers_creates_ascii_batch_files(tmp_path: Path) -> None:
+    from scripts.start_menu import install_starter_wrappers
+
+    target = tmp_path / "installed_wrappers"
+    installed = install_starter_wrappers(target)
+    assert len(installed) == 2
+    for script_path in installed:
+        assert script_path.is_file()
+        raw_bytes = script_path.read_bytes()
+        assert not [b for b in raw_bytes if b >= 128], f"{script_path} contains non-ASCII bytes"
+        text = raw_bytes.decode("ascii")
+        assert "@echo off" in text
+        assert "exit /b %errorlevel%" in text
+
+    app_text = (target / "START-APP.cmd").read_text(encoding="ascii")
+    assert "folderhome app serve --approve-loopback-server" in app_text
+    setup_text = (target / "START-SETUP.cmd").read_text(encoding="ascii")
+    assert "folderhome setup serve --approve-loopback-server" in setup_text
+
+
+def test_start_cmd_has_no_sibling_venv_fallback() -> None:
+    start_cmd = SCRIPTS_DIR / "START.cmd"
+    text = start_cmd.read_text(encoding="ascii")
+    assert "folderhome\\.venv" not in text
+    assert "..\\folderhome" not in text
+
+
+# ============================================================================
+# 18. Supervision and Process Lifecycle Tests (Option 3 & Cleanup)
+# ============================================================================
+
+
+class StaggeredFakeProcess:
+    """Fake process for simulating concurrent startup and staggered exits."""
+
+    def __init__(
+        self,
+        name: str,
+        access_url: str,
+        exit_code_after_supervise: int | None = None,
+        pid: int = 1234,
+    ) -> None:
+        self.name = name
+        self.access_url = access_url
+        self.exit_code_after_supervise = exit_code_after_supervise
+        self.pid = pid
+
+        payload = json.dumps({"access_url": access_url}) + "\n"
+        self.stdout = io.StringIO(payload)
+        self.stderr = io.StringIO()
+
+        self.in_supervision = False
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        if self.terminated or self.killed:
+            return -15
+        if not self.in_supervision:
+            # During bootstrap, process is running
+            return None
+        if self.exit_code_after_supervise is not None:
+            return self.exit_code_after_supervise
+        return None
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 0 if not (self.terminated or self.killed) else -15
+
+
+def test_option_3_staggered_clean_exit_fails_closed_and_terminates_sibling(
+    tmp_path: Path,
+) -> None:
+    """Finding 3: Option 3 Supervision.
+
+    Any premature exit of a long-lived child process (even exit code 0) must be
+    treated as an error: sibling must be terminated, return code must be non-zero.
+    """
+    from scripts.start_menu import install_starter_wrappers
+
+    install_starter_wrappers(tmp_path)
+
+    proc_app = StaggeredFakeProcess(
+        "app", "http://127.0.0.1:8765/?token=test-app-tok", exit_code_after_supervise=0
+    )
+    proc_setup = StaggeredFakeProcess(
+        "setup", "http://127.0.0.1:8766/?token=test-setup-tok", exit_code_after_supervise=None
+    )
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> Any:
+        cmd_str = " ".join(cmd)
+        if "START-APP" in cmd_str:
+            return proc_app
+        if "START-SETUP" in cmd_str:
+            return proc_setup
+        raise ValueError(f"Unexpected command: {cmd}")
+
+    def on_browser_open(url: str) -> bool:
+        # Called after bootstrap succeeds for all processes
+        proc_app.in_supervision = True
+        proc_setup.in_supervision = True
+        return True
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        open_browser=True,
+        dry_run=False,
+        subprocess_runner=fake_runner,
+        browser_opener=on_browser_open,
+        print_func=logs.append,
+    )
+
+    rc = controller.run_action("3")
+
+    # Exit code MUST be non-zero even though app exited with 0
+    assert rc != 0, f"Expected non-zero returncode on premature exit, got {rc}"
+    # Setup sibling MUST have been terminated
+    assert proc_setup.terminated or proc_setup.killed, "Sibling process was not terminated!"
+
+
+def test_option_3_intentional_ctrl_c_yields_zero_and_stops_all_processes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only intentional Ctrl+C/menu stop yields exit code 0."""
+    from scripts.start_menu import install_starter_wrappers
+
+    install_starter_wrappers(tmp_path)
+
+    proc_app = StaggeredFakeProcess("app", "http://127.0.0.1:8765/?token=test-app-tok")
+    proc_setup = StaggeredFakeProcess("setup", "http://127.0.0.1:8766/?token=test-setup-tok")
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> Any:
+        return proc_app if "START-APP" in " ".join(cmd) else proc_setup
+
+    def fake_browser(url: str) -> bool:
+        return True
+
+    controller = StartMenuController(
+        tmp_path,
+        open_browser=True,
+        dry_run=False,
+        subprocess_runner=fake_runner,
+        browser_opener=fake_browser,
+    )
+
+    # In supervision, sleep raises KeyboardInterrupt to simulate Ctrl+C
+    def fake_sleep(sec: float) -> None:
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("time.sleep", fake_sleep)
+
+    rc = controller.run_action("3")
+    assert rc == 0
+    assert proc_app.terminated or proc_app.killed
+    assert proc_setup.terminated or proc_setup.killed
+
+
+@pytest.mark.parametrize(
+    ("taskkill_returncode", "taskkill_stderr"),
+    [
+        (1, "ERROR: Access is denied."),
+        (128, ""),
+        (0, "ERROR: Process tree could not be verified."),
+    ],
+)
+def test_cleanup_processes_taskkill_failure_retains_process_and_omits_success_message(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    taskkill_returncode: int,
+    taskkill_stderr: str,
+) -> None:
+    """Finding 4: Windows Cleanup.
+
+    taskkill /F /T errors must not be ignored. Non-zero returncode retains process
+    in tracking, no false claim of 'All processes stopped', fail-closed verification.
+    """
+    import subprocess as sp
+
+    import folderhome.starter as starter_mod
+
+    class OwnedFakePopen:
+        def __init__(self) -> None:
+            self.pid = 98765
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def terminate(self) -> None:
+            self.returncode = -15
+
+        def kill(self) -> None:
+            self.returncode = -9
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert timeout == 1.0
+            return self.returncode if self.returncode is not None else 0
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        print_func=logs.append,
+    )
+
+    mock_proc = OwnedFakePopen()
+    controller.processes.append(mock_proc)
+
+    # Mock platform to win32 and subprocess.run for taskkill to return failure
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    taskkill_calls: list[list[str]] = []
+
+    def fake_taskkill(cmd: list[str], **kwargs: Any) -> sp.CompletedProcess[str]:
+        if cmd[0] == "taskkill":
+            taskkill_calls.append(cmd)
+            return sp.CompletedProcess(
+                cmd,
+                returncode=taskkill_returncode,
+                stdout="",
+                stderr=taskkill_stderr,
+            )
+        return sp.CompletedProcess(cmd, returncode=0)
+
+    monkeypatch.setattr(starter_mod.subprocess, "Popen", OwnedFakePopen)
+    monkeypatch.setattr(sp, "run", fake_taskkill)
+
+    cleaned = controller.cleanup_processes()
+
+    # Must return False because cleanup failed / could not verify termination
+    assert cleaned is False
+    # Must retain mock_proc in controller.processes
+    assert mock_proc in controller.processes
+    assert taskkill_calls == [["taskkill", "/F", "/T", "/PID", "98765"]]
+    # Must NOT claim that all processes were stopped
+    success_msg = controller.t("processes_stopped")
+    assert not any(success_msg in msg for msg in logs)
+
+
+def test_install_starter_packaging_and_wrapper_installation_contract(tmp_path: Path) -> None:
+    """Finding 6: Packaging & Starter contract.
+
+    Normal package installation must not strand without checkout scripts/.
+    Entrypoints and CLI delegation must exist and install_starter_wrappers must
+    work in any target directory.
+    """
+    import os
+    import subprocess as sp
+    import venv
+
+    import folderhome.starter as starter_mod
+    from folderhome.cli import main as cli_main
+
+    # Source metadata and in-checkout CLI delegation checks.
+    pyproject_path = REPO_ROOT / "pyproject.toml"
+    assert pyproject_path.is_file()
+    pyproject_content = pyproject_path.read_text(encoding="utf-8")
+    assert 'folderhome-start = "folderhome.starter:main"' in pyproject_content
+
+    # CLI start command delegation check
+    assert hasattr(starter_mod, "main")
+    # folderhome start --action 1 --dry-run
+    logs: list[str] = []
+    exit_code = cli_main(["start", "--action", "1", "--dry-run", "--config-dir", str(tmp_path)])
+    # Missing starter script in isolated tmp_path should return 1 (fail-closed)
+    assert exit_code == 1
+
+    # Wrapper installation in standalone environment without scripts/ checkout
+    standalone_dir = tmp_path / "standalone_user_env"
+    wrappers = starter_mod.install_starter_wrappers(standalone_dir)
+    assert len(wrappers) == 2
+    app_wrapper = standalone_dir / "START-APP.cmd"
+    setup_wrapper = standalone_dir / "START-SETUP.cmd"
+    assert app_wrapper.is_file()
+    assert setup_wrapper.is_file()
+
+    # find_starter_script discovers them in the target config dir
+    discovered_app = starter_mod.find_starter_script("START-APP.cmd", standalone_dir)
+    assert discovered_app == app_wrapper.resolve()
+
+    # And StartMenuController works in this standalone directory
+    controller = starter_mod.StartMenuController(
+        standalone_dir,
+        dry_run=True,
+        print_func=logs.append,
+    )
+    rc = controller.run_action("1")
+    assert rc == 0
+    assert any("[Dry-run Command]" in msg for msg in logs)
+
+    # Build an actual wheel offline, install it into a fresh venv, and execute
+    # both installed console entry points without relying on checkout scripts/.
+    wheel_dir = tmp_path / "wheelhouse"
+    wheel_dir.mkdir()
+    build_env = os.environ.copy()
+    build_env.update({
+        "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+        "PIP_NO_INDEX": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONIOENCODING": "utf-8",
+    })
+    build = sp.run(
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-cache-dir",
+            "--wheel-dir",
+            str(wheel_dir),
+            str(REPO_ROOT),
+        ],
+        cwd=REPO_ROOT,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert build.returncode == 0, build.stderr
+    wheels = list(wheel_dir.glob("folderhome-*.whl"))
+    assert len(wheels) == 1
+
+    installed_venv = tmp_path / "installed-venv"
+    venv.EnvBuilder(with_pip=True, system_site_packages=True).create(installed_venv)
+    scripts_dir = installed_venv / ("Scripts" if sys.platform == "win32" else "bin")
+    installed_python = scripts_dir / ("python.exe" if sys.platform == "win32" else "python")
+    install = sp.run(
+        [
+            str(installed_python),
+            "-B",
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--disable-pip-version-check",
+            str(wheels[0]),
+        ],
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert install.returncode == 0, install.stderr
+
+    executable_suffix = ".exe" if sys.platform == "win32" else ""
+    packaged_start = scripts_dir / f"folderhome-start{executable_suffix}"
+    packaged_cli = scripts_dir / f"folderhome{executable_suffix}"
+    for command in ([str(packaged_start), "--help"], [str(packaged_cli), "start", "--help"]):
+        result = sp.run(
+            command,
+            cwd=tmp_path,
+            env=build_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "FolderHome and Setup Starter Menu" in result.stdout
+
+    installed_config = tmp_path / "installed-config"
+    install_wrappers = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--install-wrappers",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert install_wrappers.returncode == 0, install_wrappers.stderr
+    assert (installed_config / "START-APP.cmd").is_file()
+    assert (installed_config / "START-SETUP.cmd").is_file()
+
+    (installed_config / "launch.json").write_text(
+        json.dumps({
+            "model_preset": "remote-provider",
+            "model_provider": "openai",
+        }),
+        encoding="utf-8",
+    )
+    denied = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "1",
+            "--deny-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert denied.returncode == 0, denied.stderr
+    assert "--allow-network" not in denied.stdout
+    assert "--approve-sensitive-cloud-data" not in denied.stdout
+
+    approved = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "3",
+            "--confirm-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert approved.returncode == 0, approved.stderr
+    assert "--allow-network" in approved.stdout
+    assert "--approve-sensitive-cloud-data" in approved.stdout
+
+    (installed_config / "launch.json").write_text(
+        json.dumps({
+            "model_preset": "ollama-local",
+            "model_provider": "ollama",
+            "ollama_host": "http://127.12.34.56:11434",
+        }),
+        encoding="utf-8",
+    )
+    ollama = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "1",
+            "--deny-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ollama.returncode == 0, ollama.stderr
+    assert "--model-timeout-seconds 600" in ollama.stdout
+
+    contract = sp.run(
+        [
+            str(installed_python),
+            "-B",
+            "-c",
+            (
+                "from folderhome.starter import DEFAULT_LANGUAGE, normalize_action; "
+                "assert DEFAULT_LANGUAGE == 'en'; "
+                "assert [normalize_action(str(i)) for i in range(1, 5)] == "
+                "['1', '2', '3', '4']"
+            ),
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert contract.returncode == 0, contract.stderr
