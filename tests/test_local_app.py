@@ -2303,45 +2303,32 @@ def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None
         assert "Laufende Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
 
 
-def test_reload_settings_non_active_cleanup_failure_restores_mutated_run_state(
+def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     tmp_path: Path,
 ) -> None:
+    from test_recipe_results import payload
+    from test_recipe_runs import Gateway, core_gateway
+    from test_recipes import APPROVED_AT, RESOURCE_IDS, _statuses
+
+    from folderhome.application import recipes
+    from folderhome.contracts.master_agent import MasterPlanApproval
     from folderhome.contracts.recipes import CapabilityRecipeError
 
-    class MockNonActiveRun:
-        def __init__(self, run_id: str, status: str = "awaiting_approval"):
-            self._run_id = run_id
-            self._status = status
-            self._pending = "fake_plan"
-            self._lock = threading.RLock()
-            self._results: dict[str, object] = {}
-            self._stage_ids: list[str] = []
-            self._last_execution: dict[str, object] | None = None
-            self._cleanup_pending: tuple[str, ...] = ("env_1",)
+    driver = Gateway()
+    gateway = core_gateway(driver)
+    recipe = recipes.parse_recipe(payload())
+    statuses = _statuses()
 
-        def snapshot(self) -> dict[str, object]:
-            with self._lock:
-                return {
-                    "run_id": self._run_id,
-                    "status": self._status,
-                    "profile_id": "lukas",
-                    "pending_plan_id": "plan_1" if self._pending else None,
-                }
+    run1 = recipes.create_recipe_run(recipe, profile_id="lukas", language="de", gateway=gateway)
+    run2 = recipes.create_recipe_run(recipe, profile_id="lukas", language="de", gateway=gateway)
 
-        def close(self) -> None:
-            with self._lock:
-                old_status = self._status
-                old_pending = self._pending
-                old_cleanup = self._cleanup_pending
-                self._status = "closed"
-                self._pending = None
-                try:
-                    raise CapabilityRecipeError("Discard failed during cleanup")
-                except Exception:
-                    self._status = old_status
-                    self._pending = old_pending
-                    self._cleanup_pending = old_cleanup
-                    raise
+    plan1 = run1.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
+    plan2 = run2.plan_next(endpoint_statuses=statuses, known_resource_ids=RESOURCE_IDS)
+
+    assert run1.snapshot()["pending_plan_id"] == plan1.plan_id
+    assert run1.snapshot()["status"] == "awaiting_approval"
+    assert run2.snapshot()["pending_plan_id"] == plan2.plan_id
+    assert run2.snapshot()["status"] == "awaiting_approval"
 
     launch_file = tmp_path / "launch.json"
     launch_file.write_text(
@@ -2359,12 +2346,12 @@ def test_reload_settings_non_active_cleanup_failure_restores_mutated_run_state(
         encoding="utf-8",
     )
     app = _app(tmp_path, launch_config_path=launch_file)
-    run = MockNonActiveRun("run_fail")
-    app._recipe_runs["run_fail"] = run
-    app._agent_conversation_turns["lukas"] = 3
+    app._recipe_runs[run1.snapshot()["run_id"]] = run1
+    app._recipe_runs[run2.snapshot()["run_id"]] = run2
     orig_settings = app.agent_settings
     orig_preset = app._running_preset
 
+    # 1. Reload is rejected fail-closed with 409 before any mutating cleanup
     res = app.handle(
         method="POST",
         target="/api/v1/settings/reload",
@@ -2374,17 +2361,54 @@ def test_reload_settings_non_active_cleanup_failure_restores_mutated_run_state(
         ).encode("utf-8"),
         server_port=8765,
     )
-    assert res.status_code == 500
-    assert "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen" in res.payload["message"]
-
-    # Verify run state was restored, NOT left in 'closed' or popped
-    assert "run_fail" in app._recipe_runs
-    assert run._status == "awaiting_approval"
-    assert run._pending == "fake_plan"
-    assert run.snapshot()["status"] == "awaiting_approval"
-    assert app._agent_conversation_turns["lukas"] == 3
+    assert res.status_code == 409
+    assert "Offene Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
     assert app.agent_settings == orig_settings
     assert app._running_preset == orig_preset
+
+    # 2. Run 1 preparations were NOT discarded by reload;
+    # Run 1 remains fully confirmable and executable
+    approval1 = MasterPlanApproval(
+        approval_id="approval_1",
+        plan_id=plan1.plan_id,
+        plan_sha256=plan1.plan_sha256,
+        step_ids=tuple(s.step_id for s in plan1.steps),
+        approved_at=APPROVED_AT,
+    )
+    confirmed1 = run1.confirm(approval1)
+    assert confirmed1["run_status"] == "ready"
+    assert confirmed1["status"] == "executed"
+    assert "contact-register" in driver.executed
+
+    # 3. Simulate later failing cleanup on Run 2 (gateway discard failure)
+    def failing_discard(ids: tuple[str, ...]) -> tuple[str, ...]:
+        raise RuntimeError("Gateway discard failure during unexecuted cleanup")
+
+    run2._discard = failing_discard
+    with pytest.raises(CapabilityRecipeError):
+        run2.close()
+
+    # Verify Run 2 is aborted and does NOT claim a confirmable plan whose preparation is lost
+    snap2 = run2.snapshot()
+    assert snap2["status"] == "aborted"
+    assert snap2["pending_plan_id"] is None
+    assert snap2["cleanup_pending_count"] > 0
+
+    # 4. Attempting reload while Run 2 has uncleaned preparations also rejects fail-closed with 409
+    res2 = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res2.status_code == 409
+    assert (
+        "Ausstehende Bereinigungen von Rezeptabschnitten verhindern das Neuladen"
+        in res2.payload["message"]
+    )
 
 
 def test_reload_settings_fixture_reports_fixture_only(tmp_path: Path) -> None:

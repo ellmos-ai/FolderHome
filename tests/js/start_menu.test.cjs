@@ -132,6 +132,24 @@ describe("Menu options and choice normalization", () => {
     assert.equal(resInvalidDe.status, 1);
     assert.match(resInvalidDe.stdout, /Unbekannte Option 'invalid_choice_xyz'/);
   });
+
+  test("missing wrappers on option 1, 2, 3 return non-zero exit status 1", () => {
+    // Missing START-APP.cmd on option 1
+    const res1 = runMenu(["--config-dir", tmp, "--action", "1"]);
+    assert.equal(res1.status, 1);
+    assert.match(res1.stdout, /START-APP\.cmd was not found/);
+
+    // Missing START-SETUP.cmd on option 2
+    const res2 = runMenu(["--config-dir", tmp, "--action", "2"]);
+    assert.equal(res2.status, 1);
+    assert.match(res2.stdout, /START-SETUP\.cmd was not found/);
+
+    // Missing wrappers on option 3
+    const res3 = runMenu(["--config-dir", tmp, "--action", "3"]);
+    assert.equal(res3.status, 1);
+    assert.match(res3.stdout, /START-APP\.cmd was not found/);
+    assert.match(res3.stdout, /START-SETUP\.cmd was not found/);
+  });
 });
 
 // ============================================================================

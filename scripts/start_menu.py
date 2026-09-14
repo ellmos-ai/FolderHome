@@ -402,17 +402,19 @@ class StartMenuController:
             self.print_func(self.t("invalid_choice", choice=action_key))
             return 1
 
+        has_error = False
         commands_to_run: list[tuple[list[str], str]] = []
         for msg, resolver in targets:
             self.print_func(msg)
             cmd, url, err = resolver()
             if err:
                 self.print_func(err)
+                has_error = True
             elif cmd and url:
                 commands_to_run.append((cmd, url))
 
-        if not commands_to_run:
-            return 0
+        if has_error or not commands_to_run:
+            return 1
 
         if self.dry_run:
             for cmd, url in commands_to_run:
@@ -432,11 +434,17 @@ class StartMenuController:
                 self.processes.append(proc)
             except OSError as exc:
                 self.print_func(f"Failed to start subprocess: {exc}")
+                has_error = True
 
             if self.open_browser:
                 with contextlib.suppress(Exception):
                     self.browser_opener(url)
 
+        if has_error:
+            self.cleanup_processes()
+            return 1
+
+        exit_code = 0
         if self.processes:
             try:
                 while any(p.poll() is None for p in self.processes if hasattr(p, "poll")):
@@ -444,8 +452,11 @@ class StartMenuController:
             except KeyboardInterrupt:
                 self.print_func(self.t("stopping_processes"))
             finally:
+                for p in self.processes:
+                    if hasattr(p, "poll") and p.poll() not in (0, None):
+                        exit_code = p.poll()
                 self.cleanup_processes()
-        return 0
+        return exit_code
 
     def cleanup_processes(self) -> None:
         for p in self.processes:

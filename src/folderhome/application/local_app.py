@@ -451,31 +451,18 @@ class LocalApplication:
             key: plan for key, plan in self._proposed_agent_plans.items()
             if plan.approval_context.get("run_id") == run_id
         }
-        saved_recipe_plans = {
-            key: plan for key, plan in self._recipe_plans.items()
-            if key in saved_proposed
-        }
-        saved_pending = {
-            key: plan for key, plan in self._pending_agent_plans.items()
-            if plan.approval_context.get("run_id") == run_id
-        }
-        saved_pending_recipe = {
-            key: plan for key, plan in self._pending_recipe_plans.items()
-            if key in saved_pending
-        }
         for key in saved_proposed:
             self._proposed_agent_plans.pop(key, None)
             self._recipe_plans.pop(key, None)
-        for key in saved_pending:
+        for key in [
+            key for key, plan in self._pending_agent_plans.items()
+            if plan.approval_context.get("run_id") == run_id
+        ]:
             self._pending_agent_plans.pop(key, None)
             self._pending_recipe_plans.pop(key, None)
         try:
             run.close()
         except Exception:
-            self._proposed_agent_plans.update(saved_proposed)
-            self._recipe_plans.update(saved_recipe_plans)
-            self._pending_agent_plans.update(saved_pending)
-            self._pending_recipe_plans.update(saved_pending_recipe)
             raise
         state = run.snapshot()
         self._recipe_runs.pop(run_id)
@@ -1846,17 +1833,33 @@ class LocalApplication:
                 stack.enter_context(self._model_status_lock)
                 stack.enter_context(self._execution_results_lock)
 
-                # Inspect actual RecipeRun API: snapshot status
+                # Fail closed: reject reload before any mutating cleanup action if any recipe run
+                # is active, awaiting approval with a pending plan, or has uncleaned preparations.
                 for run in self._recipe_runs.values():
-                    run_status = (
-                        run.snapshot()["status"]
+                    run_snapshot = (
+                        run.snapshot()
                         if hasattr(run, "snapshot")
-                        else getattr(run, "status", None)
+                        else {"status": getattr(run, "status", None)}
                     )
+                    run_status = run_snapshot.get("status")
                     if run_status in {"running", "preparing"}:
                         raise _HttpError(
                             409,
                             "Laufende Rezeptabschnitte verhindern das Neuladen.",
+                        )
+                    if (
+                        run_snapshot.get("pending_plan_id") is not None
+                        or run_status == "awaiting_approval"
+                    ):
+                        raise _HttpError(
+                            409,
+                            "Offene Rezeptabschnitte verhindern das Neuladen.",
+                        )
+                    if (run_snapshot.get("cleanup_pending_count") or 0) > 0:
+                        raise _HttpError(
+                            409,
+                            "Ausstehende Bereinigungen von Rezeptabschnitten "
+                            "verhindern das Neuladen.",
                         )
 
                 old_messages = {

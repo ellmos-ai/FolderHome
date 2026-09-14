@@ -5,14 +5,16 @@ set "MENU=%~dp0start_menu.py"
 
 if exist "%ROOT%\.venv\Scripts\python.exe" (
     "%ROOT%\.venv\Scripts\python.exe" "%MENU%" %*
-    exit /b %errorlevel%
+    goto :end
 )
 
 where py >nul 2>&1
 if not errorlevel 1 (
     py -3 "%MENU%" %*
-    exit /b %errorlevel%
+    goto :end
 )
 
 python "%MENU%" %*
+
+:end
 exit /b %errorlevel%

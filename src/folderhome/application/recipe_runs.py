@@ -402,9 +402,6 @@ class RecipeRun:
                 raise CapabilityRecipeError(
                     "Ein laufender oder vorbereitender Abschnitt kann nicht geschlossen werden."
                 )
-            old_status = self._status
-            old_pending = self._pending
-            old_cleanup_pending = self._cleanup_pending
             pending = self._pending
             self._pending = None
             self._status = "closed"
@@ -420,7 +417,5 @@ class RecipeRun:
                 else:
                     self._cleanup(())
             except Exception:
-                self._status = old_status
-                self._pending = old_pending
-                self._cleanup_pending = old_cleanup_pending
+                self._status = "aborted"
                 raise

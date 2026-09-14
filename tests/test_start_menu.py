@@ -338,12 +338,60 @@ def test_option_invalid_returns_code_1(tmp_path: Path) -> None:
     assert any("Unknown option 'unrecognized_action'" in msg for msg in logs)
 
 
-def test_missing_starter_scripts_fail_gracefully_without_subprocess(tmp_path: Path) -> None:
-    logs: list[str] = []
-    controller = StartMenuController(tmp_path, dry_run=True, print_func=logs.append)
-    code = controller.run_action("1")
-    assert code == 0
-    assert any("START-APP.cmd was not found" in msg for msg in logs)
+def test_missing_starter_scripts_fail_gracefully_with_nonzero_exitcode(tmp_path: Path) -> None:
+    # Option 1 (FolderHome) without START-APP.cmd
+    logs1: list[str] = []
+    controller1 = StartMenuController(tmp_path, dry_run=True, print_func=logs1.append)
+    code1 = controller1.run_action("1")
+    assert code1 == 1
+    assert any("START-APP.cmd was not found" in msg for msg in logs1)
+
+    # Option 2 (Setup) without START-SETUP.cmd
+    logs2: list[str] = []
+    controller2 = StartMenuController(tmp_path, dry_run=True, print_func=logs2.append)
+    code2 = controller2.run_action("2")
+    assert code2 == 1
+    assert any("START-SETUP.cmd was not found" in msg for msg in logs2)
+
+    # Option 3 (Both) without wrappers
+    logs3: list[str] = []
+    controller3 = StartMenuController(tmp_path, dry_run=True, print_func=logs3.append)
+    code3 = controller3.run_action("3")
+    assert code3 == 1
+    assert any("START-APP.cmd was not found" in msg for msg in logs3)
+    assert any("START-SETUP.cmd was not found" in msg for msg in logs3)
+
+
+def test_start_cmd_propagates_nonzero_exit_codes(tmp_path: Path) -> None:
+    import subprocess
+
+    start_cmd = SCRIPTS_DIR / "START.cmd"
+    assert start_cmd.is_file()
+
+    # 1. Missing wrapper on action 1 must propagate exit code 1
+    res1 = subprocess.run(
+        ["cmd.exe", "/c", str(start_cmd), "--config-dir", str(tmp_path), "--action", "1"],
+        capture_output=True,
+        text=True,
+    )
+    assert res1.returncode == 1
+    assert "START-APP.cmd" in res1.stdout
+
+    # 2. Mutually exclusive arguments must propagate parser exit code 2
+    res2 = subprocess.run(
+        [
+            "cmd.exe",
+            "/c",
+            str(start_cmd),
+            "--config-dir",
+            str(tmp_path),
+            "--confirm-gates",
+            "--deny-gates",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert res2.returncode == 2
 
 
 # ============================================================================
