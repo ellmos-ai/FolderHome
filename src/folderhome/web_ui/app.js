@@ -55,7 +55,17 @@ const translations = {
     heroCopy: "Find scattered information, build topic summaries, and keep track of private documents locally.",
     securityBoundary: "Security boundary",
     operatingSystemAccount: "Operating-system account",
+    boundaryScopeRemote: "Remote operating-system account",
+    boundaryScopeCloud: "Cloud sandbox",
+    boundaryScopeDisconnected: "Disconnected",
     familyProfiles: "Family profiles organize information; they do not grant access.",
+    familyProfilesAuthorization: "Family profiles serve as authorization boundaries.",
+    localBadge: "Local to this operating-system account",
+    localBadgeLocal: "Local to this operating-system account",
+    localBadgeRemote: "Connected to remote host",
+    localBadgeCloud: "Connected to cloud runtime",
+    localBadgeDisconnected: "Disconnected from service",
+    localBadgeBlocked: "Connection blocked",
     activeFolder: "Active workspace",
     agentChat: "FolderHome agent",
     whatHelp: "What can I help you with?",
@@ -169,9 +179,18 @@ const translations = {
     localMatches: "Local matches",
     capabilityEyebrow: "One home, many workflows",
     capabilityTitle: "What FolderHome brings together",
+    capabilityInfoShow: "Show capabilities",
+    capabilityInfoHide: "Hide capabilities",
     connectionChecking: "Checking connection …",
     connectionReady: "Local connection ready",
+    connectionReadyRemote: "Remote connection ready",
+    connectionReadyCloud: "Cloud connection ready",
     connectionBlocked: "Local connection blocked",
+    connectionBlockedRemote: "Remote connection blocked",
+    connectionBlockedCloud: "Cloud connection blocked",
+    connectionDisconnected: "Disconnected",
+    notConnected: "Not connected in this installation",
+    planningOnly: "Planning only",
     footer: "FolderHome works locally, transparently, and with deliberate approvals.",
     processAccount: "Process account: {account}",
     directUse: "Available here",
@@ -234,7 +253,16 @@ const translations = {
     heroCopy: "Finde verstreute Informationen, fasse Themen zusammen und behalte deine privaten Unterlagen lokal im Blick.",
     securityBoundary: "Sicherheitsgrenze",
     operatingSystemAccount: "Betriebssystemkonto",
+    boundaryScopeRemote: "Entferntes Betriebssystemkonto",
+    boundaryScopeCloud: "Cloud-Sandbox",
+    boundaryScopeDisconnected: "Getrennt",
     familyProfiles: "Familienprofile organisieren – sie erteilen keine Zugriffsrechte.",
+    familyProfilesAuthorization: "Familienprofile bilden Autorisierungsgrenzen.",
+    localBadgeLocal: "Lokal auf diesem Betriebssystemkonto",
+    localBadgeRemote: "Mit Remote-Host verbunden",
+    localBadgeCloud: "Mit Cloud-Laufzeit verbunden",
+    localBadgeDisconnected: "Vom Dienst getrennt",
+    localBadgeBlocked: "Verbindung blockiert",
     activeFolder: "Aktiver Arbeitsordner",
     agentChat: "FolderHome-Agent",
     whatHelp: "Wobei kann ich dir helfen?",
@@ -348,9 +376,18 @@ const translations = {
     localMatches: "Lokale Fundstellen",
     capabilityEyebrow: "Ein Zuhause, viele Abläufe",
     capabilityTitle: "Was FolderHome zusammenführt",
+    capabilityInfoShow: "Funktionen anzeigen",
+    capabilityInfoHide: "Funktionen ausblenden",
     connectionChecking: "Verbindung wird geprüft …",
     connectionReady: "Lokale Verbindung bereit",
+    connectionReadyRemote: "Remote-Verbindung bereit",
+    connectionReadyCloud: "Cloud-Verbindung bereit",
     connectionBlocked: "Lokale Verbindung blockiert",
+    connectionBlockedRemote: "Remote-Verbindung blockiert",
+    connectionBlockedCloud: "Cloud-Verbindung blockiert",
+    connectionDisconnected: "Getrennt",
+    notConnected: "In dieser Installation nicht verbunden",
+    planningOnly: "Nur Planung",
     footer: "FolderHome arbeitet lokal, transparent und mit bewussten Freigaben.",
     processAccount: "Prozesskonto: {account}",
     directUse: "Hier direkt nutzbar",
@@ -420,7 +457,59 @@ const openSetupServerLink = document.querySelector("#open-setup-server-link");
 const chatTranscript = document.querySelector("#chat-transcript");
 const connectionState = document.querySelector("#connection-state");
 const capabilityGrid = document.querySelector("#capability-grid");
+const capabilityInfoButton = document.querySelector("#capability-info-btn");
 const runtimeAccount = document.querySelector("#runtime-account");
+const localBoundaryBadge = document.querySelector("#local-boundary-badge");
+const boundaryScope = document.querySelector("#boundary-scope");
+const boundaryProfilesClaim = document.querySelector("#boundary-profiles-claim");
+const capabilityWorkflows = {
+  "documents.search": ["document-library"],
+  "documents.theme_dossier": ["document-library"],
+  "folders.organize": [
+    "directory-observation",
+    "document-action-execution",
+    "document-action-plan",
+    "folder-cleanup",
+    "folder-routine",
+    "routine-queue",
+  ],
+  "documents.create": [
+    "artifact-studio",
+    "document-bundle",
+    "document-package",
+  ],
+  "communications.manage": [
+    "calendar-connectors",
+    "calendar-handoff",
+    "contact-register",
+    "correspondence-studio",
+    "findcall",
+    "mail-connector",
+  ],
+  "calendar.manage": [
+    "calendar-connectors",
+    "calendar-handoff",
+  ],
+  "finance.overview": [
+    "contract-cockpit",
+    "finance-import",
+    "tax-workpaper",
+  ],
+  "health.organize": [
+    "health-dossier",
+    "medication-intake",
+  ],
+  "legal.orient": [
+    "administrative-drafts",
+    "benefit-screening",
+    "legal-change-monitor",
+    "official-notice-understanding",
+  ],
+  "household.manage": [
+    "daily-briefing",
+    "inventory-import",
+  ],
+};
 const modelStatus = document.querySelector("#model-status");
 const modelStatusTitle = document.querySelector("#model-status-title");
 const modelStatusDetail = document.querySelector("#model-status-detail");
@@ -516,6 +605,7 @@ function setLanguage(nextLanguage, { persist = true } = {}) {
   }
   applyStaticTranslations();
   renderConnection();
+  renderBoundary();
   renderTopologyBadge();
   renderModelStatus();
   renderRunningSettings();
@@ -554,8 +644,19 @@ function applyStaticTranslations() {
   document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
     element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
   });
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    element.setAttribute("title", t(element.dataset.i18nTitle));
+  });
   document.querySelector("#language-switch").setAttribute("aria-label", t("languageSwitch"));
   document.querySelector("#theme-switch").setAttribute("aria-label", t("themeSwitch"));
+  if (capabilityInfoButton && typeof capabilityInfoButton.getAttribute === "function") {
+    const isExpanded = capabilityInfoButton.getAttribute("aria-expanded") === "true";
+    const labelKey = isExpanded ? "capabilityInfoHide" : "capabilityInfoShow";
+    if (typeof capabilityInfoButton.setAttribute === "function") {
+      capabilityInfoButton.setAttribute("aria-label", t(labelKey));
+      capabilityInfoButton.setAttribute("title", t(labelKey));
+    }
+  }
   languageButtons.forEach((button) => {
     const isActive = button.dataset.language === language;
     button.setAttribute("aria-pressed", String(isActive));
@@ -594,12 +695,97 @@ function hitCount(count) {
 }
 
 function renderConnection() {
-  const key = connectionStatus === "ready"
-    ? "connectionReady"
-    : connectionStatus === "blocked"
-      ? "connectionBlocked"
-      : "connectionChecking";
+  if (!connectionState) return;
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
+
+  let key;
+  if (connectionStatus === "checking") {
+    key = "connectionChecking";
+  } else if (connectionStatus === "blocked") {
+    if (topology === "cloud") key = "connectionBlockedCloud";
+    else if (topology === "remote_host" || topology === "remote") key = "connectionBlockedRemote";
+    else key = "connectionBlocked";
+  } else if (connectionStatus === "ready") {
+    if (topology === "cloud") key = "connectionReadyCloud";
+    else if (topology === "remote_host" || topology === "remote") key = "connectionReadyRemote";
+    else key = "connectionReady";
+  } else {
+    key = "connectionDisconnected";
+  }
   connectionState.textContent = t(key);
+  if (typeof connectionState.setAttribute === "function") {
+    connectionState.setAttribute("data-state", connectionStatus);
+    connectionState.setAttribute("data-topology", topology);
+  }
+}
+
+function renderBoundary() {
+  const localBadgeEl = document.querySelector("#local-boundary-badge") || document.querySelector(".local-badge span:not(.status-dot)");
+  const boundaryScopeEl = document.querySelector("#boundary-scope");
+  const boundaryProfilesEl = document.querySelector("#boundary-profiles-claim");
+  const localBadgeContainer = document.querySelector(".local-badge");
+
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
+
+  const isConnected = connectionStatus === "ready";
+  const isBlocked = connectionStatus === "blocked";
+
+  if (localBadgeEl) {
+    let badgeKey;
+    if (isBlocked) {
+      badgeKey = "localBadgeBlocked";
+    } else if (!isConnected && connectionStatus !== "checking") {
+      badgeKey = "localBadgeDisconnected";
+    } else if (topology === "cloud") {
+      badgeKey = "localBadgeCloud";
+    } else if (topology === "remote_host" || topology === "remote") {
+      badgeKey = "localBadgeRemote";
+    } else {
+      badgeKey = "localBadgeLocal";
+    }
+    localBadgeEl.textContent = t(badgeKey);
+    if (localBadgeEl.dataset) {
+      localBadgeEl.dataset.i18n = badgeKey;
+    }
+  }
+  if (localBadgeContainer && typeof localBadgeContainer.setAttribute === "function") {
+    localBadgeContainer.setAttribute("data-topology", topology);
+    localBadgeContainer.setAttribute("data-status", connectionStatus);
+  }
+
+  if (boundaryScopeEl) {
+    let scopeKey;
+    if (isBlocked || (!isConnected && connectionStatus !== "checking")) {
+      scopeKey = "boundaryScopeDisconnected";
+    } else if (topology === "cloud") {
+      scopeKey = "boundaryScopeCloud";
+    } else if (topology === "remote_host" || topology === "remote") {
+      scopeKey = "boundaryScopeRemote";
+    } else {
+      scopeKey = "operatingSystemAccount";
+    }
+    boundaryScopeEl.textContent = t(scopeKey);
+    if (boundaryScopeEl.dataset) {
+      boundaryScopeEl.dataset.i18n = scopeKey;
+    }
+  }
+
+  if (boundaryProfilesEl) {
+    const isAuthBoundary = Boolean(appStatus?.profiles_are_authorization_boundaries);
+    const claimKey = isAuthBoundary ? "familyProfilesAuthorization" : "familyProfiles";
+    boundaryProfilesEl.textContent = t(claimKey);
+    if (boundaryProfilesEl.dataset) {
+      boundaryProfilesEl.dataset.i18n = claimKey;
+    }
+  }
 }
 
 function renderRuntimeAccount() {
@@ -784,13 +970,66 @@ async function copySettingsCommand() {
   }, 2000);
 }
 
+const CAPABILITY_STORAGE_KEY = "folderhome.capability_info_open";
+
+function getStoredCapabilityState() {
+  try {
+    return window.sessionStorage.getItem(CAPABILITY_STORAGE_KEY) === "true";
+  } catch (_error) {
+    return false;
+  }
+}
+
+function setStoredCapabilityState(isOpen) {
+  try {
+    window.sessionStorage.setItem(CAPABILITY_STORAGE_KEY, String(isOpen));
+  } catch (_error) {
+    // SessionStorage may be restricted in some environments
+  }
+}
+
+function setCapabilityExpanded(expanded, { persist = true } = {}) {
+  if (!capabilityGrid || !capabilityInfoButton) return;
+  const isExpanded = Boolean(expanded);
+  if (typeof capabilityInfoButton.setAttribute === "function") {
+    capabilityInfoButton.setAttribute("aria-expanded", String(isExpanded));
+    const labelKey = isExpanded ? "capabilityInfoHide" : "capabilityInfoShow";
+    capabilityInfoButton.setAttribute("aria-label", t(labelKey));
+    capabilityInfoButton.setAttribute("title", t(labelKey));
+  }
+  capabilityGrid.hidden = !isExpanded;
+  if (persist) {
+    setStoredCapabilityState(isExpanded);
+  }
+  if (isExpanded) {
+    renderCapabilities();
+  }
+}
+
+function toggleCapabilityInfo() {
+  if (!capabilityInfoButton) return;
+  const isExpanded = typeof capabilityInfoButton.getAttribute === "function"
+    ? capabilityInfoButton.getAttribute("aria-expanded") === "true"
+    : false;
+  setCapabilityExpanded(!isExpanded);
+}
+
+function initCapabilityInfo() {
+  const isOpen = getStoredCapabilityState();
+  if (isOpen) {
+    setCapabilityExpanded(true, { persist: false });
+  } else {
+    setCapabilityExpanded(false, { persist: false });
+  }
+}
+
 function renderCapabilities() {
-  if (!capabilityItems.length) return;
+  if (!capabilityItems.length || !capabilityGrid) return;
   const cards = capabilityItems.map((item) => {
     const card = document.createElement("article");
     card.className = "capability-card";
     card.dataset.status = item.surface_status;
-    card.append(textElement("strong", capabilityTitles[language][item.capability_id] || item.title));
+    card.append(textElement("strong", capabilityTitles[language]?.[item.capability_id] || item.title));
     card.append(textElement(
       "small",
       t(
@@ -1719,6 +1958,9 @@ if (copySettingsCommandButton) {
     copySettingsCommand().catch(showError);
   });
 }
+if (capabilityInfoButton) {
+  capabilityInfoButton.addEventListener("click", toggleCapabilityInfo);
+}
 promptExamples.forEach((button) => {
   button.addEventListener("click", () => {
     messageInput.value = language === "de" ? button.dataset.promptDe : button.dataset.promptEn;
@@ -1735,6 +1977,7 @@ for (const [id, action] of Object.entries({
 
 setLanguage(language, { persist: false });
 setTheme(theme, { persist: false });
+initCapabilityInfo();
 initCollapsiblePanels();
 bootstrap().catch((error) => {
   connectionStatus = "blocked";

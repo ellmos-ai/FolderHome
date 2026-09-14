@@ -104,6 +104,56 @@ class LocalAppError(RuntimeError):
     """Raised when the local app boundary cannot be established safely."""
 
 
+_CAPABILITY_WORKFLOWS: dict[str, tuple[str, ...]] = {
+    "documents.search": ("document-library",),
+    "documents.theme_dossier": ("document-library",),
+    "folders.organize": (
+        "directory-observation",
+        "document-action-execution",
+        "document-action-plan",
+        "folder-cleanup",
+        "folder-routine",
+        "routine-queue",
+    ),
+    "documents.create": (
+        "artifact-studio",
+        "document-bundle",
+        "document-package",
+    ),
+    "communications.manage": (
+        "calendar-connectors",
+        "calendar-handoff",
+        "contact-register",
+        "correspondence-studio",
+        "findcall",
+        "mail-connector",
+    ),
+    "calendar.manage": (
+        "calendar-connectors",
+        "calendar-handoff",
+    ),
+    "finance.overview": (
+        "contract-cockpit",
+        "finance-import",
+        "tax-workpaper",
+    ),
+    "health.organize": (
+        "health-dossier",
+        "medication-intake",
+    ),
+    "legal.orient": (
+        "administrative-drafts",
+        "benefit-screening",
+        "legal-change-monitor",
+        "official-notice-understanding",
+    ),
+    "household.manage": (
+        "daily-briefing",
+        "inventory-import",
+    ),
+}
+
+
 class LocalApplication:
     """Pure request dispatcher between local HTTP and existing app services."""
 
@@ -1547,8 +1597,7 @@ class LocalApplication:
             ],
         }
 
-    @staticmethod
-    def _capabilities_payload() -> dict[str, object]:
+    def _capabilities_payload(self) -> dict[str, object]:
         interactive = {"documents.search", "documents.theme_dossier"}
         capabilities = (
             ("documents.search", "Dokumentensuche"),
@@ -1562,21 +1611,36 @@ class LocalApplication:
             ("legal.orient", "Bescheide und Rechtsänderungen orientieren"),
             ("household.manage", "Haushalt und Medikamente verwalten"),
         )
-        return {
-            "schema": "folderhome.local-capability-list.v1",
-            "capabilities": [
+        catalog = (
+            {item.workflow_id: item.status for item in self.workflow_executor.catalog()}
+            if self.workflow_executor is not None
+            else {}
+        )
+        items = []
+        for capability_id, title in capabilities:
+            wf_ids = _CAPABILITY_WORKFLOWS.get(capability_id, ())
+            if capability_id in interactive:
+                surface_status = "interactive_read_only"
+            else:
+                statuses = [catalog.get(wid) for wid in wf_ids if wid in catalog]
+                if any(s == "connected" for s in statuses):
+                    surface_status = "agent_guided"
+                elif any(s == "planning_only" for s in statuses):
+                    surface_status = "planning_only"
+                else:
+                    surface_status = "not_connected"
+            items.append(
                 {
                     "capability_id": capability_id,
                     "title": title,
-                    "surface_status": (
-                        "interactive_read_only"
-                        if capability_id in interactive
-                        else "agent_guided"
-                    ),
+                    "surface_status": surface_status,
+                    "workflow_ids": list(wf_ids),
                     "side_effects": [],
                 }
-                for capability_id, title in capabilities
-            ],
+            )
+        return {
+            "schema": "folderhome.local-capability-list.v1",
+            "capabilities": items,
         }
 
     def _json_request(self, headers: dict[str, str], body: bytes) -> dict[str, object]:

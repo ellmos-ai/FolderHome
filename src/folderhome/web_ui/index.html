@@ -32,7 +32,7 @@
         </div>
         <div class="local-badge">
           <span class="status-dot" aria-hidden="true"></span>
-          <span data-i18n="localBadge">Local to this operating-system account</span>
+          <span id="local-boundary-badge" data-i18n="localBadge">Local to this operating-system account</span>
         </div>
       </div>
     </header>
@@ -48,8 +48,8 @@
           <div class="boundary-icon" aria-hidden="true">⌂</div>
           <div>
             <p id="boundary-title" data-i18n="securityBoundary">Security boundary</p>
-            <strong data-i18n="operatingSystemAccount">Operating-system account</strong>
-            <small data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
+            <strong id="boundary-scope" data-i18n="operatingSystemAccount">Operating-system account</strong>
+            <small id="boundary-profiles-claim" data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
           </div>
         </aside>
       </section>
@@ -216,9 +216,12 @@
             <p class="eyebrow" data-i18n="capabilityEyebrow">One home, many workflows</p>
             <h2 id="capability-title" data-i18n="capabilityTitle">What FolderHome brings together</h2>
           </div>
-          <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
+          <div class="capability-controls">
+            <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
+            <button id="capability-info-btn" type="button" class="capability-info-btn" aria-expanded="false" aria-controls="capability-grid" aria-label="Show capabilities" title="Show capabilities" data-i18n-aria-label="capabilityInfoShow" data-i18n-title="capabilityInfoShow">ⓘ</button>
+          </div>
         </div>
-        <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
+        <div id="capability-grid" class="capability-grid" aria-live="polite" hidden></div>
       </section>
     </main>
 
