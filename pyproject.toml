@@ -59,7 +59,7 @@ only-include = ["src/folderhome", "manifests/components"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-pythonpath = ["src"]
+pythonpath = ["src", "scripts"]
 testpaths = ["tests"]
 
 [tool.ruff]

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import getpass
 import hmac
 import json
@@ -231,6 +232,7 @@ class LocalApplication:
         self._execution_results_lock = threading.RLock()
         self._successful_live_model_turns = 0
         self._model_status_lock = threading.RLock()
+        self._reload_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
 
     def close(self) -> None:
@@ -1750,42 +1752,89 @@ class LocalApplication:
             raise LocalAppError("Reload-Anfrage besitzt unbekannte oder fehlende Felder.")
 
     def _reload_settings(self, payload: dict[str, object]) -> LocalApiResponse:
-        self._settings_reload_request(payload)
-        if self._launch_config_path is None or not self._launch_config_path.is_file():
-            raise _HttpError(
-                409,
-                "Keine gespeicherte Startkonfiguration (launch.json) vorhanden.",
+        with self._reload_lock:
+            self._settings_reload_request(payload)
+            if self._launch_config_path is None or not self._launch_config_path.is_file():
+                raise _HttpError(
+                    409,
+                    "Keine gespeicherte Startkonfiguration (launch.json) vorhanden.",
+                )
+            from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
+
+            staging_env: dict[str, str] = {}
+            try:
+                new_settings, new_preset = build_reloaded_agent_settings(
+                    self._launch_config_path,
+                    self.agent_settings,
+                    target_environ=staging_env,
+                )
+            except ReloadGateError as exc:
+                raise _HttpError(409, str(exc)) from exc
+            except (ValueError, OSError) as exc:
+                raise _HttpError(
+                    409,
+                    f"Startkonfiguration konnte nicht geladen werden: {exc}",
+                ) from exc
+
+            with contextlib.ExitStack() as stack:
+                for profile_id in sorted(self._profile_ids):
+                    stack.enter_context(self._agent_conversation_locks[profile_id])
+                stack.enter_context(self._agent_plan_lock)
+                stack.enter_context(self._model_status_lock)
+                stack.enter_context(self._execution_results_lock)
+
+                for run in self._recipe_runs.values():
+                    if getattr(run, "status", None) in {"running", "preparing"}:
+                        raise _HttpError(
+                            409,
+                            "Laufende Rezeptabschnitte verhindern das Neuladen.",
+                        )
+
+                old_messages = {
+                    pid: self._agent_conversation_messages[pid] for pid in self._profile_ids
+                }
+                old_turns = dict(self._agent_conversation_turns)
+                old_proposed = dict(self._proposed_agent_plans)
+                old_recipe_plans = dict(self._recipe_plans)
+                old_pending_agent = dict(self._pending_agent_plans)
+                old_pending_recipe = dict(self._pending_recipe_plans)
+                old_started = set(self._started_recipe_plans)
+                old_runs = dict(self._recipe_runs)
+
+                try:
+                    for profile_id in sorted(self._profile_ids):
+                        self.reset_agent_conversation(profile_id)
+                except Exception as exc:
+                    self._agent_conversation_messages.update(old_messages)
+                    self._agent_conversation_turns.update(old_turns)
+                    self._proposed_agent_plans = old_proposed
+                    self._recipe_plans = old_recipe_plans
+                    self._pending_agent_plans = old_pending_agent
+                    self._pending_recipe_plans = old_pending_recipe
+                    self._started_recipe_plans = old_started
+                    self._recipe_runs = old_runs
+                    if isinstance(exc, _HttpError):
+                        raise
+                    raise _HttpError(
+                        500,
+                        "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen.",
+                    ) from exc
+
+                self.agent_settings = new_settings
+                self._running_preset = new_preset or "no preset / flags"
+                self._successful_live_model_turns = 0
+                for name, value in staging_env.items():
+                    os.environ.setdefault(name, value)
+
+            return self._json_response(
+                {
+                    "schema": "folderhome.local-settings-reload-response.v1",
+                    "status": "reloaded",
+                    "model_provider": self.agent_settings.model_provider,
+                    "model_state": "configured_unverified",
+                    "running_preset": self._running_preset,
+                }
             )
-        from folderhome.cli import ReloadGateError, build_reloaded_agent_settings
-
-        try:
-            new_settings, new_preset = build_reloaded_agent_settings(
-                self._launch_config_path,
-                self.agent_settings,
-            )
-        except ReloadGateError as exc:
-            raise _HttpError(409, str(exc)) from exc
-        except (ValueError, OSError) as exc:
-            raise _HttpError(
-                409,
-                f"Startkonfiguration konnte nicht geladen werden: {exc}",
-            ) from exc
-
-        self.agent_settings = new_settings
-        self._running_preset = new_preset or "no preset / flags"
-        self._successful_live_model_turns = 0
-        for profile_id in self._profile_ids:
-            self.reset_agent_conversation(profile_id)
-
-        return self._json_response(
-            {
-                "schema": "folderhome.local-settings-reload-response.v1",
-                "status": "reloaded",
-                "model_provider": self.agent_settings.model_provider,
-                "model_state": "configured_unverified",
-                "running_preset": self._running_preset,
-            }
-        )
 
     def _validated_request(
         self,

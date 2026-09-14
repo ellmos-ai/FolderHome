@@ -255,3 +255,71 @@ test("capability titles and status descriptions have exact German parity and rea
   assert.equal(context.translations.de.capabilityInfoShow, "Funktionen anzeigen");
   assert.equal(context.translations.de.capabilityInfoHide, "Funktionen ausblenden");
 });
+
+test("renderCapabilities truthfully displays not_connected and planning_only without false claims", () => {
+  const capabilityGrid = new MockElement("div");
+  const items = [
+    { capability_id: "documents.search", title: "Document search", surface_status: "interactive_read_only" },
+    { capability_id: "documents.create", title: "Create documents", surface_status: "agent_guided" },
+    { capability_id: "calendar.manage", title: "Calendar appointments", surface_status: "planning_only" },
+    { capability_id: "finance.overview", title: "Finance overview", surface_status: "not_connected" },
+  ];
+
+  const transContext = vm.createContext({});
+  const transBlock = appSource.slice(
+    appSource.indexOf("const translations ="),
+    appSource.indexOf("const capabilityTitles =")
+  );
+  vm.runInContext(transBlock.replace("const translations =", "var translations ="), transContext);
+
+  for (const lang of ["en", "de"]) {
+    const context = vm.createContext({
+      capabilityGrid,
+      capabilityItems: items,
+      language: lang,
+      t: (key) => transContext.translations[lang][key] || key,
+      textElement: (tag, text, cls) => {
+        const el = new MockElement(tag);
+        el.textContent = text;
+        if (cls) el.className = cls;
+        return el;
+      },
+      document: { createElement: (tag) => new MockElement(tag) },
+    });
+
+    const capTitlesMatch = appSource.match(/const capabilityTitles = \{[\s\S]*?\n\};/);
+    const renderFn = appSource.match(/function renderCapabilities\(\) \{[\s\S]*?\n\}/);
+    vm.runInContext(capTitlesMatch[0], context);
+    vm.runInContext(renderFn[0], context);
+
+    context.renderCapabilities();
+
+    assert.equal(capabilityGrid.children.length, 4);
+
+    // 0: interactive_read_only -> directUse ("Available here" / "Hier direkt nutzbar")
+    const card0 = capabilityGrid.children[0];
+    assert.equal(card0.dataset.status, "interactive_read_only");
+    assert.equal(card0.children[1].textContent, lang === "en" ? "Available here" : "Hier direkt nutzbar");
+
+    // 1: agent_guided -> agentUse ("Guided by the FolderHome agent" / "Durch den FolderHome-Agenten begleitet")
+    const card1 = capabilityGrid.children[1];
+    assert.equal(card1.dataset.status, "agent_guided");
+    assert.equal(card1.children[1].textContent, lang === "en" ? "Guided by the FolderHome agent" : "Durch den FolderHome-Agenten begleitet");
+
+    // 2: planning_only -> planningOnly ("Planning only" / "Nur Planung")
+    const card2 = capabilityGrid.children[2];
+    assert.equal(card2.dataset.status, "planning_only");
+    assert.equal(card2.children[1].textContent, lang === "en" ? "Planning only" : "Nur Planung");
+    assert.notEqual(card2.children[1].textContent, "Available here");
+    assert.notEqual(card2.children[1].textContent, "Through safe CLI workflows");
+    assert.notEqual(card2.children[1].textContent, "Guided by the FolderHome agent");
+
+    // 3: not_connected -> notConnected ("Not connected in this installation" / "In dieser Installation nicht verbunden")
+    const card3 = capabilityGrid.children[3];
+    assert.equal(card3.dataset.status, "not_connected");
+    assert.equal(card3.children[1].textContent, lang === "en" ? "Not connected in this installation" : "In dieser Installation nicht verbunden");
+    assert.notEqual(card3.children[1].textContent, "Available here");
+    assert.notEqual(card3.children[1].textContent, "Through safe CLI workflows");
+    assert.notEqual(card3.children[1].textContent, "Guided by the FolderHome agent");
+  }
+});

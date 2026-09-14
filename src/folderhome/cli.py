@@ -5443,7 +5443,7 @@ def _apply_launch_config(args: argparse.Namespace) -> None:
         preset = _active_preset(payload)
         model_preset = payload.get("model_preset")
         if isinstance(model_preset, str) and model_preset.strip():
-            setattr(args, "model_preset", model_preset.strip())
+            args.model_preset = model_preset.strip()
         for name, kind in _LAUNCH_CONFIG_FIELDS.items():
             # A flat field wins over the active preset, and an explicit flag
             # over both: a hand-written file keeps working unchanged.
@@ -5567,11 +5567,13 @@ def build_reloaded_agent_settings(
                 needs_network = True
 
     preset_label = running_preset_name or effective
-    if needs_network:
-        if not current_settings.allow_network or not current_settings.allow_sensitive_cloud_data:
-            raise ReloadGateError(
-                f"Start the app with --allow-network --approve-sensitive-cloud-data to use {preset_label}"
-            )
+    if needs_network and (
+        not current_settings.allow_network or not current_settings.allow_sensitive_cloud_data
+    ):
+        raise ReloadGateError(
+            "Start the app with --allow-network --approve-sensitive-cloud-data "
+            f"to use {preset_label}"
+        )
 
     allow_net = False if effective == "fixture" else current_settings.allow_network
     allow_cloud = False if effective == "fixture" else current_settings.allow_sensitive_cloud_data

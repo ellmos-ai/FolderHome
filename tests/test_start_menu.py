@@ -14,40 +14,29 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-import sys
-from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-
-# Ensure scripts directory is importable
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SCRIPTS_DIR = REPO_ROOT / "scripts"
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
-
-import start_menu
 from start_menu import (
     DEFAULT_APP_PORT,
-    DEFAULT_LANGUAGE,
     DEFAULT_OLLAMA_TIMEOUT,
     DEFAULT_SETUP_PORT,
-    HOSTED_PROVIDERS,
-    LOOPBACK_HOSTS,
     MENU_CONFIG_FILENAME,
     MENU_CONFIG_SCHEMA,
     StartMenuController,
     build_parser,
-    find_starter_script,
     get_text,
     inspect_launch_config,
     is_loopback_host,
     load_menu_config,
     main,
     normalize_action,
-    resolve_config_dir,
     save_menu_language,
 )
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+
 
 
 # ============================================================================
@@ -823,4 +812,3 @@ def test_remote_lookalikes_and_all_interfaces_require_both_explicit_gates(tmp_pa
         assert "--allow-network" in cmd_granted
         assert "--approve-sensitive-cloud-data" in cmd_granted
         assert any("Network and cloud data gates approved" in m for m in logs_granted)
-

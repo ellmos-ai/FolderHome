@@ -1915,7 +1915,9 @@ def test_reload_settings_fails_409_when_no_launch_config(tmp_path: Path) -> None
     assert "launch.json" in res.payload["message"]
 
 
-def test_reload_settings_fail_closed_409_when_gates_missing_for_cloud_preset(tmp_path: Path) -> None:
+def test_reload_settings_fail_closed_409_when_gates_missing_for_cloud_preset(
+    tmp_path: Path,
+) -> None:
     launch_file = tmp_path / "launch.json"
     launch_file.write_text(
         json.dumps(
@@ -1943,7 +1945,8 @@ def test_reload_settings_fail_closed_409_when_gates_missing_for_cloud_preset(tmp
     )
     assert res.status_code == 409
     assert res.payload["message"] == (
-        "Start the app with --allow-network --approve-sensitive-cloud-data to use bedrock-nova-micro"
+        "Start the app with --allow-network --approve-sensitive-cloud-data "
+        "to use bedrock-nova-micro"
     )
     assert app.agent_settings.model_provider == "fixture"
 
@@ -2048,11 +2051,16 @@ def test_reload_settings_atomicity_fail_closed_leaves_environ_and_state_unmutate
         method="POST",
         target="/api/v1/settings/reload",
         headers=_api_headers(8765, app.session_token),
-        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
         server_port=8765,
     )
     assert res.status_code == 409
-    assert "Start the app with --allow-network --approve-sensitive-cloud-data" in res.payload["message"]
+    expected_gate_msg = (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+    )
+    assert expected_gate_msg in res.payload["message"]
     # os.environ must NOT have been mutated before or after gate rejection
     assert "ANTHROPIC_API_KEY" not in os.environ
     # Live agent state must remain untouched
@@ -2097,11 +2105,16 @@ def test_reload_settings_remote_lookalikes_require_gates_and_leave_state_unchang
         method="POST",
         target="/api/v1/settings/reload",
         headers=_api_headers(8765, app.session_token),
-        body=json.dumps({"schema": "folderhome.local-settings-reload-request.v1"}).encode("utf-8"),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
         server_port=8765,
     )
     assert res.status_code == 409
-    assert "Start the app with --allow-network --approve-sensitive-cloud-data" in res.payload["message"]
+    expected_gate_msg = (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+    )
+    assert expected_gate_msg in res.payload["message"]
     assert "OPENAI_API_KEY" not in os.environ
     assert app.agent_settings.model_provider == "fixture"
     assert app._successful_live_model_turns == 3
@@ -2152,3 +2165,133 @@ def test_build_reloaded_agent_settings_isolated_mapping_atomicity(tmp_path: Path
     assert isolated_target.get("ANTHROPIC_API_KEY") == "test-isolated-key"
 
 
+def test_reload_settings_post_validation_reset_exception_rollback(tmp_path: Path) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env_file = tmp_path / ".env"
+    env_file.write_text("SENSITIVE_RELOAD_SECRET=secret-token-never-leaked\n", encoding="utf-8")
+
+    app = _app(tmp_path, launch_config_path=launch_file)
+    profile_id = sorted(app._profile_ids)[0]
+    app._agent_conversation_messages[profile_id] = (
+        {"role": "user", "content": "Important retained conversation"},
+    )
+    app._agent_conversation_turns[profile_id] = 2
+    app._successful_live_model_turns = 5
+    app._running_preset = "original-preset"
+
+    # Simulate an error during conversation reset (post-validation)
+    def _faulty_reset(pid: str):
+        raise RuntimeError("simulated post-validation reset failure")
+
+    app.reset_agent_conversation = _faulty_reset
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+    assert "SENSITIVE_RELOAD_SECRET" not in os.environ
+    assert "secret-token" not in res.payload["message"]
+    # Entire old state confirmed intact
+    assert app.agent_settings.model_provider == "fixture"
+    assert app._running_preset == "original-preset"
+    assert app._successful_live_model_turns == 5
+    assert len(app._agent_conversation_messages[profile_id]) == 1
+    assert (
+        app._agent_conversation_messages[profile_id][0]["content"]
+        == "Important retained conversation"
+    )
+    assert app._agent_conversation_turns[profile_id] == 2
+
+
+def test_reload_settings_concurrency_parallel_requests(tmp_path: Path) -> None:
+    from concurrent.futures import ThreadPoolExecutor
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+
+    def send_reload():
+        return app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = [executor.submit(send_reload) for _ in range(8)]
+        results = [f.result() for f in futures]
+
+    for res in results:
+        assert res.status_code == 200
+        assert res.payload["status"] == "reloaded"
+
+
+def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None:
+    from types import SimpleNamespace
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._recipe_runs["run_1"] = SimpleNamespace(status="running")
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert "Laufende Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]

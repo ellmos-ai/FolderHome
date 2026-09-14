@@ -15,15 +15,17 @@ security boundaries:
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
-from pathlib import Path
 import subprocess
 import sys
 import time
-from typing import Any, Callable
-from urllib.parse import urlsplit
 import webbrowser
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit
 
 MENU_CONFIG_SCHEMA = "folderhome.start-menu-config.v1"
 MENU_CONFIG_FILENAME = "start_menu.json"
@@ -45,15 +47,8 @@ def is_loopback_host(host: str | None) -> bool:
     if not raw:
         return False
     try:
-        if "://" in raw:
-            parsed = urlsplit(raw)
-            hostname = parsed.hostname
-        elif raw.startswith("//"):
-            parsed = urlsplit(raw)
-            hostname = parsed.hostname
-        else:
-            parsed = urlsplit("//" + raw)
-            hostname = parsed.hostname
+        parsed = urlsplit(raw) if "://" in raw or raw.startswith("//") else urlsplit("//" + raw)
+        hostname = parsed.hostname
     except ValueError:
         return False
 
@@ -84,11 +79,18 @@ TEXTS: dict[str, dict[str, str]] = {
         "launching_app": "Starting FolderHome...",
         "launching_setup": "Starting Setup...",
         "launching_both": "Starting FolderHome and Setup...",
-        "starter_missing": "{script} was not found in config dir or scripts. Subprocess will not be started.",
+        "starter_missing": (
+            "{script} was not found in config dir or scripts. "
+            "Subprocess will not be started."
+        ),
         "app_url": "FolderHome URL: {url}",
         "setup_url": "Setup URL: {url}",
-        "remote_cloud_detected": "Remote/cloud model preset '{preset}' (provider: {provider}) detected.",
-        "gate_confirmation": "Do you want to grant network access and sensitive cloud data approval? (y/N): ",
+        "remote_cloud_detected": (
+            "Remote/cloud model preset '{preset}' (provider: {provider}) detected."
+        ),
+        "gate_confirmation": (
+            "Do you want to grant network access and sensitive cloud data approval? (y/N): "
+        ),
         "gates_granted": "Network and cloud data gates approved.",
         "gates_denied": "No network or cloud gates granted (fail-closed).",
         "ollama_timeout_applied": "Applied Ollama model timeout: {timeout}s",
@@ -115,11 +117,18 @@ TEXTS: dict[str, dict[str, str]] = {
         "launching_app": "Starte FolderHome...",
         "launching_setup": "Starte Setup...",
         "launching_both": "Starte FolderHome und Setup...",
-        "starter_missing": "{script} wurde im Konfigurationsordner oder in scripts nicht gefunden. Subprozess wird nicht gestartet.",
+        "starter_missing": (
+            "{script} wurde im Konfigurationsordner oder in scripts nicht gefunden. "
+            "Subprozess wird nicht gestartet."
+        ),
         "app_url": "FolderHome URL: {url}",
         "setup_url": "Setup URL: {url}",
-        "remote_cloud_detected": "Remote-/Cloud-Modell-Preset '{preset}' (Anbieter: {provider}) erkannt.",
-        "gate_confirmation": "Möchtest du Netzwerkfreigabe und Freigabe sensibler Cloud-Daten erteilen? (y/N): ",
+        "remote_cloud_detected": (
+            "Remote-/Cloud-Modell-Preset '{preset}' (Anbieter: {provider}) erkannt."
+        ),
+        "gate_confirmation": (
+            "Möchtest du Netzwerkfreigabe und Freigabe sensibler Cloud-Daten erteilen? (y/N): "
+        ),
         "gates_granted": "Netzwerk- und Cloud-Datenfreigabe erteilt.",
         "gates_denied": "Keine Netzwerk- oder Cloud-Freigabe erteilt (Fail-Closed).",
         "ollama_timeout_applied": "Ollama-Modell-Timeout angewendet: {timeout}s",
@@ -244,13 +253,18 @@ def inspect_launch_config(launch_path: Path) -> dict[str, Any]:
 
 def normalize_action(raw: str) -> str | None:
     token = raw.strip().lower()
-    if token in ("1", "folderhome", "app", "folder-home", "1. folderhome", "1 folderhome"):
+    if token in (
+        "1", "folderhome", "app", "folder-home", "1. folderhome", "1 folderhome"
+    ):
         return "1"
     if token in ("2", "setup", "einrichtung", "2. setup", "2 setup"):
         return "2"
     if token in ("3", "both", "beides", "3. both", "3 both", "3. beides", "3 beides"):
         return "3"
-    if token in ("4", "language", "sprache", "lang", "4. language", "4 language", "4. sprache", "4 sprache"):
+    if token in (
+        "4", "language", "sprache", "lang",
+        "4. language", "4 language", "4. sprache", "4 sprache",
+    ):
         return "4"
     if token in ("q", "quit", "exit", "beenden", "stop", "close"):
         return "q"
@@ -375,7 +389,8 @@ class StartMenuController:
             self.print_func(self.t("quitting"))
             return 0
 
-        targets: list[tuple[str, Callable[[], tuple[list[str] | None, str | None, str | None]]]] = []
+        ResolverFn = Callable[[], tuple[list[str] | None, str | None, str | None]]
+        targets: list[tuple[str, ResolverFn]] = []
         if norm == "1":
             targets.append((self.t("launching_app"), self.resolve_app_command_and_url))
         elif norm == "2":
@@ -419,10 +434,8 @@ class StartMenuController:
                 self.print_func(f"Failed to start subprocess: {exc}")
 
             if self.open_browser:
-                try:
+                with contextlib.suppress(Exception):
                     self.browser_opener(url)
-                except Exception:
-                    pass
 
         if self.processes:
             try:
@@ -442,10 +455,8 @@ class StartMenuController:
                     if hasattr(p, "wait"):
                         p.wait(timeout=2.0)
                 except Exception:
-                    try:
+                    with contextlib.suppress(Exception):
                         p.kill()
-                    except Exception:
-                        pass
         self.print_func(self.t("processes_stopped"))
         self.processes.clear()
 

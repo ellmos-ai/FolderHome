@@ -62,10 +62,10 @@ const translations = {
     familyProfilesAuthorization: "Family profiles serve as authorization boundaries.",
     localBadge: "Local to this operating-system account",
     localBadgeLocal: "Local to this operating-system account",
-    localBadgeRemote: "Connected to remote host",
-    localBadgeCloud: "Connected to cloud runtime",
     localBadgeDisconnected: "Disconnected from service",
     localBadgeBlocked: "Connection blocked",
+    connectionBlockedDetail: "The local request was blocked (token missing, invalid, or forbidden origin).",
+    serviceDisconnectedDetail: "The local FolderHome service is currently unreachable.",
     activeFolder: "Active workspace",
     agentChat: "FolderHome agent",
     whatHelp: "What can I help you with?",
@@ -75,9 +75,17 @@ const translations = {
     modelFixture: "Demo model (fixture)",
     modelFixtureDetail: "FolderHome and its files stay local. No live LLM is connected; responses use deterministic test behavior.",
     modelConfigured: "Amazon Bedrock configured",
-    modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in {region}. No successful live chat has been verified in this process yet.",
+    modelConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} in AWS region {region}. No successful live chat has been verified in this process yet.",
     modelVerified: "Amazon Bedrock active",
-    modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in {region}. {count} successful live model turn(s) in this process.",
+    modelVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} in AWS region {region}. {count} successful live model turn(s) in this process.",
+    modelAnthropicConfigured: "Anthropic cloud model configured",
+    modelAnthropicConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} via Anthropic cloud API. No successful live chat has been verified in this process yet.",
+    modelAnthropicVerified: "Anthropic cloud model active",
+    modelAnthropicVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} via Anthropic cloud API. {count} successful live model turn(s) in this process.",
+    modelOpenAIConfigured: "OpenAI-compatible cloud model configured",
+    modelOpenAIConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} via OpenAI-compatible cloud API{endpoint}. No successful live chat has been verified in this process yet.",
+    modelOpenAIVerified: "OpenAI-compatible cloud model active",
+    modelOpenAIVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} via OpenAI-compatible cloud API{endpoint}. {count} successful live model turn(s) in this process.",
     resultsEyebrow: "Delivery",
     resultsTitle: "Results you can pick up",
     refreshResults: "Refresh",
@@ -88,6 +96,10 @@ const translations = {
     modelLocalConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} at {host}. No successful live chat has been verified in this process yet.",
     modelLocalVerified: "Local model active (Ollama)",
     modelLocalVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} at {host}. {count} successful live model turn(s) in this process.",
+    modelRemoteConfigured: "Remote model configured (Ollama)",
+    modelRemoteConfiguredDetail: "FolderHome and its files stay local; model inference is configured for {model} on remote host {host}. No successful live chat has been verified in this process yet.",
+    modelRemoteVerified: "Remote model active (Ollama)",
+    modelRemoteVerifiedDetail: "FolderHome and its files stay local; prompts and bounded tool results use {model} on remote host {host}. {count} successful live model turn(s) in this process.",
     welcomeMessage: "Tell me what you want to find, understand, organize, or prepare. I will use a safe tool directly or propose a bounded workflow.",
     chatPlaceholder: "Find my latest Hyundai i10 insurance and show me what changed …",
     sendButton: "Send",
@@ -258,11 +270,12 @@ const translations = {
     boundaryScopeDisconnected: "Getrennt",
     familyProfiles: "Familienprofile organisieren – sie erteilen keine Zugriffsrechte.",
     familyProfilesAuthorization: "Familienprofile bilden Autorisierungsgrenzen.",
+    localBadge: "Lokal auf diesem Betriebssystemkonto",
     localBadgeLocal: "Lokal auf diesem Betriebssystemkonto",
-    localBadgeRemote: "Mit Remote-Host verbunden",
-    localBadgeCloud: "Mit Cloud-Laufzeit verbunden",
     localBadgeDisconnected: "Vom Dienst getrennt",
     localBadgeBlocked: "Verbindung blockiert",
+    connectionBlockedDetail: "Die lokale Anfrage wurde blockiert (Token fehlt, ist ungültig oder Origin abgewiesen).",
+    serviceDisconnectedDetail: "Der lokale FolderHome-Dienst ist derzeit nicht erreichbar.",
     activeFolder: "Aktiver Arbeitsordner",
     agentChat: "FolderHome-Agent",
     whatHelp: "Wobei kann ich dir helfen?",
@@ -272,9 +285,17 @@ const translations = {
     modelFixture: "Demomodell (Fixture)",
     modelFixtureDetail: "FolderHome und seine Dateien bleiben lokal. Kein Live-LLM ist verbunden; Antworten verwenden deterministisches Testverhalten.",
     modelConfigured: "Amazon Bedrock konfiguriert",
-    modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} in AWS-Region {region} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelVerified: "Amazon Bedrock aktiv",
-    modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} in AWS-Region {region}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelAnthropicConfigured: "Anthropic-Cloud-Modell konfiguriert",
+    modelAnthropicConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} über die Anthropic-Cloud-API konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelAnthropicVerified: "Anthropic-Cloud-Modell aktiv",
+    modelAnthropicVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} über die Anthropic-Cloud-API. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelOpenAIConfigured: "OpenAI-kompatibles Cloud-Modell konfiguriert",
+    modelOpenAIConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} über die OpenAI-kompatible Cloud-API{endpoint} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelOpenAIVerified: "OpenAI-kompatibles Cloud-Modell aktiv",
+    modelOpenAIVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} über die OpenAI-kompatible Cloud-API{endpoint}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
     resultsEyebrow: "Zustellung",
     resultsTitle: "Ergebnisse zum Abholen",
     refreshResults: "Aktualisieren",
@@ -285,6 +306,10 @@ const translations = {
     modelLocalConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
     modelLocalVerified: "Lokales Modell aktiv (Ollama)",
     modelLocalVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} auf {host}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
+    modelRemoteConfigured: "Remote-Modell konfiguriert (Ollama)",
+    modelRemoteConfiguredDetail: "FolderHome und seine Dateien bleiben lokal; die Modellinferenz ist für {model} auf dem Remote-Host {host} konfiguriert. In diesem Prozess wurde noch kein erfolgreicher Live-Chat bestätigt.",
+    modelRemoteVerified: "Remote-Modell aktiv (Ollama)",
+    modelRemoteVerifiedDetail: "FolderHome und seine Dateien bleiben lokal; Prompts und begrenzte Werkzeugresultate verwenden {model} auf dem Remote-Host {host}. {count} erfolgreiche Live-Modellrunde(n) in diesem Prozess.",
     welcomeMessage: "Sag mir, was du finden, verstehen, ordnen oder vorbereiten möchtest. Ich nutze direkt ein sicheres Werkzeug oder schlage einen begrenzten Workflow vor.",
     chatPlaceholder: "Finde meine neueste Hyundai-i10-Versicherung und zeige mir die Änderungen …",
     sendButton: "Senden",
@@ -744,10 +769,6 @@ function renderBoundary() {
       badgeKey = "localBadgeBlocked";
     } else if (!isConnected && connectionStatus !== "checking") {
       badgeKey = "localBadgeDisconnected";
-    } else if (topology === "cloud") {
-      badgeKey = "localBadgeCloud";
-    } else if (topology === "remote_host" || topology === "remote") {
-      badgeKey = "localBadgeRemote";
     } else {
       badgeKey = "localBadgeLocal";
     }
@@ -765,10 +786,6 @@ function renderBoundary() {
     let scopeKey;
     if (isBlocked || (!isConnected && connectionStatus !== "checking")) {
       scopeKey = "boundaryScopeDisconnected";
-    } else if (topology === "cloud") {
-      scopeKey = "boundaryScopeCloud";
-    } else if (topology === "remote_host" || topology === "remote") {
-      scopeKey = "boundaryScopeRemote";
     } else {
       scopeKey = "operatingSystemAccount";
     }
@@ -837,9 +854,19 @@ function initCollapsiblePanels() {
 
 function renderModelStatus() {
   if (!modelConnection && !appStatus) {
-    modelStatus.dataset.state = "checking";
-    modelStatusTitle.textContent = t("modelChecking");
-    modelStatusDetail.textContent = t("modelCheckingDetail");
+    if (connectionStatus === "blocked") {
+      modelStatus.dataset.state = "error";
+      modelStatusTitle.textContent = t("connectionBlocked");
+      modelStatusDetail.textContent = t("connectionBlockedDetail");
+    } else if (connectionStatus === "disconnected") {
+      modelStatus.dataset.state = "error";
+      modelStatusTitle.textContent = t("connectionDisconnected");
+      modelStatusDetail.textContent = t("serviceDisconnectedDetail");
+    } else {
+      modelStatus.dataset.state = "checking";
+      modelStatusTitle.textContent = t("modelChecking");
+      modelStatusDetail.textContent = t("modelCheckingDetail");
+    }
     return;
   }
   const state = appStatus?.model_state || modelConnection?.connection_status || "fixture_only";
@@ -864,23 +891,54 @@ function renderModelStatus() {
     modelStatusDetail.textContent = t("modelFixtureDetail");
     return;
   }
-  const provider = appStatus?.model_provider || modelConnection?.provider;
-  const isOllama = provider === "ollama";
+  const provider = appStatus?.model_provider || modelConnection?.provider || "fixture";
+  const topology = (
+    appStatus?.runtime_topology
+    || modelConnection?.runtime_topology
+    || "loopback_local"
+  ).toLowerCase();
   const turns = appStatus?.successful_live_model_turns ?? modelConnection?.successful_live_model_turns ?? 0;
-  const values = {
-    model: modelConnection?.model_id || (isOllama ? "Ollama model" : "Bedrock model"),
-    region: modelConnection?.aws_region || "AWS region",
-    host: modelConnection?.ollama_host || "the configured Ollama host",
-    count: turns,
-  };
   const verified = state === "verified_in_process";
-  const titleKey = isOllama
-    ? (verified ? "modelLocalVerified" : "modelLocalConfigured")
-    : (verified ? "modelVerified" : "modelConfigured");
-  if (!directLabel) {
-    modelStatusTitle.textContent = t(titleKey);
+
+  if (provider === "ollama") {
+    const isRemote = topology === "remote_host" || topology === "remote";
+    const model = modelConnection?.model_id || "Ollama model";
+    const host = modelConnection?.ollama_host || (isRemote ? "remote host" : "http://127.0.0.1:11434");
+    const titleKey = isRemote
+      ? (verified ? "modelRemoteVerified" : "modelRemoteConfigured")
+      : (verified ? "modelLocalVerified" : "modelLocalConfigured");
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, host, count: turns });
+  } else if (provider === "bedrock") {
+    const model = modelConnection?.model_id || "Bedrock model";
+    const region = modelConnection?.aws_region || "AWS region";
+    const titleKey = verified ? "modelVerified" : "modelConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, region, count: turns });
+  } else if (provider === "anthropic") {
+    const model = modelConnection?.model_id || "Anthropic model";
+    const titleKey = verified ? "modelAnthropicVerified" : "modelAnthropicConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, count: turns });
+  } else if (provider === "openai") {
+    const model = modelConnection?.model_id || "OpenAI model";
+    const baseUrl = modelConnection?.openai_base_url || "";
+    const endpoint = baseUrl ? ` (${baseUrl})` : "";
+    const titleKey = verified ? "modelOpenAIVerified" : "modelOpenAIConfigured";
+    if (!directLabel) {
+      modelStatusTitle.textContent = t(titleKey);
+    }
+    modelStatusDetail.textContent = t(`${titleKey}Detail`, { model, endpoint, count: turns });
+  } else {
+    if (!directLabel) modelStatusTitle.textContent = t("modelFixture");
+    modelStatusDetail.textContent = t("modelFixtureDetail");
   }
-  modelStatusDetail.textContent = t(`${titleKey}Detail`, values);
 }
 
 function renderRunningSettings() {
@@ -1030,16 +1088,19 @@ function renderCapabilities() {
     card.className = "capability-card";
     card.dataset.status = item.surface_status;
     card.append(textElement("strong", capabilityTitles[language]?.[item.capability_id] || item.title));
-    card.append(textElement(
-      "small",
-      t(
-        item.surface_status === "interactive_read_only"
-          ? "directUse"
-          : item.surface_status === "agent_guided"
-            ? "agentUse"
-            : "cliUse",
-      ),
-    ));
+    let statusKey;
+    if (item.surface_status === "interactive_read_only") {
+      statusKey = "directUse";
+    } else if (item.surface_status === "agent_guided") {
+      statusKey = "agentUse";
+    } else if (item.surface_status === "planning_only") {
+      statusKey = "planningOnly";
+    } else if (item.surface_status === "not_connected") {
+      statusKey = "notConnected";
+    } else {
+      statusKey = "notConnected";
+    }
+    card.append(textElement("small", t(statusKey)));
     return card;
   });
   capabilityGrid.replaceChildren(...cards);
@@ -1980,7 +2041,13 @@ setTheme(theme, { persist: false });
 initCapabilityInfo();
 initCollapsiblePanels();
 bootstrap().catch((error) => {
-  connectionStatus = "blocked";
+  if (error instanceof LocalRequestError && (error.status === 401 || error.status === 403)) {
+    connectionStatus = "blocked";
+  } else {
+    connectionStatus = "disconnected";
+  }
   renderConnection();
+  renderBoundary();
+  renderModelStatus();
   showError(error);
 });
