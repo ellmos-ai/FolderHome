@@ -105,6 +105,7 @@ function setupContext(initialState = {}) {
     connectionStatus: initialState.connectionStatus || "ready",
     appStatus: initialState.appStatus || null,
     modelConnection: initialState.modelConnection || null,
+    renderPseudonymizationStatus: () => {},
     t: (key, replacements = {}) => {
       const lang = context.language;
       let val = transContext.translations[lang]?.[key] || transContext.translations.en?.[key] || key;

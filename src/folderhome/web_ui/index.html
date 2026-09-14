@@ -43,7 +43,15 @@
           <p class="eyebrow" data-i18n="serviceEyebrow">Document and assistance service</p>
           <h1 id="hero-title"><span data-i18n="heroDocuments">Your documents.</span><br><em data-i18n="heroDaily">Your everyday life.</em> <span data-i18n="heroPlace">One place.</span></h1>
           <p class="hero-copy" data-i18n="heroCopy">Find scattered information, build topic summaries, and keep track of private documents locally.</p>
+          <button id="capability-info-btn" type="button" class="capability-info-btn hero-info-btn"
+            aria-expanded="false" aria-controls="home-info-panel"
+            aria-label="Show security and capabilities" title="Show security and capabilities"
+            data-i18n-aria-label="capabilityInfoShow" data-i18n-title="capabilityInfoShow">ⓘ</button>
         </div>
+      </section>
+
+      <section id="home-info-panel" class="home-info-panel" aria-label="Security and capabilities"
+        data-i18n-aria-label="homeInfoPanelLabel" hidden>
         <aside class="boundary-card" aria-labelledby="boundary-title">
           <div class="boundary-icon" aria-hidden="true">⌂</div>
           <div>
@@ -52,6 +60,17 @@
             <small id="boundary-profiles-claim" data-i18n="familyProfiles">Family profiles organize information; they do not grant access.</small>
           </div>
         </aside>
+
+        <section class="capability-section" aria-labelledby="capability-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow" data-i18n="capabilityEyebrow">One home, many workflows</p>
+              <h2 id="capability-title" data-i18n="capabilityTitle">What FolderHome brings together</h2>
+            </div>
+            <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
+          </div>
+          <div id="capability-grid" class="capability-grid" aria-live="polite"></div>
+        </section>
       </section>
 
       <section id="model-status-banner" class="model-status-banner" role="region" aria-label="Model status" data-i18n-aria-label="modelStatusBanner">
@@ -127,7 +146,7 @@
               data-i18n="exampleDossier">Try a topic dossier</button>
           </div>
         </form>
-        <p class="hint" id="chat-hint" data-i18n="chatHint">Conversation is never an approval. FolderHome shows a separate plan before any workflow with side effects.</p>
+        <p class="hint" id="chat-hint" data-i18n="chatHint">Privacy-friendly focus mode: chat stays in the current session instead of becoming an automatic archive. Reloading settings or restarting the app starts fresh. Conversation is never an approval; FolderHome shows a separate plan before any workflow with side effects.</p>
         <form id="recipe-form" aria-describedby="recipe-hint">
           <label for="recipe-select" data-i18n="recipeLabel">Multi-step journey</label>
           <div class="recipe-controls">
@@ -212,19 +231,6 @@
         </div>
       </section>
 
-      <section class="capability-section" aria-labelledby="capability-title">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow" data-i18n="capabilityEyebrow">One home, many workflows</p>
-            <h2 id="capability-title" data-i18n="capabilityTitle">What FolderHome brings together</h2>
-          </div>
-          <div class="capability-controls">
-            <span id="connection-state" class="connection-state" role="status" aria-live="polite">Checking connection …</span>
-            <button id="capability-info-btn" type="button" class="capability-info-btn" aria-expanded="false" aria-controls="capability-grid" aria-label="Show capabilities" title="Show capabilities" data-i18n-aria-label="capabilityInfoShow" data-i18n-title="capabilityInfoShow">ⓘ</button>
-          </div>
-        </div>
-        <div id="capability-grid" class="capability-grid" aria-live="polite" hidden></div>
-      </section>
     </main>
 
     <div id="settings-dialog" class="settings-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-dialog-title" hidden>

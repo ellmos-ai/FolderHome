@@ -258,7 +258,7 @@ class PseudonymVault:
 class PseudonymizingModel(_StrandsModel):
     """Strands model decorator that protects every remote request and response."""
 
-    def __init__(self, inner_model: Model, vault: PseudonymVault) -> None:
+    def __init__(self, inner_model: _StrandsModel, vault: PseudonymVault) -> None:
         self.inner_model = inner_model
         self.vault = vault
 

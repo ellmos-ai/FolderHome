@@ -2,8 +2,8 @@
 
 [English](./ARCHITECTURE.md) | **Deutsch**
 
-**Version:** 0.3.0 + Abnahme-Korrekturen  
-**Stand:** 2026-09-09  
+**Version:** 0.6.1  
+**Stand:** 2026-09-14  
 **Direkter Vorläufer:**
 [`docs/archive/ARCHITECTURE-v0.34.md`](docs/archive/ARCHITECTURE-v0.34.de.md)
 
@@ -427,9 +427,10 @@ private Zugangsdaten binden; erstmalige Anmeldung und Live-Abnahme bleiben offen
 Der optionale AWS-Demo-Proxy besitzt jetzt einen lokalen Vertrag zur geprüften
 Mikro-USD-Reservierung: kumulierende UTC-Tagesmittel, atomare Geld-/Tageszähl-
 Zulassung, dauerhaftes Ledger sowie gebundene Runtime-Version und Kostenprofil.
-Dies steuert zugelassene Forwards, nicht die gesamte AWS-Rechnung. Migration der
-bestehenden Demo sowie tatsächliche Mittel, Preise und Cloudbetrieb warten auf
-die gemeinsame Abnahme; siehe [AWS-Deploymentgrenzen](./deploy/aws_demo/README.de.md).
+Dies steuert zugelassene Forwards, nicht die gesamte AWS-Rechnung. Die bestehende
+Demo wurde am 14.09.2026 als Runtime 26 migriert und verifiziert; die menschliche
+Browserabnahme bleibt getrennt. Siehe
+[AWS-Deploymentgrenzen](./deploy/aws_demo/README.de.md).
 
 ## Provider- und Wiederverwendungsgrenze
 

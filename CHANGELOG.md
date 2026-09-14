@@ -2,13 +2,36 @@
 
 **English** | [Deutsch](./CHANGELOG.de.md)
 
-**Current short version:** 0.52 / 2026-08-27  
+**Current short version:** 0.6.1 / 2026-09-15  
 **Direct predecessor:**  
 [`docs/archive/CHANGELOG-through-phase35.md`](./docs/archive/CHANGELOG-through-phase35.md)
 
 All relevant changes are documented in this file. The detailed phase‑by‑phase history up to Phase 35 remains unchanged in the archive.
 
 ## [Unreleased]
+
+## [0.6.1] - 2026-09-15
+
+### Added
+
+- Default-on cloud pseudonymization replaces known local identities and
+  conservatively recognized sensitive patterns with process-local placeholders
+  before remote model calls. It reduces exposure but is not anonymity; both
+  transport and data-disclosure gates remain mandatory.
+- `scripts/START.cmd` offers one bilingual menu for starting FolderHome, Setup,
+  or both. The local GUI can reload a saved model preset without restarting the
+  process or bypassing either remote-provider gate.
+
+### Changed
+
+- The public synthetic demo is live on Cloud Runtime 27 and was verified on
+  2026-09-15. The final local suite passed all 2,045 tests with warnings treated
+  as errors.
+
+### Fixed
+
+- Packaged CLI imports no longer require the optional Strands dependency for
+  commands that do not use an agent model.
 
 ## [0.5.0] - 2026-09-13
 

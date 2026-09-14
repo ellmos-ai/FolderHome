@@ -113,10 +113,10 @@ const translations = {
     newConversation: "New conversation",
     conversationReset: "A new process-local conversation has started.",
     exampleDossier: "Try a topic dossier",
-    chatHint: "Conversation is never an approval. FolderHome shows a separate plan before any workflow with side effects.",
+    chatHint: "Privacy-friendly focus mode: chat stays in the current session instead of becoming an automatic archive. Reloading settings or restarting the app starts fresh. Conversation is never an approval; FolderHome shows a separate plan before any workflow with side effects.",
     planEyebrow: "Agent details",
     planTitle: "Tools and proposed plans",
-    assistantLabel: "FolderHome",
+    assistantLabel: "FH",
     youLabel: "You",
     agentWorking: "FolderHome is thinking and using bounded tools …",
     toolUsed: "Tool used",
@@ -157,7 +157,7 @@ const translations = {
     recipeBindingSource: "Source: {step} · report path: {path}",
     recipeBindingEvidence: "Source execution: {id}",
     recipeHint: "Preparation runs no workflow. Review every step before the separate confirmation.",
-    recipeUnavailable: "Not ready: required resources or connected executors are missing.",
+    recipeUnavailable: "This packaged journey is not currently available in this installation. Its readiness condition remains in force and FolderHome will not bypass it. Custom journeys cannot yet be added in this interface.",
     recipeEmpty: "No journey available",
     recipeReview: "Deterministic recipe review passed; one confirmation covers all steps.",
     recipeAborted: "Journey stopped. Completed: {completed}; failed: {failed}; not started: {pending}. A failed step may already have had effects. Check the actual state before retrying.",
@@ -198,8 +198,10 @@ const translations = {
     localMatches: "Local matches",
     capabilityEyebrow: "One home, many workflows",
     capabilityTitle: "What FolderHome brings together",
-    capabilityInfoShow: "Show capabilities",
-    capabilityInfoHide: "Hide capabilities",
+    capabilityInfoShow: "Show security and capabilities",
+    capabilityInfoHide: "Hide security and capabilities",
+    homeInfoPanelLabel: "Security and capabilities",
+    capabilitiesUnavailable: "Capability status is unavailable while FolderHome is disconnected.",
     connectionChecking: "Checking connection …",
     connectionReady: "Local connection ready",
     connectionReadyRemote: "Remote connection ready",
@@ -214,7 +216,7 @@ const translations = {
     processAccount: "Process account: {account}",
     directUse: "Available here",
     cliUse: "Through safe CLI workflows",
-    agentUse: "Guided by the FolderHome agent",
+    agentUse: "Ready through the FolderHome agent",
     running: "running",
     searching: "Searching the local index …",
     blocked: "blocked",
@@ -330,10 +332,10 @@ const translations = {
     newConversation: "Neue Unterhaltung",
     conversationReset: "Eine neue prozesslokale Unterhaltung wurde begonnen.",
     exampleDossier: "Themendossier ausprobieren",
-    chatHint: "Ein Gespräch ist niemals eine Freigabe. Vor jedem Workflow mit Nebenwirkungen zeigt FolderHome einen eigenen Plan.",
+    chatHint: "Datenschutzfreundlicher Fokusmodus: Der Chat bleibt in der aktuellen Sitzung, statt automatisch zum Archiv zu werden. Nach dem Neuladen der Einstellungen oder einem Neustart beginnt der Kontext frisch. Ein Gespräch ist niemals eine Freigabe. Vor jedem Workflow mit Nebenwirkungen zeigt FolderHome einen eigenen Plan.",
     planEyebrow: "Agentendetails",
     planTitle: "Werkzeuge und vorgeschlagene Pläne",
-    assistantLabel: "FolderHome",
+    assistantLabel: "FH",
     youLabel: "Du",
     agentWorking: "FolderHome denkt nach und nutzt begrenzte Werkzeuge …",
     toolUsed: "Verwendetes Werkzeug",
@@ -374,7 +376,7 @@ const translations = {
     recipeBindingSource: "Quelle: {step} · Berichtspfad: {path}",
     recipeBindingEvidence: "Quellausführung: {id}",
     recipeHint: "Die Vorbereitung führt keinen Workflow aus. Vor der getrennten Freigabe alle Schritte prüfen.",
-    recipeUnavailable: "Noch nicht bereit: Benötigte Ressourcen oder verbundene Ausführer fehlen.",
+    recipeUnavailable: "Diese mitgelieferte Mehrschritt-Aufgabe ist in dieser Installation derzeit nicht verfügbar. Ihre Bereitschaftsbedingung bleibt bestehen und FolderHome umgeht sie nicht. Eigene Abläufe lassen sich in dieser Oberfläche noch nicht hinzufügen.",
     recipeEmpty: "Keine Mehrschritt-Aufgabe verfügbar",
     recipeReview: "Deterministische Rezeptprüfung bestanden; eine Bestätigung gilt für alle Schritte.",
     recipeAborted: "Aufgabe gestoppt. Ausgeführt: {completed}; gescheitert: {failed}; nicht gestartet: {pending}. Ein gescheiterter Schritt kann bereits gewirkt haben. Vor einem neuen Versuch den tatsächlichen Zustand prüfen.",
@@ -415,8 +417,10 @@ const translations = {
     localMatches: "Lokale Fundstellen",
     capabilityEyebrow: "Ein Zuhause, viele Abläufe",
     capabilityTitle: "Was FolderHome zusammenführt",
-    capabilityInfoShow: "Funktionen anzeigen",
-    capabilityInfoHide: "Funktionen ausblenden",
+    capabilityInfoShow: "Sicherheit und Funktionen anzeigen",
+    capabilityInfoHide: "Sicherheit und Funktionen ausblenden",
+    homeInfoPanelLabel: "Sicherheit und Funktionen",
+    capabilitiesUnavailable: "Der Funktionsstatus ist nicht verfügbar, solange FolderHome getrennt ist.",
     connectionChecking: "Verbindung wird geprüft …",
     connectionReady: "Lokale Verbindung bereit",
     connectionReadyRemote: "Remote-Verbindung bereit",
@@ -431,7 +435,7 @@ const translations = {
     processAccount: "Prozesskonto: {account}",
     directUse: "Hier direkt nutzbar",
     cliUse: "Über sichere CLI-Workflows",
-    agentUse: "Durch den FolderHome-Agenten begleitet",
+    agentUse: "Über den FolderHome-Agenten bereit",
     running: "läuft",
     searching: "Der lokale Index wird durchsucht …",
     blocked: "blockiert",
@@ -497,6 +501,7 @@ const chatTranscript = document.querySelector("#chat-transcript");
 const connectionState = document.querySelector("#connection-state");
 const capabilityGrid = document.querySelector("#capability-grid");
 const capabilityInfoButton = document.querySelector("#capability-info-btn");
+const homeInfoPanel = document.querySelector("#home-info-panel");
 const runtimeAccount = document.querySelector("#runtime-account");
 const localBoundaryBadge = document.querySelector("#local-boundary-badge");
 const boundaryScope = document.querySelector("#boundary-scope");
@@ -1057,6 +1062,7 @@ async function reloadSettings() {
     try {
       appStatus = await api("/api/v1/status");
       modelConnection = appStatus.model_connection || null;
+      connectionStatus = "ready";
       renderTopologyBadge();
       renderModelStatus();
       renderRunningSettings();
@@ -1157,7 +1163,7 @@ function setStoredCapabilityState(isOpen) {
 }
 
 function setCapabilityExpanded(expanded, { persist = true } = {}) {
-  if (!capabilityGrid || !capabilityInfoButton) return;
+  if (!homeInfoPanel || !capabilityInfoButton) return;
   const isExpanded = Boolean(expanded);
   if (typeof capabilityInfoButton.setAttribute === "function") {
     capabilityInfoButton.setAttribute("aria-expanded", String(isExpanded));
@@ -1165,7 +1171,7 @@ function setCapabilityExpanded(expanded, { persist = true } = {}) {
     capabilityInfoButton.setAttribute("aria-label", t(labelKey));
     capabilityInfoButton.setAttribute("title", t(labelKey));
   }
-  capabilityGrid.hidden = !isExpanded;
+  homeInfoPanel.hidden = !isExpanded;
   if (persist) {
     setStoredCapabilityState(isExpanded);
   }
@@ -1192,7 +1198,16 @@ function initCapabilityInfo() {
 }
 
 function renderCapabilities() {
-  if (!capabilityItems.length || !capabilityGrid) return;
+  if (!capabilityGrid) return;
+  if (connectionStatus !== "ready") {
+    const unavailable = textElement("p", t("capabilitiesUnavailable"), "hint");
+    capabilityGrid.replaceChildren(unavailable);
+    return;
+  }
+  if (!capabilityItems.length) {
+    capabilityGrid.replaceChildren();
+    return;
+  }
   const cards = capabilityItems.map((item) => {
     const card = document.createElement("article");
     card.className = "capability-card";
@@ -1813,9 +1828,7 @@ function renderRecipeSelection() {
   prepareRecipeButton.textContent = t(selected?.approval_mode === "per_section" ? "recipePrepareSection" : "recipePrepare");
   recipeHint.textContent = !selected ? t("recipeEmpty") : selected.available
     ? `${selected.summary} ${t(selected.approval_mode === "per_section" ? "recipeStageHint" : "recipeHint")}`
-    : selected.unavailable_reason
-      ? `${t("recipeUnavailable")} ${selected.unavailable_reason}`
-      : t("recipeUnavailable");
+    : t("recipeUnavailable");
   // Journeys that cannot run here yet (missing resources or executors) stay out of the way:
   // the panel collapses; the user can still open it to see what is missing.
   const panel = recipeSelect && typeof recipeSelect.closest === "function"

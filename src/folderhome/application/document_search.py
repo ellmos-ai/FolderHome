@@ -41,7 +41,12 @@ _STOPWORDS = {
     "welche",
     "welcher",
     "welches",
+    "zeige",
     "zu",
+}
+_TERM_ALIASES = {
+    "policen": "Police",
+    "versicherungen": "Versicherung",
 }
 
 
@@ -53,6 +58,13 @@ class DocumentSearcher(Protocol):
         query: str,
         *,
         limit: int = 20,
+    ) -> tuple[KnowledgeDigestSearchHit, ...]: ...
+
+    def list_documents(
+        self,
+        *,
+        limit: int = 100,
+        include_content: bool = False,
     ) -> tuple[KnowledgeDigestSearchHit, ...]: ...
 
 
@@ -117,7 +129,7 @@ def normalize_document_query(value: str) -> str:
     quoted = _QUOTED_PATTERN.search(value)
     candidate = quoted.group(1) if quoted else value
     terms = [
-        token
+        _TERM_ALIASES.get(token.casefold(), token)
         for token in _TOKEN_PATTERN.findall(candidate)
         if token.casefold() not in _STOPWORDS and len(token) > 2
     ]
@@ -134,8 +146,16 @@ def search_documents(
 ) -> DocumentSearchResponse:
     """Search the local index using normalized user wording."""
 
-    search_query = normalize_document_query(query)
-    hits = searcher.search(search_query, limit=limit)
+    inventory_method = getattr(searcher, "list_documents", None)
+    if _is_document_inventory_request(query) and callable(inventory_method):
+        search_query = "all indexed documents"
+        hits = inventory_method(
+            limit=limit,
+            include_content=_is_document_content_overview_request(query),
+        )
+    else:
+        search_query = normalize_document_query(query)
+        hits = searcher.search(search_query, limit=limit)
     return DocumentSearchResponse(
         original_query=query,
         search_query=search_query,
@@ -153,19 +173,141 @@ def build_theme_dossier(
     """Build a local evidence dossier from every returned topic match."""
 
     response = search_documents(topic, searcher=searcher, limit=limit)
-    potentially_truncated = response.total_hits >= limit
+    hits = response.hits
+    search_query = response.search_query
+    potentially_truncated = len(hits) >= limit
     markdown = _render_dossier(
         topic=topic.strip(),
-        hits=response.hits,
+        hits=hits,
         potentially_truncated=potentially_truncated,
     )
     return ThemeDossier(
         topic=topic.strip(),
-        search_query=response.search_query,
+        search_query=search_query,
         limit=limit,
-        hits=response.hits,
+        hits=hits,
         potentially_truncated=potentially_truncated,
         markdown=markdown,
+    )
+
+
+def _is_document_inventory_request(value: str) -> bool:
+    """Recognize an explicit request for the complete indexed-document overview."""
+
+    terms = {token.casefold() for token in _TOKEN_PATTERN.findall(value)}
+    document_terms = {"document", "documents", "dokument", "dokumente", "datei", "dateien"}
+    complete_terms = {
+        "all",
+        "alle",
+        "allen",
+        "anzahl",
+        "count",
+        "habe",
+        "have",
+        "list",
+        "liste",
+        "many",
+        "meine",
+        "my",
+        "show",
+        "zeige",
+        "what",
+        "welche",
+        "viele",
+        "which",
+        "zähl",
+        "zähle",
+        "complete",
+        "entire",
+        "gesamt",
+        "overview",
+        "überblick",
+    }
+    request_fillers = {
+        "a",
+        "abdecken",
+        "and",
+        "an",
+        "content",
+        "contents",
+        "could",
+        "cover",
+        "decken",
+        "do",
+        "einen",
+        "für",
+        "fasse",
+        "give",
+        "gib",
+        "how",
+        "i",
+        "ihre",
+        "ihren",
+        "inhalt",
+        "inhalte",
+        "inhalten",
+        "ich",
+        "ist",
+        "list",
+        "liste",
+        "me",
+        "die",
+        "meine",
+        "meiner",
+        "mir",
+        "mit",
+        "my",
+        "noch",
+        "of",
+        "please",
+        "so",
+        "show",
+        "sie",
+        "summarize",
+        "their",
+        "themen",
+        "topics",
+        "über",
+        "und",
+        "was",
+        "with",
+        "wie",
+        "you",
+        "zeige",
+        "zusammen",
+        "auf",
+    }
+    subject_terms = terms - document_terms - complete_terms - request_fillers
+    return (
+        bool(terms & document_terms)
+        and bool(terms & complete_terms)
+        and not subject_terms
+    )
+
+
+def _is_document_content_overview_request(value: str) -> bool:
+    """Require explicit content-analysis wording before bulk snippets are returned."""
+
+    terms = {token.casefold() for token in _TOKEN_PATTERN.findall(value)}
+    return bool(
+        terms
+        & {
+            "abdecken",
+            "content",
+            "contents",
+            "cover",
+            "decken",
+            "inhalt",
+            "inhalte",
+            "inhalten",
+            "summary",
+            "summarize",
+            "thema",
+            "themen",
+            "topic",
+            "topics",
+            "zusammenfassung",
+        }
     )
 
 

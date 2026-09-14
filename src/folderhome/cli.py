@@ -5617,6 +5617,9 @@ def build_reloaded_agent_settings(
         "model_provider": effective,
         "allow_network": allow_net,
         "allow_sensitive_cloud_data": allow_cloud,
+        "cloud_pseudonymization": supplied.get(
+            "cloud_pseudonymization", current_settings.cloud_pseudonymization
+        ),
         "max_turns": current_settings.max_turns,
         "max_tool_calls": current_settings.max_tool_calls,
         "max_prompt_chars": current_settings.max_prompt_chars,

@@ -303,14 +303,14 @@ def run_folderhome_agent_turn(
         return response.payload
 
     @tool(name="search_home_documents")
-    def search_home_documents(query: str, limit: int = 5) -> dict[str, object]:
+    def search_home_documents(query: str, limit: int = 50) -> dict[str, object]:
         """Search the local FolderHome document index without accepting file paths."""
 
         return call_local("search_home_documents", query, limit)
 
     @tool(name="build_home_theme_dossier")
-    def build_home_theme_dossier(query: str, limit: int = 5) -> dict[str, object]:
-        """Build an evidence-linked local dossier for one topic without writing files."""
+    def build_home_theme_dossier(query: str, limit: int = 50) -> dict[str, object]:
+        """Build a topic dossier or an all-documents overview without writing files."""
 
         return call_local("build_home_theme_dossier", query, limit)
 
@@ -448,7 +448,7 @@ def run_folderhome_agent_turn(
             list_home_recipe_runs,
             propose_next_recipe_stage,
         ],
-        system_prompt=_system_prompt(profile_id),
+        system_prompt=_system_prompt(profile_id, settings),
         callback_handler=None,
         conversation_manager=SlidingWindowConversationManager(
             window_size=settings.max_conversation_messages,
@@ -889,11 +889,22 @@ def _protect_remote_model(
     return PseudonymizingModel(model, pseudonym_vault or PseudonymVault())
 
 
-def _system_prompt(profile_id: str) -> str:
+def _system_prompt(profile_id: str, settings: StrandsAgentSettings) -> str:
+    model_ids = {
+        "fixture": "folderhome-deterministic-fixture-v1",
+        "bedrock": settings.bedrock_model_id,
+        "ollama": settings.ollama_model_id,
+        "anthropic": settings.anthropic_model_id,
+        "openai": settings.openai_model_id,
+    }
+    model_id = model_ids[settings.model_provider] or "not configured"
     return (
         "You are FolderHome, the single conversational master agent for local document and "
-        f"home assistance in organizational profile {profile_id}. Select domains and experts "
-        "semantically from the user's meaning, never with a keyword table. Use direct read-only "
+        f"home assistance in organizational profile {profile_id}. "
+        f"This process uses provider {settings.model_provider} and model {model_id}. If the user "
+        "asks, state that provider and model ID accurately; they are not secret. "
+        "Select domains and experts semantically from the user's meaning, never with a keyword "
+        "table. Use direct read-only "
         "tools for simple document work. For bounded domain planning, call "
         "consult_home_specialist with an expert and workflow from list_home_capabilities. "
         "For an entire multi-step journey, inspect list_home_recipes and use "

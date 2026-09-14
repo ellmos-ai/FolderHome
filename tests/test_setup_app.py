@@ -1291,6 +1291,35 @@ def test_model_presets_are_saved_and_the_active_one_drives_the_start_command(
     assert state["model_preset"] == "work"
 
 
+def test_cloud_pseudonymization_setting_round_trips_and_rejects_invalid_values(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    request = _request(tmp_path, cloud_pseudonymization="off")
+    planned = _post(app, "/api/v1/setup/validate", request)
+    assert planned.payload["valid"] is True, planned.payload["errors"]
+    assert planned.payload["launch_json"]["cloud_pseudonymization"] == "off"
+
+    saved = _post(app, "/api/v1/setup/save", {
+        **request,
+        "confirm": True,
+        "plan_sha256": planned.payload["plan_sha256"],
+    })
+    assert saved.status_code == 200, saved.payload
+    assert app.state_payload()["cloud_pseudonymization"] == "off"
+
+    invalid = _post(
+        app,
+        "/api/v1/setup/validate",
+        _request(tmp_path, cloud_pseudonymization="anonymous"),
+    )
+    assert invalid.payload["valid"] is False
+    assert any(
+        item["field"] == "cloud_pseudonymization"
+        for item in invalid.payload["errors"]
+    )
+
+
 def test_deleting_a_preset_removes_it_from_the_written_file(tmp_path: Path) -> None:
     app = _app(tmp_path)
     full = _request(tmp_path, model_presets=_PRESETS, model_preset="local")

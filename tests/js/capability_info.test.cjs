@@ -59,22 +59,31 @@ const html = readFileSync(join(__dirname, "../../src/folderhome/web_ui/index.htm
 const appSource = readFileSync(join(__dirname, "../../src/folderhome/web_ui/app.js"), "utf8");
 const css = readFileSync(join(__dirname, "../../src/folderhome/web_ui/app.css"), "utf8");
 
+test("unavailable journey copy is generic and does not mislabel every recipe as an accident", () => {
+  assert.match(appSource, /readiness condition remains in force/);
+  assert.match(appSource, /Bereitschaftsbedingung bleibt bestehen/);
+  assert.doesNotMatch(appSource, /recipeUnavailable: "This packaged accident journey/);
+  assert.doesNotMatch(appSource, /recipeUnavailable: "Diese mitgelieferte Unfallreise/);
+  assert.doesNotMatch(appSource, /recipeUnavailable: .*because required resources/);
+  assert.doesNotMatch(appSource, /recipeUnavailable: .*weil benötigte Ressourcen/);
+});
+
 test("capability info button and grid exist in shipped HTML with visible ⓘ symbol, localized aria-label/title and default closed state", () => {
   assert.match(html, /id="capability-info-btn"[^>]*>ⓘ<\/button>/, "button must visibly display ⓘ symbol");
   assert.match(html, /id="capability-info-btn"[^>]*aria-expanded="false"/);
-  assert.match(html, /id="capability-info-btn"[^>]*aria-controls="capability-grid"/);
+  assert.match(html, /id="capability-info-btn"[^>]*aria-controls="home-info-panel"/);
   assert.match(html, /id="capability-info-btn"[^>]*data-i18n-aria-label="capabilityInfoShow"/);
   assert.match(html, /id="capability-info-btn"[^>]*data-i18n-title="capabilityInfoShow"/);
-  assert.match(html, /id="capability-info-btn"[^>]*aria-label="Show capabilities"/);
-  assert.match(html, /id="capability-info-btn"[^>]*title="Show capabilities"/);
+  assert.match(html, /id="capability-info-btn"[^>]*aria-label="Show security and capabilities"/);
+  assert.match(html, /id="capability-info-btn"[^>]*title="Show security and capabilities"/);
   // Ensure the button is not a pure text button with data-i18n text replacement
   assert.doesNotMatch(html, /id="capability-info-btn"[^>]*data-i18n="capabilityInfoShow"/);
-  assert.match(html, /id="capability-grid"[^>]*hidden/);
+  assert.match(html, /id="home-info-panel"[^>]*hidden/);
   assert.match(html, /id="capability-grid"[^>]*aria-live="polite"/);
 });
 
-test("capability-controls and capability-info-btn styles exist in app.css", () => {
-  assert.match(css, /\.capability-controls\s*\{/);
+test("home info panel and capability-info-btn styles exist in app.css", () => {
+  assert.match(css, /\.home-info-panel\s*\{/);
   assert.match(css, /\.capability-info-btn\s*\{/);
   assert.match(css, /\.capability-info-btn\[aria-expanded="true"\]/);
 });
@@ -82,12 +91,13 @@ test("capability-controls and capability-info-btn styles exist in app.css", () =
 test("toggleCapabilityInfo toggles aria-expanded, hidden, aria-label, title, preserves visible ⓘ and persists state in sessionStorage", () => {
   const capabilityInfoButton = new MockElement("button");
   capabilityInfoButton.setAttribute("aria-expanded", "false");
-  capabilityInfoButton.setAttribute("aria-label", "Show capabilities");
-  capabilityInfoButton.setAttribute("title", "Show capabilities");
+  capabilityInfoButton.setAttribute("aria-label", "Show security and capabilities");
+  capabilityInfoButton.setAttribute("title", "Show security and capabilities");
   capabilityInfoButton.textContent = "ⓘ";
 
   const capabilityGrid = new MockElement("div");
-  capabilityGrid.hidden = true;
+  const homeInfoPanel = new MockElement("section");
+  homeInfoPanel.hidden = true;
 
   const mockSessionStorage = new MockStorage();
 
@@ -99,15 +109,17 @@ test("toggleCapabilityInfo toggles aria-expanded, hidden, aria-label, title, pre
   const context = vm.createContext({
     capabilityInfoButton,
     capabilityGrid,
+    homeInfoPanel,
     capabilityItems: sampleItems,
+    connectionStatus: "ready",
     language: "en",
     window: {
       sessionStorage: mockSessionStorage,
     },
     t: (key) => {
       const dict = {
-        capabilityInfoShow: "Show capabilities",
-        capabilityInfoHide: "Hide capabilities",
+        capabilityInfoShow: "Show security and capabilities",
+        capabilityInfoHide: "Hide security and capabilities",
         directUse: "Available here",
         agentUse: "Guided by the FolderHome agent",
         cliUse: "Through safe CLI workflows",
@@ -154,18 +166,18 @@ test("toggleCapabilityInfo toggles aria-expanded, hidden, aria-label, title, pre
 
   // 1. Initial State: closed by default
   assert.equal(capabilityInfoButton.getAttribute("aria-expanded"), "false");
-  assert.equal(capabilityGrid.hidden, true);
-  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show capabilities");
-  assert.equal(capabilityInfoButton.getAttribute("title"), "Show capabilities");
+  assert.equal(homeInfoPanel.hidden, true);
+  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show security and capabilities");
+  assert.equal(capabilityInfoButton.getAttribute("title"), "Show security and capabilities");
   assert.equal(capabilityInfoButton.textContent, "ⓘ");
   assert.equal(mockSessionStorage.getItem("folderhome.capability_info_open"), null);
 
   // 2. Open: expands, unhides grid, updates aria-label/title, retains ⓘ, renders cards, persists true
   context.toggleCapabilityInfo();
   assert.equal(capabilityInfoButton.getAttribute("aria-expanded"), "true");
-  assert.equal(capabilityGrid.hidden, false);
-  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Hide capabilities");
-  assert.equal(capabilityInfoButton.getAttribute("title"), "Hide capabilities");
+  assert.equal(homeInfoPanel.hidden, false);
+  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Hide security and capabilities");
+  assert.equal(capabilityInfoButton.getAttribute("title"), "Hide security and capabilities");
   assert.equal(capabilityInfoButton.textContent, "ⓘ");
   assert.equal(mockSessionStorage.getItem("folderhome.capability_info_open"), "true");
   assert.equal(capabilityGrid.children.length, 2);
@@ -174,9 +186,9 @@ test("toggleCapabilityInfo toggles aria-expanded, hidden, aria-label, title, pre
   // 3. Close: collapses, hides grid, updates aria-label/title, retains ⓘ, persists false
   context.toggleCapabilityInfo();
   assert.equal(capabilityInfoButton.getAttribute("aria-expanded"), "false");
-  assert.equal(capabilityGrid.hidden, true);
-  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show capabilities");
-  assert.equal(capabilityInfoButton.getAttribute("title"), "Show capabilities");
+  assert.equal(homeInfoPanel.hidden, true);
+  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show security and capabilities");
+  assert.equal(capabilityInfoButton.getAttribute("title"), "Show security and capabilities");
   assert.equal(capabilityInfoButton.textContent, "ⓘ");
   assert.equal(mockSessionStorage.getItem("folderhome.capability_info_open"), "false");
 });
@@ -184,17 +196,19 @@ test("toggleCapabilityInfo toggles aria-expanded, hidden, aria-label, title, pre
 test("sessionStorage initialization: defaults to closed when key is absent, restores open when sessionStorage is true", () => {
   const capabilityInfoButton = new MockElement("button");
   const capabilityGrid = new MockElement("div");
+  const homeInfoPanel = new MockElement("section");
   const mockSessionStorage = new MockStorage();
 
   const context = vm.createContext({
     capabilityInfoButton,
     capabilityGrid,
+    homeInfoPanel,
     capabilityItems: [],
     language: "en",
     window: {
       sessionStorage: mockSessionStorage,
     },
-    t: (key) => (key === "capabilityInfoHide" ? "Hide capabilities" : "Show capabilities"),
+    t: (key) => (key === "capabilityInfoHide" ? "Hide security and capabilities" : "Show security and capabilities"),
     renderCapabilities: () => {},
   });
 
@@ -213,17 +227,17 @@ test("sessionStorage initialization: defaults to closed when key is absent, rest
   // Case A: Missing stored state -> defaults to closed
   context.initCapabilityInfo();
   assert.equal(capabilityInfoButton.getAttribute("aria-expanded"), "false");
-  assert.equal(capabilityGrid.hidden, true);
-  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show capabilities");
-  assert.equal(capabilityInfoButton.getAttribute("title"), "Show capabilities");
+  assert.equal(homeInfoPanel.hidden, true);
+  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Show security and capabilities");
+  assert.equal(capabilityInfoButton.getAttribute("title"), "Show security and capabilities");
 
   // Case B: Stored state is "true" -> restores open state
   mockSessionStorage.setItem("folderhome.capability_info_open", "true");
   context.initCapabilityInfo();
   assert.equal(capabilityInfoButton.getAttribute("aria-expanded"), "true");
-  assert.equal(capabilityGrid.hidden, false);
-  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Hide capabilities");
-  assert.equal(capabilityInfoButton.getAttribute("title"), "Hide capabilities");
+  assert.equal(homeInfoPanel.hidden, false);
+  assert.equal(capabilityInfoButton.getAttribute("aria-label"), "Hide security and capabilities");
+  assert.equal(capabilityInfoButton.getAttribute("title"), "Hide security and capabilities");
 });
 
 test("capability titles and status descriptions have exact German parity and real umlauts", () => {
@@ -250,10 +264,10 @@ test("capability titles and status descriptions have exact German parity and rea
   assert.equal(context.capabilityTitles.de["legal.orient"], "Bescheide und Rechtsänderungen verstehen");
 
   // Check translations for info button aria-label/title
-  assert.equal(context.translations.en.capabilityInfoShow, "Show capabilities");
-  assert.equal(context.translations.en.capabilityInfoHide, "Hide capabilities");
-  assert.equal(context.translations.de.capabilityInfoShow, "Funktionen anzeigen");
-  assert.equal(context.translations.de.capabilityInfoHide, "Funktionen ausblenden");
+  assert.equal(context.translations.en.capabilityInfoShow, "Show security and capabilities");
+  assert.equal(context.translations.en.capabilityInfoHide, "Hide security and capabilities");
+  assert.equal(context.translations.de.capabilityInfoShow, "Sicherheit und Funktionen anzeigen");
+  assert.equal(context.translations.de.capabilityInfoHide, "Sicherheit und Funktionen ausblenden");
 });
 
 test("renderCapabilities truthfully displays not_connected and planning_only without false claims", () => {
@@ -276,6 +290,7 @@ test("renderCapabilities truthfully displays not_connected and planning_only wit
     const context = vm.createContext({
       capabilityGrid,
       capabilityItems: items,
+      connectionStatus: "ready",
       language: lang,
       t: (key) => transContext.translations[lang][key] || key,
       textElement: (tag, text, cls) => {
@@ -301,10 +316,10 @@ test("renderCapabilities truthfully displays not_connected and planning_only wit
     assert.equal(card0.dataset.status, "interactive_read_only");
     assert.equal(card0.children[1].textContent, lang === "en" ? "Available here" : "Hier direkt nutzbar");
 
-    // 1: agent_guided -> agentUse ("Guided by the FolderHome agent" / "Durch den FolderHome-Agenten begleitet")
+    // 1: agent_guided -> agentUse (connected and ready through the agent)
     const card1 = capabilityGrid.children[1];
     assert.equal(card1.dataset.status, "agent_guided");
-    assert.equal(card1.children[1].textContent, lang === "en" ? "Guided by the FolderHome agent" : "Durch den FolderHome-Agenten begleitet");
+    assert.equal(card1.children[1].textContent, lang === "en" ? "Ready through the FolderHome agent" : "Über den FolderHome-Agenten bereit");
 
     // 2: planning_only -> planningOnly ("Planning only" / "Nur Planung")
     const card2 = capabilityGrid.children[2];

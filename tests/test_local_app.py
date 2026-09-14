@@ -1963,6 +1963,7 @@ def test_reload_settings_succeeds_and_updates_status_and_resets_turns(tmp_path: 
             {
                 "schema": "folderhome.launch-config.v1",
                 "model_preset": "ollama-alt",
+                "cloud_pseudonymization": "off",
                 "model_presets": {
                     "ollama-init": {
                         "model_provider": "ollama",
@@ -2005,6 +2006,7 @@ def test_reload_settings_succeeds_and_updates_status_and_resets_turns(tmp_path: 
     assert res.payload["model_provider"] == "ollama"
     assert res.payload["model_state"] == "configured_unverified"
     assert res.payload["running_preset"] == "ollama-alt"
+    assert app.agent_settings.cloud_pseudonymization == "off"
 
     # Status route reflects the new settings
     status_res = app.handle(
@@ -2166,6 +2168,32 @@ def test_build_reloaded_agent_settings_isolated_mapping_atomicity(tmp_path: Path
     assert preset == "anthropic-claude"
     assert new_settings.model_provider == "anthropic"
     assert isolated_target.get("ANTHROPIC_API_KEY") == "test-isolated-key"
+
+
+def test_build_reloaded_agent_settings_preserves_saved_pseudonymization_toggle(
+    tmp_path: Path,
+) -> None:
+    from folderhome.cli import build_reloaded_agent_settings
+    from folderhome.contracts.strands_agent import StrandsAgentSettings
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps({
+            "schema": "folderhome.launch-config.v1",
+            "model_provider": "fixture",
+            "cloud_pseudonymization": "off",
+        }),
+        encoding="utf-8",
+    )
+
+    settings, preset = build_reloaded_agent_settings(
+        launch_file,
+        StrandsAgentSettings(model_provider="fixture"),
+        target_environ={},
+    )
+
+    assert preset is None
+    assert settings.cloud_pseudonymization == "off"
 
 
 def test_reload_settings_post_validation_reset_exception_rollback(tmp_path: Path) -> None:

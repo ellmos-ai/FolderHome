@@ -9,7 +9,9 @@ fail-closed und trennt Planung, Freigabe und Ausführung.
 ## Unterstützter Stand
 
 Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
-`main` gepflegt. Es gibt keinen produktiven Cloudbetrieb.
+`main` gepflegt. Die optionale öffentliche Wettbewerbsdemo ist eine
+bereitgestellte, budgetbegrenzte synthetische Runtime; sie nimmt keine
+Haushaltsuploads an und stellt keine Adapter für externe Aktionen bereit.
 
 ## Sicherheitsgrenzen
 
@@ -57,6 +59,9 @@ Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
   für Netzwerkzugriff und die Weitergabe potenziell sensibler lokaler
   Suchergebnisse. Jeder Modellaufruf verwendet begrenzte Verbindungs- und
   Lese-Timeouts sowie insgesamt genau einen SDK-Versuch.
+- Remote-Modellverkehr wird standardmäßig mit prozesslokalen Platzhaltern
+  pseudonymisiert. Das verringert die Offenlegung, ist aber keine Anonymisierung
+  und ersetzt keines der beiden ausdrücklichen Remote-Provider-Gates.
 - Jeder Provider, der über HTTP spricht, teilt sich ein endliches Budget:
   `model_timeout_seconds` (Standard 120, zulässiger Bereich 5 bis 900). Ein
   Modell, das darin nicht antwortet, erzeugt einen benannten Fehlschlag mit

@@ -2,8 +2,8 @@
 
 **English** | [Deutsch](./ARCHITECTURE.de.md)
 
-**Version:** 0.3.0 + acceptance fixes  
-**Date:** 2026-09-09  
+**Version:** 0.6.1  
+**Date:** 2026-09-14  
 **Direct predecessor:**  
 [`docs/archive/ARCHITECTURE-v0.34.md`](./docs/archive/ARCHITECTURE-v0.34.md)
 
@@ -383,8 +383,8 @@ see [calendar limits](./docs/phase27-calendar-connector-plan.md).
 The optional AWS demo proxy now has a local, reviewed micro-USD reservation
 contract: cumulative UTC entitlement, atomic daily-count/money admission,
 persistent ledger, and a pinned runtime version/cost profile. This controls
-admitted forwards, not the entire AWS bill. Existing-demo migration and actual
-funding, prices and cloud operation remain pending joint acceptance; see
+admitted forwards, not the entire AWS bill. The existing demo was migrated and
+verified as Runtime 26 on 2026-09-14; human browser acceptance remains separate. See
 [AWS deployment limits](./deploy/aws_demo/README.md).
 
 ## Provider and Reuse Limits

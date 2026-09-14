@@ -7,7 +7,9 @@ FolderHome processes potentially sensitive household, health, financial, and adm
 ## Supported State
 
 Security fixes are maintained on the current competition state on branch
-`main`. There is no production cloud operation.
+`main`. The optional public competition demo is a deployed, budget-bounded
+synthetic runtime; it accepts no household uploads and exposes no external
+action adapters.
 
 ## Security Boundaries
 
@@ -46,6 +48,9 @@ Security fixes are maintained on the current competition state on branch
   model ID, region, separate explicit approvals for network access and sharing
   potentially sensitive local search results, bounded connect/read timeouts,
   and exactly one total SDK attempt per model call.
+- Remote model traffic is pseudonymized by default with process-local
+  placeholders. This reduces exposure but is not anonymity and cannot replace
+  either explicit remote-provider gate.
 - Every provider that speaks HTTP shares one finite budget,
   `model_timeout_seconds` (default 120, accepted range 5 to 900). A model that
   does not answer within it produces a stated failure naming the budget rather

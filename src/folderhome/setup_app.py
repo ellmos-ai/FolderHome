@@ -384,8 +384,14 @@ class SetupApplication:
                     "neuen Dokument- und Schedulerordnern getrennt bleiben.",
                 })
         current_launch = self._current_launch()
-        cloud_pseudonymization = current_launch.get("cloud_pseudonymization", "on")
-        if cloud_pseudonymization not in {"on", "off"}:
+        cloud_pseudonymization = request.get(
+            "cloud_pseudonymization",
+            current_launch.get("cloud_pseudonymization", "on"),
+        )
+        if (
+            not isinstance(cloud_pseudonymization, str)
+            or cloud_pseudonymization not in {"on", "off"}
+        ):
             errors.append({
                 "field": "cloud_pseudonymization",
                 "message": "cloud_pseudonymization muss on oder off sein.",

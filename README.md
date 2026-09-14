@@ -6,7 +6,7 @@
 
 > Assistantify your home.
 
-**Current concise README:** local acceptance / 2026-09-09  
+**Current concise README:** release v0.6.1 / 2026-09-15  
 **Direct predecessor:**  
 [`docs/archive/README-phase36-draft.md`](./docs/archive/README-phase36-draft.md)
 
@@ -19,20 +19,18 @@ without automatically granting mail, calendar, phone, file, or cloud permissions
 
 ## Status
 
-- 36-phase local competition baseline implemented; expanded final acceptance is ongoing
+- release **v0.6.1** candidate; final code acceptance is recorded by the release checks below
 - one real `strands.Agent` master with nine bounded tools and on-demand planning specialists
-- latest complete local baseline: **985 passed** in complementary partitions
-  (64 CLI + 921 other tests) on 2026-09-09, warnings treated as errors;
-  subsequent consumer-control changes have separate focused verification.
-  This is not browser or AWS acceptance.
+- latest complete local baseline: **2,045 passed** on 2026-09-15 with warnings
+  treated as errors and the scheduler bridge pinned to its reviewed provider revision.
+  Human browser acceptance remains separate.
 - synthetic no-network demo with reproducible hashes
 - end-to-end synthetic accident journey over four real, confirmation-gated
   FolderHome workflow adapters
-- bilingual light/dark public showcase in [`site/`](./site/) and a deployed,
-  quota-bounded AgentCore HTTP runtime; its public browser path stays disabled
-  pending fresh AWS acceptance
-- historical baseline audit covered 12/12 surfaces and a 66-file delta;
-  the expanded implementation still needs its final cross-area audit
+- bilingual light/dark public showcase in [`site/`](./site/) and a live,
+  quota- and money-ledger-bounded AgentCore HTTP runtime, verified as runtime
+  version 27 on 2026-09-15: <https://d2pfbfpfjnkqbh.cloudfront.net/>
+- historical baseline audit covered 12/12 surfaces and a 66-file delta
 - public MIT repository, [three-minute public demo video](https://youtu.be/wPb1wBJcLjQ)
   and a submitted [Agents for Humans entry](https://devpost.com/software/folderhome)
 
@@ -198,6 +196,18 @@ The same bounded Strands message history now resolves follow-up references in
 both GUI and CLI. It is separated by organizational profile, limited to 24
 messages by default, never persisted, and cleared together with unconfirmed
 plans by **New conversation** or `/reset`.
+
+This bounded runtime is the first layer of FolderHome's **local agent execution
+harness**. Local models benefit from an outer controller because simply adding
+more context does not reliably manage a large task. The harness currently caps
+one call at four model turns and four tool calls, with separate prompt, output,
+tool-result, conversation and timeout budgets. `app serve` and `agent` commands
+can tune these through `--max-turns`, `--max-tool-calls`,
+`--max-prompt-chars`, `--max-response-chars`, `--max-tool-result-bytes`,
+`--max-output-tokens`, `--max-conversation-messages` and
+`--model-timeout-seconds`; the Setup GUI does not expose expert tuning yet.
+Increasing a budget does not add durable task continuation.
+
 The GUI exposes the runtime model state directly: deterministic fixture,
 configured but not yet verified Bedrock, or Bedrock verified by at least one
 successful live model turn in the current process. Configuration alone never
@@ -211,16 +221,14 @@ metadata only and say why.
 The optional AgentCore surface implements the current AWS HTTP contract on
 ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
 fixture prompts, isolates state by AgentCore runtime session, and cannot ingest
-household uploads or perform external actions. On 2026-09-13 the deployed
-runtime (version 8, endpoint `budget_v8`) completed one Bedrock-backed synthetic
+household uploads or perform external actions. On 2026-09-15 the deployed
+runtime (version 27, endpoint `budget_v27`) completed one Bedrock-backed synthetic
 journey end to end through the public proxy: the Nova Micro master agent ran two
 model turns, the plan required `/confirm`, and the confirmed run produced four
-result files with no external actions (`manage.py verify`, status `verified`);
-the same journey was re-verified on runtime version 10 after an independent code
-review the same day.
+result files with no external actions (`manage.py verify`, status `verified`).
 Admission is a cumulative daily money ledger, not a fixed request count. The
-public CloudFront configuration remains `enabled: false` until the owner
-publishes the site.
+public CloudFront configuration is `enabled: true`; the hosted demo is available
+at <https://d2pfbfpfjnkqbh.cloudfront.net/>.
 
 More: [`ARCHITECTURE.md`](./ARCHITECTURE.md) and
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -733,6 +741,31 @@ steuer-assistent, law-checker and other existing components remain disclosed and
 - Licenses and pins: [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md)
 - Decisions: [`DECISIONS.md`](./DECISIONS.md)
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
+
+## Privacy-friendly chat focus and roadmap
+
+FolderHome keeps chat context only for the current process session. It does not
+silently build a permanent archive of every conversation, which keeps the
+interface focused on the current task and avoids accumulating unnecessary chat
+data. Reloading settings, starting a new conversation or restarting the app
+clears that session context.
+
+The post-competition roadmap adds deliberate retention instead of an automatic
+all-or-nothing history: people will be able to save selected conversations,
+optionally retain chats for 30 days, or archive selected chats after 30 days.
+The default will remain session-only; this retention UI is not part of v0.6.1.
+
+For document work that exceeds one bounded agent turn, the roadmap also
+includes a deliberately small **single-slot background worker**. Rather than
+shipping the complete BACH backend, FolderHome can extract and adapt only its
+proven orchestration mechanics: explicit decomposition, a step ledger,
+crash-safe state, a bounded continuation loop and inspectable handoffs between
+turns. The worker accepts one document task at a time and surfaces a decision
+instead of creating an unbounded agent swarm. Any reused BACH code will be
+revision-pinned and disclosed as pre-existing work; the FolderHome adapter and
+document-specific policy remain separate new integration code. v0.6.1 already
+has bounded turns, approval-bound plans and sectioned recipe runs, but it does
+not claim this durable worker yet.
 
 ## Submission limit
 

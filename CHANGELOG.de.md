@@ -2,7 +2,7 @@
 
 [English](./CHANGELOG.md) | **Deutsch**
 
-**Aktuelle Kurzfassung:** 0.52 / 2026-08-27  
+**Aktuelle Kurzfassung:** 0.6.1 / 2026-09-15  
 **Direkter Vorläufer:**
 [`docs/archive/CHANGELOG-through-phase35.md`](docs/archive/CHANGELOG-through-phase35.de.md)
 
@@ -10,6 +10,30 @@ Alle relevanten Änderungen werden in dieser Datei dokumentiert. Der
 ausführliche phasenweise Verlauf bis Phase 35 bleibt unverändert im Archiv.
 
 ## [Unreleased]
+
+## [0.6.1] - 2026-09-15
+
+### Hinzugefügt
+
+- Die standardmäßig aktive Cloud-Pseudonymisierung ersetzt bekannte lokale
+  Identitäten und konservativ erkannte sensible Muster vor Remote-Modellaufrufen
+  durch prozesslokale Platzhalter. Sie verringert die Offenlegung, ist aber keine
+  Anonymisierung; beide Transport- und Datenfreigabegates bleiben Pflicht.
+- `scripts/START.cmd` bietet ein zweisprachiges Menü zum Starten von FolderHome,
+  Setup oder beiden Diensten. Die lokale GUI kann ein gespeichertes Modellpreset
+  neu laden, ohne den Prozess neu zu starten oder eines der Remote-Provider-Gates
+  zu umgehen.
+
+### Geändert
+
+- Die öffentliche synthetische Demo läuft auf Cloud Runtime 27 und wurde am
+  15.09.2026 verifiziert. Die abschließende lokale Suite bestand alle 2.045 Tests
+  mit als Fehler behandelten Warnungen.
+
+### Behoben
+
+- CLI-Importe aus Paketen verlangen für Befehle ohne Agentenmodell nicht mehr
+  die optionale Strands-Abhängigkeit.
 
 ## [0.5.0] - 2026-09-13
 

@@ -169,6 +169,22 @@ def test_fixture_agent_selects_natural_document_search_without_path_access(
     assert "source_path" not in report.response_text
 
 
+def test_system_prompt_discloses_configured_provider_and_model() -> None:
+    settings = StrandsAgentSettings(
+        model_provider="bedrock",
+        bedrock_model_id="eu.amazon.nova-micro-v1:0",
+        aws_region="eu-central-1",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+
+    prompt = strands_module._system_prompt("lukas", settings)
+
+    assert "provider bedrock" in prompt
+    assert "model eu.amazon.nova-micro-v1:0" in prompt
+    assert "they are not secret" in prompt
+
+
 def test_scoped_specialist_can_only_propose_its_verified_workflow(tmp_path: Path) -> None:
     app = _app(tmp_path)
     payload, plan, delegation = consult_folderhome_specialist(

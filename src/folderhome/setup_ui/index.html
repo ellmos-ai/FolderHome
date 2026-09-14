@@ -163,6 +163,11 @@
               <button id="preset-save" class="button compact" type="button"
                       data-i18n="presetSave">Save as preset</button>
             </fieldset>
+            <label class="checkbox">
+              <input id="cloud-pseudonymization" type="checkbox" checked>
+              <span data-i18n="cloudPseudonymizationLabel">Pseudonymize remote model traffic (recommended)</span>
+            </label>
+            <p class="hint" data-i18n="cloudPseudonymizationHint">This reduces exposure but is not anonymity. Network and sensitive-data approvals remain mandatory.</p>
             <p class="hint" id="gate-hint" data-i18n="gateHintFixture"></p>
           </div>
         </section>

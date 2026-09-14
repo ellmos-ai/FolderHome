@@ -2,7 +2,7 @@
 
 [English](./PRIVACY.md) | **Deutsch**
 
-**Geprüft:** 9. September 2026. Beschrieben werden die Datenflüsse der Software,
+**Geprüft:** 14. September 2026. Beschrieben werden die Datenflüsse der Software,
 keine rechtliche Konformitätsbescheinigung oder Datenschutzerklärung eines Hosters.
 
 ## Was auf diesem Computer bleibt
@@ -37,7 +37,13 @@ des Betriebssystemkontos, nicht zum FolderHome-Profilwähler.
 
 Das deterministische Fixture führt keinen Modell-Netzwerkaufruf aus.
 Loopback-Ollama verwendet einen lokalen Endpunkt; eine private Netzwerkadresse
-liegt trotzdem außerhalb dieses Computers. Google-Metadatenabfrage benötigt
+liegt trotzdem außerhalb dieses Computers. Vor Remote-Modellaufrufen ersetzt
+die standardmäßig aktive Cloud-Pseudonymisierung bekannte lokale Identitäten
+und konservativ erkannte sensible Muster durch stabile, prozesslokale
+Platzhalter und stellt sie lokal wieder her. Das verringert die Offenlegung,
+ist aber keine Anonymisierung: unbekannte Kennungen in Freitext können erhalten
+bleiben. Die ausdrücklichen Netzwerk- und Sensitivdatenfreigaben bleiben Pflicht.
+Google-Metadatenabfrage benötigt
 eine eigene Lesefreigabe. Kalenderschreibvorgänge und Mailentwürfe benötigen
 eigene Startgates **und** exakte Planbestätigungen. Die optionale
 AgentCore-Wettbewerbslaufzeit nimmt die synthetische Demo an, keine privaten

@@ -9,6 +9,8 @@ a home, with optional AWS capabilities when they add value.
 
 **Demo video:** <https://youtu.be/wPb1wBJcLjQ>
 
+**Live hosted demo:** <https://d2pfbfpfjnkqbh.cloudfront.net/>
+
 ### At a glance
 
 - **Local-first.** The whole competition workflow runs on the user's machine;
@@ -21,12 +23,11 @@ a home, with optional AWS capabilities when they add value.
   agent on Amazon Bedrock over a synthetic household of 104 example documents:
   a guided insurance case *and* a free chat in your own words, every generated
   file viewable and downloadable, every turn budget-metered.
-- **Optional AWS.** The same runtime runs on Amazon Bedrock; the AgentCore
-  Runtime was verified live on 2026-09-13 and re-verified after every deploy
-  (runtime version 25 at the time of writing).
-- **Tested.** 1,863 automated tests passed on 2026-09-13 (commit `169a2f4`,
-  warnings treated as errors; the scheduler-bridge tests run against the pinned
-  provider checkout).
+- **Optional AWS.** The same runtime runs on Amazon Bedrock; AgentCore Runtime
+  version 27 was verified live on 2026-09-15.
+- **Tested.** The complete automated suite passed all 2,045 tests on 2026-09-15
+  with warnings treated as errors; scheduler-bridge tests use the pinned
+  provider checkout.
 
 ## Inspiration
 
@@ -107,6 +108,12 @@ each turn reserves **2 cents** in the cumulative money ledger under a **195 USD*
 cap for the whole review window. Your own folders never enter the cloud: for
 real documents you install FolderHome locally and bring your own model.
 
+Remote model traffic is pseudonymized by default with process-local
+placeholders. This reduces exposure but is not anonymity; both explicit
+transport gates remain mandatory. The packaged `scripts/START.cmd` starts
+FolderHome, Setup, or both and switches EN/DE. Reloading saved settings remains
+token-protected and cannot bypass either remote-provider gate.
+
 ## How we built it
 
 ### The Strands agent layer
@@ -118,6 +125,15 @@ capability discovery, and scoped specialist consultation. The model selects an e
 then resolves the selected workflow endpoint deterministically and fail-closed.
 A short-lived specialist sees one plan-only tool. Optional personas change
 communication style but **never grant capability or permission**.
+
+This is also the first layer of a **local agent execution harness**. Local
+models need an outer controller rather than an ever-growing prompt: FolderHome
+caps each call by model turns, tool calls, prompt size, output, tool-result
+bytes, retained messages and time. Expert users can tune those budgets through
+CLI launch flags; the friendly Setup UI intentionally does not expose them yet.
+The current harness decomposes work into approval-bound plans and recipe
+sections, while durable checkpoints and resumable long-task loops remain the
+explicit roadmap boundary.
 
 ### Three model providers, gates that follow the transport
 
@@ -304,7 +320,7 @@ of orchestration, not a claim about model quality.
 - A **coherent local product surface** rather than a prompt collection.
 - A **real Strands tool loop** that is reproducible without AWS credentials.
 - **Thirty-six implementation phases** with tests for success and fail-closed
-  behavior; 1,465 tests passed on 2026-09-13.
+  behavior; the complete suite passed all 2,045 tests on 2026-09-15.
 - **Reusable capabilities** for documents, household administration, finance,
   health organization and administrative assistance.
 - **Explicit disclosure** of every reused module and every capability boundary.
@@ -328,8 +344,22 @@ still valid.
 After the competition, FolderHome can remain as a reduced public edition while
 its reusable modules are integrated into FolderHome-Sovereign. Future work can
 add separately reviewed live connectors, richer office renderers and OCR
-intake. Those additions will retain the same plan, approval, evidence and
+intake. Chat retention will remain deliberate rather than automatic: save only
+selected conversations, optionally retain chats for 30 days, or archive
+selected chats after 30 days. The default stays privacy-friendly and
+session-only, keeping a fresh context without accumulating unnecessary chat
+data. These additions will retain the same plan, approval, evidence and
 least-authority contracts.
+
+Longer document work will gain a deliberately small **single-slot background
+worker**. Instead of shipping the complete BACH backend, FolderHome can extract
+and adapt only its proven orchestration mechanics: explicit decomposition, a
+step ledger, crash-safe state, a bounded continuation loop and inspectable
+handoffs between model turns. One slot keeps resource use and ownership clear.
+Any reused BACH code will be revision-pinned and disclosed as pre-existing work;
+the FolderHome adapter and document policy remain separate integration work.
+v0.6.1 deliberately limits itself to bounded model turns, approval-bound plans
+and sectioned recipe runs; it does not present those as a durable task engine.
 
 ## Built with
 

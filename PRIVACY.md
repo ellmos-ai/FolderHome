@@ -2,7 +2,7 @@
 
 **English** | [Deutsch](./PRIVACY.de.md)
 
-**Reviewed:** 9 September 2026. This describes the software's data flows,
+**Reviewed:** 14 September 2026. This describes the software's data flows,
 not a legal compliance certification or a hosting provider's privacy policy.
 
 ## What stays on this computer
@@ -37,6 +37,11 @@ not the FolderHome profile selector.
 
 The deterministic fixture uses no model network call. Loopback Ollama uses a
 local endpoint; a private-network address is still outside this computer.
+Before remote model calls, default-on cloud pseudonymization replaces known
+local identities and conservatively recognized sensitive patterns with stable,
+process-local placeholders and restores them locally. This reduces exposure but
+is not anonymity: unknown free-text identifiers may remain. It never replaces
+the explicit network and sensitive-data approval gates.
 Google metadata lookup requires a separate read approval. Calendar writes and
 mail drafts require their own launch gates **and** exact plan confirmations.
 The optional AgentCore competition runtime accepts the synthetic demo journey,

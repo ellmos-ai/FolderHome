@@ -153,6 +153,84 @@ class KnowledgeDigestBridge:
             )
         return tuple(hits)
 
+    def list_documents(
+        self,
+        *,
+        limit: int = 100,
+        include_content: bool = False,
+    ) -> tuple[KnowledgeDigestSearchHit, ...]:
+        """List indexed documents without paths or implicit bulk content disclosure."""
+
+        if limit < 1:
+            raise KnowledgeDigestBridgeError("Dokumentenlimit muss mindestens 1 sein.")
+        schema_module = self._load_modules(("KnowledgeDigest.schema",))[
+            "KnowledgeDigest.schema"
+        ]
+        database = self._state_dir / "knowledge.db"
+        if not database.is_file():
+            raise KnowledgeDigestBridgeError(f"KnowledgeDigest-Index fehlt: {database}")
+        try:
+            connection = sqlite3.connect(
+                f"{database.as_uri()}?mode=ro&immutable=1",
+                uri=True,
+                timeout=30,
+            )
+            connection.row_factory = sqlite3.Row
+            version_row = connection.execute(
+                "SELECT value FROM schema_meta WHERE key='version'"
+            ).fetchone()
+            actual_version = int(version_row["value"]) if version_row else 0
+            if actual_version != schema_module.SCHEMA_VERSION:
+                raise KnowledgeDigestBridgeError(
+                    "KnowledgeDigest-Schema stimmt nicht mit dem gepinnten Provider überein: "
+                    f"erwartet {schema_module.SCHEMA_VERSION}, gefunden {actual_version}"
+                )
+            snippet_sql = (
+                """COALESCE((
+                        SELECT substr(dc.content, 1, 600)
+                        FROM document_chunks dc
+                        WHERE dc.doc_id = d.id
+                        ORDER BY dc.chunk_index
+                        LIMIT 1
+                    ), '') AS snippet"""
+                if include_content
+                else "'' AS snippet"
+            )
+            rows = connection.execute(
+                f"""
+                SELECT
+                    d.filename,
+                    d.file_type,
+                    d.word_count,
+                    {snippet_sql}
+                FROM documents d
+                ORDER BY d.filename COLLATE NOCASE, d.id
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        except KnowledgeDigestBridgeError:
+            raise
+        except (OSError, sqlite3.Error, ValueError) as exc:
+            raise KnowledgeDigestBridgeError(
+                f"KnowledgeDigest-Inventar ist fehlgeschlagen: {exc}"
+            ) from exc
+        finally:
+            if "connection" in locals():
+                connection.close()
+
+        return tuple(
+            KnowledgeDigestSearchHit(
+                source="document",
+                filename=str(row["filename"]),
+                file_type=str(row["file_type"]),
+                snippet=str(row["snippet"]),
+                relevance=0.0,
+                word_count=int(row["word_count"]),
+            )
+            for row in rows
+        )
+
     def _build_client(self) -> object:
         modules = self._load_modules(("KnowledgeDigest.config",))
         self._state_dir.mkdir(parents=True, exist_ok=True)

@@ -50,6 +50,8 @@ const translations = {
     openaiModel: "OpenAI model id",
     openaiBaseUrl: "OpenAI base URL (optional)",
     providerLabel: "Provider",
+    cloudPseudonymizationLabel: "Pseudonymize remote model traffic (recommended)",
+    cloudPseudonymizationHint: "This reduces exposure but is not anonymity. Network and sensitive-data approvals remain mandatory.",
     ollamaHost: "Ollama host",
     ollamaModel: "Ollama model id",
     bedrockModel: "Bedrock model id",
@@ -176,6 +178,8 @@ const translations = {
     openaiModel: "OpenAI-Modell-ID",
     openaiBaseUrl: "OpenAI-Basis-URL (optional)",
     providerLabel: "Provider",
+    cloudPseudonymizationLabel: "Remote-Modellverkehr pseudonymisieren (empfohlen)",
+    cloudPseudonymizationHint: "Das verringert die Datenexposition, ist aber keine Anonymität. Netz- und Sensitivdatenfreigabe bleiben verpflichtend.",
     ollamaHost: "Ollama-Host",
     ollamaModel: "Ollama-Modell-ID",
     bedrockModel: "Bedrock-Modell-ID",
@@ -262,6 +266,7 @@ let checkedPlan = null;
 const folderGrid = document.querySelector("#folder-grid");
 const summary = document.querySelector("#summary");
 const providerSelect = document.querySelector("#provider");
+const cloudPseudonymization = document.querySelector("#cloud-pseudonymization");
 const saveButton = document.querySelector("#save");
 const gateHint = document.querySelector("#gate-hint");
 const saveNote = document.querySelector("#save-note");
@@ -1519,6 +1524,7 @@ function buildRequest() {
     model: modelFromForm(),
     model_presets: presets,
     model_preset: activePreset,
+    cloud_pseudonymization: cloudPseudonymization.checked ? "on" : "off",
     calendar: buildCalendar(),
     scheduler: buildScheduler(),
     profiles: buildProfiles(),
@@ -1722,6 +1728,7 @@ providerSelect.addEventListener("change", () => {
   showProviderFields();
   invalidate();
 });
+cloudPseudonymization.addEventListener("change", invalidate);
 document.querySelector("#preset-save").addEventListener("click", savePreset);
 document.querySelector("#profile-add").addEventListener("click", () => {
   profileList.append(profileCard({ profile_id: "", display_name: "", rules: [] }));
@@ -1797,6 +1804,7 @@ api("/api/v1/setup/state")
     );
     presets = payload.model_presets || {};
     activePreset = payload.model_preset || null;
+    cloudPseudonymization.checked = payload.cloud_pseudonymization !== "off";
     if (activePreset && presets[activePreset]) fillForm(presets[activePreset]);
     renderProfiles(payload.profile_forms || []);
     renderHousehold(payload.household_rules || []);

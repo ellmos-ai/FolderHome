@@ -6,7 +6,7 @@
 
 > Assistantify your home.
 
-**Aktuelle Kurzfassung:** lokale Abnahme / 2026-09-09  
+**Aktuelle Kurzfassung:** Release v0.6.1 / 2026-09-15  
 **Direkter Vorläufer:**
 [`docs/archive/README-phase36-draft.md`](docs/archive/README-phase36-draft.de.md)
 
@@ -20,21 +20,19 @@ Cloudberechtigungen zu geben.
 
 ## Status
 
-- lokale Wettbewerbsbasis mit 36 Phasen umgesetzt; die erweiterte Endabnahme läuft
+- Releasekandidat **v0.6.1**; die abschließende Codeabnahme ist durch die unten genannten Releaseprüfungen belegt
 - ein echter `strands.Agent`-Master mit neun begrenzten Werkzeugen und bei Bedarf erzeugten Planungs-Fachagenten
-- letzte vollständig geprüfte lokale Basis: **985 bestanden** in ergänzenden
-  Teilmengen (64 CLI + 921 übrige Tests) am 09.09.2026, Warnungen als Fehler behandelt;
-  nachfolgende Änderungen an der Dienststeuerung werden separat fokussiert geprüft.
-  Keine Browser- oder AWS-Abnahme.
+- letzte vollständig geprüfte lokale Basis: **2.045 bestanden** am 15.09.2026,
+  Warnungen als Fehler behandelt und Scheduler-Bridge auf die geprüfte
+  Provider-Revision gepinnt. Die menschliche Browserabnahme bleibt getrennt.
 - synthetische No-network-Demo mit reproduzierbaren Hashes
 - durchgehende synthetische Unfallgeschichte über vier echte,
   bestätigungspflichtige FolderHome-Workflowadapter
 - zweisprachiger öffentlicher Showcase mit Hell-/Dunkelmodus in
-  [`site/`](./site/) und eine bereitgestellte, quotenbegrenzte
-  AgentCore-HTTP-Runtime; ihr öffentlicher Browserpfad bleibt deaktiviert,
-  bis zur erneuten AWS-Abnahme
-- historischer Baseline-Audit über 12/12 Oberflächen und 66 geänderte Dateien;
-  die erweiterte Implementierung benötigt noch ihre abschließende Bereichsprüfung
+  [`site/`](./site/) und eine live verfügbare, durch Quote und Geld-Ledger
+  begrenzte AgentCore-HTTP-Runtime, am 15.09.2026 als Runtime-Version 27
+  verifiziert: <https://d2pfbfpfjnkqbh.cloudfront.net/>
+- historischer Baseline-Audit über 12/12 Oberflächen und 66 geänderte Dateien
 - öffentliches MIT-Repository, [dreiminütiges öffentliches Demovideo](https://youtu.be/wPb1wBJcLjQ)
   und eine eingereichte [Agents-for-Humans-Teilnahme](https://devpost.com/software/folderhome)
 
@@ -204,6 +202,20 @@ Der gleiche begrenzte Strands-Nachrichtenverlauf löst nun Folgebezüge in GUI u
 CLI auf. Er ist nach organisatorischem Profil getrennt, standardmäßig auf 24
 Nachrichten begrenzt, wird nicht dauerhaft gespeichert und lässt sich zusammen
 mit unbestätigten Plänen über **Neue Unterhaltung** oder `/reset` löschen.
+
+Diese begrenzte Laufzeit bildet die erste Schicht des **lokalen
+Agenten-Laufzeitgerüsts** von FolderHome. Lokale Modelle profitieren von einer
+äußeren Steuerung, weil mehr Kontext allein eine große Aufgabe nicht zuverlässig
+beherrscht. Das Gerüst begrenzt einen Aufruf derzeit auf vier Modellturns und
+vier Werkzeugaufrufe; für Prompt, Ausgabe, Werkzeugresultate, Gespräch und
+Zeitablauf gelten zusätzliche Budgets. Bei `app serve` und den `agent`-Befehlen
+lassen sie sich über `--max-turns`, `--max-tool-calls`,
+`--max-prompt-chars`, `--max-response-chars`, `--max-tool-result-bytes`,
+`--max-output-tokens`, `--max-conversation-messages` und
+`--model-timeout-seconds` anpassen. Die Setup-Oberfläche bietet diese
+Experteneinstellungen noch nicht an. Ein größeres Budget erzeugt keine
+dauerhafte Aufgabenfortsetzung.
+
 Die GUI zeigt den Modellzustand direkt: deterministisches Fixture, konfiguriertes
 aber noch nicht verifiziertes Bedrock oder Bedrock nach mindestens einem
 erfolgreichen Live-Modellturn im aktuellen Prozess. Eine Konfiguration allein
@@ -217,16 +229,16 @@ Arbeitsverzeichnispfad enthält, reisen nur als Metadaten und sagen warum.
 Die optionale AgentCore-Oberfläche implementiert den aktuellen AWS-HTTP-Vertrag
 auf ARM64 (`GET /ping`, `POST /invocations`, Port 8080). Sie akzeptiert nur
 synthetische Fixture-Prompts, trennt den Zustand nach AgentCore-Runtime-Sitzung
-und kann weder Haushaltsdateien einlesen noch externe Aktionen ausführen. Der
-Vertrag ist lokal getestet. Am 13.09.2026 hat die bereitgestellte Runtime
-(Version 8, Endpunkt `budget_v8`) eine Bedrock-gestützte synthetische Reise
+und kann weder Haushaltsdateien einlesen noch externe Aktionen ausführen. Am
+15.09.2026 hat die bereitgestellte Runtime (Version 27, Endpunkt `budget_v27`)
+eine Bedrock-gestützte synthetische Reise
 durch den öffentlichen Proxy von Anfang bis Ende durchlaufen: Der Nova-Micro-
 Master-Agent machte zwei Modellzüge, der Plan verlangte `/confirm`, und der
 bestätigte Lauf erzeugte vier Ergebnisdateien ohne externe Aktionen
-(`manage.py verify`, Status `verified`); dieselbe Reise wurde am selben Tag nach einem
-unabhängigen Code-Review auf Runtime-Version 10 erneut verifiziert. Die Zulassung ist ein kumulierendes
+(`manage.py verify`, Status `verified`). Die Zulassung ist ein kumulierendes
 Tages-Geldbudget, keine feste Anfragezahl. Die öffentliche CloudFront-
-Konfiguration bleibt `enabled: false`, bis der Eigentümer die Seite freischaltet.
+Konfiguration ist `enabled: true`; die gehostete Demo ist unter
+<https://d2pfbfpfjnkqbh.cloudfront.net/> erreichbar.
 
 Mehr: [`ARCHITECTURE.md`](./ARCHITECTURE.md) und
 [`docs/submission/ARCHITECTURE_DIAGRAM.md`](./docs/submission/ARCHITECTURE_DIAGRAM.md).
@@ -772,6 +784,34 @@ offengelegt und revisionsgebunden. FolderHome kopiert ihren Quellcode nicht.
 - Lizenzen und Pins: [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.de.md)
 - Entscheidungen: [`DECISIONS.md`](./DECISIONS.md)
 - Changelog: [`CHANGELOG.md`](./CHANGELOG.md)
+
+## Datenschutzfreundlicher Chatfokus und Ausblick
+
+FolderHome hält den Chatkontext nur für die aktuelle Prozesssitzung. Es entsteht
+nicht stillschweigend ein dauerhaftes Archiv jedes Gesprächs. Dadurch bleibt
+die Oberfläche auf die aktuelle Aufgabe konzentriert und sammelt keinen
+unnötigen Chatdatenmüll an. Das Neuladen der Einstellungen, ein neues Gespräch
+oder ein App-Neustart löscht diesen Sitzungskontext.
+
+Der Ausblick nach dem Wettbewerb sieht eine bewusste statt automatische
+Aufbewahrung vor: Einzelne Gespräche sollen gezielt gespeichert, optional 30
+Tage aufbewahrt oder nach 30 Tagen ausgewählt archiviert werden können. Der
+Standard bleibt sitzungsgebunden; diese Aufbewahrungsoberfläche gehört noch
+nicht zu v0.6.1.
+
+Für Dokumentarbeiten, die einen begrenzten Agentenaufruf überschreiten, gehört
+außerdem ein bewusst kleiner **Hintergrundworker mit genau einem Slot** zum
+Ausblick. Statt das vollständige BACH-Backend mitzuliefern, soll FolderHome nur
+dessen bewährte Orchestrierungsmechanik herauslösen und anpassen: ausdrückliche
+Zerlegung, Schrittledger, ausfallsicherer Zustand, eine begrenzte
+Fortsetzungsschleife und prüfbare Übergaben zwischen Modellturns. Der Worker
+nimmt jeweils nur eine Dokumentaufgabe an und legt Entscheidungen vor, statt
+einen unbegrenzten Agentenschwarm zu starten. Wiederverwendeter BACH-Code wird
+auf eine Revision gepinnt und als vorbestehende Arbeit offengelegt; der
+FolderHome-Adapter und die dokumentenspezifische Richtlinie bleiben getrennte
+neue Integrationsarbeit. v0.6.1 besitzt bereits begrenzte Aufrufe,
+freigabegebundene Pläne und abschnittsweise Rezeptläufe, beansprucht diesen
+dauerhaften Worker aber noch nicht.
 
 ## Submission-Grenze
 

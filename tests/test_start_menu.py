@@ -1708,7 +1708,31 @@ def test_start_cmd_has_no_sibling_venv_fallback() -> None:
     start_cmd = SCRIPTS_DIR / "START.cmd"
     text = start_cmd.read_text(encoding="ascii")
     assert "folderhome\\.venv" not in text
-    assert "..\\folderhome" not in text
+    assert "..\\folderhome\\.venv" not in text
+
+
+def test_start_cmd_discovers_bounded_source_checkout_installation() -> None:
+    text = (SCRIPTS_DIR / "START.cmd").read_text(encoding="ascii")
+
+    assert "%ROOT%\\..\\..\\folderhome-config" in text
+    assert 'if exist "%LOCAL_CONFIG%\\START-APP.cmd"' in text
+    assert 'if exist "%LOCAL_CONFIG%\\START-SETUP.cmd"' in text
+    assert 'if exist "%LOCAL_CONFIG%\\launch.json"' in text
+    assert "%CONFIG_ARGS% %*" in text
+
+
+def test_interactive_loop_reopens_menu_after_failed_start(tmp_path: Path) -> None:
+    inputs = iter(["1", "q"])
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        input_func=lambda prompt: next(inputs),
+        print_func=logs.append,
+    )
+
+    assert controller.interactive_loop() == 0
+    assert sum(line == "=== FolderHome Starter ===" for line in logs) == 2
+    assert any("START-APP.cmd was not found" in line for line in logs)
 
 
 # ============================================================================

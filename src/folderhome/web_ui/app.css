@@ -253,6 +253,9 @@ h1, h2, p { margin-top: 0; }
 h1 { max-width: 830px; margin-bottom: 1.35rem; font-family: Bahnschrift, "Aptos Display", "Arial Narrow", sans-serif; font-size: clamp(3.2rem, 7.4vw, 6.8rem); font-weight: 650; line-height: .89; letter-spacing: -.055em; }
 h1 em { color: var(--accent-text); font-style: normal; font-weight: 350; }
 .hero-copy { max-width: 650px; margin-bottom: 0; color: var(--muted); font-size: clamp(1rem, 2vw, 1.22rem); line-height: 1.65; }
+.hero-info-btn { margin-top: 1rem; }
+.home-info-panel { margin-bottom: clamp(2rem, 5vw, 4rem); }
+.home-info-panel[hidden] { display: none; }
 .boundary-card { display: flex; gap: 1rem; align-items: center; padding: 1.3rem; background: var(--surface-glass); border: 1px solid var(--line); border-top: .35rem solid var(--folder); border-radius: .25rem; box-shadow: 10px 12px 0 var(--card-shadow); }
 .boundary-icon { display: grid; place-items: center; min-width: 3.15rem; height: 3.15rem; color: white; background: var(--cabinet); border-radius: .2rem; font-size: 1.3rem; }
 .boundary-card p { margin: 0 0 .15rem; color: var(--muted); font-family: Consolas, "Courier New", monospace; font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; }
@@ -583,9 +586,9 @@ h2 { margin-bottom: 0; font-family: Bahnschrift, "Aptos Display", sans-serif; fo
 .profile-control { display: grid; gap: .3rem; color: var(--muted); font-family: Consolas, "Courier New", monospace; font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
 select { min-width: 10rem; padding: .65rem 2.2rem .65rem .75rem; color: var(--ink); background: var(--surface-solid); border: 1px solid var(--line); border-radius: .2rem; }
 .chat-transcript { display: grid; gap: .85rem; margin-top: 1.7rem; }
-.chat-message { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: .8rem; align-items: start; max-width: 82%; padding: .9rem 1rem; background: var(--surface-solid); border: 1px solid var(--line); border-radius: .25rem; }
+.chat-message { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: .8rem; align-items: start; max-width: 82%; padding: .9rem 1rem; background: var(--surface-solid); border: 1px solid var(--line); border-radius: .25rem; }
 .chat-message.user { justify-self: end; background: var(--folder-pale); border-color: var(--folder); }
-.chat-speaker { display: grid; place-items: center; min-height: 2rem; padding: .25rem; color: white; background: var(--cabinet); border-radius: .2rem; font-family: Consolas, "Courier New", monospace; font-size: .65rem; font-weight: 800; }
+.chat-speaker { display: grid; place-items: center; min-width: 2.5rem; min-height: 2rem; max-width: 8rem; padding: .25rem .45rem; color: white; background: var(--cabinet); border-radius: .2rem; font-family: Consolas, "Courier New", monospace; font-size: .65rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
 .chat-message.user .chat-speaker { color: var(--folder-ink); background: var(--folder); }
 .chat-message p { margin: .2rem 0 0; line-height: 1.55; white-space: pre-wrap; }
 form { margin-top: 1.7rem; }
@@ -668,7 +671,8 @@ input[type="checkbox"] {
 .capability-card small { color: var(--muted); }
 .capability-card[data-status="interactive_read_only"] { background: var(--teal-pale); border-color: var(--teal-border); }
 .capability-card[data-status="interactive_read_only"]::before { background: var(--teal); }
-.capability-card[data-status="agent_guided"]::before { background: var(--folder); }
+.capability-card[data-status="agent_guided"] { background: var(--teal-pale); border-color: var(--teal-border); }
+.capability-card[data-status="agent_guided"]::before { background: var(--teal); }
 .capability-card[data-status="planning_only"]::before { background: var(--cabinet); }
 .capability-card[data-status="not_connected"] { opacity: .78; }
 .capability-card[data-status="not_connected"]::before { background: var(--line); }

@@ -64,3 +64,4 @@ docs/superpowers/
 # Local demo and runtime state (never tracked)
 .local-demo/
 .local-state/
+_reports/

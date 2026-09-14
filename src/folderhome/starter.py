@@ -1089,7 +1089,10 @@ class StartMenuController:
                 self.print_func(self.t("quitting"))
                 return 0
 
-            return self.run_action(norm)
+            result = self.run_action(norm)
+            if result != 0:
+                continue
+            return result
 
 
 def build_parser() -> argparse.ArgumentParser:

@@ -67,6 +67,11 @@ def test_natural_document_query_is_reduced_to_meaningful_terms() -> None:
     assert normalized == "Krankenversicherung"
 
 
+def test_common_german_plural_terms_match_singular_index_words() -> None:
+    assert normalize_document_query("Welche Versicherungen habe ich?") == "Versicherung"
+    assert normalize_document_query("Zeige mir meine Policen") == "Police"
+
+
 @pytest.mark.skipif(
     not (DOC_SERVICES_ROOT.is_dir() and KNOWLEDGE_DIGEST_ROOT.is_dir()),
     reason="pinned document provider checkouts unavailable",
@@ -105,3 +110,95 @@ def test_theme_dossier_lists_evidence_and_marks_possible_truncation(tmp_path: Pa
     assert "Fundstellen" in dossier.markdown
     assert dossier.hits[0].filename in dossier.markdown
     assert "möglicherweise gekürzt" in dossier.markdown
+
+
+@pytest.mark.skipif(
+    not (DOC_SERVICES_ROOT.is_dir() and KNOWLEDGE_DIGEST_ROOT.is_dir()),
+    reason="pinned document provider checkouts unavailable",
+)
+def test_complete_document_overview_lists_each_indexed_document(tmp_path: Path) -> None:
+    bridge = _indexed_bridge(tmp_path)
+
+    dossier = build_theme_dossier(
+        "Gib mir einen Überblick über alle meine Dokumente und ihre Themen.",
+        searcher=bridge,
+        limit=100,
+    )
+
+    assert dossier.search_query == "all indexed documents"
+    assert dossier.total_hits == 2
+    assert {hit.filename for hit in dossier.hits} == {"Hausrat.txt", "Krankenkasse.txt"}
+    assert dossier.markdown.count("### Hausrat.txt") == 1
+    assert dossier.markdown.count("### Krankenkasse.txt") == 1
+    assert all(hit.snippet for hit in dossier.hits)
+
+    search = search_documents(
+        "Welche Dokumente habe ich?",
+        searcher=bridge,
+        limit=100,
+    )
+    assert search.search_query == "all indexed documents"
+    assert {hit.filename for hit in search.hits} == {"Hausrat.txt", "Krankenkasse.txt"}
+    assert all(hit.snippet == "" for hit in search.hits)
+
+    count_search = search_documents(
+        "Was ist die Anzahl meiner Dokumente?",
+        searcher=bridge,
+        limit=100,
+    )
+    assert count_search.search_query == "all indexed documents"
+    assert count_search.total_hits == 2
+    assert all(hit.snippet == "" for hit in count_search.hits)
+
+
+@pytest.mark.skipif(
+    not (DOC_SERVICES_ROOT.is_dir() and KNOWLEDGE_DIGEST_ROOT.is_dir()),
+    reason="pinned document provider checkouts unavailable",
+)
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Zeige alle Dokumente",
+        "Liste alle Dokumente auf",
+        "Zeige Dokumente",
+        "Liste meine Dokumente",
+        "Show me all my documents",
+        "List all documents",
+        "Show documents",
+        "List my documents",
+        "How many documents do I have?",
+    ),
+)
+def test_common_inventory_commands_list_metadata_without_content(
+    tmp_path: Path,
+    query: str,
+) -> None:
+    response = search_documents(query, searcher=_indexed_bridge(tmp_path), limit=100)
+
+    assert response.search_query == "all indexed documents"
+    assert response.total_hits == 2
+    assert all(hit.snippet == "" for hit in response.hits)
+
+
+@pytest.mark.skipif(
+    not (DOC_SERVICES_ROOT.is_dir() and KNOWLEDGE_DIGEST_ROOT.is_dir()),
+    reason="pinned document provider checkouts unavailable",
+)
+@pytest.mark.parametrize(
+    "query",
+    (
+        "Liste alle Dokumente mit ihren Inhalten",
+        "Zeige alle Dokumente und fasse ihre Inhalte zusammen",
+        "List all documents with their contents",
+        "Show all documents and summarize their content",
+    ),
+)
+def test_explicit_inventory_content_analysis_includes_bounded_snippets(
+    tmp_path: Path,
+    query: str,
+) -> None:
+    response = search_documents(query, searcher=_indexed_bridge(tmp_path), limit=100)
+
+    assert response.search_query == "all indexed documents"
+    assert response.total_hits == 2
+    assert all(hit.snippet for hit in response.hits)
