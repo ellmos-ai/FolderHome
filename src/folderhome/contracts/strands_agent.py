@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from ipaddress import ip_address
+from typing import Literal
 from urllib.parse import SplitResult, urlsplit
 
 from folderhome.contracts.master_agent import MasterAgentPlan
@@ -62,6 +63,7 @@ class StrandsAgentSettings:
     openai_base_url: str | None = None
     allow_network: bool = False
     allow_sensitive_cloud_data: bool = False
+    cloud_pseudonymization: Literal["on", "off"] = "on"
     max_turns: int = 4
     max_tool_calls: int = 4
     max_prompt_chars: int = 1_000
@@ -78,6 +80,8 @@ class StrandsAgentSettings:
     SCHEMA = "folderhome.strands-agent-settings.v1"
 
     def __post_init__(self) -> None:
+        if self.cloud_pseudonymization not in {"on", "off"}:
+            raise ValueError("cloud_pseudonymization muss on oder off sein.")
         if self.model_provider not in _PROVIDER_FIELDS:
             raise ValueError(
                 "model_provider muss "
@@ -222,6 +226,7 @@ class StrandsAgentSettings:
             "network_used": self.network_used,
             "allow_network": self.allow_network,
             "allow_sensitive_cloud_data": self.allow_sensitive_cloud_data,
+            "cloud_pseudonymization": self.cloud_pseudonymization,
             "max_turns": self.max_turns,
             "max_tool_calls": self.max_tool_calls,
             "max_prompt_chars": self.max_prompt_chars,
@@ -306,6 +311,7 @@ class FolderHomeAgentReport:
     tool_events: tuple[AgentToolEvent, ...]
     network_used: bool
     sensitive_cloud_data_authorized: bool
+    pseudonymization: dict[str, object]
     delegation_events: tuple[AgentDelegationEvent, ...] = ()
     proposed_plans: tuple[MasterAgentPlan, ...] = ()
     proposed_recipes: tuple[CapabilityRecipePlan | RecipeStagePlan, ...] = ()
@@ -329,6 +335,7 @@ class FolderHomeAgentReport:
             "tool_events": [item.to_dict() for item in self.tool_events],
             "network_used": self.network_used,
             "sensitive_cloud_data_authorized": self.sensitive_cloud_data_authorized,
+            "pseudonymization": self.pseudonymization,
             "delegation_events": [item.to_dict() for item in self.delegation_events],
             "proposed_plans": [item.to_dict() for item in self.proposed_plans],
             **({"proposed_recipes": [item.to_dict() for item in self.proposed_recipes]}

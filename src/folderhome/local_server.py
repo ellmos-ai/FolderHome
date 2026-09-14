@@ -135,6 +135,17 @@ class LocalServer:
         return self._server.active_request_count
 
     def to_public_dict(self) -> dict[str, object]:
+        warning = None
+        agent_settings = getattr(self._server.application, "agent_settings", None)
+        if (
+            agent_settings is not None
+            and agent_settings.network_used
+            and agent_settings.cloud_pseudonymization == "off"
+        ):
+            warning = (
+                "Cloud pseudonymization OFF: names, contacts and identifiers "
+                "leave this machine in clear text"
+            )
         return {
             "schema": "folderhome.local-server-start.v1",
             "status": "ready",
@@ -145,6 +156,7 @@ class LocalServer:
             "profiles_are_authorization_boundaries": False,
             "browser_opened": False,
             "external_network_used": False,
+            **({"warning": warning} if warning else {}),
             "max_concurrent_requests": (
                 self._server.application.settings.max_concurrent_requests
             ),

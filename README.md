@@ -342,6 +342,16 @@ model at all), `ollama` on the loopback interface (a model on this machine),
 third onwards leaves this machine and therefore needs both approvals,
 `--allow-network` and `--approve-sensitive-cloud-data`.
 
+Remote providers are additionally protected by cloud pseudonymization, which is
+on by default. Before each remote call, FolderHome replaces known local names,
+contacts and identifiers plus conservatively recognized patterns with stable
+session placeholders; responses and tool arguments are restored locally. The
+mapping never enters model payloads, logs or reports. This is risk reduction,
+not anonymity: an unknown name in free text can escape pattern detection, so
+both approval gates remain mandatory. `--cloud-pseudonymization off` (or the
+same `launch.json` field) deliberately disables this layer after a restart and
+produces a visible warning and `cloud_pseudonymization: "off"` status.
+
 ```powershell
 # Optional extras; a provider is not imported unless you select it
 .venv\Scripts\pip.exe install -e ".[anthropic]"

@@ -23,6 +23,11 @@ from folderhome.application.master_agent import (
     master_persona_catalog,
     resolve_master_route,
 )
+from folderhome.application.pseudonymization import (
+    PseudonymizingModel,
+    PseudonymVault,
+    seed_vault_from_application,
+)
 from folderhome.application.workflow_execution import WorkflowExecutionError
 from folderhome.contracts.strands_agent import (
     AgentDelegationEvent,
@@ -178,6 +183,7 @@ def run_folderhome_agent(
     prompt: str,
     profile_id: str,
     settings: StrandsAgentSettings,
+    pseudonym_vault: PseudonymVault | None = None,
 ) -> FolderHomeAgentReport:
     """Run one stateless finite Strands loop for one-shot callers and tests."""
 
@@ -186,6 +192,7 @@ def run_folderhome_agent(
         prompt=prompt,
         profile_id=profile_id,
         settings=settings,
+        pseudonym_vault=pseudonym_vault,
     )
     return report
 
@@ -197,6 +204,7 @@ def run_folderhome_agent_turn(
     profile_id: str,
     settings: StrandsAgentSettings,
     prior_messages: tuple[dict[str, Any], ...] = (),
+    pseudonym_vault: PseudonymVault | None = None,
 ) -> tuple[FolderHomeAgentReport, tuple[dict[str, Any], ...]]:
     """Run one bounded turn and return process-local Strands conversation state."""
 
@@ -207,6 +215,10 @@ def run_folderhome_agent_turn(
     known_profiles = {item.profile_id for item in application.profiles.profiles}
     if profile_id not in known_profiles:
         raise FolderHomeAgentError("Profil ist in diesem Betriebssystemkonto nicht bekannt.")
+    vault = pseudonym_vault or PseudonymVault()
+    vault.begin_turn()
+    if settings.network_used and settings.cloud_pseudonymization == "on":
+        seed_vault_from_application(vault, application, profile_id=profile_id)
     try:
         from strands import Agent, tool
         from strands.agent.conversation_manager import SlidingWindowConversationManager
@@ -344,6 +356,7 @@ def run_folderhome_agent_turn(
             persona_id=persona_id or None,
             language=language,
             settings=settings,
+            pseudonym_vault=vault,
         )
         payload = {
             "expert_id": expert_id,
@@ -416,7 +429,7 @@ def run_folderhome_agent_turn(
         proposal = application.prepare_recipe_stage(profile_id=profile_id, run_id=run_id)
         return record_recipe_proposal(proposal, "propose_next_recipe_stage", {"run_id": run_id})
 
-    model = _build_model(settings)
+    model = _build_model(settings, pseudonym_vault=vault)
     messages = _validated_prior_messages(
         prior_messages,
         max_messages=settings.max_conversation_messages,
@@ -485,6 +498,12 @@ def run_folderhome_agent_turn(
         tool_events=tuple(events),
         network_used=settings.network_used,
         sensitive_cloud_data_authorized=settings.allow_sensitive_cloud_data,
+        pseudonymization=vault.summary(
+            active=(
+                settings.network_used
+                and settings.cloud_pseudonymization == "on"
+            )
+        ),
         delegation_events=tuple(delegations),
         proposed_plans=tuple(proposed_plans),
         proposed_recipes=tuple(proposed_recipes),
@@ -506,6 +525,7 @@ def consult_folderhome_specialist(
     persona_id: str | None,
     language: str,
     settings: StrandsAgentSettings,
+    pseudonym_vault: PseudonymVault | None = None,
 ):
     """Run one short-lived specialist with one allowlisted planning tool."""
 
@@ -531,6 +551,11 @@ def consult_folderhome_specialist(
             "Strands Agents SDK fehlt; installiere die Projektabhängigkeiten."
         ) from exc
 
+    vault = pseudonym_vault or PseudonymVault()
+    if pseudonym_vault is None:
+        vault.begin_turn()
+        if settings.network_used and settings.cloud_pseudonymization == "on":
+            seed_vault_from_application(vault, application, profile_id=profile_id)
     workflow_descriptor = application.workflow_executor.descriptor(workflow_id)
     resource_contract = json.dumps(
         application.resource_catalog_payload(profile_id),
@@ -613,7 +638,11 @@ def consult_folderhome_specialist(
     )
     subagent_id = f"folderhome-{expert_id}-{workflow_id}"
     agent = Agent(
-        model=_build_model(settings, specialist_workflow_id=workflow_id),
+        model=_build_model(
+            settings,
+            specialist_workflow_id=workflow_id,
+            pseudonym_vault=vault,
+        ),
         tools=[propose_home_workflow],
         system_prompt=(
             f"You are the bounded FolderHome specialist {expert_id}. {expert_description} "
@@ -758,10 +787,13 @@ def _build_model(
     settings: StrandsAgentSettings,
     *,
     specialist_workflow_id: str | None = None,
+    pseudonym_vault: PseudonymVault | None = None,
 ):
     if settings.model_provider == "fixture":
-        return _fixture_model_class()(
-            specialist_workflow_id=specialist_workflow_id
+        return _protect_remote_model(
+            settings,
+            _fixture_model_class()(specialist_workflow_id=specialist_workflow_id),
+            pseudonym_vault,
         )
     if settings.model_provider == "ollama":
         try:
@@ -770,12 +802,16 @@ def _build_model(
             raise FolderHomeAgentError(
                 "Strands-Ollama-Provider ist nicht installiert: pip install 'folderhome[ollama]'"
             ) from exc
-        return OllamaModel(
-            settings.ollama_host,
-            ollama_client_args={"timeout": settings.model_timeout_seconds},
-            model_id=settings.ollama_model_id,
-            max_tokens=settings.max_output_tokens,
-            options={"num_ctx": settings.ollama_num_ctx},
+        return _protect_remote_model(
+            settings,
+            OllamaModel(
+                settings.ollama_host,
+                ollama_client_args={"timeout": settings.model_timeout_seconds},
+                model_id=settings.ollama_model_id,
+                max_tokens=settings.max_output_tokens,
+                options={"num_ctx": settings.ollama_num_ctx},
+            ),
+            pseudonym_vault,
         )
     if settings.model_provider == "anthropic":
         try:
@@ -785,13 +821,17 @@ def _build_model(
                 "Strands-Anthropic-Provider ist nicht installiert: "
                 "pip install 'folderhome[anthropic]'"
             ) from exc
-        return AnthropicModel(
-            client_args={
-                "api_key": _api_key("ANTHROPIC_API_KEY"),
-                "timeout": settings.model_timeout_seconds,
-            },
-            model_id=settings.anthropic_model_id,
-            max_tokens=settings.max_output_tokens,
+        return _protect_remote_model(
+            settings,
+            AnthropicModel(
+                client_args={
+                    "api_key": _api_key("ANTHROPIC_API_KEY"),
+                    "timeout": settings.model_timeout_seconds,
+                },
+                model_id=settings.anthropic_model_id,
+                max_tokens=settings.max_output_tokens,
+            ),
+            pseudonym_vault,
         )
     if settings.model_provider == "openai":
         try:
@@ -807,26 +847,46 @@ def _build_model(
         }
         if settings.openai_base_url is not None:
             client_args["base_url"] = settings.openai_base_url
-        return OpenAIModel(
-            client_args=client_args,
-            model_id=settings.openai_model_id,
-            params={"max_tokens": settings.max_output_tokens},
+        return _protect_remote_model(
+            settings,
+            OpenAIModel(
+                client_args=client_args,
+                model_id=settings.openai_model_id,
+                params={"max_tokens": settings.max_output_tokens},
+            ),
+            pseudonym_vault,
         )
     try:
         from botocore.config import Config as BotocoreConfig
         from strands.models import BedrockModel
     except ImportError as exc:  # pragma: no cover - dependency contract
         raise FolderHomeAgentError("Strands-Bedrock-Provider ist nicht verfügbar.") from exc
-    return BedrockModel(
-        model_id=settings.bedrock_model_id,
-        region_name=settings.aws_region,
-        max_tokens=settings.max_output_tokens,
-        boto_client_config=BotocoreConfig(
-            connect_timeout=settings.bedrock_connect_timeout_seconds,
-            read_timeout=settings.bedrock_read_timeout_seconds,
-            retries={"total_max_attempts": 1, "mode": "standard"},
+    return _protect_remote_model(
+        settings,
+        BedrockModel(
+            model_id=settings.bedrock_model_id,
+            region_name=settings.aws_region,
+            max_tokens=settings.max_output_tokens,
+            boto_client_config=BotocoreConfig(
+                connect_timeout=settings.bedrock_connect_timeout_seconds,
+                read_timeout=settings.bedrock_read_timeout_seconds,
+                retries={"total_max_attempts": 1, "mode": "standard"},
+            ),
         ),
+        pseudonym_vault,
     )
+
+
+def _protect_remote_model(
+    settings: StrandsAgentSettings,
+    model,
+    pseudonym_vault: PseudonymVault | None,
+):
+    """Decorate every transport that leaves loopback, and no local transport."""
+
+    if not settings.network_used or settings.cloud_pseudonymization == "off":
+        return model
+    return PseudonymizingModel(model, pseudonym_vault or PseudonymVault())
 
 
 def _system_prompt(profile_id: str) -> str:

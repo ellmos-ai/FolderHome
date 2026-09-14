@@ -22,6 +22,10 @@ from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 from folderhome.application.document_search import build_theme_dossier, search_documents
 from folderhome.application.master_agent import MasterAgentError, confirm_master_agent_plan
 from folderhome.application.profile_rules import ProfileConfiguration
+from folderhome.application.pseudonymization import (
+    PseudonymizationError,
+    PseudonymVault,
+)
 from folderhome.application.recipes import (
     build_recipe_plan,
     create_recipe_run,
@@ -275,6 +279,9 @@ class LocalApplication:
             str, tuple[dict[str, Any], ...]
         ] = {profile_id: () for profile_id in profile_ids}
         self._agent_conversation_turns = {profile_id: 0 for profile_id in profile_ids}
+        self._agent_pseudonym_vaults = {
+            profile_id: PseudonymVault() for profile_id in profile_ids
+        }
         self._agent_conversation_locks = {
             profile_id: threading.RLock() for profile_id in profile_ids
         }
@@ -282,6 +289,15 @@ class LocalApplication:
         self._execution_artifacts: dict[str, tuple[Path, ...]] = {}
         self._execution_results_lock = threading.RLock()
         self._successful_live_model_turns = 0
+        self._pseudonymization_available = True
+        self._last_pseudonymization: dict[str, object] = {
+            "active": (
+                self.agent_settings.network_used
+                and self.agent_settings.cloud_pseudonymization == "on"
+            ),
+            "replacements": 0,
+            "kinds": {},
+        }
         self._model_status_lock = threading.RLock()
         self._reload_lock = threading.RLock()
         self._asset_root = Path(__file__).parents[1] / "web_ui"
@@ -684,16 +700,36 @@ class LocalApplication:
         from folderhome.application.strands_agent import run_folderhome_agent_turn
 
         with self._agent_conversation_locks[request["profile_id"]]:
-            report, retained_messages = run_folderhome_agent_turn(
-                application=self,
-                prompt=request["message"],
-                profile_id=request["profile_id"],
-                settings=self.agent_settings,
-                prior_messages=self._agent_conversation_messages[request["profile_id"]],
-            )
+            try:
+                report, retained_messages = run_folderhome_agent_turn(
+                    application=self,
+                    prompt=request["message"],
+                    profile_id=request["profile_id"],
+                    settings=self.agent_settings,
+                    prior_messages=self._agent_conversation_messages[request["profile_id"]],
+                    pseudonym_vault=self._agent_pseudonym_vaults[request["profile_id"]],
+                )
+            except PseudonymizationError as exc:
+                with self._model_status_lock:
+                    self._pseudonymization_available = False
+                raise LocalAppError(str(exc)) from exc
             if self.agent_settings.is_live_model:
                 with self._model_status_lock:
                     self._successful_live_model_turns += 1
+            with self._model_status_lock:
+                self._pseudonymization_available = True
+                self._last_pseudonymization = deepcopy(getattr(
+                    report,
+                    "pseudonymization",
+                    {
+                        "active": (
+                            self.agent_settings.network_used
+                            and self.agent_settings.cloud_pseudonymization == "on"
+                        ),
+                        "replacements": 0,
+                        "kinds": {},
+                    },
+                ))
             self._agent_conversation_messages[request["profile_id"]] = retained_messages
             self._agent_conversation_turns[request["profile_id"]] += 1
             with self._agent_plan_lock:
@@ -734,6 +770,16 @@ class LocalApplication:
         with self._agent_conversation_locks[profile_id]:
             self._agent_conversation_messages[profile_id] = ()
             self._agent_conversation_turns[profile_id] = 0
+            self._agent_pseudonym_vaults[profile_id] = PseudonymVault()
+            with self._model_status_lock:
+                self._last_pseudonymization = {
+                    "active": (
+                        self.agent_settings.network_used
+                        and self.agent_settings.cloud_pseudonymization == "on"
+                    ),
+                    "replacements": 0,
+                    "kinds": {},
+                }
             with self._agent_plan_lock:
                 discarded = tuple(
                     plan_id
@@ -1584,6 +1630,7 @@ class LocalApplication:
         # setup_url or any setup/app token. The UI exclusively presents the safe local
         # start command scripts\START.cmd / Option 2.
         setup_url = None
+        pseudonymization = self._pseudonymization_status_payload()
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",
@@ -1606,6 +1653,7 @@ class LocalApplication:
                 if self._launch_config_path is not None
                 else None
             ),
+            **pseudonymization,
             "running_preset": running_preset,
             "saved_preset": saved_preset,
             "settings_stale": settings_stale,
@@ -1613,6 +1661,34 @@ class LocalApplication:
             "shell_execution_available": False,
             "request_paths_allowed": False,
             "cors_enabled": False,
+        }
+
+    def _pseudonymization_status_payload(self) -> dict[str, object]:
+        with self._model_status_lock:
+            available = self._pseudonymization_available
+            last = deepcopy(self._last_pseudonymization)
+        if not self.agent_settings.network_used:
+            status = "not_needed_local"
+        elif self.agent_settings.cloud_pseudonymization == "off":
+            status = "off"
+        elif available:
+            status = "active"
+        else:
+            status = "unavailable"
+        return {
+            "cloud_pseudonymization": status,
+            "cloud_pseudonymization_replacements": int(last["replacements"]),
+            "cloud_pseudonymization_kinds": dict(last["kinds"]),
+            **(
+                {
+                    "cloud_pseudonymization_warning": (
+                        "Cloud pseudonymization OFF: names, contacts and identifiers "
+                        "leave this machine in clear text"
+                    )
+                }
+                if status == "off"
+                else {}
+            ),
         }
 
     def _model_connection_payload(self) -> dict[str, object]:

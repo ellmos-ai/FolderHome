@@ -181,9 +181,10 @@ class ContractCockpitReport:
     def to_export_dict(self) -> dict[str, object]:
         """Export private evidence without internal filesystem locator fields.
 
-        This is not an anonymizer: names, contact details and user-supplied text
-        remain private. Internal ``to_dict`` and typed records retain the paths
-        needed for plan hashing and source revalidation.
+        The cockpit export itself is not an anonymizer: names, contact details
+        and user-supplied text remain private. The separate remote-model boundary
+        pseudonymizes model traffic when enabled. Internal ``to_dict`` and typed
+        records retain the paths needed for plan hashing and source revalidation.
         """
         return {
             "schema": "folderhome.contract-cockpit-export.v1",

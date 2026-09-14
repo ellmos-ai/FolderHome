@@ -74,6 +74,11 @@ const translations = {
     modelStatusBanner: "Model status",
     modelChecking: "Checking model …",
     modelCheckingDetail: "Reading the local runtime configuration.",
+    cloudPseudonymizationChecking: "Cloud pseudonymization status is loading.",
+    cloudPseudonymizationActive: "Cloud pseudonymization: active — {count} values replaced in the last turn.",
+    cloudPseudonymizationLocal: "Cloud pseudonymization: not needed for this local model.",
+    cloudPseudonymizationOff: "Cloud pseudonymization: OFF — personal data leaves this machine in clear text.",
+    cloudPseudonymizationUnavailable: "Cloud pseudonymization: unavailable — remote chat is blocked.",
     modelFixture: "Demo model (fixture)",
     modelFixtureDetail: "FolderHome and its files stay local. No live LLM is connected; responses use deterministic test behavior.",
     modelConfigured: "Amazon Bedrock configured",
@@ -286,6 +291,11 @@ const translations = {
     modelStatusBanner: "Modellstatus",
     modelChecking: "Modell wird geprüft …",
     modelCheckingDetail: "Die lokale Laufzeitkonfiguration wird gelesen.",
+    cloudPseudonymizationChecking: "Status der Cloud-Pseudonymisierung wird geladen.",
+    cloudPseudonymizationActive: "Cloud-Pseudonymisierung: aktiv — {count} Werte im letzten Durchlauf ersetzt.",
+    cloudPseudonymizationLocal: "Cloud-Pseudonymisierung: für dieses lokale Modell nicht nötig.",
+    cloudPseudonymizationOff: "Cloud-Pseudonymisierung: AUS — personenbezogene Daten verlassen die Maschine im Klartext.",
+    cloudPseudonymizationUnavailable: "Cloud-Pseudonymisierung: nicht verfügbar — Remote-Chat ist blockiert.",
     modelFixture: "Demomodell (Fixture)",
     modelFixtureDetail: "FolderHome und seine Dateien bleiben lokal. Kein Live-LLM ist verbunden; Antworten verwenden deterministisches Testverhalten.",
     modelConfigured: "Amazon Bedrock konfiguriert",
@@ -542,6 +552,7 @@ const capabilityWorkflows = {
 const modelStatus = document.querySelector("#model-status");
 const modelStatusTitle = document.querySelector("#model-status-title");
 const modelStatusDetail = document.querySelector("#model-status-detail");
+const pseudonymizationStatus = document.querySelector("#pseudonymization-status");
 const actionButtons = [...document.querySelectorAll(".actions button")];
 const languageButtons = [...document.querySelectorAll("[data-language]")];
 const themeButtons = [...document.querySelectorAll("[data-theme-mode]")];
@@ -856,7 +867,25 @@ function initCollapsiblePanels() {
   });
 }
 
+function renderPseudonymizationStatus() {
+  const state = appStatus?.cloud_pseudonymization || "checking";
+  pseudonymizationStatus.dataset.state = state;
+  const key = state === "active"
+    ? "cloudPseudonymizationActive"
+    : state === "not_needed_local"
+      ? "cloudPseudonymizationLocal"
+      : state === "off"
+        ? "cloudPseudonymizationOff"
+        : state === "unavailable"
+          ? "cloudPseudonymizationUnavailable"
+          : "cloudPseudonymizationChecking";
+  pseudonymizationStatus.textContent = t(key, {
+    count: appStatus?.cloud_pseudonymization_replacements || 0,
+  });
+}
+
 function renderModelStatus() {
+  renderPseudonymizationStatus();
   if (!modelConnection && !appStatus) {
     if (connectionStatus === "blocked") {
       modelStatus.dataset.state = "error";
@@ -1850,6 +1879,15 @@ function showError(error) {
 }
 
 function showAgent(payload) {
+  if (payload.agent.pseudonymization && appStatus) {
+    const report = payload.agent.pseudonymization;
+    appStatus.cloud_pseudonymization = report.active
+      ? "active"
+      : appStatus.cloud_pseudonymization;
+    appStatus.cloud_pseudonymization_replacements = report.replacements || 0;
+    appStatus.cloud_pseudonymization_kinds = report.kinds || {};
+    renderPseudonymizationStatus();
+  }
   currentView = { kind: "agent", payload };
   appendChatMessage("assistant", payload.agent.response_text || t("planTitle"));
   renderCurrentView();

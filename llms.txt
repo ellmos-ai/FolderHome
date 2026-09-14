@@ -83,6 +83,19 @@ interface for programs on this machine, not a network service.
   report; fetch produced files through the results routes above rather than from a
   directory you assume.
 
+## Cloud pseudonymization
+
+Every provider that leaves the machine uses process-local cloud pseudonymization
+by default. Known names, contacts, document and policy identifiers are replaced
+before model traffic, followed by conservative email, phone, IBAN, address,
+birth-date, German plate and identifier patterns. Responses and tool arguments
+are restored locally with one session-stable mapping. Reports and
+`GET /api/v1/status` expose counts and `cloud_pseudonymization`, never mapped
+values. This is not an anonymity guarantee: unknown free-text names can pass, so
+`--allow-network` and `--approve-sensitive-cloud-data` remain mandatory.
+`--cloud-pseudonymization off` or the matching `launch.json` field deliberately
+disables the layer after restart and produces status `off` plus a warning.
+
 ## Runtime status
 
 `GET /api/v1/status` keeps `folderhome.local-app-status.v1` and its legacy

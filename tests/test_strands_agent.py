@@ -506,7 +506,8 @@ def test_anthropic_model_receives_key_model_id_and_output_budget(
 
     model = strands_module._build_model(settings)
 
-    assert isinstance(model, anthropic_models.AnthropicModel)
+    assert isinstance(model, strands_module.PseudonymizingModel)
+    assert isinstance(model.inner_model, anthropic_models.AnthropicModel)
     assert model.get_config()["model_id"] == "claude-sonnet-4-5-20250929"
     assert model.get_config()["max_tokens"] == 2_048
 
@@ -527,7 +528,8 @@ def test_openai_model_receives_key_model_id_base_url_and_output_budget(
 
     model = strands_module._build_model(settings)
 
-    assert isinstance(model, openai_models.OpenAIModel)
+    assert isinstance(model, strands_module.PseudonymizingModel)
+    assert isinstance(model.inner_model, openai_models.OpenAIModel)
     assert model.get_config()["model_id"] == "gpt-4o"
     assert model.get_config()["params"]["max_tokens"] == 2_048
 
