@@ -11,7 +11,14 @@ from dataclasses import dataclass
 from typing import Any
 
 from pydantic import BaseModel
-from strands.models import Model
+
+try:
+    from strands.models import Model as _StrandsModel
+except ImportError:  # Keep CLI/help and the packaged starter importable for --no-deps smoke runs.
+    class _StrandsModel:
+        """Import-time fallback; live agent execution still requires strands-agents."""
+
+        pass
 
 from folderhome.capabilities.catalog import DocumentCatalogError, DocumentCatalogStore
 from folderhome.capabilities.contact_registry import ContactRegisterError, ContactRegisterStore
@@ -248,7 +255,7 @@ class PseudonymVault:
         return placeholder
 
 
-class PseudonymizingModel(Model):
+class PseudonymizingModel(_StrandsModel):
     """Strands model decorator that protects every remote request and response."""
 
     def __init__(self, inner_model: Model, vault: PseudonymVault) -> None:
