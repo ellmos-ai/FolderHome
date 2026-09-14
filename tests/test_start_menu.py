@@ -277,6 +277,7 @@ def test_option_1_resolves_app_cmd_and_url(tmp_path: Path) -> None:
     assert err is None
     assert cmd is not None
     assert cmd[0] == str(app_script)
+    assert "--json" in cmd
     assert url is None
 
 
@@ -292,6 +293,7 @@ def test_option_2_resolves_setup_cmd_and_url(tmp_path: Path) -> None:
     assert cmd[0] == str(setup_script)
     assert "--config-dir" in cmd
     assert str(tmp_path) in cmd
+    assert "--json" in cmd
     assert url is None
 
 
@@ -1011,7 +1013,9 @@ def test_real_run_action_1_captures_access_url_from_json_and_opens_browser(tmp_p
     code = controller.run_action("1")
     assert code == 0
     browser_spy.assert_called_once_with(expected_url)
-    assert any(expected_url in msg for msg in logs)
+    assert any("FolderHome URL: http://127.0.0.1:8765/" in msg for msg in logs)
+    assert not any("token=" in msg for msg in logs)
+    assert not any("test-app-token-12345" in msg for msg in logs)
 
 
 def test_real_run_action_rejects_tokenless_url_fails_closed_without_browser(
@@ -1207,3 +1211,129 @@ def test_action_3_successful_children_run_together_until_clean_completion(
     assert browser_spy.call_count == 2
     assert browser_spy.mock_calls[0][1] == (url1,)
     assert browser_spy.mock_calls[1][1] == (url2,)
+
+
+def test_action_3_fails_fast_when_sibling_crashes_during_bootstrap(tmp_path: Path) -> None:
+    """Child 2 crashes during bootstrap while Child 1 is still waiting.
+
+    Must immediately abort, terminate Child 1, open no browser, and return Child 2's exit code.
+    """
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    # Child 1: alive but produces no URL
+    child1 = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[None, None, None],
+    )
+    # Child 2: crashes immediately with code 42
+    child2 = FakeProcess(
+        stdout_lines=[],
+        poll_sequence=[42],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        bootstrap_timeout=5.0,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 42
+    assert child1.terminated is True
+    assert browser_spy.call_count == 0
+    assert any("exited prematurely with code 42" in msg for msg in logs)
+
+
+def test_action_3_detects_early_server_exit_before_browser_opening(tmp_path: Path) -> None:
+    """Child 1 emits URL but exits before Child 2 finishes bootstrap and before browser launch.
+
+    Must fail closed, open no browser, terminate Child 2, and return non-zero exit code.
+    """
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=secret1"
+    url2 = "http://127.0.0.1:8766/?token=secret2"
+
+    # Child 1 emits URL and terminates immediately with code 0 before browser launch
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[0],
+    )
+    # Child 2 is still running
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code != 0
+    assert child2.terminated is True
+    assert browser_spy.call_count == 0
+    assert any("exited prematurely before browser launch" in msg for msg in logs)
+
+
+def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-sensitive-token"
+    url2 = "http://127.0.0.1:8766/?token=setup-sensitive-token"
+
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, 0],
+    )
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, 0],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 0
+    # Browser opener receives authentic URLs with tokens
+    assert browser_spy.call_count == 2
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    assert browser_spy.mock_calls[1][1] == (url2,)
+
+    # Console output contains ONLY sanitized loopback URLs without tokens
+    assert any("FolderHome URL: http://127.0.0.1:8765/" in msg for msg in logs)
+    assert any("Setup URL: http://127.0.0.1:8766/" in msg for msg in logs)
+    assert not any("token=" in msg for msg in logs)
+    assert not any("app-sensitive-token" in msg for msg in logs)
+    assert not any("setup-sensitive-token" in msg for msg in logs)
+
+
+def test_validate_access_url_does_not_leak_token_in_error_message() -> None:
+    err = validate_access_url("http://127.0.0.1:8765/?token=")
+    assert err is not None
+    assert "token" in err
+    # Ensure error message does not reflect input query strings
+    assert "http://" not in err
+    assert "127.0.0.1" not in err

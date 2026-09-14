@@ -75,7 +75,7 @@ describe("Menu options and choice normalization", () => {
       const res = runMenu(["--config-dir", tmp, "--dry-run", "--action", choice]);
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting FolderHome\.\.\./);
-      assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd/);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd --json/);
       assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
       assert.match(res.stdout, /\[Dry-run\] Operation completed without launching subprocesses\./);
     }
@@ -88,7 +88,7 @@ describe("Menu options and choice normalization", () => {
       const res = runMenu(["--config-dir", tmp, "--dry-run", "--action", choice]);
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting Setup\.\.\./);
-      assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd --config-dir/);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd --config-dir .* --json/);
       assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
     }
   });
@@ -102,8 +102,8 @@ describe("Menu options and choice normalization", () => {
       assert.equal(res.status, 0, `Choice '${choice}' failed with status ${res.status}`);
       assert.match(res.stdout, /Starting FolderHome\.\.\./);
       assert.match(res.stdout, /Starting Setup\.\.\./);
-      assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd/);
-      assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd/);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-APP\.cmd --json/);
+      assert.match(res.stdout, /\[Dry-run Command\] .*START-SETUP\.cmd --config-dir .* --json/);
       assert.doesNotMatch(res.stdout, /http:\/\/127\.0\.0\.1/);
     }
   });

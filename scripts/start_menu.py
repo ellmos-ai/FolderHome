@@ -273,14 +273,27 @@ def normalize_action(raw: str) -> str | None:
     return None
 
 
+def redact_url_credentials(url: str | None) -> str:
+    """Redact query parameters (such as tokens) and credentials for safe exposure."""
+    if not url or not isinstance(url, str):
+        return ""
+    try:
+        parsed = urlsplit(url)
+    except ValueError:
+        return ""
+    host = f"[{parsed.hostname}]" if ":" in (parsed.hostname or "") else (parsed.hostname or "")
+    port_str = f":{parsed.port}" if parsed.port is not None else ""
+    return f"{parsed.scheme}://{host}{port_str}{parsed.path}"
+
+
 def validate_access_url(url: str) -> str | None:
     """Validate that access URL is an HTTP loopback URL containing a non-empty session token."""
     if not url or not isinstance(url, str):
         return "Missing or empty access URL"
     try:
         parsed = urlsplit(url)
-    except ValueError as exc:
-        return f"Malformed access URL: {exc}"
+    except ValueError:
+        return "Malformed access URL"
 
     if parsed.scheme.lower() != "http":
         return f"Access URL must use HTTP scheme, got: {parsed.scheme}"
@@ -294,7 +307,7 @@ def validate_access_url(url: str) -> str | None:
     query_params = parse_qs(parsed.query, keep_blank_values=True)
     tokens = query_params.get("token")
     if not tokens or not tokens[0].strip():
-        return f"Access URL must contain non-empty session token in query: {url}"
+        return "Access URL must contain non-empty session token in query parameter"
 
     return None
 
@@ -305,6 +318,9 @@ class ProcessOutputHandler:
         self.target_name = target_name
         self.stdout_queue: queue.Queue[str | None] = queue.Queue()
         self.stderr_lines: list[str] = []
+        self.access_url: str | None = None
+        self.error_message: str | None = None
+        self.stream_closed: bool = False
 
         self.stdout_thread = threading.Thread(
             target=self._read_stdout, daemon=True
@@ -358,7 +374,7 @@ class ProcessOutputHandler:
 
         raw_url = data.get("access_url")
         if not isinstance(raw_url, str):
-            return None, f"Invalid access_url in JSON from {self.target_name}: {raw_url!r}"
+            return None, f"Invalid access_url in JSON from {self.target_name}"
 
         val_err = validate_access_url(raw_url)
         if val_err:
@@ -366,55 +382,66 @@ class ProcessOutputHandler:
 
         return raw_url, None
 
+    def poll_bootstrap(self) -> tuple[str | None, str | None]:
+        """Poll for access_url or error without long blocking."""
+        if self.access_url is not None:
+            return self.access_url, None
+        if self.error_message is not None:
+            return None, self.error_message
+
+        while not self.stdout_queue.empty():
+            try:
+                line = self.stdout_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            if line is None:
+                self.stream_closed = True
+                err_msg = "\n".join(self.stderr_lines).strip()
+                detail = f": {err_msg}" if err_msg else ""
+                self.error_message = (
+                    f"Subprocess {self.target_name} closed output stream without "
+                    f"emitting access_url{detail}"
+                )
+                return None, self.error_message
+
+            url, err = self._check_line(line)
+            if err:
+                self.error_message = err
+                return None, self.error_message
+            if url:
+                self.access_url = url
+                return self.access_url, None
+
+        return None, None
+
     def wait_for_bootstrap(self, timeout: float = 15.0) -> tuple[str | None, str | None]:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             if hasattr(self.proc, "poll"):
                 code = self.proc.poll()
                 if code is not None:
-                    # Drain remaining queue lines
-                    while not self.stdout_queue.empty():
-                        try:
-                            line = self.stdout_queue.get_nowait()
-                            if line:
-                                url, err = self._check_line(line)
-                                if url:
-                                    return url, None
-                        except queue.Empty:
-                            break
                     err_msg = "\n".join(self.stderr_lines).strip()
                     detail = f": {err_msg}" if err_msg else ""
-                    msg = (
+                    return None, (
                         f"Subprocess {self.target_name} exited prematurely with "
                         f"code {code}{detail}"
                     )
-                    return None, msg
 
-            remaining = max(0.01, min(0.2, deadline - time.monotonic()))
-            try:
-                line = self.stdout_queue.get(timeout=remaining)
-            except queue.Empty:
-                continue
-
-            if line is None:
-                err_msg = "\n".join(self.stderr_lines).strip()
-                detail = f": {err_msg}" if err_msg else ""
-                msg = (
-                    f"Subprocess {self.target_name} closed output stream without "
-                    f"emitting access_url{detail}"
-                )
-                return None, msg
-
-            url, err = self._check_line(line)
+            url, err = self.poll_bootstrap()
             if err:
                 return None, err
             if url:
                 return url, None
 
+            time.sleep(0.02)
+
         err_msg = "\n".join(self.stderr_lines).strip()
         detail = f": {err_msg}" if err_msg else ""
-        msg = f"Timed out after {timeout}s waiting for access_url from {self.target_name}{detail}"
-        return None, msg
+        return None, (
+            f"Timed out after {timeout}s waiting for access_url from "
+            f"{self.target_name}{detail}"
+        )
 
 
 class StartMenuController:
@@ -482,7 +509,7 @@ class StartMenuController:
         launch_path = self.config_dir / LAUNCH_CONFIG_FILENAME
         info = inspect_launch_config(launch_path)
 
-        cmd = [str(starter)]
+        cmd = [str(starter), "--json"]
         if info["exists"]:
             cmd.extend(["--launch-config", str(launch_path)])
 
@@ -523,7 +550,7 @@ class StartMenuController:
         if starter is None:
             return None, None, self.t("starter_missing", script="START-SETUP.cmd")
 
-        cmd = [str(starter), "--config-dir", str(self.config_dir)]
+        cmd = [str(starter), "--config-dir", str(self.config_dir), "--json"]
         return cmd, None, None
 
     def run_action(self, action_key: str) -> int:
@@ -600,42 +627,94 @@ class StartMenuController:
             self.cleanup_processes()
             return 1
 
-        # Bootstrap each process and extract validated loopback access URL
-        validated_urls: list[tuple[str, str]] = []
+        # Concurrent bootstrap of all started processes
+        # Prevents race conditions from sequential waiting and detects premature child exit
+        deadline = time.monotonic() + self.bootstrap_timeout
+        validated_urls: dict[str, str] = {}
         exit_code = 0
-        for kind, proc, handler in started_entries:
-            url, err = handler.wait_for_bootstrap(timeout=self.bootstrap_timeout)
-            if err or not url:
-                self.print_func(err or f"Failed to obtain access URL for {kind}")
-                has_error = True
-                if hasattr(proc, "poll") and proc.poll() not in (0, None):
-                    exit_code = proc.poll()
-                else:
-                    exit_code = 1
+
+        while time.monotonic() < deadline:
+            # 1. Concurrently check if ANY child process has terminated prematurely
+            for kind, proc, handler in started_entries:
+                if hasattr(proc, "poll"):
+                    code = proc.poll()
+                    if code is not None:
+                        has_error = True
+                        if code != 0:
+                            exit_code = code
+                            err_msg = "\n".join(handler.stderr_lines).strip()
+                            detail = f": {err_msg}" if err_msg else ""
+                            self.print_func(
+                                f"Subprocess {kind} exited prematurely with code {code}{detail}"
+                            )
+                        else:
+                            exit_code = 1
+                            self.print_func(
+                                f"Subprocess {kind} exited prematurely before browser launch."
+                            )
+                        break
+
+            if has_error:
                 break
-            validated_urls.append((kind, url))
+
+            # 2. Check output from all handlers concurrently
+            for kind, proc, handler in started_entries:
+                if kind not in validated_urls:
+                    url, err = handler.poll_bootstrap()
+                    if err:
+                        self.print_func(err)
+                        has_error = True
+                        code = proc.poll() if hasattr(proc, "poll") else None
+                        exit_code = code if code not in (0, None) else 1
+                        break
+                    if url:
+                        validated_urls[kind] = url
+
+            if has_error:
+                break
+
+            # 3. Check if all started processes have successfully yielded their validated access_url
+            if len(validated_urls) == len(started_entries):
+                break
+
+            time.sleep(0.02)
+        else:
+            if not has_error:
+                has_error = True
+                exit_code = 1
+                for kind, _proc, handler in started_entries:
+                    if kind not in validated_urls:
+                        err_msg = "\n".join(handler.stderr_lines).strip()
+                        detail = f": {err_msg}" if err_msg else ""
+                        self.print_func(
+                            f"Timed out after {self.bootstrap_timeout}s waiting for "
+                            f"access_url from {kind}{detail}"
+                        )
 
         if has_error or len(validated_urls) != len(commands_to_run):
             self.cleanup_processes()
             return exit_code if exit_code != 0 else 1
 
         # All processes successfully bootstrapped!
-        # Print URLs and open in browser
-        for kind, url in validated_urls:
+        # Print sanitized loopback URLs (no session tokens) to console and open in browser
+        for kind, _ in commands_to_run:
+            url = validated_urls[kind]
+            sanitized_url = redact_url_credentials(url)
             if kind == "app":
-                self.print_func(self.t("app_url", url=url))
+                self.print_func(self.t("app_url", url=sanitized_url))
             else:
-                self.print_func(self.t("setup_url", url=url))
+                self.print_func(self.t("setup_url", url=sanitized_url))
 
         if self.open_browser:
-            for _, url in validated_urls:
+            for kind, _ in commands_to_run:
+                url = validated_urls[kind]
                 with contextlib.suppress(Exception):
                     self.browser_opener(url)
 
         # Supervision loop: monitor processes until completion or error
         try:
             while True:
-                # P1-B: Check if any process exited with non-zero
+                # Option 3 & general supervision: detect non-zero child exit immediately
                 for p in self.processes:
                     code = p.poll() if hasattr(p, "poll") else None
                     if code is not None and code != 0:
@@ -652,7 +731,7 @@ class StartMenuController:
                 ):
                     break
 
-                time.sleep(0.1)
+                time.sleep(0.05)
         except KeyboardInterrupt:
             self.print_func(self.t("stopping_processes"))
         finally:

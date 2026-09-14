@@ -2489,7 +2489,27 @@ def test_reload_settings_fail_closed_with_real_recipe_runs_and_failing_cleanup(
     assert snap2["cleanup_pending_count"] > 0
     assert set(env2_ids).issubset(set(run2._cleanup_pending))
 
-    # 4. Attempting reload while Run 2 has uncleaned preparations also rejects fail-closed with 409
+    # 4. Closing executed Run 1 via the API endpoint succeeds with 200 and unlinks plan1
+    res_close1 = app.handle(
+        method="POST",
+        target="/api/v1/agent/recipes/close",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {
+                "schema": "folderhome.local-recipe-close-request.v1",
+                "profile_id": "lukas",
+                "run_id": run1.snapshot()["run_id"],
+            }
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_close1.status_code == 200
+    assert res_close1.payload["recipe_run"]["status"] == "closed"
+    assert plan1.plan_id not in app._recipe_plans
+    # Run 2 remains aborted with pending cleanup, unaffected by Run 1 close
+    assert run2.snapshot()["status"] == "aborted"
+
+    # 5. Attempting reload while Run 2 has uncleaned preparations also rejects fail-closed with 409
     res2 = app.handle(
         method="POST",
         target="/api/v1/settings/reload",
