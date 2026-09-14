@@ -13,6 +13,7 @@ class MockElement {
     this.attributes = {};
     this.hidden = false;
     this.textContent = "";
+    this.classList = { add: () => {}, remove: () => {}, contains: () => false };
   }
   append(...items) {
     for (const item of items) {
@@ -297,4 +298,158 @@ test("reloadSettings reconciles recipe catalog and runs jointly and handles sync
   assert.equal(recipesLoaded, true);
   assert.equal(recipeRunsLoaded, true);
   assert.ok(messages.some((m) => m.text === "recipeSyncWarning"));
+});
+
+test("reloadSettings invalidates conversation/recipe state fail-closed on POST success and locks UI on status readback failure", async () => {
+  let chatCleared = false;
+  let recipeControlsReset = false;
+  let resultsCleared = false;
+  let stateAtReadback = null;
+  let alertMsg = null;
+  const messages = [];
+  const connectionState = new MockElement("span");
+  const messageInput = { disabled: false };
+  const prepareRecipeButton = { disabled: false };
+  const newConversationButton = { disabled: false };
+  const reloadSettingsButton = { disabled: false };
+  const actionButtons = [{ disabled: false }, { disabled: false }];
+  const resultsContent = { replaceChildren: () => { resultsCleared = true; } };
+  const resultsSection = { hidden: false };
+
+  let context;
+  context = vm.createContext({
+    window: {
+      confirm: () => true,
+      alert: (msg) => { alertMsg = msg; },
+    },
+    t: (key) => key,
+    connectionState,
+    messageInput,
+    prepareRecipeButton,
+    newConversationButton,
+    reloadSettingsButton,
+    api: async (url) => {
+      if (url === "/api/v1/settings/reload") {
+        return { status: "reloaded" };
+      }
+      if (url === "/api/v1/status") {
+        stateAtReadback = {
+          currentView: context.currentView,
+          planKeys: Object.keys(context.planOutcomes),
+          chatCleared,
+          recipeControlsReset,
+          resultsCleared,
+        };
+        throw new Error("Status endpoint connection reset");
+      }
+    },
+    conversationRevision: 0,
+    currentView: { kind: "agent", payload: { old: "state" } },
+    appStatus: { setup_url: "http://127.0.0.1:8766/?token=old" },
+    modelConnection: { provider: "fixture" },
+    connectionStatus: "connected",
+    planOutcomes: { "old-plan": { confirmation_pending: true } },
+    resultsRequestVersion: 2,
+    resultsContent,
+    resultsSection,
+    actionButtons,
+    chatTranscript: {
+      replaceChildren: () => { chatCleared = true; },
+    },
+    appendChatMessage: (role, text) => { messages.push({ role, text }); },
+    renderCurrentView: () => {},
+    resetRecipeControls: () => { recipeControlsReset = true; },
+    renderRecipeSelection: () => {},
+    renderRecipeRuns: () => {},
+  });
+
+  const fnMatch = appSource.match(/async function reloadSettings\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch);
+  vm.runInContext(fnMatch[0], context);
+
+  await context.reloadSettings();
+
+  // 1. Old conversation and recipe/plan state must be cleared fail-closed
+  assert.equal(chatCleared, true);
+  assert.equal(recipeControlsReset, true);
+  assert.equal(resultsCleared, true);
+  assert.equal(resultsSection.hidden, true);
+  assert.equal(context.currentView, null);
+  assert.deepEqual(Object.keys(context.planOutcomes), []);
+  assert.equal(context.appStatus, null);
+  assert.equal(context.modelConnection, null);
+  assert.equal(context.connectionStatus, "disconnected");
+  assert.deepEqual(stateAtReadback, {
+    currentView: null,
+    planKeys: [],
+    chatCleared: true,
+    recipeControlsReset: true,
+    resultsCleared: true,
+  });
+  assert.ok(messages.some((m) => m.text === "conversationReset"));
+
+  // 2. Safe readback error must be presented (not old state, not unmutated reload error)
+  assert.ok(messages.some((m) => m.text === "statusReadbackError"));
+  assert.equal(alertMsg, "statusReadbackError");
+  assert.ok(!alertMsg.includes("Status endpoint connection reset"));
+  assert.equal(connectionState.textContent, "statusReadbackError");
+
+  // 3. UI interactions must remain locked/disabled until refresh
+  assert.equal(messageInput.disabled, true);
+  assert.equal(prepareRecipeButton.disabled, true);
+  assert.equal(newConversationButton.disabled, true);
+  assert.equal(reloadSettingsButton.disabled, true);
+  assert.ok(actionButtons.every((button) => button.disabled));
+});
+
+test("isLoopbackHost and isLoopbackUrl validate genuine 127/8 and IPv6 loopback addresses and reject fake domains", () => {
+  const hostFnMatch = appSource.match(/function isLoopbackHost\(hostname\) \{[\s\S]*?\n\}/);
+  const urlFnMatch = appSource.match(/function isLoopbackUrl\(rawUrl\) \{[\s\S]*?\n\}/);
+  assert.ok(hostFnMatch);
+  assert.ok(urlFnMatch);
+
+  const context = vm.createContext({ URL });
+  vm.runInContext(hostFnMatch[0], context);
+  vm.runInContext(urlFnMatch[0], context);
+
+  // Accepted loopback hosts (127.0.0.0/8, localhost, IPv6 ::1)
+  assert.equal(context.isLoopbackHost("127.0.0.1"), true);
+  assert.equal(context.isLoopbackHost("127.0.0.2"), true);
+  assert.equal(context.isLoopbackHost("127.255.255.254"), true);
+  assert.equal(context.isLoopbackHost("127.12.34.56"), true);
+  assert.equal(context.isLoopbackHost("localhost"), true);
+  assert.equal(context.isLoopbackHost("::1"), true);
+  assert.equal(context.isLoopbackHost("[::1]"), true);
+
+  // Rejected non-loopback hosts and subdomain spoofs
+  assert.equal(context.isLoopbackHost("127.evil.example"), false);
+  assert.equal(context.isLoopbackHost("127.0.0.1.evil.com"), false);
+  assert.equal(context.isLoopbackHost("localhost.attacker.org"), false);
+  assert.equal(context.isLoopbackHost("192.168.1.1"), false);
+  assert.equal(context.isLoopbackHost("example.com"), false);
+  assert.equal(context.isLoopbackHost("256.0.0.1"), false);
+  assert.equal(context.isLoopbackHost(""), false);
+  assert.equal(context.isLoopbackHost(null), false);
+
+  // Accepted loopback URLs (using URL parsing)
+  assert.equal(context.isLoopbackUrl("http://127.0.0.1:8765"), true);
+  assert.equal(context.isLoopbackUrl("http://127.0.0.2:8766/status"), true);
+  assert.equal(context.isLoopbackUrl("http://[::1]:8765/"), true);
+  assert.equal(context.isLoopbackUrl("http://localhost:8080"), true);
+  assert.equal(context.isLoopbackUrl("https://127.0.0.1:8765/"), true);
+
+  // Rejected URLs
+  assert.equal(context.isLoopbackUrl("http://127.evil.example:8765"), false);
+  assert.equal(context.isLoopbackUrl("http://127.0.0.1.attacker.com:8765"), false);
+  assert.equal(context.isLoopbackUrl("http://attacker.com/"), false);
+  assert.equal(context.isLoopbackUrl("ftp://127.0.0.1:8765"), false);
+  assert.equal(context.isLoopbackUrl("javascript:alert(1)"), false);
+  assert.equal(context.isLoopbackUrl("not a url"), false);
+
+  // Ensure parsing does not forward or leak query token
+  const parsed = new URL("http://127.0.0.1:8766/?token=secret123");
+  assert.equal(context.isLoopbackUrl(parsed.href), true);
+  // Extracted hostname has zero token disclosure
+  assert.equal(parsed.hostname, "127.0.0.1");
+  assert.equal(parsed.hostname.includes("token"), false);
 });

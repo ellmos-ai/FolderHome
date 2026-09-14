@@ -2938,26 +2938,28 @@ def test_remote_to_fixture_to_remote_reload_fails_closed_when_started_without_ga
     assert app.agent_settings.model_provider == "fixture"
 
 
-def test_status_setup_url_tokenization_and_loopback_gating(tmp_path: Path) -> None:
-    """Setup URL in status payload is strictly tokenized and loopback-validated or safely None."""
+def test_status_setup_url_never_delivers_tokens_or_links_under_variant_b(tmp_path: Path) -> None:
+    """Per Variant b contract, status payload must never expose a tokenized setup_url or tokens."""
     app = _app(tmp_path)
     setup_file = app.settings.state_dir / "setup-server.json"
 
-    # Case A: Valid loopback access_url with token
+    # Case A: Even with loopback access_url with token in setup-server.json, setup_url is None
     valid_setup_url = "http://127.0.0.1:8766/?token=valid-setup-token-999"
     setup_file.write_text(json.dumps({"access_url": valid_setup_url}), encoding="utf-8")
     status_a = app._status_payload(8765)
-    assert status_a["setup_url"] == valid_setup_url
+    assert status_a["setup_url"] is None
+    assert "valid-setup-token-999" not in json.dumps(status_a)
 
-    # Case B: Valid port and token in JSON -> safely synthesized loopback URL with token
+    # Case B: Even with valid port and token in JSON, setup_url is None
     setup_file.write_text(
         json.dumps({"port": 8766, "token": "synthesized-token"}),
         encoding="utf-8",
     )
     status_b = app._status_payload(8765)
-    assert status_b["setup_url"] == "http://127.0.0.1:8766/?token=synthesized-token"
+    assert status_b["setup_url"] is None
+    assert "synthesized-token" not in json.dumps(status_b)
 
-    # Case C: Foreign hostname -> rejected, returns None
+    # Case C: Foreign hostname -> setup_url is None
     setup_file.write_text(
         json.dumps({"access_url": "http://evil.attacker.com:8766/?token=tok"}),
         encoding="utf-8",
@@ -2965,7 +2967,7 @@ def test_status_setup_url_tokenization_and_loopback_gating(tmp_path: Path) -> No
     status_c = app._status_payload(8765)
     assert status_c["setup_url"] is None
 
-    # Case D: Tokenless loopback URL -> rejected, returns None
+    # Case D: Tokenless loopback URL -> setup_url is None
     setup_file.write_text(
         json.dumps({"access_url": "http://127.0.0.1:8766/"}),
         encoding="utf-8",
@@ -2973,7 +2975,7 @@ def test_status_setup_url_tokenization_and_loopback_gating(tmp_path: Path) -> No
     status_d = app._status_payload(8765)
     assert status_d["setup_url"] is None
 
-    # Case E: Empty token query parameter -> rejected, returns None
+    # Case E: Empty token query parameter -> setup_url is None
     setup_file.write_text(
         json.dumps({"access_url": "http://127.0.0.1:8766/?token=  "}),
         encoding="utf-8",
@@ -2981,7 +2983,7 @@ def test_status_setup_url_tokenization_and_loopback_gating(tmp_path: Path) -> No
     status_e = app._status_payload(8765)
     assert status_e["setup_url"] is None
 
-    # Case F: Non-numeric port in URL -> gracefully caught, returns None without raising ValueError
+    # Case F: Non-numeric port in URL -> setup_url is None
     setup_file.write_text(
         json.dumps({"access_url": "http://127.0.0.1:invalid_port/?token=tok"}),
         encoding="utf-8",
@@ -3173,7 +3175,7 @@ def test_status_setup_url_rejects_evil_hosts_and_invalid_ports(tmp_path: Path) -
     )
     assert app._status_payload(8765)["setup_url"] is None
 
-    # 4. Valid loopback host and integer port is accepted
+    # 4. Under Variant b, setup_url is strictly None (never exposing token or setup link)
     setup_json.write_text(
         json.dumps({
             "access_url": "http://127.0.0.1:8766/?token=tok123",
@@ -3182,7 +3184,7 @@ def test_status_setup_url_rejects_evil_hosts_and_invalid_ports(tmp_path: Path) -
         }),
         encoding="utf-8",
     )
-    assert app._status_payload(8765)["setup_url"] == "http://127.0.0.1:8766/?token=tok123"
+    assert app._status_payload(8765)["setup_url"] is None
 
 
 def test_reload_rollback_transaction_excludes_externally_discarded_pending_envelopes(

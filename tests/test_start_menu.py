@@ -17,6 +17,7 @@ import io
 import json
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -787,9 +788,12 @@ def test_dry_run_preserves_preexisting_start_menu_json(tmp_path: Path) -> None:
 
 
 def test_is_loopback_host_exact_and_fail_closed() -> None:
-    # Exact loopback hosts
+    # Literal loopback hosts, including the complete IPv4 127/8 range
     for loopback in (
         "127.0.0.1",
+        "127.0.0.2",
+        "127.12.34.56",
+        "127.255.255.254",
         "localhost",
         "::1",
         "[::1]",
@@ -802,6 +806,8 @@ def test_is_loopback_host_exact_and_fail_closed() -> None:
         "[::1]:11434",
         "https://127.0.0.1:11434",
         "https://localhost:11434",
+        "http://127.0.0.2:11434",
+        "127.0.0.2:11434",
     ):
         assert is_loopback_host(loopback) is True, f"{loopback} must be loopback"
 
@@ -817,8 +823,6 @@ def test_is_loopback_host_exact_and_fail_closed() -> None:
         "localhost.evil.invalid",
         "http://localhost.evil.invalid:11434",
         "::1.evil.invalid",
-        "http://127.0.0.2:11434",
-        "127.0.0.2",
         "192.168.1.1",
         "http://192.168.1.80:11434",
         "http://example.com:11434",
@@ -1213,7 +1217,8 @@ def test_action_3_successful_children_run_together_until_clean_completion(
     )
 
     code = controller.run_action("3")
-    assert code == 0
+    # Finding 3: Premature exit of long-lived child (even exit code 0) without Ctrl+C is an error
+    assert code == 1
     assert browser_spy.call_count == 2
     assert browser_spy.mock_calls[0][1] == (url1,)
     assert browser_spy.mock_calls[1][1] == (url2,)
@@ -1295,7 +1300,9 @@ def test_action_3_detects_early_server_exit_before_browser_opening(tmp_path: Pat
     assert any("exited prematurely before browser launch" in msg for msg in logs)
 
 
-def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: Path) -> None:
+def test_action_3_console_redacts_tokens_while_browser_receives_them(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
     (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
 
@@ -1304,11 +1311,11 @@ def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: P
 
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, None, None, None, 0],
+        poll_sequence=[None, None, None, None, None],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, None, None, None, 0],
+        poll_sequence=[None, None, None, None, None],
     )
 
     procs = [child1, child2]
@@ -1320,6 +1327,11 @@ def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: P
         browser_opener=browser_spy,
         print_func=logs.append,
     )
+
+    def fake_sleep(sec: float) -> None:
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("time.sleep", fake_sleep)
 
     code = controller.run_action("3")
     assert code == 0
@@ -1547,9 +1559,16 @@ def test_cleanup_processes_keeps_living_processes_and_omits_stopped_message() ->
 def test_redact_diagnostics_comprehensive_positive_and_negative() -> None:
     from scripts.start_menu import redact_diagnostics
 
-    # Positive test cases (must be redacted)
+    # Positive test cases (must be redacted, leaving zero sensitive value behind)
     cases = [
-        ("Authorization: Bearer secret-token-12345", "Authorization: Bearer [REDACTED]"),
+        ("Authorization: Basic dXNlcjpwYXNz", "Authorization: [REDACTED]"),
+        (
+            "Authorization: AWS4-HMAC-SHA256 Credential=AKIA..., Signature=deadbeef",
+            "Authorization: [REDACTED]",
+        ),
+        ("child failed: token=super_secret_token", "child failed: token=[REDACTED]"),
+        ("URL mit user:pass@host:badport?token=secret", "URL mit [REDACTED_URL]"),
+        ("Authorization: Bearer secret-token-12345", "Authorization: [REDACTED]"),
         ("Authorization: secret-token-basic", "Authorization: [REDACTED]"),
         ("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "Bearer [REDACTED]"),
         ("ANTHROPIC_API_KEY=sk-ant-api03-abcdef12345", "ANTHROPIC_API_KEY=[REDACTED]"),
@@ -1560,11 +1579,26 @@ def test_redact_diagnostics_comprehensive_positive_and_negative() -> None:
         ),
         ("AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE", "AWS_ACCESS_KEY_ID=[REDACTED]"),
         ("AWS_SESSION_TOKEN=AQoDYXdzEJr1xyz123", "AWS_SESSION_TOKEN=[REDACTED]"),
+        ('STRIPE_API_KEY="dummy value with spaces"', 'STRIPE_API_KEY="[REDACTED]"'),
+        (
+            "CUSTOM_PROVIDER_SESSION_TOKEN: 'dummy session value'",
+            "CUSTOM_PROVIDER_SESSION_TOKEN: '[REDACTED]'",
+        ),
+        ("X-Api-Key: dummy-header-value", "X-Api-Key: [REDACTED]"),
+        ("client_secret=fixture-client-secret", "client_secret=[REDACTED]"),
+        (
+            "AWS4-HMAC-SHA256 Credential=AKIA/20260914/eu, Signature=deadbeef",
+            "AWS4-HMAC-SHA256 Credential=[REDACTED], Signature=[REDACTED]",
+        ),
         ("password=super_secret_pw", "password=[REDACTED]"),
-        ("api_key: secret-api-key-value", "api_key:[REDACTED]"),
+        ("api_key: secret-api-key-value", "api_key: [REDACTED]"),
         ('{"api_key": "my-json-key"}', '{"api_key": "[REDACTED]"}'),
         ('{"password": "secret_password"}', '{"password": "[REDACTED]"}'),
         ('{"session_token": "token-12345"}', '{"session_token": "[REDACTED]"}'),
+        (
+            '{"provider_access_token": "dummy-provider-token"}',
+            '{"provider_access_token": "[REDACTED]"}',
+        ),
         ("http://user:pass@127.0.0.1:8765/foo?token=my_secret_token", "http://127.0.0.1:8765/foo"),
         ("http://user:pass@127.0.0.1:badport/path?token=secret", "[REDACTED_URL]"),
     ]
@@ -1574,12 +1608,33 @@ def test_redact_diagnostics_comprehensive_positive_and_negative() -> None:
             f"Failed for:\nRaw     : {raw}\nExpected: {expected}\nActual  : {actual}"
         )
 
-    # Negative test cases (harmless diagnostic messages must not be damaged)
+    # Verify that the 4 review probes leave ZERO secret value behind
+    p1 = redact_diagnostics("Authorization: Basic dXNlcjpwYXNz")
+    assert "dXNlcjpwYXNz" not in p1 and "pass" not in p1
+
+    p2 = redact_diagnostics(
+        "Authorization: AWS4-HMAC-SHA256 Credential=AKIA..., Signature=deadbeef"
+    )
+    assert "AKIA..." not in p2 and "deadbeef" not in p2
+
+    p3 = redact_diagnostics("child failed: token=super_secret_token")
+    assert "super_secret_token" not in p3
+
+    p4 = redact_diagnostics("URL mit user:pass@host:badport?token=secret")
+    assert "pass" not in p4 and "secret" not in p4
+
+    # Negative test cases (harmless diagnostic messages and names must NOT be damaged)
     harmless = [
         "Normal diagnostic line with no secrets",
         "Connected to http://127.0.0.1:8765/api/v1/status successfully.",
         "Model preset: ollama-local",
         "No matching record found for password_reset_timestamp",
+        "field password_reset_timestamp is set to 12345",
+        "password_reset_timestamp=2026-09-14T10:00:00Z",
+        '{"password_reset_timestamp": "2026-09-14"}',
+        "api_key_rotation_timestamp=2026-09-14T10:00:00Z",
+        "secretary=available",
+        "token_type=Bearer",
         "Subprocess app exited prematurely with code 0",
     ]
     for msg in harmless:
@@ -1654,3 +1709,457 @@ def test_start_cmd_has_no_sibling_venv_fallback() -> None:
     text = start_cmd.read_text(encoding="ascii")
     assert "folderhome\\.venv" not in text
     assert "..\\folderhome" not in text
+
+
+# ============================================================================
+# 18. Supervision and Process Lifecycle Tests (Option 3 & Cleanup)
+# ============================================================================
+
+
+class StaggeredFakeProcess:
+    """Fake process for simulating concurrent startup and staggered exits."""
+
+    def __init__(
+        self,
+        name: str,
+        access_url: str,
+        exit_code_after_supervise: int | None = None,
+        pid: int = 1234,
+    ) -> None:
+        self.name = name
+        self.access_url = access_url
+        self.exit_code_after_supervise = exit_code_after_supervise
+        self.pid = pid
+
+        payload = json.dumps({"access_url": access_url}) + "\n"
+        self.stdout = io.StringIO(payload)
+        self.stderr = io.StringIO()
+
+        self.in_supervision = False
+        self.terminated = False
+        self.killed = False
+
+    def poll(self) -> int | None:
+        if self.terminated or self.killed:
+            return -15
+        if not self.in_supervision:
+            # During bootstrap, process is running
+            return None
+        if self.exit_code_after_supervise is not None:
+            return self.exit_code_after_supervise
+        return None
+
+    def terminate(self) -> None:
+        self.terminated = True
+
+    def kill(self) -> None:
+        self.killed = True
+
+    def wait(self, timeout: float | None = None) -> int:
+        return 0 if not (self.terminated or self.killed) else -15
+
+
+def test_option_3_staggered_clean_exit_fails_closed_and_terminates_sibling(
+    tmp_path: Path,
+) -> None:
+    """Finding 3: Option 3 Supervision.
+
+    Any premature exit of a long-lived child process (even exit code 0) must be
+    treated as an error: sibling must be terminated, return code must be non-zero.
+    """
+    from scripts.start_menu import install_starter_wrappers
+
+    install_starter_wrappers(tmp_path)
+
+    proc_app = StaggeredFakeProcess(
+        "app", "http://127.0.0.1:8765/?token=test-app-tok", exit_code_after_supervise=0
+    )
+    proc_setup = StaggeredFakeProcess(
+        "setup", "http://127.0.0.1:8766/?token=test-setup-tok", exit_code_after_supervise=None
+    )
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> Any:
+        cmd_str = " ".join(cmd)
+        if "START-APP" in cmd_str:
+            return proc_app
+        if "START-SETUP" in cmd_str:
+            return proc_setup
+        raise ValueError(f"Unexpected command: {cmd}")
+
+    def on_browser_open(url: str) -> bool:
+        # Called after bootstrap succeeds for all processes
+        proc_app.in_supervision = True
+        proc_setup.in_supervision = True
+        return True
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        open_browser=True,
+        dry_run=False,
+        subprocess_runner=fake_runner,
+        browser_opener=on_browser_open,
+        print_func=logs.append,
+    )
+
+    rc = controller.run_action("3")
+
+    # Exit code MUST be non-zero even though app exited with 0
+    assert rc != 0, f"Expected non-zero returncode on premature exit, got {rc}"
+    # Setup sibling MUST have been terminated
+    assert proc_setup.terminated or proc_setup.killed, "Sibling process was not terminated!"
+
+
+def test_option_3_intentional_ctrl_c_yields_zero_and_stops_all_processes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only intentional Ctrl+C/menu stop yields exit code 0."""
+    from scripts.start_menu import install_starter_wrappers
+
+    install_starter_wrappers(tmp_path)
+
+    proc_app = StaggeredFakeProcess("app", "http://127.0.0.1:8765/?token=test-app-tok")
+    proc_setup = StaggeredFakeProcess("setup", "http://127.0.0.1:8766/?token=test-setup-tok")
+
+    def fake_runner(cmd: list[str], **kwargs: Any) -> Any:
+        return proc_app if "START-APP" in " ".join(cmd) else proc_setup
+
+    def fake_browser(url: str) -> bool:
+        return True
+
+    controller = StartMenuController(
+        tmp_path,
+        open_browser=True,
+        dry_run=False,
+        subprocess_runner=fake_runner,
+        browser_opener=fake_browser,
+    )
+
+    # In supervision, sleep raises KeyboardInterrupt to simulate Ctrl+C
+    def fake_sleep(sec: float) -> None:
+        raise KeyboardInterrupt()
+
+    monkeypatch.setattr("time.sleep", fake_sleep)
+
+    rc = controller.run_action("3")
+    assert rc == 0
+    assert proc_app.terminated or proc_app.killed
+    assert proc_setup.terminated or proc_setup.killed
+
+
+@pytest.mark.parametrize(
+    ("taskkill_returncode", "taskkill_stderr"),
+    [
+        (1, "ERROR: Access is denied."),
+        (128, ""),
+        (0, "ERROR: Process tree could not be verified."),
+    ],
+)
+def test_cleanup_processes_taskkill_failure_retains_process_and_omits_success_message(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    taskkill_returncode: int,
+    taskkill_stderr: str,
+) -> None:
+    """Finding 4: Windows Cleanup.
+
+    taskkill /F /T errors must not be ignored. Non-zero returncode retains process
+    in tracking, no false claim of 'All processes stopped', fail-closed verification.
+    """
+    import subprocess as sp
+
+    import folderhome.starter as starter_mod
+
+    class OwnedFakePopen:
+        def __init__(self) -> None:
+            self.pid = 98765
+            self.returncode: int | None = None
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+        def terminate(self) -> None:
+            self.returncode = -15
+
+        def kill(self) -> None:
+            self.returncode = -9
+
+        def wait(self, timeout: float | None = None) -> int:
+            assert timeout == 1.0
+            return self.returncode if self.returncode is not None else 0
+
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        print_func=logs.append,
+    )
+
+    mock_proc = OwnedFakePopen()
+    controller.processes.append(mock_proc)
+
+    # Mock platform to win32 and subprocess.run for taskkill to return failure
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    taskkill_calls: list[list[str]] = []
+
+    def fake_taskkill(cmd: list[str], **kwargs: Any) -> sp.CompletedProcess[str]:
+        if cmd[0] == "taskkill":
+            taskkill_calls.append(cmd)
+            return sp.CompletedProcess(
+                cmd,
+                returncode=taskkill_returncode,
+                stdout="",
+                stderr=taskkill_stderr,
+            )
+        return sp.CompletedProcess(cmd, returncode=0)
+
+    monkeypatch.setattr(starter_mod.subprocess, "Popen", OwnedFakePopen)
+    monkeypatch.setattr(sp, "run", fake_taskkill)
+
+    cleaned = controller.cleanup_processes()
+
+    # Must return False because cleanup failed / could not verify termination
+    assert cleaned is False
+    # Must retain mock_proc in controller.processes
+    assert mock_proc in controller.processes
+    assert taskkill_calls == [["taskkill", "/F", "/T", "/PID", "98765"]]
+    # Must NOT claim that all processes were stopped
+    success_msg = controller.t("processes_stopped")
+    assert not any(success_msg in msg for msg in logs)
+
+
+def test_install_starter_packaging_and_wrapper_installation_contract(tmp_path: Path) -> None:
+    """Finding 6: Packaging & Starter contract.
+
+    Normal package installation must not strand without checkout scripts/.
+    Entrypoints and CLI delegation must exist and install_starter_wrappers must
+    work in any target directory.
+    """
+    import os
+    import subprocess as sp
+    import venv
+
+    import folderhome.starter as starter_mod
+    from folderhome.cli import main as cli_main
+
+    # Source metadata and in-checkout CLI delegation checks.
+    pyproject_path = REPO_ROOT / "pyproject.toml"
+    assert pyproject_path.is_file()
+    pyproject_content = pyproject_path.read_text(encoding="utf-8")
+    assert 'folderhome-start = "folderhome.starter:main"' in pyproject_content
+
+    # CLI start command delegation check
+    assert hasattr(starter_mod, "main")
+    # folderhome start --action 1 --dry-run
+    logs: list[str] = []
+    exit_code = cli_main(["start", "--action", "1", "--dry-run", "--config-dir", str(tmp_path)])
+    # Missing starter script in isolated tmp_path should return 1 (fail-closed)
+    assert exit_code == 1
+
+    # Wrapper installation in standalone environment without scripts/ checkout
+    standalone_dir = tmp_path / "standalone_user_env"
+    wrappers = starter_mod.install_starter_wrappers(standalone_dir)
+    assert len(wrappers) == 2
+    app_wrapper = standalone_dir / "START-APP.cmd"
+    setup_wrapper = standalone_dir / "START-SETUP.cmd"
+    assert app_wrapper.is_file()
+    assert setup_wrapper.is_file()
+
+    # find_starter_script discovers them in the target config dir
+    discovered_app = starter_mod.find_starter_script("START-APP.cmd", standalone_dir)
+    assert discovered_app == app_wrapper.resolve()
+
+    # And StartMenuController works in this standalone directory
+    controller = starter_mod.StartMenuController(
+        standalone_dir,
+        dry_run=True,
+        print_func=logs.append,
+    )
+    rc = controller.run_action("1")
+    assert rc == 0
+    assert any("[Dry-run Command]" in msg for msg in logs)
+
+    # Build an actual wheel offline, install it into a fresh venv, and execute
+    # both installed console entry points without relying on checkout scripts/.
+    wheel_dir = tmp_path / "wheelhouse"
+    wheel_dir.mkdir()
+    build_env = os.environ.copy()
+    build_env.update({
+        "PIP_DISABLE_PIP_VERSION_CHECK": "1",
+        "PIP_NO_INDEX": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONIOENCODING": "utf-8",
+    })
+    build = sp.run(
+        [
+            sys.executable,
+            "-B",
+            "-m",
+            "pip",
+            "wheel",
+            "--no-deps",
+            "--no-build-isolation",
+            "--no-cache-dir",
+            "--wheel-dir",
+            str(wheel_dir),
+            str(REPO_ROOT),
+        ],
+        cwd=REPO_ROOT,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert build.returncode == 0, build.stderr
+    wheels = list(wheel_dir.glob("folderhome-*.whl"))
+    assert len(wheels) == 1
+
+    installed_venv = tmp_path / "installed-venv"
+    venv.EnvBuilder(with_pip=True, system_site_packages=True).create(installed_venv)
+    scripts_dir = installed_venv / ("Scripts" if sys.platform == "win32" else "bin")
+    installed_python = scripts_dir / ("python.exe" if sys.platform == "win32" else "python")
+    install = sp.run(
+        [
+            str(installed_python),
+            "-B",
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--disable-pip-version-check",
+            str(wheels[0]),
+        ],
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert install.returncode == 0, install.stderr
+
+    executable_suffix = ".exe" if sys.platform == "win32" else ""
+    packaged_start = scripts_dir / f"folderhome-start{executable_suffix}"
+    packaged_cli = scripts_dir / f"folderhome{executable_suffix}"
+    for command in ([str(packaged_start), "--help"], [str(packaged_cli), "start", "--help"]):
+        result = sp.run(
+            command,
+            cwd=tmp_path,
+            env=build_env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "FolderHome and Setup Starter Menu" in result.stdout
+
+    installed_config = tmp_path / "installed-config"
+    install_wrappers = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--install-wrappers",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert install_wrappers.returncode == 0, install_wrappers.stderr
+    assert (installed_config / "START-APP.cmd").is_file()
+    assert (installed_config / "START-SETUP.cmd").is_file()
+
+    (installed_config / "launch.json").write_text(
+        json.dumps({
+            "model_preset": "remote-provider",
+            "model_provider": "openai",
+        }),
+        encoding="utf-8",
+    )
+    denied = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "1",
+            "--deny-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert denied.returncode == 0, denied.stderr
+    assert "--allow-network" not in denied.stdout
+    assert "--approve-sensitive-cloud-data" not in denied.stdout
+
+    approved = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "3",
+            "--confirm-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert approved.returncode == 0, approved.stderr
+    assert "--allow-network" in approved.stdout
+    assert "--approve-sensitive-cloud-data" in approved.stdout
+
+    (installed_config / "launch.json").write_text(
+        json.dumps({
+            "model_preset": "ollama-local",
+            "model_provider": "ollama",
+            "ollama_host": "http://127.12.34.56:11434",
+        }),
+        encoding="utf-8",
+    )
+    ollama = sp.run(
+        [
+            str(packaged_start),
+            "--config-dir",
+            str(installed_config),
+            "--dry-run",
+            "--action",
+            "1",
+            "--deny-gates",
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert ollama.returncode == 0, ollama.stderr
+    assert "--model-timeout-seconds 600" in ollama.stdout
+
+    contract = sp.run(
+        [
+            str(installed_python),
+            "-B",
+            "-c",
+            (
+                "from folderhome.starter import DEFAULT_LANGUAGE, normalize_action; "
+                "assert DEFAULT_LANGUAGE == 'en'; "
+                "assert [normalize_action(str(i)) for i in range(1, 5)] == "
+                "['1', '2', '3', '4']"
+            ),
+        ],
+        cwd=tmp_path,
+        env=build_env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert contract.returncode == 0, contract.stderr

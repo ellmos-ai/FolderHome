@@ -91,7 +91,14 @@ test("openSettingsModal opens dialog and closeSettingsModal closes it", () => {
   assert.equal(settingsDialog.hidden, true);
 });
 
-test("openSettingsModal displays running setup link when setup_url is present", () => {
+test("openSettingsModal exclusively displays safe start command and keeps setup link hidden per Variant b", () => {
+  const hostFn = appSource.match(/function isLoopbackHost\(hostname\) \{[\s\S]*?\n\}/);
+  const urlFn = appSource.match(/function isLoopbackUrl\(rawUrl\) \{[\s\S]*?\n\}/);
+  const openFn = appSource.match(/function openSettingsModal\(\) \{[\s\S]*?\n\}/);
+  assert.ok(hostFn);
+  assert.ok(urlFn);
+  assert.ok(openFn);
+
   const settingsDialog = new MockElement("div");
   settingsDialog.hidden = true;
   const setupServerActiveBox = new MockElement("div");
@@ -99,22 +106,38 @@ test("openSettingsModal displays running setup link when setup_url is present", 
   const openSetupServerLink = new MockElement("a");
 
   const context = vm.createContext({
+    URL,
     settingsDialog,
     setupServerActiveBox,
     openSetupServerLink,
-    appStatus: { setup_url: "http://127.0.0.1:8766/" },
+    appStatus: { setup_url: "http://127.0.0.1:8766/?token=tok" },
   });
 
-  const openFn = appSource.match(/function openSettingsModal\(\) \{[\s\S]*?\n\}/);
-  assert.ok(openFn);
+  vm.runInContext(hostFn[0], context);
+  vm.runInContext(urlFn[0], context);
   vm.runInContext(openFn[0], context);
 
   context.openSettingsModal();
   assert.equal(settingsDialog.hidden, false);
-  assert.equal(setupServerActiveBox.hidden, false);
-  assert.equal(openSetupServerLink.href, "http://127.0.0.1:8766/");
-  // Does not disclose app session token
-  assert.ok(!openSetupServerLink.href.includes("token="));
+  // Per Variant b: Setup server link is NEVER displayed or linked when it contains tokens
+  assert.equal(setupServerActiveBox.hidden, true);
+
+  // Variant b still forbids tokenless loopback links: only scripts\START.cmd / Option 2 is shown.
+  openSetupServerLink.href = "stale-value";
+  context.appStatus = { setup_url: "http://127.0.0.2:8766/" };
+  context.openSettingsModal();
+  assert.equal(setupServerActiveBox.hidden, true);
+  assert.equal(openSetupServerLink.href, "");
+
+  context.appStatus = { setup_url: "http://[::1]:8766/" };
+  context.openSettingsModal();
+  assert.equal(setupServerActiveBox.hidden, true);
+  assert.equal(openSetupServerLink.href, "");
+
+  // Spoofed or non-loopback domains remain strictly hidden
+  context.appStatus = { setup_url: "http://127.evil.example:8766/" };
+  context.openSettingsModal();
+  assert.equal(setupServerActiveBox.hidden, true);
 });
 
 test("copySettingsCommand copies command to clipboard and shows feedback", async () => {

@@ -45,6 +45,7 @@ dev = [
 
 [project.scripts]
 folderhome = "folderhome.cli:main"
+folderhome-start = "folderhome.starter:main"
 
 [tool.hatch.build]
 # Coordination state must stay private, including builds outside a Git checkout.

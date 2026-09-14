@@ -1580,41 +1580,10 @@ class LocalApplication:
             and saved_preset is not None
             and saved_preset != running_preset
         )
-        setup_file = self.settings.state_dir / "setup-server.json"
+        # Per security contract (Variant b): /api/v1/status never exposes a tokenized
+        # setup_url or any setup/app token. The UI exclusively presents the safe local
+        # start command scripts\START.cmd / Option 2.
         setup_url = None
-        if setup_file.is_file():
-            try:
-                setup_data = json.loads(setup_file.read_text(encoding="utf-8"))
-                if isinstance(setup_data, dict):
-                    raw_candidate = setup_data.get("access_url")
-                    if not raw_candidate and "port" in setup_data and "token" in setup_data:
-                        raw_port = setup_data["port"]
-                        raw_token = setup_data["token"]
-                        if (
-                            isinstance(raw_port, int)
-                            and (1 <= raw_port <= 65535)
-                            and isinstance(raw_token, str)
-                            and raw_token.strip()
-                        ):
-                            raw_candidate = (
-                                f"http://127.0.0.1:{raw_port}/?token={quote(raw_token.strip())}"
-                            )
-                    if isinstance(raw_candidate, str) and raw_candidate.strip():
-                        try:
-                            parsed = urlsplit(raw_candidate)
-                            if parsed.scheme.lower() == "http":
-                                h = parsed.hostname.lower() if parsed.hostname else ""
-                                is_loopback = _is_strict_loopback_host(h)
-                                p = parsed.port
-                                if is_loopback and p is not None and (1 <= p <= 65535):
-                                    q = parse_qs(parsed.query, keep_blank_values=True)
-                                    tokens = q.get("token")
-                                    if tokens and tokens[0].strip():
-                                        setup_url = raw_candidate
-                        except (ValueError, Exception):
-                            setup_url = None
-            except Exception:
-                setup_url = None
         return {
             "schema": "folderhome.local-app-status.v1",
             "status": "ready",

@@ -40,6 +40,7 @@ const translations = {
     reloadButton: "Reload",
     reloadConfirm: "Reloading settings will apply the saved preset and reset the current conversation memory. Continue?",
     reloadError: "Settings could not be reloaded.",
+    statusReadbackError: "Settings were reloaded, but reading updated status failed. The interface is locked; please refresh the page.",
     recipeSyncWarning: "Settings were reloaded, but recipe catalog or runs could not be fully reconciled. Please refresh the page.",
     openSettings: "Open settings",
     settingsDialogTitle: "FolderHome Settings",
@@ -251,6 +252,7 @@ const translations = {
     reloadButton: "Neu laden",
     reloadConfirm: "Beim Neuladen der Einstellungen wird das gespeicherte Preset angewendet und der bisherige Gesprächsverlauf zurückgesetzt. Fortfahren?",
     reloadError: "Einstellungen konnten nicht neu geladen werden.",
+    statusReadbackError: "Einstellungen wurden neu geladen, aber das Lesen des aktualisierten Status ist fehlgeschlagen. Die Oberfläche ist gesperrt; bitte Seite aktualisieren.",
     recipeSyncWarning: "Einstellungen wurden neu geladen, aber Rezepte oder Rezeptläufe konnten nicht vollständig abgeglichen werden. Bitte Seite aktualisieren.",
     openSettings: "Einstellungen öffnen",
     settingsDialogTitle: "FolderHome-Einstellungen",
@@ -967,10 +969,34 @@ function renderRunningSettings() {
   }
 }
 
+function isLoopbackHost(hostname) {
+  if (typeof hostname !== "string" || !hostname.trim()) return false;
+  const clean = hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (clean === "localhost" || clean === "::1") return true;
+  const match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(clean);
+  if (!match) return false;
+  const octets = match.slice(1).map(Number);
+  if (octets.some((o) => o < 0 || o > 255)) return false;
+  return octets[0] === 127;
+}
+
+function isLoopbackUrl(rawUrl) {
+  if (typeof rawUrl !== "string" || !rawUrl.trim()) return false;
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
+    return isLoopbackHost(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 async function reloadSettings() {
   const confirmed = window.confirm(t("reloadConfirm"));
   if (!confirmed) return;
   if (reloadSettingsButton) reloadSettingsButton.disabled = true;
+  let reloadPostSucceeded = false;
+  let statusReadbackFailed = false;
   try {
     await api("/api/v1/settings/reload", {
       method: "POST",
@@ -978,49 +1004,85 @@ async function reloadSettings() {
         schema: "folderhome.local-settings-reload-request.v1",
       }),
     });
-    appStatus = await api("/api/v1/status");
-    modelConnection = appStatus.model_connection || null;
-    renderTopologyBadge();
-    renderModelStatus();
-    renderRunningSettings();
-    renderConnection();
+    reloadPostSucceeded = true;
+
+    // Fail-closed invalidation: Immediately clear conversation, recipe, and plan state
+    // before any status readback occurs, as the mutated server invalidated previous state.
     conversationRevision += 1;
     currentView = null;
-    chatTranscript.replaceChildren();
+    appStatus = null;
+    modelConnection = null;
+    connectionStatus = "disconnected";
+    if (typeof planOutcomes !== "undefined") {
+      for (const planId of Object.keys(planOutcomes)) delete planOutcomes[planId];
+    }
+    if (typeof messageInput !== "undefined" && messageInput) messageInput.value = "";
+    if (chatTranscript) chatTranscript.replaceChildren();
+    if (typeof renderCurrentView === "function") renderCurrentView(false);
+    if (typeof resetRecipeControls === "function") resetRecipeControls();
+    if (typeof resultsRequestVersion !== "undefined") resultsRequestVersion += 1;
+    if (typeof resultsContent !== "undefined" && resultsContent) resultsContent.replaceChildren();
+    if (typeof resultsSection !== "undefined" && resultsSection) resultsSection.hidden = true;
     appendChatMessage("assistant", t("conversationReset"));
-    renderCurrentView(false);
-    resetRecipeControls();
-    renderRecipeSelection();
-    renderRecipeRuns();
+
     try {
-      await Promise.all([
-        typeof loadRecipes === "function" ? loadRecipes() : Promise.resolve(),
-        typeof loadRecipeRuns === "function" ? loadRecipeRuns() : Promise.resolve(),
-      ]);
-    } catch (_syncError) {
-      appendChatMessage("assistant", t("recipeSyncWarning"));
+      appStatus = await api("/api/v1/status");
+      modelConnection = appStatus.model_connection || null;
+      renderTopologyBadge();
+      renderModelStatus();
+      renderRunningSettings();
+      renderConnection();
+      try {
+        await Promise.all([
+          typeof loadRecipes === "function" ? loadRecipes() : Promise.resolve(),
+          typeof loadRecipeRuns === "function" ? loadRecipeRuns() : Promise.resolve(),
+        ]);
+      } catch (_syncError) {
+        appendChatMessage("assistant", t("recipeSyncWarning"));
+      }
+    } catch (_readbackError) {
+      // POST succeeded (mutated settings on server), but GET /status readback failed.
+      // Do NOT revert UI to old state or claim reload failed.
+      // Show safe readback error and keep UI locked/empty until a successful page refresh.
+      statusReadbackFailed = true;
+      if (connectionState) {
+        connectionState.textContent = t("statusReadbackError");
+        if (connectionState.classList) {
+          connectionState.classList.add("is-disconnected");
+        }
+      }
+      appendChatMessage("assistant", t("statusReadbackError"));
+      if (messageInput) messageInput.disabled = true;
+      if (prepareRecipeButton) prepareRecipeButton.disabled = true;
+      if (newConversationButton) newConversationButton.disabled = true;
+      if (typeof actionButtons !== "undefined") {
+        actionButtons.forEach((button) => { button.disabled = true; });
+      }
+      window.alert(t("statusReadbackError"));
+      return;
     }
   } catch (error) {
-    const message = error.payload?.message || error.message || t("reloadError");
-    window.alert(message);
+    if (!reloadPostSucceeded) {
+      const message = error.payload?.message || error.message || t("reloadError");
+      window.alert(message);
+    }
   } finally {
-    if (reloadSettingsButton) reloadSettingsButton.disabled = false;
+    if (reloadSettingsButton) reloadSettingsButton.disabled = statusReadbackFailed;
   }
 }
 
 function openSettingsModal() {
   if (!settingsDialog) return;
-  const rawUrl = typeof appStatus?.setup_url === "string" ? appStatus.setup_url.trim() : "";
-  const isLoopback = (
-    rawUrl.startsWith("http://127.0.0.1:") ||
-    rawUrl.startsWith("http://localhost:") ||
-    rawUrl.startsWith("http://[::1]:")
-  );
-  if (rawUrl && isLoopback && setupServerActiveBox && openSetupServerLink) {
-    openSetupServerLink.href = rawUrl;
-    setupServerActiveBox.hidden = false;
-  } else if (setupServerActiveBox) {
-    setupServerActiveBox.hidden = true;
+  // Variant b never transfers setup trust through a URL. The settings dialog
+  // exclusively presents scripts\START.cmd / Option 2, even if stale or
+  // unexpected status data contains a tokenless loopback URL.
+  if (setupServerActiveBox) setupServerActiveBox.hidden = true;
+  if (openSetupServerLink) {
+    if (typeof openSetupServerLink.removeAttribute === "function") {
+      openSetupServerLink.removeAttribute("href");
+    } else {
+      openSetupServerLink.href = "";
+    }
   }
   settingsDialog.hidden = false;
 }

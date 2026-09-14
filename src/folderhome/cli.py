@@ -383,6 +383,12 @@ GOOGLE_CALENDAR_SKILL_REVISION = "google-calendar-skill@1.2.5"
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    if raw_args and raw_args[0] in ("start", "starter", "menu"):
+        from folderhome.starter import main as starter_main
+
+        return starter_main(raw_args[1:])
+
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding="utf-8", errors="strict")
         sys.stderr.reconfigure(encoding="utf-8", errors="strict")
@@ -629,6 +635,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_scheduler_plan(args)
     if args.command == "scheduler" and args.scheduler_command == "run":
         return _run_scheduler_run(args)
+    if args.command == "start":
+        from folderhome.starter import main as starter_main
+        return starter_main(args.starter_args)
     parser.error("unsupported command")
     return 2
 
@@ -636,6 +645,10 @@ def main(argv: Sequence[str] | None = None) -> int:
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="folderhome")
     commands = parser.add_subparsers(dest="command", required=True)
+    start = commands.add_parser("start", help="Interactive FolderHome starter menu")
+    start.add_argument(
+        "starter_args", nargs=argparse.REMAINDER, help="Arguments passed to starter menu"
+    )
     plugins = commands.add_parser("plugins")
     plugin_commands = plugins.add_subparsers(dest="plugins_command", required=True)
     validate = plugin_commands.add_parser("validate")

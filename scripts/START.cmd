@@ -15,8 +15,11 @@ if defined VIRTUAL_ENV if exist "%VIRTUAL_ENV%\Scripts\python.exe" (
 
 where py >nul 2>&1
 if not errorlevel 1 (
-    py -3 "%MENU%" %*
-    goto :end
+    py -3 -c "import sys" >nul 2>&1
+    if not errorlevel 1 (
+        py -3 "%MENU%" %*
+        goto :end
+    )
 )
 
 python "%MENU%" %*
