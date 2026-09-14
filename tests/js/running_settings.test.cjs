@@ -251,3 +251,50 @@ test("reloadSettings displays error message when reload fails", async () => {
     "Start the app with --allow-network --approve-sensitive-cloud-data to use bedrock-nova-micro"
   );
 });
+
+test("reloadSettings reconciles recipe catalog and runs jointly and handles sync errors safely", async () => {
+  let recipesLoaded = false;
+  let recipeRunsLoaded = false;
+  const messages = [];
+
+  const context = vm.createContext({
+    window: {
+      confirm: () => true,
+      alert: () => {},
+    },
+    t: (key) => key,
+    reloadSettingsButton: { disabled: false },
+    api: async (url) => {
+      if (url === "/api/v1/settings/reload") return { status: "reloaded" };
+      if (url === "/api/v1/status") return { model_provider: "ollama", running_preset: "ollama-local" };
+    },
+    renderTopologyBadge: () => {},
+    renderModelStatus: () => {},
+    renderRunningSettings: () => {},
+    renderConnection: () => {},
+    renderCurrentView: () => {},
+    resetRecipeControls: () => {},
+    renderRecipeSelection: () => {},
+    renderRecipeRuns: () => {},
+    loadRecipes: async () => {
+      recipesLoaded = true;
+      throw new Error("Recipes service unreachable");
+    },
+    loadRecipeRuns: async () => {
+      recipeRunsLoaded = true;
+    },
+    conversationRevision: 0,
+    currentView: null,
+    chatTranscript: { replaceChildren: () => {} },
+    appendChatMessage: (role, text) => { messages.push({ role, text }); },
+  });
+
+  const fnMatch = appSource.match(/async function reloadSettings\(\) \{[\s\S]*?\n\}/);
+  assert.ok(fnMatch);
+  vm.runInContext(fnMatch[0], context);
+
+  await context.reloadSettings();
+  assert.equal(recipesLoaded, true);
+  assert.equal(recipeRunsLoaded, true);
+  assert.ok(messages.some((m) => m.text === "recipeSyncWarning"));
+});

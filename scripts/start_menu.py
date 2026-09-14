@@ -20,7 +20,6 @@ import json
 import os
 import queue
 import re
-import shutil
 import subprocess
 import sys
 import threading
@@ -56,11 +55,8 @@ def is_loopback_host(host: str | None) -> bool:
     except ValueError:
         return False
 
-    if not hostname:
-        clean = raw.strip("[]").lower()
-        return clean in LOOPBACK_HOSTS
-
-    clean = hostname.strip("[]").lower()
+    candidate = hostname if hostname else raw
+    clean = candidate.strip("[]").lower()
     return clean in LOOPBACK_HOSTS
 
 
@@ -152,7 +148,62 @@ def get_text(lang: str, key: str, **kwargs: Any) -> str:
     return template
 
 
-CANONICAL_CONFIG_DIR = Path("C:/_Local_DEV/folderhome-config")
+START_APP_WRAPPER_TEMPLATE = """\
+@echo off
+setlocal
+set "ROOT=%~dp0.."
+set "PYTHON="
+if exist "%ROOT%\\.venv\\Scripts\\python.exe" (
+    set "PYTHON=%ROOT%\\.venv\\Scripts\\python.exe"
+)
+if not defined PYTHON if defined VIRTUAL_ENV (
+    if exist "%VIRTUAL_ENV%\\.venv\\Scripts\\python.exe" (
+        set "PYTHON=%VIRTUAL_ENV%\\.venv\\Scripts\\python.exe"
+    )
+    if exist "%VIRTUAL_ENV%\\Scripts\\python.exe" (
+        set "PYTHON=%VIRTUAL_ENV%\\Scripts\\python.exe"
+    )
+)
+if not defined PYTHON set "PYTHON=python"
+"%PYTHON%" -m folderhome app serve --approve-loopback-server %*
+exit /b %errorlevel%
+"""
+
+START_SETUP_WRAPPER_TEMPLATE = """\
+@echo off
+setlocal
+set "ROOT=%~dp0.."
+set "PYTHON="
+if exist "%ROOT%\\.venv\\Scripts\\python.exe" (
+    set "PYTHON=%ROOT%\\.venv\\Scripts\\python.exe"
+)
+if not defined PYTHON if defined VIRTUAL_ENV (
+    if exist "%VIRTUAL_ENV%\\.venv\\Scripts\\python.exe" (
+        set "PYTHON=%VIRTUAL_ENV%\\.venv\\Scripts\\python.exe"
+    )
+    if exist "%VIRTUAL_ENV%\\Scripts\\python.exe" (
+        set "PYTHON=%VIRTUAL_ENV%\\Scripts\\python.exe"
+    )
+)
+if not defined PYTHON set "PYTHON=python"
+"%PYTHON%" -m folderhome setup serve --approve-loopback-server %*
+exit /b %errorlevel%
+"""
+
+
+def install_starter_wrappers(target_dir: Path, *, overwrite: bool = False) -> list[Path]:
+    """Install standard starter wrapper scripts into target_dir."""
+    target_dir.mkdir(parents=True, exist_ok=True)
+    installed: list[Path] = []
+    app_script = target_dir / "START-APP.cmd"
+    if overwrite or not app_script.exists():
+        app_script.write_text(START_APP_WRAPPER_TEMPLATE, encoding="ascii")
+        installed.append(app_script)
+    setup_script = target_dir / "START-SETUP.cmd"
+    if overwrite or not setup_script.exists():
+        setup_script.write_text(START_SETUP_WRAPPER_TEMPLATE, encoding="ascii")
+        installed.append(setup_script)
+    return installed
 
 
 def resolve_config_dir(explicit_dir: str | Path | None = None) -> Path:
@@ -161,8 +212,6 @@ def resolve_config_dir(explicit_dir: str | Path | None = None) -> Path:
     env_dir = os.environ.get("FOLDERHOME_CONFIG_DIR")
     if env_dir:
         return Path(env_dir).resolve()
-    if CANONICAL_CONFIG_DIR.is_dir():
-        return CANONICAL_CONFIG_DIR.resolve()
     repo_root = Path(__file__).resolve().parent.parent
     return (repo_root / ".local-state" / "config").resolve()
 
@@ -207,9 +256,6 @@ def find_starter_script(name: str, config_dir: Path) -> Path | None:
     candidate = repo_root / name
     if candidate.is_file():
         return candidate
-    which_path = shutil.which(name)
-    if which_path:
-        return Path(which_path).resolve()
     return None
 
 
@@ -287,16 +333,29 @@ def normalize_action(raw: str) -> str | None:
 
 
 _URL_PATTERN = re.compile(r"https?://[^\s\"'<>\\]+")
-_TOKEN_PARAM_PATTERN = re.compile(r"([?&]token=)[^&\s\"'<>\\]+", re.IGNORECASE)
-_TOKEN_JSON_PATTERN = re.compile(
-    r'("(?:token|session_token|session-token|auth_token)"\s*:\s*")[^"]+(")',
-    re.IGNORECASE,
+_AUTH_HEADER_PATTERN = re.compile(
+    r"(?i)\b(authorization\s*:\s*(?:bearer\s+)?)[^\s,;]+",
+)
+_BEARER_PATTERN = re.compile(
+    r"(?i)\b(bearer\s+)[A-Za-z0-9_\-\.~+/]+=*",
+)
+_PROVIDER_ENV_PATTERN = re.compile(
+    r"(?i)\b((?:ANTHROPIC_API_KEY|OPENAI_API_KEY|AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID|AWS_SESSION_TOKEN|GEMINI_API_KEY|AZURE_OPENAI_API_KEY|FOLDERHOME_[A-Z_]*KEY))\s*(=|:)\s*['\"]?[^\s'\",;]+['\"]?",
+)
+_GENERIC_KEY_PATTERN = re.compile(
+    r"(?i)\b((?:api[_-]?key|secret[_-]?key|password|passwd|access[_-]?token|auth[_-]?token|session[_-]?token))\s*(=|:)\s*['\"]?[^\s'\",;]+['\"]?",
+)
+_JSON_SECRET_PATTERN = re.compile(
+    r'(?i)("(?:token|session_token|session-token|auth_token|api_key|apiKey|api-key|secret|password|passwd|access_token|access_key_id|secret_access_key|session_token)"\s*:\s*")[^"]+(")',
+)
+_QUERY_SECRET_PATTERN = re.compile(
+    r"(?i)([?&](?:token|api[_-]?key|secret|password|passwd|auth[_-]?token|access[_-]?token)=)[^&\s\"'<>\\]+",
 )
 
 
 def redact_url_credentials(url: str | None) -> str:
     """Redact query parameters (such as tokens) and credentials for safe exposure."""
-    if not url or not isinstance(url, str):
+    if not url or not isinstance(url, str) or not url.strip():
         return ""
     try:
         parsed = urlsplit(url)
@@ -304,13 +363,17 @@ def redact_url_credentials(url: str | None) -> str:
         port = parsed.port
     except ValueError:
         return ""
-    host = f"[{hostname}]" if ":" in (hostname or "") else (hostname or "")
+    if not parsed.scheme or not hostname:
+        return ""
+    if port is not None and not (1 <= port <= 65535):
+        return ""
+    host = f"[{hostname}]" if ":" in hostname else hostname
     port_str = f":{port}" if port is not None else ""
     return f"{parsed.scheme}://{host}{port_str}{parsed.path}"
 
 
 def redact_diagnostics(text: str | None) -> str:
-    """Centrally redact tokens and sensitive URLs from stderr/stdout diagnostics."""
+    """Centrally redact tokens, credentials, and sensitive URLs from stderr/stdout diagnostics."""
     if not text or not isinstance(text, str):
         return ""
 
@@ -321,11 +384,15 @@ def redact_diagnostics(text: str | None) -> str:
             trailing = raw_url[-1] + trailing
             raw_url = raw_url[:-1]
         redacted = redact_url_credentials(raw_url)
-        return (redacted or raw_url) + trailing
+        return (redacted if redacted else "[REDACTED_URL]") + trailing
 
     cleaned = _URL_PATTERN.sub(_replace_url, text)
-    cleaned = _TOKEN_PARAM_PATTERN.sub(r"\1[REDACTED]", cleaned)
-    cleaned = _TOKEN_JSON_PATTERN.sub(r"\1[REDACTED]\2", cleaned)
+    cleaned = _AUTH_HEADER_PATTERN.sub(r"\1[REDACTED]", cleaned)
+    cleaned = _BEARER_PATTERN.sub(r"\1[REDACTED]", cleaned)
+    cleaned = _PROVIDER_ENV_PATTERN.sub(r"\1\2[REDACTED]", cleaned)
+    cleaned = _GENERIC_KEY_PATTERN.sub(r"\1\2[REDACTED]", cleaned)
+    cleaned = _JSON_SECRET_PATTERN.sub(r"\1[REDACTED]\2", cleaned)
+    cleaned = _QUERY_SECRET_PATTERN.sub(r"\1[REDACTED]", cleaned)
     return cleaned
 
 
@@ -654,6 +721,7 @@ class StartMenuController:
             self.print_func(self.t("dry_run_notice"))
             return 0
 
+        exit_code = 0
         try:
             started_entries: list[tuple[str, Any, ProcessOutputHandler]] = []
             for kind, cmd in commands_to_run:
@@ -788,9 +856,54 @@ class StartMenuController:
 
             if self.open_browser:
                 for kind, _ in commands_to_run:
+                    # Check ALL started processes together before each browser call!
+                    for check_kind, check_proc, check_handler in started_entries:
+                        if hasattr(check_proc, "poll"):
+                            check_code = check_proc.poll()
+                            if check_code is not None:
+                                has_error = True
+                                if check_code != 0 and exit_code == 0:
+                                    exit_code = check_code
+                                elif exit_code == 0:
+                                    exit_code = 1
+                                lines_text = "\n".join(check_handler.stderr_lines).strip()
+                                err_msg = redact_diagnostics(lines_text)
+                                detail = f": {err_msg}" if err_msg else ""
+                                if check_code != 0:
+                                    msg = (
+                                        f"Subprocess {check_kind} exited prematurely with code "
+                                        f"{check_code}{detail}"
+                                    )
+                                else:
+                                    msg = (
+                                        f"Subprocess {check_kind} exited prematurely before "
+                                        "browser launch."
+                                    )
+                                self.print_func(msg)
+                                break
+                    if has_error:
+                        break
+
                     url = validated_urls[kind]
-                    with contextlib.suppress(Exception):
-                        self.browser_opener(url)
+                    try:
+                        opened = self.browser_opener(url)
+                        if opened is False:
+                            has_error = True
+                            if exit_code == 0:
+                                exit_code = 1
+                            self.print_func(f"Failed to open browser for {kind} URL.")
+                            break
+                    except Exception as exc:
+                        has_error = True
+                        if exit_code == 0:
+                            exit_code = 1
+                        err_detail = redact_diagnostics(str(exc))
+                        self.print_func(f"Failed to open browser for {kind} URL: {err_detail}")
+                        break
+
+            if has_error:
+                self.cleanup_processes()
+                return exit_code if exit_code != 0 else 1
 
             # Supervision loop: monitor processes until completion or error
             while True:
@@ -815,14 +928,29 @@ class StartMenuController:
         except KeyboardInterrupt:
             self.print_func(self.t("stopping_processes"))
         finally:
-            self.cleanup_processes()
+            cleaned = self.cleanup_processes()
+            if not cleaned and exit_code == 0:
+                exit_code = 1
 
         return exit_code
 
-    def cleanup_processes(self) -> None:
+    def cleanup_processes(self) -> bool:
         had_processes = bool(self.processes)
         for p in list(self.processes):
             if hasattr(p, "poll") and p.poll() is None:
+                pid = getattr(p, "pid", None)
+                if (
+                    sys.platform == "win32"
+                    and isinstance(pid, int)
+                    and pid > 0
+                    and isinstance(p, subprocess.Popen)
+                ):
+                    with contextlib.suppress(Exception):
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(pid)],
+                            capture_output=True,
+                            check=False,
+                        )
                 try:
                     p.terminate()
                     if hasattr(p, "wait"):
@@ -838,9 +966,13 @@ class StartMenuController:
                         p.kill()
                         if hasattr(p, "wait"):
                             p.wait(timeout=1.0)
-        if had_processes:
+
+        # Verify whether all processes actually stopped
+        surviving = [p for p in self.processes if hasattr(p, "poll") and p.poll() is None]
+        self.processes = surviving
+        if had_processes and not surviving:
             self.print_func(self.t("processes_stopped"))
-        self.processes.clear()
+        return len(self.processes) == 0
 
     def interactive_loop(self) -> int:
         while True:
@@ -918,6 +1050,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Do not open URLs in standard browser",
     )
+    parser.add_argument(
+        "--install-wrappers",
+        action="store_true",
+        help="Install standard starter wrapper scripts into target directory",
+    )
     return parser
 
 
@@ -934,6 +1071,13 @@ def main(
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
     config_dir = resolve_config_dir(args.config_dir)
+
+    if args.install_wrappers:
+        target = args.config_dir if args.config_dir else (Path(__file__).resolve().parent)
+        installed = install_starter_wrappers(target)
+        for p in installed:
+            print_func(f"Installed starter wrapper: {p}")
+        return 0
 
     confirm_gates: bool | None = None
     if args.confirm_gates:

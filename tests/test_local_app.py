@@ -3086,3 +3086,183 @@ def test_reload_rollback_fail_closed_multiple_runs_never_resuscitate_discarded(
     for plan in app._proposed_agent_plans.values():
         ctx_run_id = plan.approval_context.get("run_id") if plan.approval_context else None
         assert ctx_run_id not in (run1.snapshot()["run_id"], run2.snapshot()["run_id"])
+
+
+def test_is_strict_loopback_host_rejects_evil_hosts_and_subdomains() -> None:
+    from folderhome.application.local_app import _is_strict_loopback_host
+
+    # Rejected evil/remote hosts
+    for evil in (
+        "127.evil.example",
+        "127.0.0.1.evil.example",
+        "127.0.0.1.example.com",
+        "evil.example",
+        "localhost.evil.com",
+        "192.168.1.1",
+        "0.0.0.0",
+        "",
+        "   ",
+        None,
+    ):
+        assert _is_strict_loopback_host(evil) is False, f"Expected {evil} to be rejected"
+
+    # Accepted authentic loopback hosts
+    for ok in ("127.0.0.1", "127.0.0.2", "127.1.2.3", "localhost", "::1", "[::1]"):
+        assert _is_strict_loopback_host(ok) is True, f"Expected {ok} to be accepted"
+
+
+def test_redact_url_credentials_invalid_port_returns_none_safely() -> None:
+    from folderhome.application.local_app import _redact_url_credentials
+
+    # Malformed non-numeric port must not raise ValueError or leak credentials
+    bad_port_url = "http://user:pass@127.0.0.1:badport/path?token=super_secret_tok"
+    assert _redact_url_credentials(bad_port_url) is None
+
+    # Out-of-range port must not leak credentials
+    assert _redact_url_credentials("http://user:pass@127.0.0.1:99999/path?token=secret") is None
+    assert _redact_url_credentials("http://user:pass@127.0.0.1:0/path?token=secret") is None
+
+    # Valid port redacts credentials and query params cleanly
+    valid_url = "http://user:pass@127.0.0.1:8765/path?token=secret"
+    redacted = _redact_url_credentials(valid_url)
+    assert redacted == "http://127.0.0.1:8765/path"
+    assert "user" not in redacted
+    assert "pass" not in redacted
+    assert "secret" not in redacted
+
+    # None and empty
+    assert _redact_url_credentials(None) is None
+    assert _redact_url_credentials("") == ""
+
+
+def test_status_setup_url_rejects_evil_hosts_and_invalid_ports(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    setup_json = app.settings.state_dir / "setup-server.json"
+    setup_json.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. 127.evil.example host must be rejected
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.evil.example:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 2. 127.0.0.1.evil.example host must be rejected
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1.evil.example:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 3. Non-numeric port must not raise ValueError and must be rejected safely
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1:invalid_port/?token=tok123",
+            "port": "not_a_number",
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] is None
+
+    # 4. Valid loopback host and integer port is accepted
+    setup_json.write_text(
+        json.dumps({
+            "access_url": "http://127.0.0.1:8766/?token=tok123",
+            "port": 8766,
+            "session_token": "tok123",
+        }),
+        encoding="utf-8",
+    )
+    assert app._status_payload(8765)["setup_url"] == "http://127.0.0.1:8766/?token=tok123"
+
+
+def test_reload_rollback_transaction_excludes_externally_discarded_pending_envelopes(
+    tmp_path: Path,
+) -> None:
+    from test_local_recipes import RecipeGateway
+    from test_recipes import RESOURCE_IDS
+
+    from folderhome.contracts import LogicalResource, ResourceRegistry
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps({
+            "schema": "folderhome.launch-config.v1",
+            "model_preset": "fixture",
+            "model_presets": {
+                "fixture": {"model_provider": "fixture"},
+            },
+        }),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app.workflow_executor = RecipeGateway()
+    app.resource_registry = ResourceRegistry(
+        os_account=app.profiles.os_account,
+        resources=tuple(
+            LogicalResource(
+                resource_id=key,
+                kind="directory",
+                local_path=tmp_path / key,
+                operations=frozenset({"read", "list"}),
+                purposes=frozenset({"documents.source"}),
+                profile_ids=frozenset({"lukas"}),
+                cloud_context="deny",
+            )
+            for key in sorted(RESOURCE_IDS)
+        ),
+        profile_defaults={},
+        known_profile_ids=app._profile_ids,
+    )
+
+    pending = app.prepare_recipe(profile_id="lukas", recipe_id="accident-aftercare", language="en")
+    plan = pending.plan
+    plan_id = pending.plan_id
+    assert plan.approval_context.get("run_id") is None
+    assert id(plan) in app._pending_agent_plans
+    assert id(plan) in app._pending_recipe_plans
+
+    step_envs = tuple(
+        s.execution_envelope.envelope_id
+        for s in plan.steps
+        if getattr(s, "execution_envelope", None) is not None
+    )
+    assert len(step_envs) == 4
+
+    # Simulate reload failure where resetting simon fails after lukas reset discarded envelopes
+    orig_reset = app.reset_agent_conversation
+
+    def fail_on_simon(pid: str):
+        if pid == "simon":
+            raise RuntimeError("Simulated failure during simon conversation reset")
+        return orig_reset(pid)
+
+    app.reset_agent_conversation = fail_on_simon
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+
+    # Verification upon rollback:
+    # Discarded envelope's plan must NOT reappear in pending or proposed maps!
+    assert id(plan) not in app._pending_agent_plans
+    assert id(plan) not in app._pending_recipe_plans
+    assert plan_id not in app._proposed_agent_plans
+    assert plan_id not in app._recipe_plans
+    assert set(step_envs).issubset(set(app.workflow_executor.discarded))

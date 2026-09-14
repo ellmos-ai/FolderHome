@@ -40,6 +40,7 @@ const translations = {
     reloadButton: "Reload",
     reloadConfirm: "Reloading settings will apply the saved preset and reset the current conversation memory. Continue?",
     reloadError: "Settings could not be reloaded.",
+    recipeSyncWarning: "Settings were reloaded, but recipe catalog or runs could not be fully reconciled. Please refresh the page.",
     openSettings: "Open settings",
     settingsDialogTitle: "FolderHome Settings",
     settingsDialogText: "To configure models or workspaces, run the start menu in your terminal and select Option 2 (Setup):",
@@ -250,6 +251,7 @@ const translations = {
     reloadButton: "Neu laden",
     reloadConfirm: "Beim Neuladen der Einstellungen wird das gespeicherte Preset angewendet und der bisherige Gesprächsverlauf zurückgesetzt. Fortfahren?",
     reloadError: "Einstellungen konnten nicht neu geladen werden.",
+    recipeSyncWarning: "Einstellungen wurden neu geladen, aber Rezepte oder Rezeptläufe konnten nicht vollständig abgeglichen werden. Bitte Seite aktualisieren.",
     openSettings: "Einstellungen öffnen",
     settingsDialogTitle: "FolderHome-Einstellungen",
     settingsDialogText: "Um Modelle oder Arbeitsordner zu konfigurieren, starte das Startmenü im Terminal und wähle Option 2 (Setup):",
@@ -990,8 +992,14 @@ async function reloadSettings() {
     resetRecipeControls();
     renderRecipeSelection();
     renderRecipeRuns();
-    loadRecipes().catch(showError);
-    await loadRecipeRuns();
+    try {
+      await Promise.all([
+        typeof loadRecipes === "function" ? loadRecipes() : Promise.resolve(),
+        typeof loadRecipeRuns === "function" ? loadRecipeRuns() : Promise.resolve(),
+      ]);
+    } catch (_syncError) {
+      appendChatMessage("assistant", t("recipeSyncWarning"));
+    }
   } catch (error) {
     const message = error.payload?.message || error.message || t("reloadError");
     window.alert(message);
@@ -2011,7 +2019,7 @@ newConversationButton.addEventListener("click", () => {
 });
 if (reloadSettingsButton) {
   reloadSettingsButton.addEventListener("click", () => {
-    reloadSettings().catch(showError);
+    reloadSettings().catch(() => {});
   });
 }
 if (openSettingsButton) {

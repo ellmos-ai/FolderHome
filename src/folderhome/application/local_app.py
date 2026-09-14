@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import getpass
 import hmac
+import ipaddress
 import json
 import os
 import platform
@@ -105,8 +106,24 @@ class LocalAppError(RuntimeError):
     """Raised when the local app boundary cannot be established safely."""
 
 
+def _is_strict_loopback_host(host: str | None) -> bool:
+    """Return True only if host is strictly a loopback address or localhost."""
+    if not host or not isinstance(host, str):
+        return False
+    clean = host.strip("[]").lower()
+    if clean == "localhost":
+        return True
+    try:
+        ip = ipaddress.ip_address(clean)
+        return ip.is_loopback
+    except ValueError:
+        return False
+
+
 def _redact_url_credentials(value: str | None) -> str | None:
     """Redact userinfo, query, and fragment from a model URL for public exposure."""
+    if value is None:
+        return None
     if not isinstance(value, str) or not value.strip():
         return value
     try:
@@ -114,9 +131,11 @@ def _redact_url_credentials(value: str | None) -> str | None:
         hostname = parsed.hostname
         port = parsed.port
     except ValueError:
-        return value
+        return None
     if not parsed.scheme or not hostname:
-        return value
+        return None
+    if port is not None and not (1 <= port <= 65535):
+        return None
     host = f"[{hostname}]" if ":" in hostname else hostname
     port_str = f":{port}" if port is not None else ""
     netloc = f"{host}{port_str}"
@@ -249,6 +268,8 @@ class LocalApplication:
         self._pending_recipe_plans: dict[int, CapabilityRecipePlan | RecipeStagePlan] = {}
         self._pending_agent_plans: dict[int, MasterAgentPlan] = {}
         self._started_recipe_plans: set[str] = set()
+        self._active_transaction_discarded_envelopes: set[str] | None = None
+        self._active_transaction_discarded_plans: set[str] | None = None
         self._agent_plan_lock = threading.RLock()
         self._agent_conversation_messages: dict[
             str, tuple[dict[str, Any], ...]
@@ -404,9 +425,13 @@ class LocalApplication:
         retained = set(_plan_envelope_ids(
             tuple(self._proposed_agent_plans.values()) + pending
         )) | set(protected)
-        self.workflow_executor.discard_unexecuted(tuple(
+        to_discard = tuple(
             item for item in envelope_ids if item not in retained
-        ))
+        )
+        if to_discard:
+            self.workflow_executor.discard_unexecuted(to_discard)
+            if self._active_transaction_discarded_envelopes is not None:
+                self._active_transaction_discarded_envelopes.update(to_discard)
 
     def discard_recipe_preparations(self, recipes: tuple[CapabilityRecipePlan, ...]) -> None:
         """Release unretained recipe preparations when a model turn fails."""
@@ -477,6 +502,27 @@ class LocalApplication:
         ]:
             self._pending_agent_plans.pop(key, None)
             self._pending_recipe_plans.pop(key, None)
+
+        if self._active_transaction_discarded_plans is not None:
+            self._active_transaction_discarded_plans.update(saved_proposed.keys())
+        pending_plan = getattr(run, "_pending", None)
+        if pending_plan is not None:
+            pending_envs = tuple(
+                s.execution_envelope.envelope_id
+                for s in getattr(pending_plan, "steps", ())
+                if getattr(s, "execution_envelope", None) is not None
+            )
+            if self._active_transaction_discarded_envelopes is not None:
+                self._active_transaction_discarded_envelopes.update(pending_envs)
+            if self._active_transaction_discarded_plans is not None:
+                self._active_transaction_discarded_plans.add(pending_plan.plan_id)
+        if (
+            hasattr(run, "_cleanup_pending")
+            and run._cleanup_pending
+            and self._active_transaction_discarded_envelopes is not None
+        ):
+            self._active_transaction_discarded_envelopes.update(run._cleanup_pending)
+
         try:
             run.close()
         except Exception:
@@ -701,6 +747,11 @@ class LocalApplication:
                     plan for plan in self._pending_agent_plans.values()
                     if plan.profile_id == profile_id
                 )
+                if self._active_transaction_discarded_plans is not None:
+                    self._active_transaction_discarded_plans.update(discarded)
+                    self._active_transaction_discarded_plans.update(
+                        getattr(p, "plan_id", str(id(p))) for p in pending
+                    )
                 for plan in pending:
                     self._pending_agent_plans.pop(id(plan), None)
                     self._pending_recipe_plans.pop(id(plan), None)
@@ -1549,19 +1600,19 @@ class LocalApplication:
                                 f"http://127.0.0.1:{raw_port}/?token={quote(raw_token.strip())}"
                             )
                     if isinstance(raw_candidate, str) and raw_candidate.strip():
-                        parsed = urlsplit(raw_candidate)
-                        if parsed.scheme.lower() == "http":
-                            h = parsed.hostname.lower() if parsed.hostname else ""
-                            is_loopback = (
-                                h in {"127.0.0.1", "localhost", "::1", "[::1]"}
-                                or h.startswith("127.")
-                            )
-                            p = parsed.port
-                            if is_loopback and p is not None and (1 <= p <= 65535):
-                                q = parse_qs(parsed.query, keep_blank_values=True)
-                                tokens = q.get("token")
-                                if tokens and tokens[0].strip():
-                                    setup_url = raw_candidate
+                        try:
+                            parsed = urlsplit(raw_candidate)
+                            if parsed.scheme.lower() == "http":
+                                h = parsed.hostname.lower() if parsed.hostname else ""
+                                is_loopback = _is_strict_loopback_host(h)
+                                p = parsed.port
+                                if is_loopback and p is not None and (1 <= p <= 65535):
+                                    q = parse_qs(parsed.query, keep_blank_values=True)
+                                    tokens = q.get("token")
+                                    if tokens and tokens[0].strip():
+                                        setup_url = raw_candidate
+                        except (ValueError, Exception):
+                            setup_url = None
             except Exception:
                 setup_url = None
         return {
@@ -1942,9 +1993,17 @@ class LocalApplication:
                             "status": getattr(r, "status", None),
                         }
 
+                self._active_transaction_discarded_envelopes = set()
+                self._active_transaction_discarded_plans = set()
+
                 def _rollback_state() -> None:
-                    # Identify invalidated runs: any run that was closed, aborted,
-                    # whose cleanup failed, or which was removed from active runs.
+                    # Determine all discarded envelope IDs and plan IDs across the transaction
+                    discarded_envs: set[str] = set(
+                        self._active_transaction_discarded_envelopes or ()
+                    )
+                    discarded_pids: set[str] = set(self._active_transaction_discarded_plans or ())
+
+                    # Also mark runs that were closed or whose cleanup was pending
                     invalidated_run_ids: set[str] = set()
                     for r_id, r_state in old_runs_state.items():
                         r = r_state["run"]
@@ -1959,19 +2018,48 @@ class LocalApplication:
                         ):
                             invalidated_run_ids.add(r_id)
 
-                    # Identify discarded plan IDs: any plan removed from _proposed_agent_plans
-                    # or associated with an invalidated run.
-                    discarded_plan_ids: set[str] = set()
+                    def _plan_is_discarded(plan_obj: Any) -> bool:
+                        if not plan_obj:
+                            return True
+                        pid = getattr(plan_obj, "plan_id", None)
+                        if pid and pid in discarded_pids:
+                            return True
+                        # Check direct envelope
+                        direct_env = getattr(plan_obj, "execution_envelope", None)
+                        direct_env_id = (
+                            getattr(direct_env, "envelope_id", None) if direct_env else None
+                        )
+                        if direct_env_id and direct_env_id in discarded_envs:
+                            return True
+                        # Check step envelopes
+                        steps = (
+                            getattr(plan_obj, "steps", None)
+                            or getattr(plan_obj, "recipe_steps", None)
+                        )
+                        if steps:
+                            for s in steps:
+                                env = getattr(s, "execution_envelope", None)
+                                env_id = getattr(env, "envelope_id", None) if env else None
+                                if env_id and env_id in discarded_envs:
+                                    return True
+                        inner = getattr(plan_obj, "plan", None)
+                        if inner is not None and inner is not plan_obj:
+                            return _plan_is_discarded(inner)
+                        return False
+
+                    # Identify all plan IDs associated with invalidated runs or discarded envelopes
                     for plan_id, plan in old_proposed.items():
                         run_id = (
                             plan.approval_context.get("run_id")
                             if plan.approval_context
                             else None
                         )
-                        if plan_id not in self._proposed_agent_plans or (
-                            run_id and run_id in invalidated_run_ids
+                        if (
+                            plan_id not in self._proposed_agent_plans
+                            or (run_id and run_id in invalidated_run_ids)
+                            or _plan_is_discarded(plan)
                         ):
-                            discarded_plan_ids.add(plan_id)
+                            discarded_pids.add(plan_id)
 
                     for plan_id, plan in old_pending_agent.items():
                         run_id = (
@@ -1979,35 +2067,37 @@ class LocalApplication:
                             if plan.approval_context
                             else None
                         )
-                        if run_id and run_id in invalidated_run_ids:
-                            discarded_plan_ids.add(getattr(plan, "plan_id", str(plan_id)))
+                        if (run_id and run_id in invalidated_run_ids) or _plan_is_discarded(plan):
+                            discarded_pids.add(getattr(plan, "plan_id", str(plan_id)))
 
                     self._agent_conversation_messages = {
                         pid: old_messages[pid] for pid in self._profile_ids
                     }
                     self._agent_conversation_turns = dict(old_turns)
 
-                    # Restore only plans that were NOT discarded or invalidated
+                    # Restore ONLY plans and pending items that were NOT discarded externally
                     self._proposed_agent_plans = {
-                        k: v for k, v in old_proposed.items() if k not in discarded_plan_ids
+                        k: v for k, v in old_proposed.items()
+                        if k not in discarded_pids and not _plan_is_discarded(v)
                     }
                     self._recipe_plans = {
-                        k: v for k, v in old_recipe_plans.items() if k not in discarded_plan_ids
+                        k: v for k, v in old_recipe_plans.items()
+                        if k not in discarded_pids and not _plan_is_discarded(v)
                     }
                     self._pending_agent_plans = {
-                        k: v
-                        for k, v in old_pending_agent.items()
-                        if getattr(v, "plan_id", None) not in discarded_plan_ids
+                        k: v for k, v in old_pending_agent.items()
+                        if getattr(v, "plan_id", None) not in discarded_pids
+                        and not _plan_is_discarded(v)
                     }
                     self._pending_recipe_plans = {
-                        k: v
-                        for k, v in old_pending_recipe.items()
-                        if getattr(v, "plan_id", None) not in discarded_plan_ids
+                        k: v for k, v in old_pending_recipe.items()
+                        if getattr(v, "plan_id", None) not in discarded_pids
+                        and not _plan_is_discarded(v)
                     }
                     self._started_recipe_plans = set(old_started)
 
-                    # For recipe runs: invalidated runs must stay closed/aborted
-                    # with no pending plan
+                    # For recipe runs: invalidated runs or runs with discarded
+                    # pending plans stay closed/aborted
                     self._recipe_runs = {}
                     for r_id, r in old_runs.items():
                         if r_id in invalidated_run_ids:
@@ -2026,7 +2116,9 @@ class LocalApplication:
                         lock = getattr(r, "_lock", None)
                         ctx = lock if lock is not None else contextlib.nullcontext()
                         with ctx:
-                            if r_id in invalidated_run_ids:
+                            pending_plan = r_state.get("pending")
+                            pending_discarded = _plan_is_discarded(pending_plan)
+                            if r_id in invalidated_run_ids or pending_discarded:
                                 current_status = getattr(
                                     r, "_status", getattr(r, "status", None)
                                 )
@@ -2057,35 +2149,39 @@ class LocalApplication:
                                     r._cleanup_pending = r_state["cleanup_pending"]
 
                 try:
-                    for profile_id in sorted(self._profile_ids):
-                        self.reset_agent_conversation(profile_id)
-                except Exception as exc:
-                    _rollback_state()
-                    if isinstance(exc, _HttpError):
-                        raise
-                    raise _HttpError(
-                        500,
-                        "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen.",
-                    ) from exc
+                    try:
+                        for profile_id in sorted(self._profile_ids):
+                            self.reset_agent_conversation(profile_id)
+                    except Exception as exc:
+                        _rollback_state()
+                        if isinstance(exc, _HttpError):
+                            raise
+                        raise _HttpError(
+                            500,
+                            "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen.",
+                        ) from exc
 
-                env_revert: list[str] = []
-                try:
-                    for name, value in staging_env.items():
-                        if name not in os.environ:
-                            env_revert.append(name)
-                            os.environ[name] = value
-                except Exception as exc:
-                    for name in env_revert:
-                        os.environ.pop(name, None)
-                    _rollback_state()
-                    raise _HttpError(
-                        500,
-                        f"Umgebungsvariablen konnten nicht gesetzt werden: {exc}",
-                    ) from exc
+                    env_revert: list[str] = []
+                    try:
+                        for name, value in staging_env.items():
+                            if name not in os.environ:
+                                env_revert.append(name)
+                                os.environ[name] = value
+                    except Exception as exc:
+                        for name in env_revert:
+                            os.environ.pop(name, None)
+                        _rollback_state()
+                        raise _HttpError(
+                            500,
+                            f"Umgebungsvariablen konnten nicht gesetzt werden: {exc}",
+                        ) from exc
 
-                self.agent_settings = new_settings
-                self._running_preset = new_preset or "no preset / flags"
-                self._successful_live_model_turns = 0
+                    self.agent_settings = new_settings
+                    self._running_preset = new_preset or "no preset / flags"
+                    self._successful_live_model_turns = 0
+                finally:
+                    self._active_transaction_discarded_envelopes = None
+                    self._active_transaction_discarded_plans = None
 
             expected_model_state = (
                 "fixture_only"

@@ -30,6 +30,7 @@ if _spec is None or _spec.loader is None:
     raise ImportError(f"Cannot load spec from {START_MENU_PATH}")
 start_menu = importlib.util.module_from_spec(_spec)
 sys.modules["start_menu"] = start_menu
+sys.modules["scripts.start_menu"] = start_menu
 _spec.loader.exec_module(start_menu)
 
 DEFAULT_APP_PORT = start_menu.DEFAULT_APP_PORT
@@ -910,6 +911,7 @@ class FakeProcess:
         stderr_lines: list[str] | None = None,
         returncode: int | None = None,
         poll_sequence: list[int | None] | None = None,
+        can_terminate: bool = True,
     ) -> None:
         self._stdout_lines = list(stdout_lines or [])
         self._stderr_lines = list(stderr_lines or [])
@@ -924,8 +926,12 @@ class FakeProcess:
         self._poll_idx = 0
         self.terminated = False
         self.killed = False
+        self.can_terminate = can_terminate
+        self.pid = None
 
     def poll(self) -> int | None:
+        if (self.terminated or self.killed) and self.can_terminate:
+            return self.returncode
         if self._poll_seq is not None:
             if self._poll_idx < len(self._poll_seq):
                 val = self._poll_seq[self._poll_idx]
@@ -937,12 +943,12 @@ class FakeProcess:
 
     def terminate(self) -> None:
         self.terminated = True
-        if self.returncode is None:
+        if self.can_terminate and self.returncode is None:
             self.returncode = -15
 
     def kill(self) -> None:
         self.killed = True
-        if self.returncode is None:
+        if self.can_terminate and self.returncode is None:
             self.returncode = -9
 
     def wait(self, timeout: float | None = None) -> int | None:
@@ -998,7 +1004,7 @@ def test_real_run_action_1_captures_access_url_from_json_and_opens_browser(tmp_p
             "schema": "folderhome.local-server-start.v1",
             "access_url": expected_url,
         })],
-        poll_sequence=[None, None, 0],
+        poll_sequence=[None, None, None, 0],
     )
 
     browser_spy = MagicMock(return_value=True)
@@ -1152,11 +1158,11 @@ def test_action_3_detects_nonzero_child_immediately_and_terminates_living_siblin
     # Child 1 stays alive; Child 2 fails on second poll with returncode 2
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, None, None, None],
+        poll_sequence=[None, None, None, None, None],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, None, 2],
+        poll_sequence=[None, None, None, None, 2],
     )
 
     procs = [child1, child2]
@@ -1190,11 +1196,11 @@ def test_action_3_successful_children_run_together_until_clean_completion(
 
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, None, 0],
+        poll_sequence=[None, None, None, None, 0],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, None, 0],
+        poll_sequence=[None, None, None, None, 0],
     )
 
     procs = [child1, child2]
@@ -1298,11 +1304,11 @@ def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: P
 
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, None, 0],
+        poll_sequence=[None, None, None, None, 0],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, None, 0],
+        poll_sequence=[None, None, None, None, 0],
     )
 
     procs = [child1, child2]
@@ -1427,3 +1433,224 @@ def test_action_3_pre_browser_check_aborts_when_child_dies_before_browser_launch
     # Sibling child 1 terminated!
     assert child1.terminated is True
     assert not controller.processes
+
+
+def test_action_3_child_dies_between_first_and_second_browser_launch(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1: stays alive throughout
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None, None, None],
+    )
+    # Child 2: alive during bootstrap (poll 0), pre-browser check (poll 1),
+    # alive before browser 1 (poll 2), but dies before browser 2 (poll 3) with code 77
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, None, None, 77],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 77
+    # Exactly one browser opened (for Child 1); second browser for Child 2 never opened!
+    assert browser_spy.call_count == 1
+    assert browser_spy.mock_calls[0][1] == (url1,)
+    # Sibling child 1 terminated!
+    assert child1.terminated is True
+    assert not controller.processes
+
+
+def test_browser_opener_failure_is_fatal(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok"})],
+        poll_sequence=[None, None, None, None],
+    )
+    browser_mock = MagicMock(return_value=False)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_mock,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert any("Failed to open browser" in msg for msg in logs)
+
+
+def test_browser_opener_exception_is_fatal(tmp_path: Path) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": "http://127.0.0.1:8765/?token=tok"})],
+        poll_sequence=[None, None, None, None],
+    )
+    browser_mock = MagicMock(
+        side_effect=RuntimeError(
+            "Browser error with secret token: http://127.0.0.1:8765/?token=secret_pass_123"
+        )
+    )
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_mock,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert any("Failed to open browser" in msg for msg in logs)
+    assert not any("secret_pass_123" in msg for msg in logs)
+    assert any("http://127.0.0.1:8765/" in msg for msg in logs)
+
+
+def test_cleanup_processes_keeps_living_processes_and_omits_stopped_message() -> None:
+    # Process refusing to terminate
+    stubborn_proc = FakeProcess(
+        poll_sequence=[None] * 50,
+        can_terminate=False,
+    )
+    logs: list[str] = []
+    controller = StartMenuController(
+        Path("."),
+        print_func=logs.append,
+    )
+    controller.processes.append(stubborn_proc)
+
+    success = controller.cleanup_processes()
+    assert success is False
+    # Stubborn process must REMAIN in tracking list
+    assert stubborn_proc in controller.processes
+    # Must NOT claim that all processes stopped
+    assert not any("All processes stopped" in msg for msg in logs)
+    assert not any("Alle Prozesse beendet" in msg for msg in logs)
+
+
+def test_redact_diagnostics_comprehensive_positive_and_negative() -> None:
+    from scripts.start_menu import redact_diagnostics
+
+    # Positive test cases (must be redacted)
+    cases = [
+        ("Authorization: Bearer secret-token-12345", "Authorization: Bearer [REDACTED]"),
+        ("Authorization: secret-token-basic", "Authorization: [REDACTED]"),
+        ("Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", "Bearer [REDACTED]"),
+        ("ANTHROPIC_API_KEY=sk-ant-api03-abcdef12345", "ANTHROPIC_API_KEY=[REDACTED]"),
+        ("export OPENAI_API_KEY=sk-proj-xyz987654321", "export OPENAI_API_KEY=[REDACTED]"),
+        (
+            "AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+            "AWS_SECRET_ACCESS_KEY=[REDACTED]",
+        ),
+        ("AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE", "AWS_ACCESS_KEY_ID=[REDACTED]"),
+        ("AWS_SESSION_TOKEN=AQoDYXdzEJr1xyz123", "AWS_SESSION_TOKEN=[REDACTED]"),
+        ("password=super_secret_pw", "password=[REDACTED]"),
+        ("api_key: secret-api-key-value", "api_key:[REDACTED]"),
+        ('{"api_key": "my-json-key"}', '{"api_key": "[REDACTED]"}'),
+        ('{"password": "secret_password"}', '{"password": "[REDACTED]"}'),
+        ('{"session_token": "token-12345"}', '{"session_token": "[REDACTED]"}'),
+        ("http://user:pass@127.0.0.1:8765/foo?token=my_secret_token", "http://127.0.0.1:8765/foo"),
+        ("http://user:pass@127.0.0.1:badport/path?token=secret", "[REDACTED_URL]"),
+    ]
+    for raw, expected in cases:
+        actual = redact_diagnostics(raw)
+        assert actual == expected, (
+            f"Failed for:\nRaw     : {raw}\nExpected: {expected}\nActual  : {actual}"
+        )
+
+    # Negative test cases (harmless diagnostic messages must not be damaged)
+    harmless = [
+        "Normal diagnostic line with no secrets",
+        "Connected to http://127.0.0.1:8765/api/v1/status successfully.",
+        "Model preset: ollama-local",
+        "No matching record found for password_reset_timestamp",
+        "Subprocess app exited prematurely with code 0",
+    ]
+    for msg in harmless:
+        assert redact_diagnostics(msg) == msg
+
+
+def test_resolve_config_dir_trust_boundary_does_not_auto_use_canonical_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scripts.start_menu import resolve_config_dir
+
+    # Clear FOLDERHOME_CONFIG_DIR from environment
+    monkeypatch.delenv("FOLDERHOME_CONFIG_DIR", raising=False)
+
+    # Without explicit dir, must resolve strictly to repo's .local-state/config
+    default_dir = resolve_config_dir()
+    assert ".local-state" in str(default_dir)
+    assert default_dir.name == "config"
+    assert "folderhome-config" not in str(default_dir)
+
+    # With explicit dir, respects explicit dir
+    explicit = tmp_path / "custom-cfg"
+    assert resolve_config_dir(explicit) == explicit.resolve()
+
+    # With FOLDERHOME_CONFIG_DIR env var, respects it
+    monkeypatch.setenv("FOLDERHOME_CONFIG_DIR", str(tmp_path / "env-cfg"))
+    assert resolve_config_dir() == (tmp_path / "env-cfg").resolve()
+
+
+def test_find_starter_script_does_not_use_system_path(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from scripts.start_menu import find_starter_script
+
+    # Put a fake START-APP.cmd in a directory that is only in system PATH
+    foreign_dir = tmp_path / "foreign_bin"
+    foreign_dir.mkdir()
+    foreign_script = foreign_dir / "START-APP.cmd"
+    foreign_script.write_text("@echo off\n", encoding="ascii")
+    monkeypatch.setenv("PATH", str(foreign_dir))
+
+    empty_config_dir = tmp_path / "isolated_config"
+    empty_config_dir.mkdir()
+
+    # find_starter_script must NOT find the script from system PATH!
+    found = find_starter_script("START-APP.cmd", empty_config_dir)
+    assert found is None or foreign_dir not in found.parents
+
+
+def test_install_starter_wrappers_creates_ascii_batch_files(tmp_path: Path) -> None:
+    from scripts.start_menu import install_starter_wrappers
+
+    target = tmp_path / "installed_wrappers"
+    installed = install_starter_wrappers(target)
+    assert len(installed) == 2
+    for script_path in installed:
+        assert script_path.is_file()
+        raw_bytes = script_path.read_bytes()
+        assert not [b for b in raw_bytes if b >= 128], f"{script_path} contains non-ASCII bytes"
+        text = raw_bytes.decode("ascii")
+        assert "@echo off" in text
+        assert "exit /b %errorlevel%" in text
+
+    app_text = (target / "START-APP.cmd").read_text(encoding="ascii")
+    assert "folderhome app serve --approve-loopback-server" in app_text
+    setup_text = (target / "START-SETUP.cmd").read_text(encoding="ascii")
+    assert "folderhome setup serve --approve-loopback-server" in setup_text
+
+
+def test_start_cmd_has_no_sibling_venv_fallback() -> None:
+    start_cmd = SCRIPTS_DIR / "START.cmd"
+    text = start_cmd.read_text(encoding="ascii")
+    assert "folderhome\\.venv" not in text
+    assert "..\\folderhome" not in text
