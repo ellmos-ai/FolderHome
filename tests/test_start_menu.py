@@ -1207,4 +1207,3 @@ def test_action_3_successful_children_run_together_until_clean_completion(
     assert browser_spy.call_count == 2
     assert browser_spy.mock_calls[0][1] == (url1,)
     assert browser_spy.mock_calls[1][1] == (url2,)
-
