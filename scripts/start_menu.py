@@ -19,6 +19,8 @@ import contextlib
 import json
 import os
 import queue
+import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -150,12 +152,17 @@ def get_text(lang: str, key: str, **kwargs: Any) -> str:
     return template
 
 
+CANONICAL_CONFIG_DIR = Path("C:/_Local_DEV/folderhome-config")
+
+
 def resolve_config_dir(explicit_dir: str | Path | None = None) -> Path:
     if explicit_dir is not None:
         return Path(explicit_dir).resolve()
     env_dir = os.environ.get("FOLDERHOME_CONFIG_DIR")
     if env_dir:
         return Path(env_dir).resolve()
+    if CANONICAL_CONFIG_DIR.is_dir():
+        return CANONICAL_CONFIG_DIR.resolve()
     repo_root = Path(__file__).resolve().parent.parent
     return (repo_root / ".local-state" / "config").resolve()
 
@@ -189,6 +196,9 @@ def find_starter_script(name: str, config_dir: Path) -> Path | None:
     candidate = config_dir / name
     if candidate.is_file():
         return candidate
+    candidate = config_dir / "scripts" / name
+    if candidate.is_file():
+        return candidate
     scripts_dir = Path(__file__).resolve().parent
     candidate = scripts_dir / name
     if candidate.is_file():
@@ -197,6 +207,9 @@ def find_starter_script(name: str, config_dir: Path) -> Path | None:
     candidate = repo_root / name
     if candidate.is_file():
         return candidate
+    which_path = shutil.which(name)
+    if which_path:
+        return Path(which_path).resolve()
     return None
 
 
@@ -273,17 +286,47 @@ def normalize_action(raw: str) -> str | None:
     return None
 
 
+_URL_PATTERN = re.compile(r"https?://[^\s\"'<>\\]+")
+_TOKEN_PARAM_PATTERN = re.compile(r"([?&]token=)[^&\s\"'<>\\]+", re.IGNORECASE)
+_TOKEN_JSON_PATTERN = re.compile(
+    r'("(?:token|session_token|session-token|auth_token)"\s*:\s*")[^"]+(")',
+    re.IGNORECASE,
+)
+
+
 def redact_url_credentials(url: str | None) -> str:
     """Redact query parameters (such as tokens) and credentials for safe exposure."""
     if not url or not isinstance(url, str):
         return ""
     try:
         parsed = urlsplit(url)
+        hostname = parsed.hostname
+        port = parsed.port
     except ValueError:
         return ""
-    host = f"[{parsed.hostname}]" if ":" in (parsed.hostname or "") else (parsed.hostname or "")
-    port_str = f":{parsed.port}" if parsed.port is not None else ""
+    host = f"[{hostname}]" if ":" in (hostname or "") else (hostname or "")
+    port_str = f":{port}" if port is not None else ""
     return f"{parsed.scheme}://{host}{port_str}{parsed.path}"
+
+
+def redact_diagnostics(text: str | None) -> str:
+    """Centrally redact tokens and sensitive URLs from stderr/stdout diagnostics."""
+    if not text or not isinstance(text, str):
+        return ""
+
+    def _replace_url(match: re.Match[str]) -> str:
+        raw_url = match.group(0)
+        trailing = ""
+        while raw_url and raw_url[-1] in ".,;:!?)":
+            trailing = raw_url[-1] + trailing
+            raw_url = raw_url[:-1]
+        redacted = redact_url_credentials(raw_url)
+        return (redacted or raw_url) + trailing
+
+    cleaned = _URL_PATTERN.sub(_replace_url, text)
+    cleaned = _TOKEN_PARAM_PATTERN.sub(r"\1[REDACTED]", cleaned)
+    cleaned = _TOKEN_JSON_PATTERN.sub(r"\1[REDACTED]\2", cleaned)
+    return cleaned
 
 
 def validate_access_url(url: str) -> str | None:
@@ -292,19 +335,26 @@ def validate_access_url(url: str) -> str | None:
         return "Missing or empty access URL"
     try:
         parsed = urlsplit(url)
+        scheme = parsed.scheme
+        hostname = parsed.hostname
+        port = parsed.port
     except ValueError:
-        return "Malformed access URL"
+        return "Malformed access URL or invalid port"
 
-    if parsed.scheme.lower() != "http":
-        return f"Access URL must use HTTP scheme, got: {parsed.scheme}"
+    if scheme.lower() != "http":
+        return f"Access URL must use HTTP scheme, got: {scheme}"
 
-    if not is_loopback_host(parsed.hostname):
-        return f"Access URL must target loopback host, got: {parsed.hostname}"
+    if not is_loopback_host(hostname):
+        return "Access URL must target loopback host"
 
-    if parsed.port is None or not (1 <= parsed.port <= 65535):
-        return f"Access URL must include a valid port, got: {parsed.port}"
+    if port is None or not (1 <= port <= 65535):
+        return "Access URL must include a valid port"
 
-    query_params = parse_qs(parsed.query, keep_blank_values=True)
+    try:
+        query_params = parse_qs(parsed.query, keep_blank_values=True)
+    except Exception:
+        return "Malformed query parameters in access URL"
+
     tokens = query_params.get("token")
     if not tokens or not tokens[0].strip():
         return "Access URL must contain non-empty session token in query parameter"
@@ -351,7 +401,8 @@ class ProcessOutputHandler:
                 for line in iter(stream.readline, ""):
                     if not line:
                         break
-                    self.stderr_lines.append(line.rstrip())
+                    sanitized = redact_diagnostics(line.rstrip())
+                    self.stderr_lines.append(sanitized)
                     if len(self.stderr_lines) > 100:
                         self.stderr_lines.pop(0)
         except Exception:
@@ -376,9 +427,13 @@ class ProcessOutputHandler:
         if not isinstance(raw_url, str):
             return None, f"Invalid access_url in JSON from {self.target_name}"
 
-        val_err = validate_access_url(raw_url)
+        try:
+            val_err = validate_access_url(raw_url)
+        except Exception:
+            val_err = f"Malformed access_url from {self.target_name}"
+
         if val_err:
-            return None, val_err
+            return None, redact_diagnostics(val_err)
 
         return raw_url, None
 
@@ -397,7 +452,7 @@ class ProcessOutputHandler:
 
             if line is None:
                 self.stream_closed = True
-                err_msg = "\n".join(self.stderr_lines).strip()
+                err_msg = redact_diagnostics("\n".join(self.stderr_lines).strip())
                 detail = f": {err_msg}" if err_msg else ""
                 self.error_message = (
                     f"Subprocess {self.target_name} closed output stream without "
@@ -407,7 +462,7 @@ class ProcessOutputHandler:
 
             url, err = self._check_line(line)
             if err:
-                self.error_message = err
+                self.error_message = redact_diagnostics(err)
                 return None, self.error_message
             if url:
                 self.access_url = url
@@ -421,7 +476,7 @@ class ProcessOutputHandler:
             if hasattr(self.proc, "poll"):
                 code = self.proc.poll()
                 if code is not None:
-                    err_msg = "\n".join(self.stderr_lines).strip()
+                    err_msg = redact_diagnostics("\n".join(self.stderr_lines).strip())
                     detail = f": {err_msg}" if err_msg else ""
                     return None, (
                         f"Subprocess {self.target_name} exited prematurely with "
@@ -430,13 +485,13 @@ class ProcessOutputHandler:
 
             url, err = self.poll_bootstrap()
             if err:
-                return None, err
+                return None, redact_diagnostics(err)
             if url:
                 return url, None
 
             time.sleep(0.02)
 
-        err_msg = "\n".join(self.stderr_lines).strip()
+        err_msg = redact_diagnostics("\n".join(self.stderr_lines).strip())
         detail = f": {err_msg}" if err_msg else ""
         return None, (
             f"Timed out after {timeout}s waiting for access_url from "
@@ -589,130 +644,155 @@ class StartMenuController:
         if has_error or not commands_to_run:
             return 1
 
+        for _kind, cmd in commands_to_run:
+            if "--json" not in cmd:
+                cmd.append("--json")
+
         if self.dry_run:
             for _, cmd in commands_to_run:
                 self.print_func(f"[Dry-run Command] {' '.join(cmd)}")
             self.print_func(self.t("dry_run_notice"))
             return 0
 
-        started_entries: list[tuple[str, Any, ProcessOutputHandler]] = []
-        for kind, cmd in commands_to_run:
-            try:
-                proc = self.subprocess_runner(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    bufsize=1,
-                )
-            except TypeError:
+        try:
+            started_entries: list[tuple[str, Any, ProcessOutputHandler]] = []
+            for kind, cmd in commands_to_run:
                 try:
-                    proc = self.subprocess_runner(cmd)
+                    proc = self.subprocess_runner(
+                        cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True,
+                        encoding="utf-8",
+                        errors="replace",
+                        bufsize=1,
+                    )
+                except TypeError:
+                    try:
+                        proc = self.subprocess_runner(cmd)
+                    except OSError as exc:
+                        self.print_func(f"Failed to start subprocess: {exc}")
+                        has_error = True
+                        break
                 except OSError as exc:
                     self.print_func(f"Failed to start subprocess: {exc}")
                     has_error = True
                     break
-            except OSError as exc:
-                self.print_func(f"Failed to start subprocess: {exc}")
-                has_error = True
-                break
 
-            self.processes.append(proc)
-            handler = ProcessOutputHandler(proc, kind)
-            started_entries.append((kind, proc, handler))
+                self.processes.append(proc)
+                handler = ProcessOutputHandler(proc, kind)
+                started_entries.append((kind, proc, handler))
 
-        if has_error:
-            self.cleanup_processes()
-            return 1
+            if has_error or len(started_entries) != len(commands_to_run):
+                self.cleanup_processes()
+                return 1
 
-        # Concurrent bootstrap of all started processes
-        # Prevents race conditions from sequential waiting and detects premature child exit
-        deadline = time.monotonic() + self.bootstrap_timeout
-        validated_urls: dict[str, str] = {}
-        exit_code = 0
+            # Concurrent bootstrap of all started processes
+            # Prevents race conditions from sequential waiting and detects premature child exit
+            deadline = time.monotonic() + self.bootstrap_timeout
+            validated_urls: dict[str, str] = {}
+            exit_code = 0
 
-        while time.monotonic() < deadline:
-            # 1. Concurrently check if ANY child process has terminated prematurely
+            while time.monotonic() < deadline:
+                # 1. Concurrently check if ANY child process has terminated prematurely
+                for kind, proc, handler in started_entries:
+                    if hasattr(proc, "poll"):
+                        code = proc.poll()
+                        if code is not None:
+                            has_error = True
+                            if code != 0:
+                                exit_code = code
+                                lines_text = "\n".join(handler.stderr_lines).strip()
+                                err_msg = redact_diagnostics(lines_text)
+                                detail = f": {err_msg}" if err_msg else ""
+                                self.print_func(
+                                    f"Subprocess {kind} exited prematurely with code {code}{detail}"
+                                )
+                            else:
+                                exit_code = 1
+                                self.print_func(
+                                    f"Subprocess {kind} exited prematurely before browser launch."
+                                )
+                            break
+
+                if has_error:
+                    break
+
+                # 2. Check output from all handlers concurrently
+                for kind, proc, handler in started_entries:
+                    if kind not in validated_urls:
+                        url, err = handler.poll_bootstrap()
+                        if err:
+                            self.print_func(redact_diagnostics(err))
+                            has_error = True
+                            code = proc.poll() if hasattr(proc, "poll") else None
+                            exit_code = code if code not in (0, None) else 1
+                            break
+                        if url:
+                            validated_urls[kind] = url
+
+                if has_error:
+                    break
+
+                # 3. Check if all started processes have yielded their validated access_url
+                if len(validated_urls) == len(started_entries):
+                    break
+
+                time.sleep(0.02)
+            else:
+                if not has_error:
+                    has_error = True
+                    exit_code = 1
+                    for kind, _proc, handler in started_entries:
+                        if kind not in validated_urls:
+                            err_msg = redact_diagnostics("\n".join(handler.stderr_lines).strip())
+                            detail = f": {err_msg}" if err_msg else ""
+                            self.print_func(
+                                f"Timed out after {self.bootstrap_timeout}s waiting for "
+                                f"access_url from {kind}{detail}"
+                            )
+
+            # JOINT PRE-BROWSER CHECK: Check ALL started processes together again!
+            # If ANY process has exited (code != 0 or early code == 0 before browser opening):
+            # open zero browsers, terminate sibling(s), and return non-zero!
             for kind, proc, handler in started_entries:
                 if hasattr(proc, "poll"):
                     code = proc.poll()
                     if code is not None:
                         has_error = True
-                        if code != 0:
+                        if code != 0 and exit_code == 0:
                             exit_code = code
-                            err_msg = "\n".join(handler.stderr_lines).strip()
-                            detail = f": {err_msg}" if err_msg else ""
-                            self.print_func(
-                                f"Subprocess {kind} exited prematurely with code {code}{detail}"
-                            )
-                        else:
+                        elif exit_code == 0:
                             exit_code = 1
-                            self.print_func(
-                                f"Subprocess {kind} exited prematurely before browser launch."
-                            )
-                        break
-
-            if has_error:
-                break
-
-            # 2. Check output from all handlers concurrently
-            for kind, proc, handler in started_entries:
-                if kind not in validated_urls:
-                    url, err = handler.poll_bootstrap()
-                    if err:
-                        self.print_func(err)
-                        has_error = True
-                        code = proc.poll() if hasattr(proc, "poll") else None
-                        exit_code = code if code not in (0, None) else 1
-                        break
-                    if url:
-                        validated_urls[kind] = url
-
-            if has_error:
-                break
-
-            # 3. Check if all started processes have successfully yielded their validated access_url
-            if len(validated_urls) == len(started_entries):
-                break
-
-            time.sleep(0.02)
-        else:
-            if not has_error:
-                has_error = True
-                exit_code = 1
-                for kind, _proc, handler in started_entries:
-                    if kind not in validated_urls:
-                        err_msg = "\n".join(handler.stderr_lines).strip()
+                        err_msg = redact_diagnostics("\n".join(handler.stderr_lines).strip())
                         detail = f": {err_msg}" if err_msg else ""
                         self.print_func(
-                            f"Timed out after {self.bootstrap_timeout}s waiting for "
-                            f"access_url from {kind}{detail}"
+                            f"Subprocess {kind} exited prematurely with code {code}{detail}"
+                            if code != 0
+                            else f"Subprocess {kind} exited prematurely before browser launch."
                         )
 
-        if has_error or len(validated_urls) != len(commands_to_run):
-            self.cleanup_processes()
-            return exit_code if exit_code != 0 else 1
+            if has_error or len(validated_urls) != len(commands_to_run):
+                self.cleanup_processes()
+                return exit_code if exit_code != 0 else 1
 
-        # All processes successfully bootstrapped!
-        # Print sanitized loopback URLs (no session tokens) to console and open in browser
-        for kind, _ in commands_to_run:
-            url = validated_urls[kind]
-            sanitized_url = redact_url_credentials(url)
-            if kind == "app":
-                self.print_func(self.t("app_url", url=sanitized_url))
-            else:
-                self.print_func(self.t("setup_url", url=sanitized_url))
-
-        if self.open_browser:
+            # All processes successfully bootstrapped and verified alive!
+            # Print sanitized loopback URLs (no session tokens) to console and open in browser
             for kind, _ in commands_to_run:
                 url = validated_urls[kind]
-                with contextlib.suppress(Exception):
-                    self.browser_opener(url)
+                sanitized_url = redact_url_credentials(url)
+                if kind == "app":
+                    self.print_func(self.t("app_url", url=sanitized_url))
+                else:
+                    self.print_func(self.t("setup_url", url=sanitized_url))
 
-        # Supervision loop: monitor processes until completion or error
-        try:
+            if self.open_browser:
+                for kind, _ in commands_to_run:
+                    url = validated_urls[kind]
+                    with contextlib.suppress(Exception):
+                        self.browser_opener(url)
+
+            # Supervision loop: monitor processes until completion or error
             while True:
                 # Option 3 & general supervision: detect non-zero child exit immediately
                 for p in self.processes:
@@ -741,15 +821,23 @@ class StartMenuController:
 
     def cleanup_processes(self) -> None:
         had_processes = bool(self.processes)
-        for p in self.processes:
+        for p in list(self.processes):
             if hasattr(p, "poll") and p.poll() is None:
                 try:
                     p.terminate()
                     if hasattr(p, "wait"):
-                        p.wait(timeout=2.0)
+                        try:
+                            p.wait(timeout=1.0)
+                        except Exception:
+                            p.kill()
+                            if hasattr(p, "wait"):
+                                with contextlib.suppress(Exception):
+                                    p.wait(timeout=1.0)
                 except Exception:
                     with contextlib.suppress(Exception):
                         p.kill()
+                        if hasattr(p, "wait"):
+                            p.wait(timeout=1.0)
         if had_processes:
             self.print_func(self.t("processes_stopped"))
         self.processes.clear()

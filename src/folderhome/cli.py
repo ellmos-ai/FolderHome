@@ -5494,6 +5494,9 @@ def build_reloaded_agent_settings(
     launch_config_path: Path | str,
     current_settings: StrandsAgentSettings,
     target_environ: MutableMapping[str, str] | None = None,
+    *,
+    startup_allow_network: bool | None = None,
+    startup_allow_sensitive_cloud_data: bool | None = None,
 ) -> tuple[StrandsAgentSettings, str | None]:
     """Build a fresh StrandsAgentSettings from launch config without bypassing startup gates."""
 
@@ -5566,17 +5569,28 @@ def build_reloaded_agent_settings(
             if hostname not in _LOOPBACK_HOSTS:
                 needs_network = True
 
+    allow_net_authorized = (
+        startup_allow_network
+        if startup_allow_network is not None
+        else current_settings.allow_network
+    )
+    allow_cloud_authorized = (
+        startup_allow_sensitive_cloud_data
+        if startup_allow_sensitive_cloud_data is not None
+        else current_settings.allow_sensitive_cloud_data
+    )
+
     preset_label = running_preset_name or effective
     if needs_network and (
-        not current_settings.allow_network or not current_settings.allow_sensitive_cloud_data
+        not allow_net_authorized or not allow_cloud_authorized
     ):
         raise ReloadGateError(
             "Start the app with --allow-network --approve-sensitive-cloud-data "
             f"to use {preset_label}"
         )
 
-    allow_net = False if effective == "fixture" else current_settings.allow_network
-    allow_cloud = False if effective == "fixture" else current_settings.allow_sensitive_cloud_data
+    allow_net = False if effective == "fixture" else allow_net_authorized
+    allow_cloud = False if effective == "fixture" else allow_cloud_authorized
 
     kwargs: dict[str, object] = {
         "model_provider": effective,
@@ -5892,6 +5906,10 @@ def _prepare_local_app(args: argparse.Namespace) -> LocalApplication:
             else None
         ),
         running_preset=getattr(args, "model_preset", None),
+        startup_allow_network=bool(getattr(args, "allow_network", False)),
+        startup_allow_sensitive_cloud_data=bool(
+            getattr(args, "approve_sensitive_cloud_data", False)
+        ),
     )
 
 

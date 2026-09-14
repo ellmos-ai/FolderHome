@@ -987,6 +987,11 @@ async function reloadSettings() {
     chatTranscript.replaceChildren();
     appendChatMessage("assistant", t("conversationReset"));
     renderCurrentView(false);
+    resetRecipeControls();
+    renderRecipeSelection();
+    renderRecipeRuns();
+    loadRecipes().catch(showError);
+    await loadRecipeRuns();
   } catch (error) {
     const message = error.payload?.message || error.message || t("reloadError");
     window.alert(message);
@@ -997,8 +1002,14 @@ async function reloadSettings() {
 
 function openSettingsModal() {
   if (!settingsDialog) return;
-  if (appStatus?.setup_url && setupServerActiveBox && openSetupServerLink) {
-    openSetupServerLink.href = appStatus.setup_url;
+  const rawUrl = typeof appStatus?.setup_url === "string" ? appStatus.setup_url.trim() : "";
+  const isLoopback = (
+    rawUrl.startsWith("http://127.0.0.1:") ||
+    rawUrl.startsWith("http://localhost:") ||
+    rawUrl.startsWith("http://[::1]:")
+  );
+  if (rawUrl && isLoopback && setupServerActiveBox && openSetupServerLink) {
+    openSetupServerLink.href = rawUrl;
     setupServerActiveBox.hidden = false;
   } else if (setupServerActiveBox) {
     setupServerActiveBox.hidden = true;

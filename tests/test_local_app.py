@@ -21,6 +21,7 @@ from folderhome.application.medication_intake import (
     build_medication_import_plan,
 )
 from folderhome.application.profile_rules import load_profile_configuration
+from folderhome.application.recipes import create_recipe_run
 from folderhome.application.workflow_execution import (
     FindCallWorkflowAdapter,
     MedicationIntakeWorkflowAdapter,
@@ -339,6 +340,7 @@ def test_status_and_profiles_expose_organizational_boundary(tmp_path: Path) -> N
         "model_id": None,
         "aws_region": None,
         "ollama_host": None,
+        "openai_base_url": None,
         "network_authorized": False,
         "sensitive_cloud_data_authorized": False,
         "status_probe_performed": False,
@@ -2695,7 +2697,7 @@ def test_reload_settings_invalid_staged_env_rejects_without_mutating_state(
     orig_env = dict(os.environ)
 
     with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
-        def side_effect(path, current, target_environ=None):
+        def side_effect(path, current, target_environ=None, **kwargs):
             if target_environ is not None:
                 target_environ["BAD\0KEY"] = "invalid"
             return current, "fixture"
@@ -2762,7 +2764,7 @@ def test_reload_settings_staged_env_mutation_failure_rolls_back_everything(
     orig_env = dict(os.environ)
 
     with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
-        def side_effect(path, current, target_environ=None):
+        def side_effect(path, current, target_environ=None, **kwargs):
             if target_environ is not None:
                 target_environ["TEST_STAGE_VAR_1"] = "val1"
                 target_environ["TEST_STAGE_VAR_2"] = "val2"
@@ -2795,3 +2797,292 @@ def test_reload_settings_staged_env_mutation_failure_rolls_back_everything(
         assert "TEST_STAGE_VAR_1" not in os.environ
         assert "TEST_STAGE_VAR_2" not in os.environ
         assert os.environ == orig_env
+
+
+def test_remote_to_fixture_to_remote_reload_succeeds_when_started_with_gates(
+    tmp_path: Path,
+) -> None:
+    """Startup authorizations decouple from transient current_settings:
+
+    Starting with network & cloud clearances permits reloading to fixture and subsequently
+    reloading back to a remote provider without being rejected by startup gates.
+    """
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=valid-anthropic-key\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_content = {
+        "schema": "folderhome.launch-config.v1",
+        "model_preset": "anthropic-claude",
+        "model_presets": {
+            "anthropic-claude": {
+                "model_provider": "anthropic",
+                "anthropic_model_id": "claude-3-5-sonnet",
+            },
+            "fixture": {
+                "model_provider": "fixture",
+            },
+        },
+    }
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    # Start app with network and cloud clearances granted at startup
+    initial_settings = StrandsAgentSettings(
+        model_provider="anthropic",
+        anthropic_model_id="claude-3-5-sonnet",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    app = _app(
+        tmp_path,
+        agent_settings=initial_settings,
+        launch_config_path=launch_file,
+        startup_allow_network=True,
+        startup_allow_sensitive_cloud_data=True,
+    )
+    assert app.agent_settings.model_provider == "anthropic"
+    assert app.agent_settings.allow_network is True
+    assert app.agent_settings.allow_sensitive_cloud_data is True
+
+    # 1. Reload from remote -> fixture
+    launch_content["model_preset"] = "fixture"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res_to_fixture = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_to_fixture.status_code == 200
+    assert res_to_fixture.payload["status"] == "reloaded"
+    assert res_to_fixture.payload["model_provider"] == "fixture"
+    assert app.agent_settings.model_provider == "fixture"
+    assert app.agent_settings.allow_network is False
+    assert app.agent_settings.allow_sensitive_cloud_data is False
+
+    # 2. Reload back from fixture -> remote (anthropic)
+    launch_content["model_preset"] = "anthropic-claude"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res_to_remote = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res_to_remote.status_code == 200
+    assert res_to_remote.payload["status"] == "reloaded"
+    assert res_to_remote.payload["model_provider"] == "anthropic"
+    assert app.agent_settings.model_provider == "anthropic"
+    assert app.agent_settings.allow_network is True
+    assert app.agent_settings.allow_sensitive_cloud_data is True
+
+
+def test_remote_to_fixture_to_remote_reload_fails_closed_when_started_without_gates(
+    tmp_path: Path,
+) -> None:
+    """Apps started without network or cloud clearances strictly reject remote reloads."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("ANTHROPIC_API_KEY=valid-anthropic-key\n", encoding="utf-8")
+
+    launch_file = tmp_path / "launch.json"
+    launch_content = {
+        "schema": "folderhome.launch-config.v1",
+        "model_preset": "fixture",
+        "model_presets": {
+            "anthropic-claude": {
+                "model_provider": "anthropic",
+                "anthropic_model_id": "claude-3-5-sonnet",
+            },
+            "fixture": {
+                "model_provider": "fixture",
+            },
+        },
+    }
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    # Start app WITHOUT network or cloud clearances
+    app = _app(
+        tmp_path,
+        agent_settings=StrandsAgentSettings(model_provider="fixture"),
+        launch_config_path=launch_file,
+        startup_allow_network=False,
+        startup_allow_sensitive_cloud_data=False,
+    )
+
+    # Attempt reload to remote (anthropic)
+    launch_content["model_preset"] = "anthropic-claude"
+    launch_file.write_text(json.dumps(launch_content), encoding="utf-8")
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 409
+    assert (
+        "Start the app with --allow-network --approve-sensitive-cloud-data"
+        in res.payload["message"]
+    )
+    assert app.agent_settings.model_provider == "fixture"
+
+
+def test_status_setup_url_tokenization_and_loopback_gating(tmp_path: Path) -> None:
+    """Setup URL in status payload is strictly tokenized and loopback-validated or safely None."""
+    app = _app(tmp_path)
+    setup_file = app.settings.state_dir / "setup-server.json"
+
+    # Case A: Valid loopback access_url with token
+    valid_setup_url = "http://127.0.0.1:8766/?token=valid-setup-token-999"
+    setup_file.write_text(json.dumps({"access_url": valid_setup_url}), encoding="utf-8")
+    status_a = app._status_payload(8765)
+    assert status_a["setup_url"] == valid_setup_url
+
+    # Case B: Valid port and token in JSON -> safely synthesized loopback URL with token
+    setup_file.write_text(
+        json.dumps({"port": 8766, "token": "synthesized-token"}),
+        encoding="utf-8",
+    )
+    status_b = app._status_payload(8765)
+    assert status_b["setup_url"] == "http://127.0.0.1:8766/?token=synthesized-token"
+
+    # Case C: Foreign hostname -> rejected, returns None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://evil.attacker.com:8766/?token=tok"}),
+        encoding="utf-8",
+    )
+    status_c = app._status_payload(8765)
+    assert status_c["setup_url"] is None
+
+    # Case D: Tokenless loopback URL -> rejected, returns None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:8766/"}),
+        encoding="utf-8",
+    )
+    status_d = app._status_payload(8765)
+    assert status_d["setup_url"] is None
+
+    # Case E: Empty token query parameter -> rejected, returns None
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:8766/?token=  "}),
+        encoding="utf-8",
+    )
+    status_e = app._status_payload(8765)
+    assert status_e["setup_url"] is None
+
+    # Case F: Non-numeric port in URL -> gracefully caught, returns None without raising ValueError
+    setup_file.write_text(
+        json.dumps({"access_url": "http://127.0.0.1:invalid_port/?token=tok"}),
+        encoding="utf-8",
+    )
+    status_f = app._status_payload(8765)
+    assert status_f["setup_url"] is None
+
+
+def test_status_payload_delivers_redacted_openai_base_url(tmp_path: Path) -> None:
+    """Model connection status exposes openai_base_url redacted of credentials."""
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="openai",
+        openai_model_id="gpt-4o",
+        openai_base_url="http://user:secret_pass@internal-openai-host.local:8080/v1?auth=param#frag",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    status = app._status_payload(8765)
+    conn = status["model_connection"]
+    assert conn["provider"] == "openai"
+    assert conn["model_id"] == "gpt-4o"
+    assert conn["openai_base_url"] == "http://internal-openai-host.local:8080/v1"
+    assert "user" not in conn["openai_base_url"]
+    assert "secret_pass" not in conn["openai_base_url"]
+    assert "auth=param" not in conn["openai_base_url"]
+
+
+def test_reload_rollback_fail_closed_multiple_runs_never_resuscitate_discarded(
+    tmp_path: Path,
+) -> None:
+    """When reload fails midway, closed/invalidated runs must remain closed and discarded plans
+
+    must NEVER be restored into _proposed_agent_plans or _recipe_plans.
+    """
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {"model_provider": "fixture"},
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+
+    from test_recipe_results import payload
+
+    from folderhome.application.recipes import parse_recipe
+
+    recipe = parse_recipe(payload())
+    run1 = create_recipe_run(
+        recipe,
+        profile_id="lukas",
+        language="de",
+        gateway=app.workflow_executor,
+    )
+    run2 = create_recipe_run(
+        recipe,
+        profile_id="hanna",
+        language="de",
+        gateway=app.workflow_executor,
+    )
+    app._recipe_runs[run1.snapshot()["run_id"]] = run1
+    app._recipe_runs[run2.snapshot()["run_id"]] = run2
+
+    # Simulate an error during reset_agent_conversation on profile "simon"
+    orig_reset = app.reset_agent_conversation
+
+    def fail_on_simon(pid: str):
+        if pid == "simon":
+            raise RuntimeError("Simulated failure during simon conversation reset")
+        return orig_reset(pid)
+
+    app.reset_agent_conversation = fail_on_simon
+
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 500
+    assert "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen" in res.payload["message"]
+
+    # Post-rollback verification:
+    # 1. Run 1 and Run 2 were closed during reset_agent_conversation for "hanna" and "lukas"
+    # Their state must REMAIN closed; they must not be restored as active or confirmable runs!
+    assert run1.snapshot()["status"] == "closed"
+    assert run2.snapshot()["status"] == "closed"
+    assert run1.snapshot()["pending_plan_id"] is None
+    assert run2.snapshot()["pending_plan_id"] is None
+
+    # 2. No discarded plans for the closed runs may exist in _proposed_agent_plans or _recipe_plans
+    for plan in app._proposed_agent_plans.values():
+        ctx_run_id = plan.approval_context.get("run_id") if plan.approval_context else None
+        assert ctx_run_id not in (run1.snapshot()["run_id"], run2.snapshot()["run_id"])

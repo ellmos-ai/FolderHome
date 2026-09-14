@@ -109,11 +109,16 @@ def _redact_url_credentials(value: str | None) -> str | None:
     """Redact userinfo, query, and fragment from a model URL for public exposure."""
     if not isinstance(value, str) or not value.strip():
         return value
-    parsed = urlsplit(value)
-    if not parsed.scheme or not parsed.hostname:
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError:
         return value
-    host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
-    port_str = f":{parsed.port}" if parsed.port is not None else ""
+    if not parsed.scheme or not hostname:
+        return value
+    host = f"[{hostname}]" if ":" in hostname else hostname
+    port_str = f":{port}" if port is not None else ""
     netloc = f"{host}{port_str}"
     return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
 
@@ -184,6 +189,8 @@ class LocalApplication:
         scheduler_controller=None,
         launch_config_path: Path | str | None = None,
         running_preset: str | None = None,
+        startup_allow_network: bool | None = None,
+        startup_allow_sensitive_cloud_data: bool | None = None,
     ) -> None:
         if profiles.os_account.strip() == "":
             raise LocalAppError("Profilkonfiguration besitzt kein OS-Konto-Label.")
@@ -197,6 +204,16 @@ class LocalApplication:
         self.profiles = profiles
         self.searcher = searcher
         self.agent_settings = agent_settings or StrandsAgentSettings(model_provider="fixture")
+        self._startup_allow_network = (
+            startup_allow_network
+            if startup_allow_network is not None
+            else bool(self.agent_settings.allow_network)
+        )
+        self._startup_allow_sensitive_cloud_data = (
+            startup_allow_sensitive_cloud_data
+            if startup_allow_sensitive_cloud_data is not None
+            else bool(self.agent_settings.allow_sensitive_cloud_data)
+        )
         self.workflow_executor = workflow_executor or WorkflowExecutionGateway()
         if resource_registry is not None:
             if resource_registry.os_account != profiles.os_account:
@@ -1517,9 +1534,35 @@ class LocalApplication:
         if setup_file.is_file():
             try:
                 setup_data = json.loads(setup_file.read_text(encoding="utf-8"))
-                if isinstance(setup_data, dict) and "port" in setup_data:
-                    setup_url = f"http://127.0.0.1:{setup_data['port']}/"
-            except (OSError, json.JSONDecodeError):
+                if isinstance(setup_data, dict):
+                    raw_candidate = setup_data.get("access_url")
+                    if not raw_candidate and "port" in setup_data and "token" in setup_data:
+                        raw_port = setup_data["port"]
+                        raw_token = setup_data["token"]
+                        if (
+                            isinstance(raw_port, int)
+                            and (1 <= raw_port <= 65535)
+                            and isinstance(raw_token, str)
+                            and raw_token.strip()
+                        ):
+                            raw_candidate = (
+                                f"http://127.0.0.1:{raw_port}/?token={quote(raw_token.strip())}"
+                            )
+                    if isinstance(raw_candidate, str) and raw_candidate.strip():
+                        parsed = urlsplit(raw_candidate)
+                        if parsed.scheme.lower() == "http":
+                            h = parsed.hostname.lower() if parsed.hostname else ""
+                            is_loopback = (
+                                h in {"127.0.0.1", "localhost", "::1", "[::1]"}
+                                or h.startswith("127.")
+                            )
+                            p = parsed.port
+                            if is_loopback and p is not None and (1 <= p <= 65535):
+                                q = parse_qs(parsed.query, keep_blank_values=True)
+                                tokens = q.get("token")
+                                if tokens and tokens[0].strip():
+                                    setup_url = raw_candidate
+            except Exception:
                 setup_url = None
         return {
             "schema": "folderhome.local-app-status.v1",
@@ -1610,6 +1653,11 @@ class LocalApplication:
             ),
             "aws_region": agent_settings.aws_region,
             "ollama_host": _redact_url_credentials(agent_settings.ollama_host),
+            "openai_base_url": (
+                _redact_url_credentials(agent_settings.openai_base_url)
+                if agent_settings.openai_base_url
+                else None
+            ),
             "network_authorized": agent_settings.allow_network,
             "sensitive_cloud_data_authorized": (
                 agent_settings.allow_sensitive_cloud_data
@@ -1802,6 +1850,8 @@ class LocalApplication:
                     self._launch_config_path,
                     self.agent_settings,
                     target_environ=staging_env,
+                    startup_allow_network=self._startup_allow_network,
+                    startup_allow_sensitive_cloud_data=self._startup_allow_sensitive_cloud_data,
                 )
             except ReloadGateError as exc:
                 raise _HttpError(409, str(exc)) from exc
@@ -1893,36 +1943,118 @@ class LocalApplication:
                         }
 
                 def _rollback_state() -> None:
+                    # Identify invalidated runs: any run that was closed, aborted,
+                    # whose cleanup failed, or which was removed from active runs.
+                    invalidated_run_ids: set[str] = set()
+                    for r_id, r_state in old_runs_state.items():
+                        r = r_state["run"]
+                        current_status = getattr(r, "_status", getattr(r, "status", None))
+                        has_pending_cleanup = (
+                            hasattr(r, "_cleanup_pending") and bool(r._cleanup_pending)
+                        )
+                        if (
+                            r_id not in self._recipe_runs
+                            or current_status in {"closed", "aborted"}
+                            or has_pending_cleanup
+                        ):
+                            invalidated_run_ids.add(r_id)
+
+                    # Identify discarded plan IDs: any plan removed from _proposed_agent_plans
+                    # or associated with an invalidated run.
+                    discarded_plan_ids: set[str] = set()
+                    for plan_id, plan in old_proposed.items():
+                        run_id = (
+                            plan.approval_context.get("run_id")
+                            if plan.approval_context
+                            else None
+                        )
+                        if plan_id not in self._proposed_agent_plans or (
+                            run_id and run_id in invalidated_run_ids
+                        ):
+                            discarded_plan_ids.add(plan_id)
+
+                    for plan_id, plan in old_pending_agent.items():
+                        run_id = (
+                            plan.approval_context.get("run_id")
+                            if plan.approval_context
+                            else None
+                        )
+                        if run_id and run_id in invalidated_run_ids:
+                            discarded_plan_ids.add(getattr(plan, "plan_id", str(plan_id)))
+
                     self._agent_conversation_messages = {
                         pid: old_messages[pid] for pid in self._profile_ids
                     }
                     self._agent_conversation_turns = dict(old_turns)
-                    self._proposed_agent_plans = dict(old_proposed)
-                    self._recipe_plans = dict(old_recipe_plans)
-                    self._pending_agent_plans = dict(old_pending_agent)
-                    self._pending_recipe_plans = dict(old_pending_recipe)
+
+                    # Restore only plans that were NOT discarded or invalidated
+                    self._proposed_agent_plans = {
+                        k: v for k, v in old_proposed.items() if k not in discarded_plan_ids
+                    }
+                    self._recipe_plans = {
+                        k: v for k, v in old_recipe_plans.items() if k not in discarded_plan_ids
+                    }
+                    self._pending_agent_plans = {
+                        k: v
+                        for k, v in old_pending_agent.items()
+                        if getattr(v, "plan_id", None) not in discarded_plan_ids
+                    }
+                    self._pending_recipe_plans = {
+                        k: v
+                        for k, v in old_pending_recipe.items()
+                        if getattr(v, "plan_id", None) not in discarded_plan_ids
+                    }
                     self._started_recipe_plans = set(old_started)
-                    self._recipe_runs = dict(old_runs)
-                    for r_state in old_runs_state.values():
+
+                    # For recipe runs: invalidated runs must stay closed/aborted
+                    # with no pending plan
+                    self._recipe_runs = {}
+                    for r_id, r in old_runs.items():
+                        if r_id in invalidated_run_ids:
+                            r_state = old_runs_state[r_id]
+                            run_obj = r_state["run"]
+                            current_status = getattr(
+                                run_obj, "_status", getattr(run_obj, "status", None)
+                            )
+                            if current_status != "closed":
+                                self._recipe_runs[r_id] = r
+                        else:
+                            self._recipe_runs[r_id] = r
+
+                    for r_id, r_state in old_runs_state.items():
                         r = r_state["run"]
                         lock = getattr(r, "_lock", None)
                         ctx = lock if lock is not None else contextlib.nullcontext()
                         with ctx:
-                            if r_state["status"] is not None:
+                            if r_id in invalidated_run_ids:
+                                current_status = getattr(
+                                    r, "_status", getattr(r, "status", None)
+                                )
+                                target_status = (
+                                    "closed" if current_status == "closed" else "aborted"
+                                )
                                 if hasattr(r, "_status"):
-                                    r._status = r_state["status"]
+                                    r._status = target_status
                                 elif hasattr(r, "status"):
-                                    r.status = r_state["status"]
-                            if hasattr(r, "_pending"):
-                                r._pending = r_state["pending"]
-                            if hasattr(r, "_results"):
-                                r._results = r_state["results"]
-                            if hasattr(r, "_stage_ids"):
-                                r._stage_ids = r_state["stage_ids"]
-                            if hasattr(r, "_last_execution"):
-                                r._last_execution = r_state["last_execution"]
-                            if hasattr(r, "_cleanup_pending"):
-                                r._cleanup_pending = r_state["cleanup_pending"]
+                                    r.status = target_status
+                                if hasattr(r, "_pending"):
+                                    r._pending = None
+                            else:
+                                if r_state["status"] is not None:
+                                    if hasattr(r, "_status"):
+                                        r._status = r_state["status"]
+                                    elif hasattr(r, "status"):
+                                        r.status = r_state["status"]
+                                if hasattr(r, "_pending"):
+                                    r._pending = r_state["pending"]
+                                if hasattr(r, "_results"):
+                                    r._results = r_state["results"]
+                                if hasattr(r, "_stage_ids"):
+                                    r._stage_ids = r_state["stage_ids"]
+                                if hasattr(r, "_last_execution"):
+                                    r._last_execution = r_state["last_execution"]
+                                if hasattr(r, "_cleanup_pending"):
+                                    r._cleanup_pending = r_state["cleanup_pending"]
 
                 try:
                     for profile_id in sorted(self._profile_ids):

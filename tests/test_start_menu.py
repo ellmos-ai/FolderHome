@@ -998,7 +998,7 @@ def test_real_run_action_1_captures_access_url_from_json_and_opens_browser(tmp_p
             "schema": "folderhome.local-server-start.v1",
             "access_url": expected_url,
         })],
-        poll_sequence=[None, 0],
+        poll_sequence=[None, None, 0],
     )
 
     browser_spy = MagicMock(return_value=True)
@@ -1156,7 +1156,7 @@ def test_action_3_detects_nonzero_child_immediately_and_terminates_living_siblin
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, 2],
+        poll_sequence=[None, None, 2],
     )
 
     procs = [child1, child2]
@@ -1190,11 +1190,11 @@ def test_action_3_successful_children_run_together_until_clean_completion(
 
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, 0],
+        poll_sequence=[None, None, 0],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, 0],
+        poll_sequence=[None, None, 0],
     )
 
     procs = [child1, child2]
@@ -1298,11 +1298,11 @@ def test_action_3_console_redacts_tokens_while_browser_receives_them(tmp_path: P
 
     child1 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url1})],
-        poll_sequence=[None, 0],
+        poll_sequence=[None, None, 0],
     )
     child2 = FakeProcess(
         stdout_lines=[json.dumps({"access_url": url2})],
-        poll_sequence=[None, 0],
+        poll_sequence=[None, None, 0],
     )
 
     procs = [child1, child2]
@@ -1337,3 +1337,93 @@ def test_validate_access_url_does_not_leak_token_in_error_message() -> None:
     # Ensure error message does not reflect input query strings
     assert "http://" not in err
     assert "127.0.0.1" not in err
+
+
+def test_invalid_access_url_with_non_numeric_port_fails_gracefully_without_unhandled_value_error(
+    tmp_path: Path,
+) -> None:
+    from scripts.start_menu import redact_url_credentials
+
+    # Test redact_url_credentials directly with non-numeric port
+    bad_url = "http://127.0.0.1:invalid_port/?token=sensitive_token"
+    redacted = redact_url_credentials(bad_url)
+    assert "sensitive_token" not in redacted
+
+    # Test validate_access_url with non-numeric port
+    err = validate_access_url(bad_url)
+    assert err is not None
+    assert "sensitive_token" not in err
+
+    # Test controller run with bad access_url cleans up child and returns 1
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    fake_proc = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": bad_url})],
+        poll_sequence=[None, None],
+    )
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: fake_proc,
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+    code = controller.run_action("1")
+    assert code == 1
+    assert browser_spy.call_count == 0
+    assert fake_proc.terminated is True
+    assert not controller.processes
+    assert not any("sensitive_token" in msg for msg in logs)
+
+
+def test_redact_diagnostics_sanitizes_tokens_and_urls_in_child_stderr(tmp_path: Path) -> None:
+    from scripts.start_menu import redact_diagnostics
+
+    sample_diag = (
+        "Fatal error connecting to http://127.0.0.1:8765/?token=secret_12345 "
+        "with token in payload: {\"token\": \"secret_67890\"} and url http://secret:pass@127.0.0.1:8080/path"
+    )
+    cleaned = redact_diagnostics(sample_diag)
+    assert "secret_12345" not in cleaned
+    assert "secret_67890" not in cleaned
+    assert "secret:pass@" not in cleaned
+    assert "[REDACTED]" in cleaned
+
+
+def test_action_3_pre_browser_check_aborts_when_child_dies_before_browser_launch(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "START-APP.cmd").write_text("@echo off\n", encoding="ascii")
+    (tmp_path / "START-SETUP.cmd").write_text("@echo off\n", encoding="ascii")
+
+    url1 = "http://127.0.0.1:8765/?token=app-tok"
+    url2 = "http://127.0.0.1:8766/?token=setup-tok"
+
+    # Child 1: URL produced, stays alive
+    child1 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url1})],
+        poll_sequence=[None, None, None],
+    )
+    # Child 2: URL produced on poll 1, but dies on joint pre-browser check (poll 2) with code 42
+    child2 = FakeProcess(
+        stdout_lines=[json.dumps({"access_url": url2})],
+        poll_sequence=[None, 42],
+    )
+
+    procs = [child1, child2]
+    browser_spy = MagicMock(return_value=True)
+    logs: list[str] = []
+    controller = StartMenuController(
+        tmp_path,
+        subprocess_runner=lambda *args, **kwargs: procs.pop(0),
+        browser_opener=browser_spy,
+        print_func=logs.append,
+    )
+
+    code = controller.run_action("3")
+    assert code == 42
+    # Zero browsers opened!
+    assert browser_spy.call_count == 0
+    # Sibling child 1 terminated!
+    assert child1.terminated is True
+    assert not controller.processes
