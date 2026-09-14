@@ -16,7 +16,7 @@ from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Protocol
-from urllib.parse import parse_qs, quote, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit, urlunsplit
 
 from folderhome.application.document_search import build_theme_dossier, search_documents
 from folderhome.application.master_agent import MasterAgentError, confirm_master_agent_plan
@@ -103,6 +103,19 @@ class LocalDocumentSearcher(Protocol):
 
 class LocalAppError(RuntimeError):
     """Raised when the local app boundary cannot be established safely."""
+
+
+def _redact_url_credentials(value: str | None) -> str | None:
+    """Redact userinfo, query, and fragment from a model URL for public exposure."""
+    if not isinstance(value, str) or not value.strip():
+        return value
+    parsed = urlsplit(value)
+    if not parsed.scheme or not parsed.hostname:
+        return value
+    host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+    port_str = f":{parsed.port}" if parsed.port is not None else ""
+    netloc = f"{host}{port_str}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
 
 
 _CAPABILITY_WORKFLOWS: dict[str, tuple[str, ...]] = {
@@ -434,16 +447,36 @@ class LocalApplication:
 
     def _close_recipe_run(self, run_id):
         run = self._recipe_runs[run_id]
-        # Keep a failed cleanup reachable for an explicit retry; never resurrect a plan.
-        for key, plan in tuple(self._proposed_agent_plans.items()):
-            if plan.approval_context.get("run_id") == run_id:
-                self._proposed_agent_plans.pop(key)
-                self._recipe_plans.pop(key, None)
-        for key, plan in tuple(self._pending_agent_plans.items()):
-            if plan.approval_context.get("run_id") == run_id:
-                self._pending_agent_plans.pop(key)
-                self._pending_recipe_plans.pop(key, None)
-        run.close()
+        saved_proposed = {
+            key: plan for key, plan in self._proposed_agent_plans.items()
+            if plan.approval_context.get("run_id") == run_id
+        }
+        saved_recipe_plans = {
+            key: plan for key, plan in self._recipe_plans.items()
+            if key in saved_proposed
+        }
+        saved_pending = {
+            key: plan for key, plan in self._pending_agent_plans.items()
+            if plan.approval_context.get("run_id") == run_id
+        }
+        saved_pending_recipe = {
+            key: plan for key, plan in self._pending_recipe_plans.items()
+            if key in saved_pending
+        }
+        for key in saved_proposed:
+            self._proposed_agent_plans.pop(key, None)
+            self._recipe_plans.pop(key, None)
+        for key in saved_pending:
+            self._pending_agent_plans.pop(key, None)
+            self._pending_recipe_plans.pop(key, None)
+        try:
+            run.close()
+        except Exception:
+            self._proposed_agent_plans.update(saved_proposed)
+            self._recipe_plans.update(saved_recipe_plans)
+            self._pending_agent_plans.update(saved_pending)
+            self._pending_recipe_plans.update(saved_pending_recipe)
+            raise
         state = run.snapshot()
         self._recipe_runs.pop(run_id)
         return state
@@ -1476,12 +1509,21 @@ class LocalApplication:
         return None
 
     def _status_payload(self, server_port: int) -> dict[str, object]:
-        connection = self._model_connection_payload()
+        with self._model_status_lock:
+            current_settings = self.agent_settings
+            successful_turns = self._successful_live_model_turns
+            running_preset = self._running_preset
+            connection = self._build_model_connection_payload(
+                current_settings, successful_turns
+            )
+            status_fields = model_status_fields(
+                current_settings, successful_turns
+            )
         saved_preset = self._read_saved_preset()
         settings_stale = bool(
             self._launch_config_path is not None
             and saved_preset is not None
-            and saved_preset != self._running_preset
+            and saved_preset != running_preset
         )
         setup_file = self.settings.state_dir / "setup-server.json"
         setup_url = None
@@ -1508,15 +1550,13 @@ class LocalApplication:
             "approval_bound_execution": True,
             "conversation_memory": "process_only",
             "model_connection": connection,
-            **model_status_fields(
-                self.agent_settings, connection["successful_live_model_turns"],
-            ),
+            **status_fields,
             "launch_config_path": (
                 self._launch_config_path.name
                 if self._launch_config_path is not None
                 else None
             ),
-            "running_preset": self._running_preset,
+            "running_preset": running_preset,
             "saved_preset": saved_preset,
             "settings_stale": settings_stale,
             "setup_url": setup_url,
@@ -1527,10 +1567,16 @@ class LocalApplication:
 
     def _model_connection_payload(self) -> dict[str, object]:
         with self._model_status_lock:
-            successful_turns = self._successful_live_model_turns
-        is_live_provider = self.agent_settings.is_live_model
-        provider = self.agent_settings.model_provider
-        is_local_model = provider == "ollama" and not self.agent_settings.network_used
+            return self._build_model_connection_payload(
+                self.agent_settings, self._successful_live_model_turns
+            )
+
+    def _build_model_connection_payload(
+        self, agent_settings: StrandsAgentSettings, successful_turns: int
+    ) -> dict[str, object]:
+        is_live_provider = agent_settings.is_live_model
+        provider = agent_settings.model_provider
+        is_local_model = provider == "ollama" and not agent_settings.network_used
         inference_location = {
             "bedrock": "aws_cloud",
             "anthropic": "anthropic_api",
@@ -1538,13 +1584,13 @@ class LocalApplication:
             "openai": "openai_compatible_api",
             "ollama": (
                 "remote_ollama_host"
-                if self.agent_settings.network_used
+                if agent_settings.network_used
                 else "local_ollama_host"
             ),
         }.get(provider, "local_fixture")
         return {
             "schema": "folderhome.model-connection-status.v1",
-            "provider": self.agent_settings.model_provider,
+            "provider": agent_settings.model_provider,
             "mode": (
                 "local_model" if is_local_model
                 else "network_model" if is_live_provider else "deterministic_fixture"
@@ -1570,16 +1616,16 @@ class LocalApplication:
                 "live_model" if is_live_provider else "deterministic_fixture"
             ),
             "model_id": (
-                self.agent_settings.bedrock_model_id
-                or self.agent_settings.ollama_model_id
-                or self.agent_settings.anthropic_model_id
-                or self.agent_settings.openai_model_id
+                agent_settings.bedrock_model_id
+                or agent_settings.ollama_model_id
+                or agent_settings.anthropic_model_id
+                or agent_settings.openai_model_id
             ),
-            "aws_region": self.agent_settings.aws_region,
-            "ollama_host": self.agent_settings.ollama_host,
-            "network_authorized": self.agent_settings.allow_network,
+            "aws_region": agent_settings.aws_region,
+            "ollama_host": _redact_url_credentials(agent_settings.ollama_host),
+            "network_authorized": agent_settings.allow_network,
             "sensitive_cloud_data_authorized": (
-                self.agent_settings.allow_sensitive_cloud_data
+                agent_settings.allow_sensitive_cloud_data
             ),
             "status_probe_performed": False,
         }
@@ -1624,10 +1670,12 @@ class LocalApplication:
             if capability_id in interactive:
                 surface_status = "interactive_read_only"
             else:
-                statuses = [catalog.get(wid) for wid in wf_ids if wid in catalog]
-                if any(s == "connected" for s in statuses):
+                statuses = [catalog.get(wid, "not_connected") for wid in wf_ids]
+                if not statuses:
+                    surface_status = "not_connected"
+                elif all(s == "connected" for s in statuses):
                     surface_status = "agent_guided"
-                elif any(s == "planning_only" for s in statuses):
+                elif all(s in {"connected", "planning_only"} for s in statuses):
                     surface_status = "planning_only"
                 else:
                     surface_status = "not_connected"
@@ -1776,6 +1824,21 @@ class LocalApplication:
                     f"Startkonfiguration konnte nicht geladen werden: {exc}",
                 ) from exc
 
+            # Validate staging_env before mutating anything
+            for name, value in staging_env.items():
+                if (
+                    not isinstance(name, str)
+                    or not isinstance(value, str)
+                    or not name
+                    or "=" in name
+                    or "\0" in name
+                    or "\0" in value
+                ):
+                    raise _HttpError(
+                        500,
+                        "Ungültige Umgebungsvariablen in der Startkonfiguration.",
+                    )
+
             with contextlib.ExitStack() as stack:
                 for profile_id in sorted(self._profile_ids):
                     stack.enter_context(self._agent_conversation_locks[profile_id])
@@ -1783,8 +1846,14 @@ class LocalApplication:
                 stack.enter_context(self._model_status_lock)
                 stack.enter_context(self._execution_results_lock)
 
+                # Inspect actual RecipeRun API: snapshot status
                 for run in self._recipe_runs.values():
-                    if getattr(run, "status", None) in {"running", "preparing"}:
+                    run_status = (
+                        run.snapshot()["status"]
+                        if hasattr(run, "snapshot")
+                        else getattr(run, "status", None)
+                    )
+                    if run_status in {"running", "preparing"}:
                         raise _HttpError(
                             409,
                             "Laufende Rezeptabschnitte verhindern das Neuladen.",
@@ -1800,19 +1869,63 @@ class LocalApplication:
                 old_pending_recipe = dict(self._pending_recipe_plans)
                 old_started = set(self._started_recipe_plans)
                 old_runs = dict(self._recipe_runs)
+                old_runs_state = {}
+                for r_id, r in self._recipe_runs.items():
+                    lock = getattr(r, "_lock", None)
+                    if lock is not None:
+                        with lock:
+                            old_runs_state[r_id] = {
+                                "run": r,
+                                "status": getattr(r, "_status", None),
+                                "pending": getattr(r, "_pending", None),
+                                "results": dict(getattr(r, "_results", {})),
+                                "stage_ids": list(getattr(r, "_stage_ids", [])),
+                                "last_execution": deepcopy(getattr(r, "_last_execution", None)),
+                                "cleanup_pending": getattr(r, "_cleanup_pending", ()),
+                            }
+                    else:
+                        old_runs_state[r_id] = {
+                            "run": r,
+                            "status": getattr(r, "status", None),
+                        }
+
+                def _rollback_state() -> None:
+                    self._agent_conversation_messages = {
+                        pid: old_messages[pid] for pid in self._profile_ids
+                    }
+                    self._agent_conversation_turns = dict(old_turns)
+                    self._proposed_agent_plans = dict(old_proposed)
+                    self._recipe_plans = dict(old_recipe_plans)
+                    self._pending_agent_plans = dict(old_pending_agent)
+                    self._pending_recipe_plans = dict(old_pending_recipe)
+                    self._started_recipe_plans = set(old_started)
+                    self._recipe_runs = dict(old_runs)
+                    for r_state in old_runs_state.values():
+                        r = r_state["run"]
+                        lock = getattr(r, "_lock", None)
+                        ctx = lock if lock is not None else contextlib.nullcontext()
+                        with ctx:
+                            if r_state["status"] is not None:
+                                if hasattr(r, "_status"):
+                                    r._status = r_state["status"]
+                                elif hasattr(r, "status"):
+                                    r.status = r_state["status"]
+                            if hasattr(r, "_pending"):
+                                r._pending = r_state["pending"]
+                            if hasattr(r, "_results"):
+                                r._results = r_state["results"]
+                            if hasattr(r, "_stage_ids"):
+                                r._stage_ids = r_state["stage_ids"]
+                            if hasattr(r, "_last_execution"):
+                                r._last_execution = r_state["last_execution"]
+                            if hasattr(r, "_cleanup_pending"):
+                                r._cleanup_pending = r_state["cleanup_pending"]
 
                 try:
                     for profile_id in sorted(self._profile_ids):
                         self.reset_agent_conversation(profile_id)
                 except Exception as exc:
-                    self._agent_conversation_messages.update(old_messages)
-                    self._agent_conversation_turns.update(old_turns)
-                    self._proposed_agent_plans = old_proposed
-                    self._recipe_plans = old_recipe_plans
-                    self._pending_agent_plans = old_pending_agent
-                    self._pending_recipe_plans = old_pending_recipe
-                    self._started_recipe_plans = old_started
-                    self._recipe_runs = old_runs
+                    _rollback_state()
                     if isinstance(exc, _HttpError):
                         raise
                     raise _HttpError(
@@ -1820,18 +1933,36 @@ class LocalApplication:
                         "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen.",
                     ) from exc
 
+                env_revert: list[str] = []
+                try:
+                    for name, value in staging_env.items():
+                        if name not in os.environ:
+                            env_revert.append(name)
+                            os.environ[name] = value
+                except Exception as exc:
+                    for name in env_revert:
+                        os.environ.pop(name, None)
+                    _rollback_state()
+                    raise _HttpError(
+                        500,
+                        f"Umgebungsvariablen konnten nicht gesetzt werden: {exc}",
+                    ) from exc
+
                 self.agent_settings = new_settings
                 self._running_preset = new_preset or "no preset / flags"
                 self._successful_live_model_turns = 0
-                for name, value in staging_env.items():
-                    os.environ.setdefault(name, value)
 
+            expected_model_state = (
+                "fixture_only"
+                if self.agent_settings.model_provider == "fixture"
+                else "configured_unverified"
+            )
             return self._json_response(
                 {
                     "schema": "folderhome.local-settings-reload-response.v1",
                     "status": "reloaded",
                     "model_provider": self.agent_settings.model_provider,
-                    "model_state": "configured_unverified",
+                    "model_state": expected_model_state,
                     "running_preset": self._running_preset,
                 }
             )

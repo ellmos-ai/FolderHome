@@ -12,30 +12,39 @@ Covers:
 
 from __future__ import annotations
 
+import importlib.util
 import json
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from start_menu import (
-    DEFAULT_APP_PORT,
-    DEFAULT_OLLAMA_TIMEOUT,
-    DEFAULT_SETUP_PORT,
-    MENU_CONFIG_FILENAME,
-    MENU_CONFIG_SCHEMA,
-    StartMenuController,
-    build_parser,
-    get_text,
-    inspect_launch_config,
-    is_loopback_host,
-    load_menu_config,
-    main,
-    normalize_action,
-    save_menu_language,
-)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPTS_DIR = REPO_ROOT / "scripts"
+START_MENU_PATH = SCRIPTS_DIR / "start_menu.py"
+
+_spec = importlib.util.spec_from_file_location("start_menu", START_MENU_PATH)
+if _spec is None or _spec.loader is None:
+    raise ImportError(f"Cannot load spec from {START_MENU_PATH}")
+start_menu = importlib.util.module_from_spec(_spec)
+sys.modules["start_menu"] = start_menu
+_spec.loader.exec_module(start_menu)
+
+DEFAULT_APP_PORT = start_menu.DEFAULT_APP_PORT
+DEFAULT_OLLAMA_TIMEOUT = start_menu.DEFAULT_OLLAMA_TIMEOUT
+DEFAULT_SETUP_PORT = start_menu.DEFAULT_SETUP_PORT
+MENU_CONFIG_FILENAME = start_menu.MENU_CONFIG_FILENAME
+MENU_CONFIG_SCHEMA = start_menu.MENU_CONFIG_SCHEMA
+StartMenuController = start_menu.StartMenuController
+build_parser = start_menu.build_parser
+get_text = start_menu.get_text
+inspect_launch_config = start_menu.inspect_launch_config
+is_loopback_host = start_menu.is_loopback_host
+load_menu_config = start_menu.load_menu_config
+main = start_menu.main
+normalize_action = start_menu.normalize_action
+save_menu_language = start_menu.save_menu_language
 
 
 
@@ -812,3 +821,25 @@ def test_remote_lookalikes_and_all_interfaces_require_both_explicit_gates(tmp_pa
         assert "--allow-network" in cmd_granted
         assert "--approve-sensitive-cloud-data" in cmd_granted
         assert any("Network and cloud data gates approved" in m for m in logs_granted)
+
+
+def test_confirm_and_deny_gates_are_mutually_exclusive() -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit):
+        parser.parse_args(["--confirm-gates", "--deny-gates"])
+
+
+def test_confirm_gates_and_deny_gates_parse_individually() -> None:
+    parser = build_parser()
+    args_confirm = parser.parse_args(["--confirm-gates"])
+    assert args_confirm.confirm_gates is True
+    assert args_confirm.deny_gates is None
+
+    args_deny = parser.parse_args(["--deny-gates"])
+    assert args_deny.deny_gates is True
+    assert args_deny.confirm_gates is None
+
+
+def test_main_with_mutually_exclusive_gates_raises_exit(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        main(["--config-dir", str(tmp_path), "--confirm-gates", "--deny-gates"])

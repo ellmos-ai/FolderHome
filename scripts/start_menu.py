@@ -518,13 +518,14 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("en", "de"),
         help="Preset language for the menu (en or de)",
     )
-    parser.add_argument(
+    gates_group = parser.add_mutually_exclusive_group()
+    gates_group.add_argument(
         "--confirm-gates",
         action="store_true",
         default=None,
         help="Explicitly approve network and cloud gates for remote/cloud presets",
     )
-    parser.add_argument(
+    gates_group.add_argument(
         "--deny-gates",
         action="store_true",
         default=None,

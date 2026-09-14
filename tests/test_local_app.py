@@ -10,6 +10,7 @@ import urllib.request
 from hashlib import sha256
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
 
@@ -2264,7 +2265,12 @@ def test_reload_settings_concurrency_parallel_requests(tmp_path: Path) -> None:
 
 
 def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None:
-    from types import SimpleNamespace
+    class MockRecipeRunActive:
+        def __init__(self, status: str):
+            self._status = status
+
+        def snapshot(self) -> dict[str, object]:
+            return {"status": self._status, "run_id": "run_1", "profile_id": "personal"}
 
     launch_file = tmp_path / "launch.json"
     launch_file.write_text(
@@ -2282,7 +2288,82 @@ def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None
         encoding="utf-8",
     )
     app = _app(tmp_path, launch_config_path=launch_file)
-    app._recipe_runs["run_1"] = SimpleNamespace(status="running")
+    for active_st in ("running", "preparing"):
+        app._recipe_runs["run_1"] = MockRecipeRunActive(active_st)
+        res = app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+        assert res.status_code == 409
+        assert "Laufende Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
+
+
+def test_reload_settings_non_active_cleanup_failure_restores_mutated_run_state(
+    tmp_path: Path,
+) -> None:
+    from folderhome.contracts.recipes import CapabilityRecipeError
+
+    class MockNonActiveRun:
+        def __init__(self, run_id: str, status: str = "awaiting_approval"):
+            self._run_id = run_id
+            self._status = status
+            self._pending = "fake_plan"
+            self._lock = threading.RLock()
+            self._results: dict[str, object] = {}
+            self._stage_ids: list[str] = []
+            self._last_execution: dict[str, object] | None = None
+            self._cleanup_pending: tuple[str, ...] = ("env_1",)
+
+        def snapshot(self) -> dict[str, object]:
+            with self._lock:
+                return {
+                    "run_id": self._run_id,
+                    "status": self._status,
+                    "profile_id": "lukas",
+                    "pending_plan_id": "plan_1" if self._pending else None,
+                }
+
+        def close(self) -> None:
+            with self._lock:
+                old_status = self._status
+                old_pending = self._pending
+                old_cleanup = self._cleanup_pending
+                self._status = "closed"
+                self._pending = None
+                try:
+                    raise CapabilityRecipeError("Discard failed during cleanup")
+                except Exception:
+                    self._status = old_status
+                    self._pending = old_pending
+                    self._cleanup_pending = old_cleanup
+                    raise
+
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    run = MockNonActiveRun("run_fail")
+    app._recipe_runs["run_fail"] = run
+    app._agent_conversation_turns["lukas"] = 3
+    orig_settings = app.agent_settings
+    orig_preset = app._running_preset
 
     res = app.handle(
         method="POST",
@@ -2293,5 +2374,283 @@ def test_reload_settings_active_recipe_run_blocks_reload(tmp_path: Path) -> None
         ).encode("utf-8"),
         server_port=8765,
     )
-    assert res.status_code == 409
-    assert "Laufende Rezeptabschnitte verhindern das Neuladen" in res.payload["message"]
+    assert res.status_code == 500
+    assert "Gesprächs- und Rezeptbereinigung beim Neuladen fehlgeschlagen" in res.payload["message"]
+
+    # Verify run state was restored, NOT left in 'closed' or popped
+    assert "run_fail" in app._recipe_runs
+    assert run._status == "awaiting_approval"
+    assert run._pending == "fake_plan"
+    assert run.snapshot()["status"] == "awaiting_approval"
+    assert app._agent_conversation_turns["lukas"] == 3
+    assert app.agent_settings == orig_settings
+    assert app._running_preset == orig_preset
+
+
+def test_reload_settings_fixture_reports_fixture_only(tmp_path: Path) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    res = app.handle(
+        method="POST",
+        target="/api/v1/settings/reload",
+        headers=_api_headers(8765, app.session_token),
+        body=json.dumps(
+            {"schema": "folderhome.local-settings-reload-request.v1"}
+        ).encode("utf-8"),
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    assert res.payload["status"] == "reloaded"
+    assert res.payload["model_provider"] == "fixture"
+    assert res.payload["model_state"] == "fixture_only"
+
+
+def test_status_and_model_connection_redacts_ollama_credentials_query_fragment(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://admin:secret_password@127.0.0.1:11434/api?token=private#section1",
+        ollama_model_id="qwen3:4b",
+    )
+    res = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    conn = res.payload["model_connection"]
+    assert conn["ollama_host"] == "http://127.0.0.1:11434/api"
+    serialized = json.dumps(res.payload)
+    assert "secret_password" not in serialized
+    assert "private" not in serialized
+    assert "section1" not in serialized
+    assert conn["runtime_topology"] == "local_only_model"
+    assert res.payload["runtime_topology"] == "loopback_local"
+
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://user:pass123@remote.server.internal:11434/?admin=true",
+        ollama_model_id="qwen3:4b",
+        allow_network=True,
+        allow_sensitive_cloud_data=True,
+    )
+    res2 = app.handle(
+        method="GET",
+        target="/api/v1/status",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res2.status_code == 200
+    conn2 = res2.payload["model_connection"]
+    assert conn2["ollama_host"] == "http://remote.server.internal:11434/"
+    serialized2 = json.dumps(res2.payload)
+    assert "pass123" not in serialized2
+    assert "admin=true" not in serialized2
+    assert conn2["runtime_topology"] == "local_first_hybrid"
+    assert res2.payload["runtime_topology"] == "remote_host"
+
+
+def test_capabilities_conservative_aggregation(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+
+    # Case A: documents.create has ("artifact-studio", "document-bundle", "document-package")
+    # Only artifact-studio is connected and siblings are disconnected
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="not_connected"),
+            SimpleNamespace(workflow_id="document-package", status="not_connected"),
+        ]
+    )
+    res = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    assert res.status_code == 200
+    caps = {c["capability_id"]: c for c in res.payload["capabilities"]}
+    assert caps["documents.create"]["surface_status"] == "not_connected"
+    assert caps["documents.search"]["surface_status"] == "interactive_read_only"
+
+    # Case B: All workflows connected -> agent_guided
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="connected"),
+            SimpleNamespace(workflow_id="document-package", status="connected"),
+        ]
+    )
+    res2 = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    caps2 = {c["capability_id"]: c for c in res2.payload["capabilities"]}
+    assert caps2["documents.create"]["surface_status"] == "agent_guided"
+
+    # Case C: All workflows connected or planning_only -> planning_only
+    app.workflow_executor = SimpleNamespace(
+        catalog=lambda: [
+            SimpleNamespace(workflow_id="artifact-studio", status="connected"),
+            SimpleNamespace(workflow_id="document-bundle", status="planning_only"),
+            SimpleNamespace(workflow_id="document-package", status="connected"),
+        ]
+    )
+    res3 = app.handle(
+        method="GET",
+        target="/api/v1/capabilities",
+        headers=_api_headers(8765, app.session_token),
+        body=b"",
+        server_port=8765,
+    )
+    caps3 = {c["capability_id"]: c for c in res3.payload["capabilities"]}
+    assert caps3["documents.create"]["surface_status"] == "planning_only"
+
+
+def test_reload_settings_invalid_staged_env_rejects_without_mutating_state(
+    tmp_path: Path,
+) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._agent_conversation_turns["lukas"] = 5
+    orig_settings = app.agent_settings
+    orig_env = dict(os.environ)
+
+    with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
+        def side_effect(path, current, target_environ=None):
+            if target_environ is not None:
+                target_environ["BAD\0KEY"] = "invalid"
+            return current, "fixture"
+
+        mock_build.side_effect = side_effect
+
+        res = app.handle(
+            method="POST",
+            target="/api/v1/settings/reload",
+            headers=_api_headers(8765, app.session_token),
+            body=json.dumps(
+                {"schema": "folderhome.local-settings-reload-request.v1"}
+            ).encode("utf-8"),
+            server_port=8765,
+        )
+        assert res.status_code == 500
+        assert "Ungültige Umgebungsvariablen" in res.payload["message"]
+        assert app._agent_conversation_turns["lukas"] == 5
+        assert app.agent_settings == orig_settings
+        assert os.environ == orig_env
+
+
+def test_status_lock_atomicity_prevents_pairing_new_provider_with_old_turns(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path)
+    app.agent_settings = StrandsAgentSettings(
+        model_provider="ollama",
+        ollama_host="http://127.0.0.1:11434",
+        ollama_model_id="qwen3:4b",
+    )
+    app._successful_live_model_turns = 10
+
+    with app._model_status_lock:
+        app._successful_live_model_turns = 0
+        app.agent_settings = StrandsAgentSettings(model_provider="fixture")
+        status = app._status_payload(8765)
+        assert status["model_provider"] == "fixture"
+        assert status["successful_live_model_turns"] == 0
+        assert status["model_state"] == "fixture_only"
+
+
+def test_reload_settings_staged_env_mutation_failure_rolls_back_everything(
+    tmp_path: Path,
+) -> None:
+    launch_file = tmp_path / "launch.json"
+    launch_file.write_text(
+        json.dumps(
+            {
+                "schema": "folderhome.launch-config.v1",
+                "model_preset": "fixture",
+                "model_presets": {
+                    "fixture": {
+                        "model_provider": "fixture",
+                    },
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    app = _app(tmp_path, launch_config_path=launch_file)
+    app._agent_conversation_turns["lukas"] = 7
+    orig_settings = app.agent_settings
+    orig_env = dict(os.environ)
+
+    with patch("folderhome.cli.build_reloaded_agent_settings") as mock_build:
+        def side_effect(path, current, target_environ=None):
+            if target_environ is not None:
+                target_environ["TEST_STAGE_VAR_1"] = "val1"
+                target_environ["TEST_STAGE_VAR_2"] = "val2"
+            return current, "fixture"
+
+        mock_build.side_effect = side_effect
+
+        orig_setitem = os.environ.__class__.__setitem__
+
+        def failing_setitem(self, key, value):
+            if key == "TEST_STAGE_VAR_2":
+                raise OSError("Simulated environment set failure")
+            orig_setitem(self, key, value)
+
+        with patch.object(os.environ.__class__, "__setitem__", failing_setitem):
+            res = app.handle(
+                method="POST",
+                target="/api/v1/settings/reload",
+                headers=_api_headers(8765, app.session_token),
+                body=json.dumps(
+                    {"schema": "folderhome.local-settings-reload-request.v1"}
+                ).encode("utf-8"),
+                server_port=8765,
+            )
+
+        assert res.status_code == 500
+        assert "Umgebungsvariablen konnten nicht gesetzt werden" in res.payload["message"]
+        assert app._agent_conversation_turns["lukas"] == 7
+        assert app.agent_settings == orig_settings
+        assert "TEST_STAGE_VAR_1" not in os.environ
+        assert "TEST_STAGE_VAR_2" not in os.environ
+        assert os.environ == orig_env

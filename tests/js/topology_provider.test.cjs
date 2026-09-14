@@ -350,3 +350,32 @@ test("Disconnected and blocked error states are truthfully displayed", () => {
     assert.match(modelStatusDetail.textContent, lang === "en" ? /blocked/ : /blockiert/);
   }
 });
+
+test("Ollama host display retains truthful host/topology without leaking credentials or query fragments", () => {
+  for (const lang of ["en", "de"]) {
+    const { context, topologyBadge, modelStatusDetail } = setupContext({
+      language: lang,
+      connectionStatus: "ready",
+      appStatus: {
+        model_provider: "ollama",
+        model_state: "configured_unverified",
+        runtime_topology: "remote_host",
+        successful_live_model_turns: 0,
+      },
+      modelConnection: {
+        provider: "ollama",
+        model_id: "qwen3:4b",
+        ollama_host: "http://remote.host.internal:11434",
+        runtime_topology: "remote_host",
+      },
+    });
+
+    context.renderTopologyBadge();
+    context.renderModelStatus();
+
+    assert.equal(topologyBadge.textContent, "REMOTE");
+    assert.match(modelStatusDetail.textContent, /http:\/\/remote\.host\.internal:11434/);
+    assert.doesNotMatch(modelStatusDetail.textContent, /secret/);
+    assert.doesNotMatch(modelStatusDetail.textContent, /token/);
+  }
+});
