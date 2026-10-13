@@ -19,23 +19,39 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.13"]
     env:
-      HOME: ${{ runner.temp }}/fh
-      USERPROFILE: ${{ runner.temp }}/fh
-      TEMP: ${{ runner.temp }}/fh/t
-      TMP: ${{ runner.temp }}/fh/t
-      TMPDIR: ${{ runner.temp }}/fh/t
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - name: Create short isolated test roots (Windows)
+      - name: Configure short isolated test roots (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path $env:HOME, $env:TEMP, (Join-Path $env:HOME "b") | Out-Null
-      - name: Create short isolated test roots (Unix)
+          $taskHome = Join-Path $env:RUNNER_TEMP "fh"
+          $taskTemp = Join-Path $taskHome "t"
+          $taskBase = Join-Path $taskHome "b"
+          New-Item -ItemType Directory -Force -Path $taskHome, $taskTemp, $taskBase | Out-Null
+          @(
+            "HOME=$taskHome"
+            "USERPROFILE=$taskHome"
+            "TEMP=$taskTemp"
+            "TMP=$taskTemp"
+            "TMPDIR=$taskTemp"
+          ) | Add-Content -LiteralPath $env:GITHUB_ENV -Encoding utf8
+      - name: Configure short isolated test roots (Unix)
         if: runner.os != 'Windows'
         shell: bash
-        run: mkdir -p "$HOME" "$TMP" "$HOME/b"
+        run: |
+          task_home="${RUNNER_TEMP}/fh"
+          task_temp="${task_home}/t"
+          task_base="${task_home}/b"
+          mkdir -p "$task_home" "$task_temp" "$task_base"
+          {
+            printf 'HOME=%s\n' "$task_home"
+            printf 'USERPROFILE=%s\n' "$task_home"
+            printf 'TEMP=%s\n' "$task_temp"
+            printf 'TMP=%s\n' "$task_temp"
+            printf 'TMPDIR=%s\n' "$task_temp"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -157,16 +173,23 @@ jobs:
     name: Public source integrations / Ubuntu / Python 3.13
     runs-on: ubuntu-latest
     env:
-      HOME: ${{ runner.temp }}/fh
-      USERPROFILE: ${{ runner.temp }}/fh
-      TEMP: ${{ runner.temp }}/fh/t
-      TMP: ${{ runner.temp }}/fh/t
-      TMPDIR: ${{ runner.temp }}/fh/t
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
-      - name: Create short isolated test roots
-        run: mkdir -p "$HOME" "$TMP" "$HOME/b"
+      - name: Configure short isolated test roots
+        shell: bash
+        run: |
+          task_home="${RUNNER_TEMP}/fh"
+          task_temp="${task_home}/t"
+          task_base="${task_home}/b"
+          mkdir -p "$task_home" "$task_temp" "$task_base"
+          {
+            printf 'HOME=%s\n' "$task_home"
+            printf 'USERPROFILE=%s\n' "$task_home"
+            printf 'TEMP=%s\n' "$task_temp"
+            printf 'TMP=%s\n' "$task_temp"
+            printf 'TMPDIR=%s\n' "$task_temp"
+          } >> "$GITHUB_ENV"
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
