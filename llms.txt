@@ -165,4 +165,11 @@ or log. The installer stores it in a `.env` file beside `launch.json`.
 - [SECURITY](https://github.com/ellmos-ai/FolderHome/blob/main/SECURITY.md): the boundary this build claims, and the one it does not
 - [ARCHITECTURE](https://github.com/ellmos-ai/FolderHome/blob/main/ARCHITECTURE.md): how the master agent, typed adapters and gates fit together
 - [Feature analysis](https://github.com/ellmos-ai/FolderHome/blob/main/Feature_Analyse_FolderHome.md): what is built and what is deliberately absent
+- [Provider checkouts (English)](https://github.com/ellmos-ai/FolderHome/blob/main/docs/provider-checkouts.md): public manifest sources, feature-specific revision descriptors, and checkout limits
+- [Provider-Checkouts (Deutsch)](https://github.com/ellmos-ai/FolderHome/blob/main/docs/provider-checkouts.de.md): öffentliche Manifestquellen und getrennte Funktionsrevisionen
 - [docs/](https://github.com/ellmos-ai/FolderHome/tree/main/docs): per-capability reuse and plan notes
+
+## Related tools
+
+- [DokuReader](https://github.com/doc-bricks/DokuReader): independent local document library; no FolderHome integration is implied
+- [UniversalDocsGrabber](https://github.com/doc-bricks/UniversalDocsGrabber): separate IMAP/Gmail collector; FolderHome has an optional revision-checked mail-ingest provider path, with no live mailbox verification implied
