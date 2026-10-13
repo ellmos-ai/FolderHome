@@ -174,6 +174,11 @@ Competition materials and historical submission boundaries are preserved in the 
 
 [Archived submission notes](./docs/archive/README-through-2026-10-13.md#submission-limit).
 
+## Related tools
+
+- [DokuReader](https://github.com/doc-bricks/DokuReader) is an independent local document library for topic organization, previews, reading status, PDF bundles, and metadata-only JSON export.
+- [UniversalDocsGrabber](https://github.com/doc-bricks/UniversalDocsGrabber) is a separate IMAP/Gmail document collector. FolderHome has an optional mail-ingest provider path that checks the configured checkout against a declared source revision; this does not claim live mailbox verification. See the [mail connector plan](./docs/phase26-mail-connector-plan.md) and [provider checkout notes](./docs/provider-checkouts.md).
+
 ## License
 
 FolderHome is distributed under the MIT License. See [`LICENSE`](./LICENSE) and the component-specific inventory in [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md).

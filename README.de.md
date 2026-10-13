@@ -174,6 +174,11 @@ Wettbewerbsmaterialien und historische Einreichungsgrenzen stehen im Archiv. Sie
 
 [Archivierte Einreichungsnotizen](./docs/archive/README.de-through-2026-10-13.md#submission-grenze).
 
+## Verwandte Werkzeuge
+
+- [DokuReader](https://github.com/doc-bricks/DokuReader) ist eine eigenständige lokale Dokumentenbibliothek mit Themenordnung, Vorschau, Lesestatus, PDF-Bündeln und JSON-Export nur von Metadaten.
+- [UniversalDocsGrabber](https://github.com/doc-bricks/UniversalDocsGrabber) ist ein separater IMAP-/Gmail-Dokumentensammler. FolderHome enthält einen optionalen Mail-Ingest-Providerpfad, der den konfigurierten Checkout gegen eine deklarierte Quellrevision prüft; damit ist kein Live-Zugriff auf ein Postfach belegt. Siehe den [Mail-Connector-Plan](./docs/phase26-mail-connector-plan.de.md) und den [Leitfaden zu Provider-Checkouts](./docs/provider-checkouts.de.md).
+
 ## Lizenz
 
 FolderHome steht unter der MIT-Lizenz. Siehe [`LICENSE`](./LICENSE) und das komponentenbezogene Inventar in [`THIRD_PARTY_LICENSES.md`](./THIRD_PARTY_LICENSES.md).
