@@ -2,8 +2,9 @@
 
 **English** | [Deutsch](./PRIVACY.de.md)
 
-**Reviewed:** 14 September 2026. This describes the software's data flows,
-not a legal compliance certification or a hosting provider's privacy policy.
+**Source review:** 13 October 2026. This describes observed application data
+flows; it is not a legal compliance certification or a hosting provider's
+privacy policy.
 
 ## What stays on this computer
 
@@ -28,10 +29,11 @@ not the FolderHome profile selector.
 
 ## What can leave the computer
 
-| Optional path | Data disclosed and boundary |
+| Network path | Data disclosed and boundary |
 |---|---|
-| Hosted model or non-loopback Ollama | Prompt, retained conversation and selected tool context go to the configured model endpoint, after network and data-disclosure gates |
-| Google calendar | Approved event data and authenticated API requests go to Google; token refresh also contacts Google's OAuth endpoint |
+| Package installation and builds | Pip/build tools contact the configured package index or source to retrieve FolderHome and dependencies; this is separate from application runtime traffic |
+| Hosted model or non-loopback Ollama | Prompt, retained conversation and selected tool context go to the configured model endpoint after network and data-disclosure gates; the service also receives ordinary connection metadata such as the source IP address |
+| Google calendar | Approved event data and authenticated API requests go to Google; token refresh also contacts Google's OAuth endpoint, and both expose ordinary connection metadata |
 | Own-mail draft | The prepared message, including recipient headers and body, goes to the configured IMAP provider; **unsent is not unshared** |
 | Static public showcase | The hosting service receives ordinary web requests; the showcase does not read local household documents |
 
@@ -42,6 +44,8 @@ local identities and conservatively recognized sensitive patterns with stable,
 process-local placeholders and restores them locally. This reduces exposure but
 is not anonymity: unknown free-text identifiers may remain. It never replaces
 the explicit network and sensitive-data approval gates.
+FolderHome has no visibility into providers' retention or downstream use of
+connection metadata.
 Google metadata lookup requires a separate read approval. Calendar writes and
 mail drafts require their own launch gates **and** exact plan confirmations.
 The optional AgentCore competition runtime accepts the synthetic demo journey,

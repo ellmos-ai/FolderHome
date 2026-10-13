@@ -1,0 +1,782 @@
+> This is a corrected archive prepared 2026-10-13 from README source commit [`dac6541ba0f6429d38d4ee3bffec08a94316213c`](https://github.com/ellmos-ai/FolderHome/blob/dac6541ba0f6429d38d4ee3bffec08a94316213c/README.md). It is not an unchanged copy. Dated run, version, and deployment statements below describe that historical documentation state, not current acceptance. The unmodified source text remains available through the commit link.
+>
+<img src="../../assets/banner.png" width="100%" alt="FolderHome Banner">
+
+# FolderHome
+
+**English** | [Deutsch](../../README.de.md)
+
+> Assistantify your home.
+
+**Archived source snapshot:** README statements for v0.6.1 as of 2026-09-15; not current release or verification status.  
+**Direct predecessor:**  
+[`docs/archive/README-phase36-draft.md`](../../docs/archive/README-phase36-draft.md)
+
+FolderHome is a local-first Strands agent that turns scattered household
+documents into searchable, explainable and safely actionable workflows.
+
+FolderHome is a local document and assistance service agent. It combines
+document search, reversible file work, and encapsulated everyday services,
+without automatically granting mail, calendar, phone, file, or cloud permissions as a result of an analysis.
+
+## Status
+
+- At the time of this source snapshot, v0.6.1 was described as a release candidate; this archive does not certify a completed release review or the current state.
+- one real `strands.Agent` master with nine bounded tools and on-demand planning specialists
+- A local run with **2,045 passed tests** was recorded on 2026-09-15. It is historical evidence, not the current suite result.
+- synthetic no-network demo with reproducible hashes
+- end-to-end synthetic accident journey over four real, confirmation-gated
+  FolderHome workflow adapters
+- The source README listed the public AgentCore endpoint <https://d2pfbfpfjnkqbh.cloudfront.net/> and recorded one runtime-version-27 check on 2026-09-15. This historical entry does not establish current availability.
+- historical baseline audit covered 12/12 surfaces and a 66-file delta
+- public MIT repository, [three-minute public demo video](https://youtu.be/wPb1wBJcLjQ)
+  and a submitted [Agents for Humans entry](https://devpost.com/software/folderhome)
+
+The historical competition-baseline evidence is in
+[`Phase-36-Completion-Audit`](../../docs/phase36-completion-audit.md). During the competition the
+project is called **FolderHome** exclusively. A later Light-/Sovereign rebranding
+is not part of this build.
+
+## Quick test for jurors
+
+The synthetic demos below need no private provider checkout. For real document
+extraction and provider integration tests, see
+[optional provider checkouts](../../docs/provider-checkouts.md).
+
+Windows PowerShell:
+
+```powershell
+git clone https://github.com/ellmos-ai/FolderHome.git
+cd FolderHome
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install -e ".[dev,transform]"
+.venv\Scripts\python.exe -m folderhome demo run `
+  --output-dir .local-demo\competition `
+  --approve-output-write --json
+```
+
+
+macOS/Linux use `.venv/bin/python` instead of
+`.venv\Scripts\python.exe`.
+
+Expected are `status=passed`, `strands-agents 1.53.0`, the scenarios
+`document-search` and `theme-dossier`, `network_used=false`, an empty
+`side_effects` list, and four new files. A second run against the same
+folder blocks instead of overwriting.
+
+The detailed English guide is in
+[`docs/submission/TESTING_INSTRUCTIONS_EN.md`](../../docs/submission/TESTING_INSTRUCTIONS_EN.md).
+
+## Interactive accident journey
+
+Start the real local demo with one command:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome demo accident-serve `
+  --workspace-dir .local-demo\accident `
+  --port 8767 --approve-loopback-server --json
+```
+
+Open the emitted token-bearing `access_url`. The English-default interface has
+an English/German switch and light/dark themes. It searches synthetic current
+and older Hyundai i10 policies, proposes contact, claim-letter, contract and
+local-calendar steps, and executes the actual typed adapters only after the
+exact displayed `/confirm <plan_id>` command. It never sends a message, calls a
+cloud model or archives the older policy automatically. A separately gated
+recipe can place the prepared letter as a reviewable draft in the user's own
+mailbox without any send path. Use **Reset case** to restore the deterministic
+fixture.
+
+The public browser walkthrough is in [`site/`](../../site/). It is deliberately
+labelled as a scripted synthetic showcase with no backend. The repository
+command above is the executable evidence.
+
+The accepted competition video is public on YouTube:
+<https://youtu.be/wPb1wBJcLjQ>.
+
+## Agent architecture
+
+```mermaid
+flowchart LR
+  H[Human / local OS account] --> UI[CLI or local GUI]
+  UI --> A[FolderHome Master / Strands Agent 1.53.0]
+  PUB[Public page: guided case + free chat] -. synthetic household, budget-metered .-> AC
+  AC[Optional AgentCore HTTP runtime] --> A
+  A --> F[Deterministic fixture model]
+  A -. network + data disclosure gates .-> B[Amazon Bedrock]
+  A -. loopback: no gate / other host: same two gates .-> O[Local Ollama model]
+  A --> S[search_home_documents]
+  A --> D[build_home_theme_dossier]
+  A --> C[list_home_capabilities]
+  A --> Resources[list_home_resources]
+  A --> Recipes[list_home_recipes / list_home_recipe_runs]
+  A --> RecipePlan[propose_home_recipe / propose_next_recipe_stage]
+  A --> X[consult_home_specialist]
+  X --> P[Scoped subagent / one planning tool]
+  P --> Review[Separate exact plan confirmation]
+  RecipePlan --> Review
+  Review --> E[Typed executor gateway]
+  E --> N[Existing llm-note workflow]
+  E --> M[Existing medication-intake workflow]
+  S --> L[FolderHome LocalApplication]
+  D --> L
+  L --> K[KnowledgeDigest read-only index]
+  MCP[Claude Code / Codex CLI] -- stdio --> PX[folderhome mcp serve]
+  PX -- loopback API + token --> L
+  UI --> W[Other gated domain workflows]
+  Review --> W
+```
+
+
+The fixture adapter runs through the real Strands agent and its sequential
+tool executor without credentials. Bedrock uses the same agent, but
+requires model ID, AWS region, `--allow-network` and the separate approval
+`--approve-sensitive-cloud-data`; one Bedrock live run was verified on
+2026-09-12 with the EU Nova Micro inference profile (two model turns,
+`search_home_documents` and `build_home_theme_dossier` executed, no side
+effects); the synthetic demo still needs none of it. A
+local Ollama model is another provider. The source README records a live check at that time; this is historical evidence, not current verification.
+Semantic domain selection belongs to the model. Endpoint lookup, plan hashes,
+and confirmation remain deterministic and fail closed; personas change style
+only and never grant capabilities. Without a private resource registry, the
+live executor catalog exposes three connected executors: personal notes,
+confirmation of an existing scheduled medication dose, and the strictly local
+FindCall fixture cascade. With a configured registry, 23 additional typed
+resource adapters connect the complete local document, organization, health,
+finance, social-law, inventory, tax, briefing, design, FCSA and routine stack.
+A registry that also declares a drafts mailbox (`mail.draft_account`) connects
+the draft-only mail endpoint as well. Optional private Google calendar and
+scheduler resources connect their adapters too. **The runtime catalog reports
+actual configured coverage**, including missing connections and planning-only
+endpoints. Registration still needs its startup gate and exact confirmation;
+it starts no consumer. Each connected
+adapter publishes a closed request schema. A chat
+message never writes; exact confirmation returns a separate domain execution
+report for a connected plan. External effects retain their own configuration
+and live-effect approvals.
+
+Approval recomputes the complete plan hash, including its displayed summary and
+recipe review context, and execution rechecks it before each step. Changed plans
+are rejected; completed-step evidence remains available. After upgrading from the
+older hash formula, propose and review pending plans again.
+
+A v1 capability recipe turns a whole journey into one plan. `recipes list` shows
+what ships, `recipes plan` resolves one into a single hash-bound multi-step plan,
+and `recipes run` executes the confirmed chain in order. The packaged
+`accident-aftercare` recipe reads the responsible contact, renders the claim
+letter, places exactly that letter as a draft in your own mailbox, and records
+the follow-up appointment with an ICS export — four endpoints, one confirmation.
+A recipe grants no new capability: each step keeps its own adapter and gates, and
+an endpoint that is not connected makes the recipe fail closed instead of
+silently skipping it. Details:
+[`docs/capability-recipes.md`](../../docs/capability-recipes.md).
+
+**Result-bound v2 recipes use a new approval for each section.** The packaged
+`letter-to-mail-draft` first saves a local letter for review, then prepares a
+text-only mailbox draft bound to that confirmed letter's preview ID. Changed
+letter inputs stop the handoff; nothing is sent. Use the app's section controls
+or `agent session` with `/recipe`, `/next` and separate `/confirm` commands.
+The mail gate remains required; the [recipe guide](../../docs/capability-recipes.md)
+includes the five-resource configuration example. Runs stay in one process.
+
+Recipes are also available below the local chat as **Multi-step journey** and
+through the master's `list_home_recipes` / `propose_home_recipe` tools. Preparation
+never executes: review the exact steps, then separately confirm the v1 chain or
+the current v2 section.
+Failed chains preserve completed-step results and stop the rest. The app requires
+the recipe's configured resources and every individual adapter gate.
+
+The recommended CLI entry point is one in-process session. It preserves prepared
+plans between turns and accepts approval only through `/confirm <plan_id>`;
+`--json` emits one NDJSON event per line for controlled automation.
+The same bounded Strands message history now resolves follow-up references in
+both GUI and CLI. It is separated by organizational profile, limited to 24
+messages by default, never persisted, and cleared together with unconfirmed
+plans by **New conversation** or `/reset`.
+
+This bounded runtime is the first layer of FolderHome's **local agent execution
+harness**. Local models benefit from an outer controller because simply adding
+more context does not reliably manage a large task. The harness currently caps
+one call at four model turns and four tool calls, with separate prompt, output,
+tool-result, conversation and timeout budgets. `app serve` and `agent` commands
+can tune these through `--max-turns`, `--max-tool-calls`,
+`--max-prompt-chars`, `--max-response-chars`, `--max-tool-result-bytes`,
+`--max-output-tokens`, `--max-conversation-messages` and
+`--model-timeout-seconds`; the Setup GUI does not expose expert tuning yet.
+Increasing a budget does not add durable task continuation.
+
+The GUI exposes the runtime model state directly: deterministic fixture,
+configured but not yet verified Bedrock, or Bedrock verified by at least one
+successful live model turn in the current process. Configuration alone never
+claims a working model connection.
+
+Because that surface exposes no file route, a confirmed run returns its result
+files inline in the answer, and the browser builds the download from it. Files
+above 262 144 bytes, and files whose text contains the workspace path, travel as
+metadata only and say why.
+
+The optional AgentCore surface implements the current AWS HTTP contract on
+ARM64 (`GET /ping`, `POST /invocations`, port 8080). It accepts only synthetic
+fixture prompts, isolates state by AgentCore runtime session, and cannot ingest
+household uploads or perform external actions. On 2026-09-15 the deployed
+runtime (version 27, endpoint `budget_v27`) completed one Bedrock-backed synthetic
+journey end to end through the public proxy: the Nova Micro master agent ran two
+model turns, the plan required `/confirm`, and the confirmed run produced four
+result files with no external actions (`manage.py verify`, status `verified`).
+Admission is a cumulative daily money ledger, not a fixed request count. The
+public CloudFront configuration is `enabled: true`; the hosted demo is available
+at <https://d2pfbfpfjnkqbh.cloudfront.net/>.
+
+More: [`ARCHITECTURE.md`](../../ARCHITECTURE.md) and
+[`docs/submission/ARCHITECTURE_DIAGRAM.md`](../../docs/submission/ARCHITECTURE_DIAGRAM.md).
+
+## What FolderHome can do locally
+
+- Extract, index, naturally search documents and summarize them as a topic dossier
+  or folder report
+- Compare versions and treat older drafts only as an approval‑required,
+  reversible archive plan
+- Combine folder rules, watches, correction learning, cleanup plans, safe execution,
+  audit and undo
+- Generate TXT/PDF bundles as well as deterministic ZIP‑type packages
+- Organize profiles for Lukas, Hanna or Simon and domain‑specific rules
+- Manage contacts, appointment candidates, local calendar and ICS handoffs, and export recorded appointments as one importable ICS file
+- Present account statements, virtual accounts, data gaps, subscriptions and contract cockpits with evidence linkage
+- Track household inventory, medication schedules and confirmed medication intake
+- Create extractive health dossiers and medical report timelines
+- Structure official notices, prepare administrative drafts and route official benefit pre‑checks
+- Compare local legal‑change snapshots to review candidates
+- Plan letter designs, design sets, SVG business cards and office/media handoffs
+- Provide controlled mail, calendar, note, tax, daily‑briefing and FindCall workflows
+
+The complete mapping and all limits are in
+[`Feature_Analyse_FolderHome.md`](../../Feature_Analyse_FolderHome.md).
+
+## Security model
+
+- Default deny for any external effect
+- Operating system account and file permissions as security boundary; profiles are only organization within an account
+- Exact schemas, canonical paths, source hashes and never‑overwrite
+- Separate planning, approval, recheck, execution, audit and undo stages
+- Finite budgets for files, bytes, parsers, renderers, HTTP connections,
+  agent turns, tool calls and outputs
+- Loopback only to `127.0.0.1` with token, host/origin verification and overload limit
+- Sensitive local reads only after explicit gate
+- Official links only via HTTPS and publisher‑bound host allowlist
+
+FolderHome does not diagnose, does not provide legal, tax or financial advice,
+does not determine any benefit entitlement and guarantees neither completeness nor the detection of every appointment.
+
+Details and reporting path: [`SECURITY.md`](../../SECURITY.md).
+What remains local, what optional providers receive, and what reset does not
+erase: [Privacy and data flows](../../PRIVACY.md).
+
+## Private logical resources
+
+FolderHome keeps physical paths outside model-visible plans. Copy the anonymous
+example to `%LOCALAPPDATA%\FolderHome\resources.json`, replace only the local
+locators and declare the minimum required operations for each stable resource
+ID. The registry is bound to one operating-system account, organizational
+profiles and explicit purposes. Its public catalog contains no paths.
+
+- Schema: [`config/resources.schema.json`](../../config/resources.schema.json)
+- Anonymous example:
+  [`examples/resources/resources.example.json`](../../examples/resources/resources.example.json)
+
+With a configured registry, the master agent can execute existing FolderHome
+services for document bundles, contacts, local correspondence, the own
+FolderHome calendar, health dossiers, finance import, official-notice reports,
+review-only administrative drafts and benefit pre-screening. Every write still
+requires the separate exact plan confirmation. Draft-only IMAP mail is
+available only with a `mail.draft_account` resource and the separate
+`--approve-mail-draft` gate. Scheduler registration connects with its private
+resources and separate `--approve-scheduler-write` gate; see the
+[registration guide](../../docs/phase15-scheduler-handoff-plan.md). The app-owned
+consumer needs its own `--approve-scheduler-consumer` gate and confirmed preview.
+Google calendar creation and ETag-bound update/delete connect through private
+resources, `--approve-calendar-write` and exact confirmation; see the
+[calendar guide](../../docs/phase27-calendar-connector-plan.md). Initial OAuth login
+and live-account acceptance remain separate. The
+[product architecture](../../docs/submission/PRODUCT_ARCHITECTURE.svg) shows these boundaries.
+
+## Local model via Ollama
+
+The master agent can run on a local Ollama model instead of the deterministic
+fixture or Amazon Bedrock. The gates follow the transport, not the vendor: an
+Ollama host on the loopback interface needs no gate at all, because nothing
+leaves this machine. Any other host, including one on your own private network,
+needs exactly the same two approvals as Bedrock, `--allow-network` and
+`--approve-sensitive-cloud-data`.
+
+The word "cloud" in that flag name means "outside this operating system
+account", not "outside your home". FolderHome cannot know whether the machine
+behind an address belongs to you, so it asks once for the network and once for
+the data, in both cases.
+
+```powershell
+# Optional extra; the provider is not imported unless you select it
+.venv\Scripts\pip.exe install -e ".[ollama]"
+
+# A model on this machine: no gate, because nothing leaves the loopback interface
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-model-id qwen3.8:27b-mlx `
+  --profile-id lukas --prompt "What can you do?" --json
+
+# A model on another machine: both approvals, exactly like Bedrock
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider ollama --ollama-host http://192.0.2.10:11434 `
+  --ollama-model-id qwen3.8:27b-mlx `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "What can you do?" --json
+```
+
+`--ollama-host` defaults to `http://127.0.0.1:11434`. The model id is always
+required and never guessed. The status endpoint and the GUI report a local model
+as a local model: `model_inference_location` becomes `local_ollama_host` or
+`remote_ollama_host` instead of `aws_cloud`, and no run claims a verified
+connection before one successful live turn in the same process.
+
+
+## Model providers
+
+Five providers, in the order they cost you privacy: `fixture` (deterministic, no
+model at all), `ollama` on the loopback interface (a model on this machine),
+`ollama` on another host, `bedrock`, `anthropic`, `openai`. Everything from the
+third onwards leaves this machine and therefore needs both approvals,
+`--allow-network` and `--approve-sensitive-cloud-data`.
+
+Remote providers are additionally protected by cloud pseudonymization, which is
+on by default. Before each remote call, FolderHome replaces known local names,
+contacts and identifiers plus conservatively recognized patterns with stable
+session placeholders; responses and tool arguments are restored locally. The
+mapping never enters model payloads, logs or reports. This is risk reduction,
+not anonymity: an unknown name in free text can escape pattern detection, so
+both approval gates remain mandatory. `--cloud-pseudonymization off` (or the
+same `launch.json` field) deliberately disables this layer after a restart and
+produces a visible warning and `cloud_pseudonymization: "off"` status.
+
+```powershell
+# Optional extras; a provider is not imported unless you select it
+.venv\Scripts\pip.exe install -e ".[anthropic]"
+.venv\Scripts\pip.exe install -e ".[openai]"
+
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --model-provider anthropic --anthropic-model-id claude-sonnet-4-5-20250929 `
+  --allow-network --approve-sensitive-cloud-data `
+  --profile-id lukas --prompt "What can you do?" --json
+```
+
+An API key is never a setting. It is read from `ANTHROPIC_API_KEY` or
+`OPENAI_API_KEY` when the model is built, and it appears in no plan, status,
+report or log. The installer stores it in a `.env` file beside `launch.json`,
+which starting with `--launch-config` reads back for those two names only, and
+only when the environment does not already carry them. `--openai-base-url` points
+the OpenAI provider at a compatible endpoint, which is why the status calls that
+location `openai_compatible_api` rather than claiming OpenAI.
+
+Every provider that speaks HTTP shares one finite budget,
+`--model-timeout-seconds` (default 120). A model that stays silent past it
+fails with that number in the message instead of hanging; Bedrock keeps its own
+connect and read pair.
+
+Saved model presets live in `launch.json` under `model_presets`, with
+`model_preset` naming the active one. Switching models is activating another
+preset and saving; the app reads it at the next start. Precedence when starting:
+an explicit command-line flag beats a flat field in the file, and a flat field
+beats the active preset.
+
+## Use FolderHome from Claude Code or Codex (MCP)
+
+`folderhome mcp serve` publishes the same bounded surface over the Model Context
+Protocol on stdio, so a coding agent can search your documents, ask the master
+agent and approve a plan. The server holds no state of its own: it is a proxy
+over the loopback API of a running `app serve`. Editor and GUI therefore share
+one process, one conversation and one set of proposed plans.
+
+Start the app first and copy its access URL; the token is new on every start.
+
+```powershell
+# 1. Start the local app and note the access_url it prints
+.venv\Scripts\python.exe -m folderhome app serve `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --port 8765 --approve-loopback-server --json
+
+# 2. Print the ready-made integration for both editors
+.venv\Scripts\python.exe -m folderhome mcp plan `
+  --access-url "http://127.0.0.1:8765/?token=<token>" --json
+```
+
+`mcp plan` emits the exact `claude mcp add folderhome -- ...` command and the
+matching `[mcp_servers.folderhome]` block for `~/.codex/config.toml`. The
+address must be `127.0.0.1`; any other host is refused before the server starts,
+as is a missing `--approve-mcp-server`. Eleven tools are exposed:
+`folderhome_status`, `_profiles`, `_capabilities`, `_executors`, `_resources`,
+`_results`, `_search_documents`, `_topic_dossier`, `_chat`, `_confirm_plan` and
+`_reset_conversation`.
+
+Chat over MCP is no more an approval than chat in the GUI. A proposed plan runs
+only through `folderhome_confirm_plan` with its exact hash and the selected step
+ids; a wrong hash is refused and the refusal reaches the editor verbatim.
+
+Because the token is new on every `app serve` start, the editor entry it was
+written into goes stale with it: run `mcp plan` again after each restart and
+replace the stored command, or export the current URL as `FOLDERHOME_ACCESS_URL`
+and register the server without `--access-url`.
+
+Agents: [`llms.txt`](../../llms.txt) in the repository root is this connection
+guide condensed into one file, written for a machine reader.
+
+## Results you can pick up
+
+Everything a confirmed plan produces stays reachable in the GUI, even when the
+run was started elsewhere. The **Results** panel lists what this process
+executed for the selected profile, newest first, with the workflow, the status,
+the time and the files the run wrote. One click downloads a file through the
+token-protected API; the browser never sees a filesystem path, because the list
+carries only the basename, the size and an index.
+
+That closes the gap between the three ways in: a plan confirmed through the API
+or through an editor over MCP shows up in the same panel as one confirmed in the
+GUI, because all three drive the same process.
+
+Only files inside a registered output resource of that profile are offered, and
+only under the name the execution report itself declares. Runs that merely
+change local state, for example a confirmed medication dose, appear with no file
+and say so.
+
+## Set up FolderHome (local installer)
+
+FolderHome's own GUI never writes configuration. A separate installer does, on
+its own loopback port, with its own token and behind the same explicit listener
+gate. That split is the point: the program you chat with cannot change where it
+is allowed to read and write.
+
+```powershell
+# Show what the installer would configure, without starting a listener
+.venv\Scripts\python.exe -m folderhome setup plan --json
+
+# Start the installer and open the printed access_url in a browser
+.venv\Scripts\python.exe -m folderhome setup serve --port 8766 `
+  --approve-loopback-server --json
+```
+
+`--profiles-dir` is optional and names an existing profile folder; without it
+the installer uses its own, beside the rest of the configuration. It starts even
+when that folder is still empty, because creating one is what this program is
+for.
+
+The page walks through eight steps: profiles, folders, model presets,
+subscriptions, API keys, runtime values, calendar, and a summary. Nothing is
+stored automatically. Nothing is
+written until you press Save, and the server accepts a save only together with
+the hash of exactly the plan it showed you. Folders are checked before that:
+they must exist, must not be symbolic links, and one outside your own user
+folder needs an explicit tick.
+
+Section 1 owns the profiles. A profile organises documents inside one operating
+system account; it is not an access boundary. You add one there, rename it, edit
+its rules and delete it, and the profile folder itself is a field: by default
+`<configuration folder>\profiles`, not the `examples\profiles` of this
+repository. Setup ships its own complete Hanna/Lukas/Simon template set in the
+Python package, so an installed wheel offers the same family as the checkout.
+The separate one-profile demo is not a setup fallback. Shipped templates are
+refused as a write target; a first run offers to copy the setup templates into
+your own folder or to start with an empty list. A household written for the
+first time takes the name of the running
+operating system account, while an existing one keeps the account label it
+already carries.
+
+Deleting a profile takes its bindings with it in the same plan: folder bindings
+that would then belong to nobody fall away, and its calendar accounts leave
+`calendar-accounts.json`. The preview names everything that goes, at least one
+profile has to remain, and the profile file itself moves into a dated
+`.deleted-<timestamp>` folder rather than being removed. A rule is a key from
+the closed set the contract accepts, a value, and a scope: the whole profile, or
+one area of it. The rules everyone shares live in `household.json` and are
+edited in the same section; a profile rule with the same key wins over them.
+
+Each folder field has a Choose folder button that asks the operating system for
+a real directory, because a browser cannot hand over an absolute path; typing
+the path stays possible, and stays the fallback where no dialog toolkit is
+installed. A source purpose (`documents.source`, `insurance.source`) takes
+several folders: the first one becomes the profile default, and the agent sees
+every one of them in its resource catalogue. Output purposes
+(`documents.output`, `correspondence.output`, `calendar.export_output`) stay
+single, because a write needs one destination.
+
+Saving writes these files, by default under `%LOCALAPPDATA%\FolderHome\`:
+
+| File | Content |
+|---|---|
+| `profiles\household.json` | the rules every profile shares, plus the operating system account label |
+| `profiles\<id>.json` | one file per profile: display name and its own rules |
+| `resources.json` | the private resource registry, validated against the same contract the app loads |
+| `launch.json` | the start-up values for `app serve`: profiles, state folder, registry, model, presets, port |
+| `.env` | the hosted-provider API keys, written only here and never read back into the page |
+| `calendar.json` | default calendar backend, time zone and UpToday ICS folder, when you enable that section |
+| `calendar-accounts.json` | calendar connector accounts, when you add one |
+
+An existing file is backed up only when its content changes, using a unique
+`.bak-<timestamp>-<suffix>` name. Unchanged files retain their timestamps.
+The exception is `.env`, which
+never leaves a backup because a backup of a key is a second copy of a key. Every
+file is staged in a temporary file, loaded back through the contract it belongs
+to, and only then put in place: a plan that turns out unloadable leaves the
+previous state exactly as it was. No file besides `.env` ever holds a secret:
+the drafts mailbox and a calendar account both keep a reference to a local
+credentials file, not the credentials.
+
+The app now loads calendar files named by `calendar_config` and
+`connector_accounts` in `launch.json`. Explicit `--calendar-config` and
+`--connector-accounts` flags override those paths; model presets cannot change
+them or grant permissions. Select a `calendar.source` folder explicitly in setup.
+At startup, missing calendar configuration/state/account defaults become private
+logical resources in memory. Existing resource bindings and their permissions
+take precedence; the registry file is not rewritten by the app.
+
+The local-calendar executor writes the **local calendar**, with optional ICS export,
+only after plan confirmation. Loading an external account does **not** enable a
+live connector. Google creation additionally requires explicit credential/ledger
+resources, the calendar extra, `--approve-calendar-write` and exact confirmation;
+see the [Google connector guide](../../docs/phase27-calendar-connector-plan.md).
+Initial login and live acceptance remain separate. Invalid calendar files or unknown profiles block
+startup. There is no Outlook backend. Reopening setup restores saved calendar
+fields and accounts from the active launch paths. **Unchanged calendar fields do
+not trigger a write**, even when saving other settings. Editing them writes
+setup-owned copies and updates the references shown in the preview; custom
+source files remain untouched. Unknown fields or invalid files produce a reload
+warning instead of being silently discarded. Removing all account rows unbinds
+the account file and retires an existing setup-owned copy with a backup;
+omitting the accounts field leaves it unchanged. Profile deletion removes only
+its accounts; when the active source is external, remaining accounts move into
+a setup-owned copy without editing the source.
+
+**Regular folder checks:** setup section 8 prepares one profile's source, proposal
+destination, document area, interval (5–1440 minutes) and first check with an
+explicit UTC offset/time zone. Local document reading needs explicit permission.
+Check previews the watch, binding and registration-request files plus their
+private runtime directories; save uses the same exact-plan confirmation as the
+rest of setup. Leaving the edit checkbox off preserves the configuration.
+**Saving neither registers a job nor starts a service.** The normal app loads
+the generated logical resources. Registration still requires a separate plan
+confirmation and `--approve-scheduler-write`. The app's separate
+`--approve-scheduler-consumer` gate enables explicit, profile-bound start
+confirmation through the [local control API](../../docs/phase15-scheduler-handoff-plan.md).
+It never starts a worker automatically. The EN/DE “Regular folder checks” panel
+provides preview, exact start confirmation, status refresh and stop for this app's
+worker. UI logic is tested; browser/layout acceptance is still pending.
+Once a store exists, setup refuses to replace that
+profile's scheduler configuration. Source, destination and runtime paths must
+remain separate; other resources and restricted permissions are preserved.
+
+**The state-folder setting does not migrate data.** Without a saved launch file,
+setup suggests `<config-dir>/state`, separate from `<config-dir>/profiles`.
+A stored launch path takes precedence. If you select a different state folder,
+the next app start uses that folder; existing data stays at its old location.
+Keep the existing path to continue using those records, or back them up before
+a deliberate manual move. State and profile folders must not overlap.
+
+Saving merges supported folder bindings into `resources.json`, preserving custom
+resources, stable IDs and stricter permissions. Removing an organizational profile
+also removes its bindings. Multi-file save failures restore previous file content
+and metadata; this is not a guarantee of atomic recovery after power loss.
+
+Start the app with what was written:
+
+```powershell
+.venv\Scripts\python.exe -m folderhome app serve `
+  --launch-config $env:LOCALAPPDATA\FolderHome\launch.json `
+  --approve-loopback-server --json
+```
+
+`--launch-config` supplies defaults only. An explicit flag on the command line
+always wins, and the gates are deliberately not part of the file: `--allow-network`,
+`--approve-sensitive-cloud-data` and `--approve-loopback-server` stay start-up
+flags, so no file can grant them.
+
+In the AWS or browser variant there are no local output folders at all. There the
+results view is the delivery path, and files land in the browser's own download
+folder.
+
+## Direct HTTP API
+
+The same loopback service the GUI uses is a plain JSON API. `app serve` prints
+its `access_url`, which carries the session token that changes on every start.
+Browser routes read that token from the query string; every `/api/` route reads
+it from the `X-FolderHome-Token` header instead.
+
+| Method and route | Purpose |
+|---|---|
+| `GET /api/v1/status` | runtime boundary and model connection |
+| `GET /api/v1/profiles` | organizational profiles |
+| `GET /api/v1/capabilities` | capabilities and how each is surfaced |
+| `GET /api/v1/agent/executors` | which workflows have a connected executor |
+| `GET /api/v1/resources?profile_id=…` | logical resources, no paths |
+| `GET /api/v1/agent/results?profile_id=…&limit=…` | what already ran, newest first |
+| `GET /api/v1/agent/results/<execution_id>/artifacts/<index>` | one produced file as a download |
+| `POST /api/v1/documents/search` | read-only document search |
+| `POST /api/v1/documents/dossier` | topic dossier with linked evidence |
+| `POST /api/v1/agent/chat` | one bounded master-agent turn |
+| `POST /api/v1/agent/confirm` | approve exact steps of one proposed plan |
+| `POST /api/v1/agent/conversation/reset` | new process-local conversation |
+
+Every POST body is a closed schema: unknown or missing fields are refused rather
+than ignored, and the request limit is 65 536 bytes.
+
+```bash
+TOKEN="<token from access_url>"
+BASE="http://127.0.0.1:8765"
+
+# Ask the agent; the answer may contain a proposed plan
+curl -s "$BASE/api/v1/agent/chat" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-chat-request.v1",
+       "profile_id":"lukas","message":"What can you do?"}'
+
+# Approve exactly that plan; chat alone never executes anything
+curl -s "$BASE/api/v1/agent/confirm" \
+  -H "X-FolderHome-Token: $TOKEN" -H "Content-Type: application/json" \
+  -d '{"schema":"folderhome.local-agent-confirmation-request.v1",
+       "plan_id":"<plan_id>","plan_sha256":"<plan_sha256>",
+       "step_ids":["<step_id>"]}'
+
+# Pick up what it produced
+curl -s "$BASE/api/v1/agent/results?profile_id=lukas" \
+  -H "X-FolderHome-Token: $TOKEN"
+curl -s -OJ "$BASE/api/v1/agent/results/<execution_id>/artifacts/0" \
+  -H "X-FolderHome-Token: $TOKEN"
+```
+
+The service binds to `127.0.0.1` only, checks the `Host` header against that
+binding, rejects a foreign browser `Origin`, and sends no CORS headers. It is an
+interface for programs on this machine, not a network service.
+
+## Important commands
+
+```powershell
+# Validate the private resource registry without disclosing physical paths
+.venv\Scripts\python.exe -m folderhome resources validate `
+  --profiles-dir examples\profiles --json
+
+# List the model-safe logical catalog for one organizational profile
+.venv\Scripts\python.exe -m folderhome resources catalog `
+  --profiles-dir examples\profiles --profile lukas --json
+
+# Validate the agent configuration without invoking a model
+.venv\Scripts\python.exe -m folderhome agent plan `
+  --profiles-dir examples\profiles --state-dir .local-state --json
+
+# Start an interactive session with the same master service used by the GUI
+.venv\Scripts\python.exe -m folderhome agent session `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --profile-id lukas
+
+# Run one non-interactive chat turn
+.venv\Scripts\python.exe -m folderhome agent chat `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --profile-id lukas --prompt "What can you do?" --json
+
+# Run the reproducible agent demo
+.venv\Scripts\python.exe -m folderhome demo run `
+  --output-dir .local-demo\competition --approve-output-write --json
+
+# Plan the local loopback chat interface
+.venv\Scripts\python.exe -m folderhome app plan `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --port 8765 --json
+
+# Start the interface only after the explicit listener gate
+.venv\Scripts\python.exe -m folderhome app serve `
+  --profiles-dir examples\profiles --state-dir .local-state `
+  --port 8765 --approve-loopback-server --json
+
+# Show all CLI commands
+.venv\Scripts\python.exe -m folderhome --help
+```
+
+
+The detailed playbooks are located at [`workflows/`](../../workflows/) and in the generated [`WORKFLOWS.md`](../../WORKFLOWS.md).
+
+## Development verification
+
+```powershell
+.venv\Scripts\python.exe -m pytest
+.venv\Scripts\python.exe -m ruff check .
+.venv\Scripts\python.exe -m compileall -q src tests
+.venv\Scripts\python.exe -m folderhome plugins validate --json
+.venv\Scripts\python.exe _tools\doc-lint
+.venv\Scripts\python.exe _tools\workflows-sync --check
+```
+
+
+The supplied reference evidence is at
+[`examples/competition/evidence/`](../../examples/competition/evidence/).
+
+## Repository structure and provenance
+
+```text
+src/folderhome/       new competition and bridge code
+config/               versioned schemas for local-only configuration
+skills/               new agent-ready FolderHome skills
+workflows/            executable operating playbooks
+manifests/            component and future stack contracts
+reused/               pinned existing references, no renamed source code
+examples/             synthetic fixtures and evidence only
+tests/                contract, security and integration tests
+docs/submission/      locally prepared English submission materials
+docs/archive/         direct historical predecessors of long project documents
+```
+
+
+FCSA, KnowledgeDigest, doc-services, HungryCall, Ringedingeding, llm-note,
+steuer-assistent, law-checker and other existing components remain disclosed and revision‑bound. FolderHome does not copy their source code.
+
+- Provenance: [`COMPETITION_CODE_MAP.md`](../../COMPETITION_CODE_MAP.md)
+- Licenses and pins: [`THIRD_PARTY_LICENSES.md`](../../THIRD_PARTY_LICENSES.md)
+- Decisions: [`DECISIONS.md`](../../DECISIONS.md)
+- Changelog: [`CHANGELOG.md`](../../CHANGELOG.md)
+
+## Privacy-friendly chat focus and roadmap
+
+FolderHome keeps chat context only for the current process session. It does not
+silently build a permanent archive of every conversation, which keeps the
+interface focused on the current task and avoids accumulating unnecessary chat
+data. Reloading settings, starting a new conversation or restarting the app
+clears that session context.
+
+The post-competition roadmap adds deliberate retention instead of an automatic
+all-or-nothing history: people will be able to save selected conversations,
+optionally retain chats for 30 days, or archive selected chats after 30 days.
+The default will remain session-only; this retention UI is not part of v0.6.1.
+
+For document work that exceeds one bounded agent turn, the roadmap also
+includes a deliberately small **single-slot background worker**. Rather than
+shipping the complete BACH backend, FolderHome can extract and adapt only its
+proven orchestration mechanics: explicit decomposition, a step ledger,
+crash-safe state, a bounded continuation loop and inspectable handoffs between
+turns. The worker accepts one document task at a time and surfaces a decision
+instead of creating an unbounded agent swarm. Any reused BACH code will be
+revision-pinned and disclosed as pre-existing work; the FolderHome adapter and
+document-specific policy remain separate new integration code. v0.6.1 already
+has bounded turns, approval-bound plans and sectioned recipe runs, but it does
+not claim this durable worker yet.
+
+## Submission limit
+
+English description, diagram, tests, video script and checklist are prepared under
+[`docs/submission/`](../../docs/submission/). The public
+repository is at <https://github.com/ellmos-ai/FolderHome>. AWS Builder
+ID remains private to the Devpost form. The approved demo video is public at
+<https://youtu.be/wPb1wBJcLjQ>. The user submitted FolderHome to Agents for
+Humans on 2026-08-23; the authenticated readback records
+`submitted_at=2026-08-23T17:14:05.813-04:00`.
+
+## License
+
+FolderHome is under the [MIT license](../../LICENSE). The competition code is
+made public on GitHub; real services and personal data are excluded.
+
+---

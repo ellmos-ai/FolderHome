@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
@@ -116,7 +117,9 @@ def _configuration(tmp_path: Path):
         state_dir=state_dir,
         manifest_root=REPO_ROOT / "manifests" / "components",
         doc_services_root=REPO_ROOT.parent / "doc-services",
-        python_executable=Path("C:/Program Files/Python312/python.exe"),
+        python_executable=tmp_path
+        / "Python With Spaces"
+        / ("python.exe" if sys.platform == "win32" else "python"),
         working_directory=REPO_ROOT,
     )
     return source, document, watches_file, bindings_file, profiles_dir, state_dir, plan
@@ -145,13 +148,18 @@ def test_handoff_is_deterministic_and_does_not_register_or_write(tmp_path: Path)
         state_dir=state_dir,
         manifest_root=REPO_ROOT / "manifests" / "components",
         doc_services_root=REPO_ROOT.parent / "doc-services",
-        python_executable=Path("C:/Program Files/Python312/python.exe"),
+        python_executable=tmp_path
+        / "Python With Spaces"
+        / ("python.exe" if sys.platform == "win32" else "python"),
         working_directory=REPO_ROOT,
     )
 
     assert duplicate == plan
     assert plan.schedule_id.startswith("schedule_")
-    assert plan.portable_argv[0] == "C:\\Program Files\\Python312\\python.exe"
+    expected_python = tmp_path / "Python With Spaces" / (
+        "python.exe" if sys.platform == "win32" else "python"
+    )
+    assert plan.portable_argv[0] == str(expected_python.resolve())
     assert plan.portable_argv[1:4] == ("-m", "folderhome", "scheduler")
     assert "run" in plan.portable_argv
     assert "--approve-scheduler-state-write" in plan.portable_argv
