@@ -1,0 +1,300 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    name: Core / ${{ matrix.os }} / Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    env:
+      HOME: ${{ runner.temp }}/fh
+      USERPROFILE: ${{ runner.temp }}/fh
+      TEMP: ${{ runner.temp }}/fh/t
+      TMP: ${{ runner.temp }}/fh/t
+      TMPDIR: ${{ runner.temp }}/fh/t
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Create short isolated test roots (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:HOME, $env:TEMP, (Join-Path $env:HOME "b") | Out-Null
+      - name: Create short isolated test roots (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: mkdir -p "$HOME" "$TMP" "$HOME/b"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install project test dependencies
+        run: python -m pip install ".[dev,transform]"
+      - name: Build and smoke-test the real distribution
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.13'
+        shell: bash
+        run: |
+          python -m pip install build
+          python -m build --outdir "$RUNNER_TEMP/folderhome-dist"
+          python - <<'PY'
+          from pathlib import PurePosixPath
+          import tarfile
+          import zipfile
+          from pathlib import Path
+
+          output = Path(__import__("os").environ["RUNNER_TEMP"]) / "folderhome-dist"
+          wheels = list(output.glob("*.whl"))
+          sdists = list(output.glob("*.tar.gz"))
+          if len(wheels) != 1 or len(sdists) != 1:
+              raise SystemExit(f"Expected one wheel and one sdist, got {wheels!r} and {sdists!r}")
+
+          def coordination_name(name: str) -> bool:
+              parts = PurePosixPath(name).parts
+              if ".providers" in parts:
+                  return True
+              leaf = parts[-1] if parts else ""
+              return (
+                  leaf in {"LOCK.txt", "LOCK.permissions.json"}
+                  or (leaf.startswith("LOCK.") and (leaf.endswith(".txt") or leaf.endswith(".txt.guard")))
+              )
+
+          with zipfile.ZipFile(wheels[0]) as archive:
+              wheel_names = archive.namelist()
+              if any(coordination_name(name) for name in wheel_names):
+                  raise SystemExit("The wheel contains coordination or provider-source files")
+              if "folderhome/__init__.py" not in wheel_names:
+                  raise SystemExit("The wheel is missing the installed package")
+              if not any(name.startswith("folderhome/component_manifests/") for name in wheel_names):
+                  raise SystemExit("The wheel is missing its component manifests")
+
+          with tarfile.open(sdists[0], "r:gz") as archive:
+              sdist_names = archive.getnames()
+              if any(coordination_name(name) for name in sdist_names):
+                  raise SystemExit("The sdist contains coordination or provider-source files")
+              if not any(name.endswith("/src/folderhome/__init__.py") for name in sdist_names):
+                  raise SystemExit("The sdist is missing the source package")
+              if not any("/manifests/components/" in name for name in sdist_names):
+                  raise SystemExit("The sdist is missing component manifests")
+          PY
+          python -m pip install --no-deps --force-reinstall "$RUNNER_TEMP"/folderhome-dist/*.whl
+          cd "$RUNNER_TEMP"
+          folderhome --help
+          folderhome plugins validate --json > "$RUNNER_TEMP/folderhome-plugin-validation.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          import folderhome
+
+          result = json.loads((Path(os.environ["RUNNER_TEMP"]) / "folderhome-plugin-validation.json").read_text())
+          if result.get("valid") is not True or len(result.get("plugins", [])) != 9:
+              raise SystemExit(f"Installed manifest validation failed: {result!r}")
+          if "site-packages" not in str(Path(folderhome.__file__)):
+              raise SystemExit(f"CLI smoke imported from outside the installed wheel: {folderhome.__file__}")
+          report = Path(os.environ["RUNNER_TEMP"]) / "folderhome-synthetic-report.json"
+          completed = subprocess.run(
+              [
+                  "folderhome",
+                  "run",
+                  "synthetic",
+                  "--scenario",
+                  "success",
+                  "--report-file",
+                  str(report),
+                  "--json",
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+              encoding="utf-8",
+              timeout=60,
+          )
+          if not report.is_file():
+              raise SystemExit("Installed synthetic CLI did not write its report")
+          result = json.loads(report.read_text(encoding="utf-8"))
+          stdout_result = json.loads(completed.stdout)
+          if result != stdout_result:
+              raise SystemExit("Installed synthetic CLI report differs from its stdout")
+          if (
+              result.get("schema") != "ellmos.home-agent.run-report.v1"
+              or result.get("status") != "executed"
+              or result.get("plugin_id") != "folderhome.synthetic"
+              or result.get("dry_run") is not True
+              or len(result.get("actions", [])) != 1
+              or result["actions"][0].get("side_effects") != []
+          ):
+              raise SystemExit(f"Installed synthetic CLI returned an invalid report: {result!r}")
+          PY
+      - name: Ruff
+        run: python -m ruff check .
+      - name: Compile sources and tests
+        run: python -m compileall -q src tests
+      - name: Run the complete Core pytest selection
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python -m pytest -ra --basetemp (Join-Path $env:HOME "b")
+      - name: Run the complete Core pytest selection
+        if: runner.os != 'Windows'
+        shell: bash
+        run: python -m pytest -ra --basetemp "$HOME/b"
+
+  public-source-integration:
+    name: Public source integrations / Ubuntu / Python 3.13
+    runs-on: ubuntu-latest
+    env:
+      HOME: ${{ runner.temp }}/fh
+      USERPROFILE: ${{ runner.temp }}/fh
+      TEMP: ${{ runner.temp }}/fh/t
+      TMP: ${{ runner.temp }}/fh/t
+      TMPDIR: ${{ runner.temp }}/fh/t
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Create short isolated test roots
+        run: mkdir -p "$HOME" "$TMP" "$HOME/b"
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Install project test dependencies
+        run: python -m pip install ".[dev,transform]"
+      - uses: actions/checkout@v7
+        with:
+          repository: ellmos-ai/ellmos-scheduler
+          ref: d5103b9a733701f6db80dd08cfae408bf0af8ac5
+          path: .providers/ellmos-scheduler
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: file-bricks/knowledgedigest
+          ref: 7040c66aa9326975ad81c156acf0d49fd5dca60f
+          path: .providers/KnowledgeDigest
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: doc-bricks/llm-note
+          ref: b5fe59fc155ded9603566aa0fb920a53181a2426
+          path: .providers/llm-note
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ellmos-ai/steuer-assistent
+          ref: 5d39aeec98bf0a5734bf07dc35a58aa9e1331309
+          path: .providers/steuer-assistent
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ellmos-ai/law-checker
+          ref: a5b0cd51bc3666962f2fae8017c855dea0a712a2
+          path: .providers/law-checker
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ellmos-ai/hungrycall
+          ref: 9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c
+          path: .providers/hungrycall
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: ellmos-ai/ringedingeding
+          ref: 94ae1f1e028be5aaf100baafadc18b64ff0940a2
+          path: .providers/ringedingeding
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Require exact public source manifest and checkout pins
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          import tomllib
+          from pathlib import Path
+
+          root = Path.cwd()
+          expected = {
+              "ellmos-scheduler": ("ellmos-ai/ellmos-scheduler", "d5103b9a733701f6db80dd08cfae408bf0af8ac5"),
+              "KnowledgeDigest": ("file-bricks/knowledgedigest", "7040c66aa9326975ad81c156acf0d49fd5dca60f"),
+              "llm-note": ("doc-bricks/llm-note", "b5fe59fc155ded9603566aa0fb920a53181a2426"),
+              "steuer-assistent": ("ellmos-ai/steuer-assistent", "5d39aeec98bf0a5734bf07dc35a58aa9e1331309"),
+              "law-checker": ("ellmos-ai/law-checker", "a5b0cd51bc3666962f2fae8017c855dea0a712a2"),
+              "hungrycall": ("ellmos-ai/hungrycall", "9ae58c4acb31070dcf2e3fc468cff1c80c9a7e9c"),
+              "ringedingeding": ("ellmos-ai/ringedingeding", "94ae1f1e028be5aaf100baafadc18b64ff0940a2"),
+          }
+
+          def git(path: Path, *args: str) -> str:
+              return subprocess.check_output(
+                  ["git", "-C", str(path), *args], text=True, encoding="utf-8"
+              ).strip()
+
+          manifest_by_id = {}
+          for manifest_path in (root / "manifests" / "components").glob("*.toml"):
+              manifest = tomllib.loads(manifest_path.read_text(encoding="utf-8"))
+              manifest_by_id[manifest["id"]] = manifest
+
+          actual_dirs = {
+              path.name for path in (root / ".providers").iterdir() if path.is_dir()
+          }
+          if actual_dirs != set(expected):
+              raise SystemExit(f"Unexpected public checkout set: {sorted(actual_dirs)!r}")
+
+          for plugin_id, (repository, revision) in expected.items():
+              manifest = manifest_by_id.get(plugin_id)
+              if manifest is None:
+                  raise SystemExit(f"Required public manifest is missing: {plugin_id}")
+              source = manifest.get("source", {})
+              expected_url = f"https://github.com/{repository}.git"
+              if source.get("repository", "").lower() != expected_url.lower():
+                  raise SystemExit(f"{plugin_id} manifest repository does not match {expected_url}")
+              if source.get("revision") != revision:
+                  raise SystemExit(f"{plugin_id} manifest revision does not match {revision}")
+
+              checkout = root / ".providers" / plugin_id
+              remote = git(checkout, "remote", "get-url", "origin").removesuffix(".git")
+              if remote.lower() != expected_url.removesuffix(".git").lower():
+                  raise SystemExit(f"{plugin_id} checkout origin does not match the manifest")
+              head = git(checkout, "rev-parse", "HEAD")
+              if head != revision:
+                  raise SystemExit(f"{plugin_id} checkout is at {head}, expected {revision}")
+              if git(checkout, "status", "--porcelain", "--untracked-files=all"):
+                  raise SystemExit(f"{plugin_id} checkout is dirty")
+          print(f"Verified all {len(expected)} public sources at their manifest revisions.")
+          PY
+      - name: Run complete tests with public sources
+        run: python -m pytest -ra --basetemp "$HOME/b"
+
+  javascript-fixtures:
+    name: JavaScript fixture tests / Ubuntu / Node 24
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Run existing fixture tests
+        run: node --test tests/js/*.test.cjs

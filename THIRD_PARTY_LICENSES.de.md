@@ -3,8 +3,9 @@
 [English](./THIRD_PARTY_LICENSES.md) | **Deutsch**
 
 **Version:** 0.21
-**Aktualisiert:** 2026-09-09
-**Grund:** Installierte Abhängigkeitsversionen und Grenzen mitgelieferter Lizenzen geprüft
+**Aktualisiert:** 2026-10-13
+**Zugrunde liegender Abhängigkeitsstand:** 2026-09-09; kein aktuelles vollständiges SBOM oder rechtliche Freigabe.
+**Grund:** Datum und Umfang des dokumentierten installierten Versionsstands klargestellt.
 **Zweck:** Dokumentiert externe oder vorbestehende Komponenten mit genauer Revision.
 
 | Komponente | Repository | Revision | Lizenz | Einbindung |
@@ -57,10 +58,10 @@ Die Tabelle ist ein Register, kein Ersatz für die vollständigen Lizenztexte
 der jeweiligen Komponenten. Paketweite Lizenzangaben beschreiben nicht jede
 mitgelieferte Schrift, native Bibliothek oder eingebundene Modulkopie.
 
-Die Windows-/Python-3.12.10-Abnahmeinstallation wurde am 09.09.2026 mit den
+Die am 09.09.2026 dokumentierte Windows-/Python-3.12.10-Installation wurde mit den
 Extras `calendar`, `transform`, `ollama`, `anthropic` und `openai` geprüft.
 Die Verfolgung aktiver Abhängigkeitsbedingungen und angeforderter transitiver
-Extras ergab **64 externe Laufzeitdistributionen** sowie FolderHome. Alle hatten
+Extras ergab in dieser Installation **64 externe Laufzeitdistributionen** sowie FolderHome. Alle hatten
 lesbare Lizenz-/Hinweisdateien. Nicht umfasst sind reine Entwicklungswerkzeuge,
 separate Provider-Checkouts, Python/Betriebssystem und ein vollständiges Inventar
 nativer Bibliotheken. Dies ist ein installierter Versionsstand, keine
@@ -75,9 +76,10 @@ Abhängigkeitssperrdatei oder rechtliche Freigabe.
 | anthropic 1.4.0 / openai 3.10.0 | Separate Hinweise unter `_vendor/httpx_aiohttp/` zusätzlich zur SDK-Lizenz |
 | Strands / boto3 / botocore / s3transfer | Mitgelieferte `LICENSE`- und `NOTICE`-Dateien, nicht nur die Registerangabe |
 
-Das geprüfte FolderHome-Wheel enthält nur `folderhome/` und seine eigenen
-`folderhome-0.3.0.dist-info/`; Abhängigkeitspakete und Schriftdateien sind nicht
-eingebettet. Pip installiert Abhängigkeiten separat mit ihrem Lizenzmaterial.
+Das am 09.09.2026 untersuchte FolderHome-Wheel enthielt `folderhome/` und
+`folderhome-0.3.0.dist-info/`; dies ist eine historische Artefaktbeobachtung,
+keine Beschreibung der aktuellen Projektversion. Abhängigkeitspakete und
+Schriftdateien waren nicht eingebettet. Pip installiert Abhängigkeiten separat mit ihrem Lizenzmaterial.
 Der lokale Text-zu-PDF-Adapter wählt Helvetica/Helvetica-Bold, nicht DarkGarden.
 Beides erteilt keine Freigabe zur Weitergabe einer gesamten Umgebung: Vor einer
 gebündelten App, einem Abhängigkeitspaket oder Container das genaue Artefakt

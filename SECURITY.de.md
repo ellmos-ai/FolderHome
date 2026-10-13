@@ -2,16 +2,21 @@
 
 [English](./SECURITY.md) | **Deutsch**
 
-FolderHome verarbeitet potenziell sensible Haushalts-, Gesundheits-, Finanz-
-und Verwaltungsdokumente. Der Wettbewerbsstand ist deshalb local-first,
-fail-closed und trennt Planung, Freigabe und Ausführung.
+FolderHome kann sensible Haushalts-, Gesundheits-, Finanz- und
+Verwaltungsdokumente verarbeiten. Die Anwendung unterstützt lokale Abläufe und
+optionale verbundene Aktionen. Anwendungsgates trennen Planung, Freigabe und
+Ausführung bei unterstützten Aktionen; sie sandboxen den Prozess nicht,
+ändern keine Betriebssystemrechte und verhindern nicht, dass andere Software
+das Netzwerk nutzt.
 
 ## Unterstützter Stand
 
-Sicherheitskorrekturen werden im aktuellen Wettbewerbsstand auf dem Branch
-`main` gepflegt. Die optionale öffentliche Wettbewerbsdemo ist eine
-bereitgestellte, budgetbegrenzte synthetische Runtime; sie nimmt keine
-Haushaltsuploads an und stellt keine Adapter für externe Aktionen bereit.
+Der aktuelle Entwicklungsquellstand liegt auf dem Branch `main`. Diese
+Richtlinie beschreibt Quellverhalten, keine aktuelle Bereitstellung oder
+Sicherheitszertifizierung. Das Repository enthält optionalen AgentCore-
+Runtimecode für eine synthetische Demo und weist Uploads von
+Haushaltsdokumenten zurück. Damit wird keine aktuelle Verfügbarkeit eines
+gehosteten Endpunkts behauptet.
 
 ## Sicherheitsgrenzen
 
@@ -150,7 +155,7 @@ Haushaltsuploads an und stellt keine Adapter für externe Aktionen bereit.
 
 ## Vertraulichkeit und Testdaten
 
-Repository, Tests und Wettbewerbsdemo verwenden ausschließlich synthetische
+Die veröffentlichten Test-Fixtures und Demoszenarien verwenden synthetische
 Daten. Reale Dokumente, Zugangsdaten, Sitzungstoken, Mailadressen,
 Kontokennungen oder Gesundheitsinformationen dürfen nicht committed,
 hochgeladen oder in öffentliche Demoartefakte übernommen werden.
@@ -163,14 +168,16 @@ eine ältere Police automatisch.
 
 ## Sicherheitsprüfung
 
-Der Phase-36-Scan erfasste 357 Dateien auf 12 von 12 deklarierten Flächen und
-meldete drei Befunde. Behoben wurden unbegrenzte Dokumentenarbeit, frei
-behauptbare amtliche Leistungshosts und unbegrenzte Loopback-Verbindungen.
-Der unveränderliche Vorfix-Scan und sein separater Fix-Report werden im lokalen
-Scanartefakt aufbewahrt; der Abschlussaudit dokumentiert zusätzliche
-Post-Fix- und Strands-Prüfungen.
+Der Phase-36-Scan dokumentierte damals 357 Dateien auf 12 von 12 deklarierten
+Flächen und drei Befunde. Laut Bericht betrafen die Korrekturen unbegrenzte
+Dokumentenarbeit, die Prüfung amtlicher Leistungshosts und Loopback-Grenzen.
+Diese Zahlen und Befunde beziehen sich auf den datierten Scan, nicht auf ein
+aktuelles Audit oder eine Zusicherung, dass der Quellstand unverändert ist.
+Vorfix-Scan und Fix-Report liegen in einem lokalen Scanartefakt; spätere
+Prüfungen wurden getrennt dokumentiert.
 
-Reproduzierbare lokale Prüfungen:
+Beispiele lokaler Prüfungen (Ergebnisse hängen von Umgebung und installierten
+Abhängigkeiten ab):
 
 ```powershell
 python -m pytest

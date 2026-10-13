@@ -49,7 +49,7 @@ folderhome-start = "folderhome.starter:main"
 
 [tool.hatch.build]
 # Coordination state must stay private, including builds outside a Git checkout.
-exclude = ["LOCK.txt", "LOCK.*.txt", "LOCK.permissions.json"]
+exclude = ["LOCK.txt", "LOCK.*.txt", "LOCK.permissions.json", "LOCK.*.txt.guard", ".providers/**"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/folderhome"]
