@@ -3,9 +3,8 @@
 **English** | [Deutsch](./THIRD_PARTY_LICENSES.de.md)
 
 **Version:** 0.21  
-**Updated:** 2026-10-13  
-**Underlying dependency snapshot:** 2026-09-09; not a current complete SBOM or legal clearance.  
-**Reason:** Clarified the date and scope of the recorded installed-version inventory.  
+**Updated:** 2026-09-09  
+**Reason:** Installed dependency versions and bundled-license boundaries verified  
 **Purpose:** Documents external or pre‑existing components with exact revision.
 
 | Component | Repository | Revision | License | Integration |
@@ -58,11 +57,10 @@ The table is a registry, not a substitute for the full license texts of the
 respective components. Package-level license labels do not describe every
 bundled font, native library or vendored module.
 
-For the snapshot recorded on 2026-09-09, a Windows/Python 3.12.10 installation
-was inspected with the `calendar`, `transform`, `ollama`, `anthropic` and
-`openai` extras.
+The Windows/Python 3.12.10 acceptance installation was inspected on 2026-09-09
+with the `calendar`, `transform`, `ollama`, `anthropic` and `openai` extras.
 Following active dependency markers and requested transitive extras identified
-**64 external runtime distributions**, plus FolderHome, in that installation. All had readable
+**64 external runtime distributions**, plus FolderHome. All had readable
 license/notice files. This excludes dev-only tools, separate provider checkouts,
 the Python/OS distribution and a complete native-library inventory. It is an
 installed-version snapshot, not a dependency lock or legal clearance.
@@ -76,9 +74,8 @@ installed-version snapshot, not a dependency lock or legal clearance.
 | anthropic 1.4.0 / openai 3.10.0 | Separate notices under `_vendor/httpx_aiohttp/`, in addition to the SDK license |
 | Strands / boto3 / botocore / s3transfer | Supplied `LICENSE` and `NOTICE` files, not just the registry label |
 
-The wheel inspected for this snapshot on 2026-09-09 contained `folderhome/` and
-`folderhome-0.3.0.dist-info/`; this is a historical artifact observation, not a
-description of the current project version. Dependency packages and font files were not embedded.
+The checked FolderHome wheel contains only `folderhome/` and its own
+`folderhome-0.3.0.dist-info/`; dependency packages and font files are not embedded.
 Pip installs dependencies separately with their own license material. The local
 text-to-PDF adapter selects Helvetica/Helvetica-Bold, not DarkGarden. Neither
 fact clears redistribution of an entire environment: before shipping a frozen

@@ -605,21 +605,6 @@ class LocalRequestError extends Error {
   }
 }
 
-function browserLanguage() {
-  try {
-    const preferences = typeof navigator !== "undefined"
-      ? [...(Array.isArray(navigator.languages) ? navigator.languages : []), navigator.language]
-      : [];
-    for (const preference of preferences) {
-      const base = String(preference || "").split(/[-_]/, 1)[0].toLowerCase();
-      if (supportedLanguages.includes(base)) return base;
-    }
-  } catch (_error) {
-    // Browser language preferences may be unavailable.
-  }
-  return "en";
-}
-
 function initialLanguage() {
   const requested = queryParameters.get("lang");
   if (supportedLanguages.includes(requested)) return requested;
@@ -629,7 +614,7 @@ function initialLanguage() {
   } catch (_error) {
     // Storage can be unavailable in hardened browser profiles.
   }
-  return browserLanguage();
+  return "en";
 }
 
 function initialTheme() {

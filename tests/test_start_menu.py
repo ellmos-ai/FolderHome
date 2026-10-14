@@ -368,7 +368,6 @@ def test_missing_starter_scripts_fail_gracefully_with_nonzero_exitcode(tmp_path:
     assert any("START-SETUP.cmd was not found" in msg for msg in logs3)
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="START.cmd requires Windows cmd.exe")
 def test_start_cmd_propagates_nonzero_exit_codes(tmp_path: Path) -> None:
     import subprocess
 
@@ -2053,7 +2052,6 @@ def test_install_starter_packaging_and_wrapper_installation_contract(tmp_path: P
             "--no-deps",
             "--no-index",
             "--disable-pip-version-check",
-            "--ignore-installed",
             str(wheels[0]),
         ],
         env=build_env,

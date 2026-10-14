@@ -2,15 +2,14 @@
 
 **English** | [Deutsch](./SECURITY.de.md)
 
-FolderHome can process sensitive household, health, financial, and administrative documents. It supports local workflows and optional connected actions. Application gates separate planning, approval, and execution for supported actions; they do not sandbox the process, change operating-system permissions, or prevent other software from using the network.
+FolderHome processes potentially sensitive household, health, financial, and administrative documents. The competition state is therefore local‑first, fail‑closed, and separates planning, approval, and execution.
 
 ## Supported State
 
-The current development source is maintained on the repository's `main`
-branch. This policy describes source behavior, not a current deployment or
-security certification. The repository contains optional AgentCore runtime code for a
-synthetic demo journey and rejects household-document uploads. This does not
-assert that a hosted endpoint is currently available.
+Security fixes are maintained on the current competition state on branch
+`main`. The optional public competition demo is a deployed, budget-bounded
+synthetic runtime; it accepts no household uploads and exposes no external
+action adapters.
 
 ## Security Boundaries
 
@@ -122,15 +121,15 @@ assert that a hosted endpoint is currently available.
 
 ## Confidentiality and Test Data
 
-The published test fixtures and demo scenarios use synthetic data. Real documents, credentials, session tokens, email addresses, account identifiers, or health information must not be committed, uploaded, or incorporated into public demo artifacts.
+The repository, tests, and competition demo use exclusively synthetic data. Real documents, credentials, session tokens, email addresses, account identifiers, or health information must not be committed, uploaded, or incorporated into public demo artifacts.
 
 The demo output explicitly states that it is synthetic. A fixture run exercises the Strands agent loop, but neither model quality nor AWS availability. No demo action sends email, places a call, creates an external calendar event, uploads a document, or archives an older policy automatically.
 
 ## Security Review
 
-The Phase‑36 scan recorded 357 files across 12 of 12 declared areas and three findings at that time. The report says fixes addressed unbounded document processing, official-benefit host validation, and loopback connection limits. These figures and findings describe that dated scan, not a current audit or an assurance that the source remains unchanged. The pre-fix scan and fix report are retained in a local scan artifact; later checks were recorded separately.
+The Phase‑36 scan captured 357 files across 12 of 12 declared areas and reported three findings. Fixed were unlimited document processing, freely claimable official benefit hosts, and unlimited loopback connections. The immutable pre‑fix scan and its separate fix report are stored in the local scan artifact; the final audit documents additional post‑fix and Strands checks.
 
-Example local checks (results depend on the installed environment and dependencies):
+Reproducible local checks:
 
 ```powershell
 python -m pytest

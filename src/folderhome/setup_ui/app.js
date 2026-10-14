@@ -1,5 +1,4 @@
 const token = new URLSearchParams(window.location.search).get("token") || "";
-const supportedLanguages = ["en", "de"];
 
 const translations = {
   en: {
@@ -260,46 +259,7 @@ const translations = {
   },
 };
 
-function browserLanguage() {
-  try {
-    const preferences = typeof navigator !== "undefined"
-      ? [...(Array.isArray(navigator.languages) ? navigator.languages : []), navigator.language]
-      : [];
-    for (const preference of preferences) {
-      const base = String(preference || "").split(/[-_]/, 1)[0].toLowerCase();
-      if (supportedLanguages.includes(base)) return base;
-    }
-  } catch (_error) {
-    // Browser language preferences may be unavailable.
-  }
-  return "en";
-}
-
-function initialLanguage() {
-  const requested = new URLSearchParams(window.location.search).get("lang");
-  if (supportedLanguages.includes(requested)) return requested;
-  try {
-    const stored = window.localStorage.getItem("folderhome.language");
-    if (supportedLanguages.includes(stored)) return stored;
-  } catch (_error) {
-    // Storage can be unavailable in hardened browser profiles.
-  }
-  return browserLanguage();
-}
-
-function setLanguage(nextLanguage) {
-  if (!supportedLanguages.includes(nextLanguage)) return;
-  language = nextLanguage;
-  try {
-    window.localStorage.setItem("folderhome.language", language);
-  } catch (_error) {
-    // The current view still changes when storage is unavailable.
-  }
-  applyTranslations();
-}
-
-let language = initialLanguage();
-document.documentElement.lang = language;
+let language = "en";
 let state = null;
 let checkedPlan = null;
 
@@ -355,7 +315,6 @@ async function api(path, options = {}) {
 }
 
 function applyTranslations() {
-  document.documentElement.lang = language;
   document.querySelectorAll("[data-i18n]").forEach((element) => {
     element.textContent = t(element.dataset.i18n);
   });
@@ -1825,9 +1784,12 @@ bindSchedulerEvents();
 document.querySelector("#check").addEventListener("click", () => check().catch(showError));
 document.querySelector("#save").addEventListener("click", () => save().catch(showError));
 document.querySelectorAll("[data-language]").forEach((button) => {
-  button.addEventListener("click", () => setLanguage(button.dataset.language));
+  button.addEventListener("click", () => {
+    language = button.dataset.language;
+    document.documentElement.lang = language;
+    applyTranslations();
+  });
 });
-applyTranslations();
 
 api("/api/v1/setup/state")
   .then((payload) => {

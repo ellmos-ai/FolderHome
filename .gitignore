@@ -42,7 +42,6 @@ _archive/
 LOCK.txt
 LOCK.*.txt
 LOCK.permissions.json
-LOCK.*.txt.guard
 .devpost-hackathon-state.json
 AGENTS.md
 CLAUDE.md

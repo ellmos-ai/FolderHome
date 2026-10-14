@@ -2,9 +2,8 @@
 
 [English](./PRIVACY.md) | **Deutsch**
 
-**Quellprüfung:** 13. Oktober 2026. Beschrieben werden beobachtete Datenflüsse
-der Anwendung; dies ist weder eine rechtliche Konformitätsbescheinigung noch
-eine Datenschutzerklärung eines Hosters.
+**Geprüft:** 14. September 2026. Beschrieben werden die Datenflüsse der Software,
+keine rechtliche Konformitätsbescheinigung oder Datenschutzerklärung eines Hosters.
 
 ## Was auf diesem Computer bleibt
 
@@ -29,11 +28,10 @@ des Betriebssystemkontos, nicht zum FolderHome-Profilwähler.
 
 ## Was den Computer verlassen kann
 
-| Netzwerkweg | Offenlegung und Grenze |
+| Optionaler Weg | Offenlegung und Grenze |
 |---|---|
-| Paketinstallation und Builds | Pip-/Buildwerkzeuge kontaktieren den konfigurierten Paketindex oder Quellserver, um FolderHome und Abhängigkeiten abzurufen; dies ist vom Laufzeitverkehr der Anwendung getrennt |
-| Gehostetes Modell oder Ollama außerhalb von Loopback | Prompt, gespeicherter Gesprächskontext und ausgewählter Werkzeugkontext gehen nach Netzwerk- und Datenfreigabe an den konfigurierten Modellendpunkt; der Dienst erhält außerdem gewöhnliche Verbindungsmetadaten wie die Quell-IP-Adresse |
-| Google-Kalender | Freigegebene Termindaten und authentifizierte API-Anfragen gehen an Google; Token-Erneuerung kontaktiert zusätzlich Googles OAuth-Endpunkt. Beide übertragen gewöhnliche Verbindungsmetadaten |
+| Gehostetes Modell oder Ollama außerhalb von Loopback | Prompt, gespeicherter Gesprächskontext und ausgewählter Werkzeugkontext gehen nach Netzwerk- und Datenfreigabe an den konfigurierten Modellendpunkt |
+| Google-Kalender | Freigegebene Termindaten und authentifizierte API-Anfragen gehen an Google; Token-Erneuerung kontaktiert zusätzlich Googles OAuth-Endpunkt |
 | Eigener Mailentwurf | Die vorbereitete Nachricht einschließlich Empfängerheadern und Inhalt geht an den konfigurierten IMAP-Anbieter; **ungesendet heißt nicht ungeteilt** |
 | Statischer öffentlicher Showcase | Der Hostingdienst erhält gewöhnliche Webanfragen; der Showcase liest keine lokalen Haushaltsdokumente |
 
@@ -45,8 +43,6 @@ und konservativ erkannte sensible Muster durch stabile, prozesslokale
 Platzhalter und stellt sie lokal wieder her. Das verringert die Offenlegung,
 ist aber keine Anonymisierung: unbekannte Kennungen in Freitext können erhalten
 bleiben. Die ausdrücklichen Netzwerk- und Sensitivdatenfreigaben bleiben Pflicht.
-FolderHome kann die Aufbewahrung oder weitere Nutzung von
-Verbindungsmetadaten durch Provider nicht einsehen.
 Google-Metadatenabfrage benötigt
 eine eigene Lesefreigabe. Kalenderschreibvorgänge und Mailentwürfe benötigen
 eigene Startgates **und** exakte Planbestätigungen. Die optionale
